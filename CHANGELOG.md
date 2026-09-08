@@ -1,0 +1,322 @@
+# Changelog
+
+All notable changes to Notspot detector are documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.9.0] - 2026-09-08
+
+### Added
+
+- **Settings profiles** panel below Cellular metrics — save, load, and delete named profiles for all app settings: ping target and test interval, monitoring options (SIM, 2G fallback, quiet passive alerts, measurement cycle, passive sound speed), passive signal ranges (RSRP/RSRQ tiers, noisy RSRQ clicks, quiet alert thresholds), mock signal, alert thresholds, and alert sound volumes. Saving requires settings that differ from factory defaults; up to 24 named profiles are stored on device. Load applies immediately; changing SIM while monitoring restarts the session.
+
+## [1.8.9] - 2026-09-08
+
+### Changed
+
+- **Noisy RSRQ passive clicks** — when enabled and RSRQ is below your fair threshold, passive click rate now follows **RSRP only**; RSRQ no longer forces faster critical-tier intervals while the noisy tone is active.
+
+## [1.8.8] - 2026-09-08
+
+### Added
+
+- **Noisy RSRQ passive clicks** — optional checkbox under the RSRQ fair boundary (default off). When enabled, passive-only 600 Hz tier clicks mix in white noise while RSRQ is below your fair threshold, making poor signal quality easier to distinguish by ear.
+
+### Changed
+
+- **RSRQ fair at or above** slider range is now **−30 to −13 dB** (was −30 to −1 dB).
+
+## [1.8.7] - 2026-09-08
+
+### Changed
+
+- **Passive sound speed** range extended to **1–20** (was 1–10); default remains 5. Higher values speed up passive tier clicks, flatline pulses, and limited-service tones further.
+
+## [1.8.6] - 2026-09-08
+
+### Added
+
+- **Alert sound Test buttons** — each volume control in Alert sound volume has a Test button that plays a sample at the current level (disabled while monitoring is running).
+
+### Changed
+
+- **Passive sound speed** moved from Passive signal ranges to the Alert sound volume panel, alongside the other audio controls.
+
+## [1.8.5] - 2026-09-08
+
+### Added
+
+- **Passive sound speed** slider (1–10, default 5) in Passive signal ranges — one control scales tier click intervals, no-signal flatline pulses, and limited-service tones together during passive-only monitoring. 5 matches the current rate; lower values slow all tiers proportionally; higher values speed them up.
+
+## [1.8.4] - 2026-09-08
+
+### Added
+
+- **Quiet alert thresholds** — adjustable RSRP and RSRQ sliders under Monitoring options for quiet passive alerts (defaults −105 dBm and −20 dB), independent of tier band settings.
+
+## [1.8.3] - 2026-09-08
+
+### Fixed
+
+- **Quiet passive alerts thresholds** — unmute conditions now derive correctly from your fair band settings: RSRP at or below the fair boundary, RSRQ below fair minus 2 dB (defaults −105 dBm and −20 dB). The monitoring options hint shows the live thresholds.
+
+## [1.8.2] - 2026-09-08
+
+### Added
+
+- **Passive measurement cycle** slider (1–10 s, default 5 s) in Passive signal ranges — controls how often RSRP, RSRQ, and cell identity refresh during passive-only monitoring and passive idle KPI polling, independent of ping test interval.
+
+## [1.8.1] - 2026-09-08
+
+### Changed
+
+- **Passive alert click rate** — passive-only signal tier clicks, no-signal flatline pulses, and limited-service tones now play at **2×** the previous rate (intervals halved). Active ping monitoring is unchanged.
+
+## [1.8.0] - 2026-09-07
+
+### Added
+
+- **Mock signal mode** — in Passive signal ranges, enable mock signal to drive passive-only monitoring with manual RSRP and RSRQ sliders (−126 to −50 dBm, −30 to −1 dB) instead of live radio readings. Adjust values while running to test alert tiers, reception LED, and audio without moving.
+
+## [1.7.3] - 2026-09-07
+
+### Changed
+
+- **RSRQ passive ranges** — simplified to a single adjustable fair/critical boundary (default −18 dB). Below it triggers critical alerts and poor reception; at or above is fair.
+
+## [1.7.2] - 2026-09-07
+
+### Added
+
+- **Good RSRP tier** — adjustable boundary between fair and mild (default −100 dBm), with a 4 s alert interval between fair (2.5 s) and mild (5 s).
+
+### Changed
+
+- **Very strong** is fixed at **> −75 dBm** (800 Hz tone) and is no longer adjustable in passive signal ranges.
+
+## [1.7.1] - 2026-09-07
+
+### Changed
+
+- **Passive signal ranges** — RSRP tiers simplified to five boundary sliders within a fixed **−126 to −50 dBm** range; RSRQ uses two tier boundaries within **−30 to −1 dB**. Each slider shows the band it defines instead of separate lower/upper controls per tier.
+
+## [1.7.0] - 2026-09-07
+
+### Added
+
+- **Passive signal ranges** panel — configure upper and lower RSRP and RSRQ band edges for passive monitoring: alert click tiers, reception LED colours, no-signal flatline, and quiet-alert thresholds all follow your settings. Reset to defaults restores the original factory bands.
+
+## [1.6.10] - 2026-09-07
+
+### Fixed
+
+- **EARFCN/PCI when there is no signal** — camped-cell identity is cleared whenever no-signal conditions apply (flatline, RSRP at or below −125 dBm, no cellular path, etc.), so stale neighbour cells from the OS are no longer shown.
+
+## [1.6.9] - 2026-09-07
+
+### Fixed
+
+- **EARFCN/PCI after 2G ↔ 4G changes in passive mode** — cell identity now follows the active LTE/NR bearer from signal strength instead of a stale 2G network-type report; PLMN filtering is applied per radio type so a camped 2G neighbour no longer blocks LTE EARFCN/PCI after returning to 4G.
+
+## [1.6.8] - 2026-09-07
+
+### Added
+
+- **Quiet passive alerts** checkbox (default off) under Monitoring options — during passive-only monitoring, mutes signal-tier clicks, cell-change bell, technology-change tone, and limited-service tone unless there is no signal, RSRQ is below −20 dB, or RSRP is at or below −105 dBm. No-signal tone is always played.
+
+## [1.6.7] - 2026-09-07
+
+### Changed
+
+- **600 Hz signal pulse duration** slider range extended to **10–600 ms** (was 100–600 ms), with 10 ms steps for finer control at short lengths.
+
+## [1.6.6] - 2026-09-07
+
+### Changed
+
+- **Very strong passive alert** (RSRP above −75 dBm) — 800 Hz pulse interval reduced from 5 s to **2.5 s**.
+
+## [1.6.5] - 2026-09-07
+
+### Changed
+
+- **No-signal tone** (pulsed and continuous flatline) now uses **600 Hz**, matching the weak-signal tier pulses. Ping click sounds remain at 3200 Hz.
+
+## [1.6.4] - 2026-09-07
+
+### Changed
+
+- **Very strong signal alert** (RSRP above −75 dBm) now uses an **800 Hz** sustained pulse so it is distinct from the 600 Hz tiers below.
+
+## [1.6.3] - 2026-09-07
+
+### Fixed
+
+- **Very strong signal alert** — RSRP above −75 dBm now uses the same sustained **600 Hz** pulse as other signal tiers (respecting the pulse duration slider), instead of a short two-tone chirp.
+- **Mild signal band (−76 to −95 dBm)** — interval clicks now play in this range; previously only very strong and fair-or-worse tiers triggered, leaving a gap with no 600 Hz alert or the wrong ping click sound.
+
+## [1.6.2] - 2026-09-07
+
+### Fixed
+
+- **EARFCN/PCI on dual-SIM phones** — “System default (data SIM)” now uses a subscription-scoped telephony manager; serving cells are chosen by primary/secondary connection status and filtered by PLMN so the other SIM’s camped channel is no longer shown intermittently.
+
+## [1.6.1] - 2026-09-07
+
+### Added
+
+- **600 Hz signal pulse duration** slider (100–600 ms, default 250 ms) under Alert sound volume; scales the burst length for all RSRP/RSRQ tier clicks proportionally.
+
+## [1.6.0] - 2026-09-07
+
+### Added
+
+- **Technology change alert** — an upward frequency sweep (320–720 Hz) when the registered technology changes (e.g. 4G ↔ 5G, 5G EN-DC ↔ 4G, 2G ↔ 4G), separate from the EARFCN/PCI cell-change bell.
+- **Technology change sweep** volume slider under Alert sound volume.
+
+## [1.5.4] - 2026-09-07
+
+### Changed
+
+- **No usable signal** RSRP threshold lowered from −130 dBm to **−125 dBm** (no-signal tone at or below this level).
+
+## [1.5.3] - 2026-09-07
+
+### Fixed
+
+- **Passive monitoring** — RSRP at or below **−130 dBm** is now treated as no usable signal, triggering the no-signal tone instead of weak-signal tier clicks (the modem can still report a camped cell at very low levels).
+
+## [1.5.2] - 2026-09-07
+
+### Changed
+
+- **Low-signal tier alerts** frequency changed from 3200 Hz to **600 Hz** (250 ms sine burst; intervals unchanged).
+
+## [1.5.1] - 2026-09-07
+
+### Changed
+
+- **Low-signal tier alerts** now use a sustained **3200 Hz sine burst** (same timbre as the no-signal tone, **250 ms**) instead of short decaying clicks, so the pitch is clearly audible at every interval.
+
+## [1.5.0] - 2026-09-07
+
+### Changed
+
+- **Low-signal clicks** now use RSRP/RSRQ tiers on the low-signal volume slider (3200 Hz, same pitch as no-signal for weak tiers):
+  - **RSRP above −95 dBm** (when alerting): every **5 s**, **150 ms** present click
+  - **−95 to −105 dBm**: every **2.5 s**, **250 ms** sine burst
+  - **−105 to −120 dBm**: every **1 s**, **250 ms** sine burst
+  - **Below −120 dBm** or **RSRQ below −18 dB**: every **0.5 s**, **250 ms** sine burst
+
+## [1.4.4] - 2026-09-07
+
+### Changed
+
+- **Passive-only monitoring** — RTT, jitter, packet loss, and successful ping counts are hidden from the cellular metrics card.
+
+## [1.4.3] - 2026-09-07
+
+### Changed
+
+- Refactored `MainActivity` UI into a dedicated `MonitorApp` composable and updated lifecycle Compose dependencies (fixes Android Studio highlighting/errors on the `setContent` block).
+
+## [1.4.2] - 2026-09-07
+
+### Changed
+
+- **Passive-only monitoring** — low-signal and very-strong-signal clicks now play every **5 seconds** (fixed interval, not RSRP-scaled).
+
+## [1.4.1] - 2026-09-07
+
+### Changed
+
+- **Passive-only monitoring** — the status LED shows **Reception** from RSRP/RSRQ instead of connection quality: red below −105 dBm or RSRQ below −18 dB, yellow from −105 to −95 dBm, green above −95 dBm (including stronger than −85 dBm).
+
+## [1.4.0] - 2026-09-07
+
+### Added
+
+- **Passive-only monitoring** — second start control runs signal KPI polling and alert audio with no TCP ping tests; uses the same 10-minute timeout to silent KPI-only polling until Stop.
+- **SIM selector** — choose which SIM to monitor (defaults to the system data SIM); monitoring restarts automatically when the selection changes.
+- **2G fallback toggle** — optionally read 2G signal KPIs when LTE/NR is unavailable (no ping tests on 2G).
+- **Limited service** — network service state shown in metrics (in service / limited / no service) with a dedicated **limited service tone** (alternating 880/660 Hz beeps; 300 ms on/off pulse on 2G limited service without home GSM).
+- **Limited service tone** volume slider under Alert sound volume.
+- **Continuous no-signal tone** when completely out of service on all technologies and no emergency SOS is available on any SIM (pulsed no-signal tone in all other cases).
+- **2G metrics** — GSM signal (dBm), ARFCN, and BSIC when registered on 2G.
+
+### Changed
+
+- **Low signal** and **very strong signal** volume sliders merged into a single **Low & very strong signal clicks** control.
+- With **2G fallback** enabled, the no-signal tone still plays when 4G/5G is lost even if 2G GSM remains registered.
+- RTT graph hidden during passive-only monitoring sessions.
+
+### Fixed
+
+- **Low-signal clicks** did not play when connection-test clicks were suppressed (“Silent when connection is good”) but low-signal volume was turned up.
+
+## [1.3.0] - 2026-09-07
+
+### Added
+
+- **Cell change bell volume** slider under Alert sound volume (independent of connection clicks).
+
+### Changed
+
+- **No-signal tone** is now a pulsed alert: 250 ms on, 1000 ms off, at 3200 Hz (was a continuous tone).
+- **Low-signal** and **degraded/poor** clicks use 3200 Hz with a **150 ms** duration (same frequency as no-signal; good-connection clicks stay short at 6 ms).
+
+### Fixed
+
+- **Packet loss** could stay stuck (e.g. at 20%) after the connection recovered; it now uses the last 5 test cycles (matching jitter) and clears old failure history after 3 consecutive clean cycles.
+
+## [1.2.0] - 2026-09-07
+
+### Added
+
+- **Passive idle mode** — after 10 minutes of active monitoring, ping tests and Geiger audio stop automatically; the foreground service continues polling RSRP, RSRQ, EARFCN, PCI, and related signal KPIs until you tap Stop.
+- **Cell change bell** — a bell chime when LTE or NR EARFCN or PCI changes (including 5G EN-DC anchor and NR leg).
+- **Very strong signal chirp** — when RSRP is above −75 dBm on a good connection, a two-tone chirp plays shortly after the connection test clicks.
+- **Per-alert audio volume** sliders for connection clicks, low signal, very strong signal, and no-signal tone.
+- Configurable **good-connection clicks per test** (1–10) on the alert thresholds card.
+- App **version label** in the top-right of the monitor screen.
+
+### Changed
+
+- **5G EN-DC** now shows both the LTE anchor and NR EARFCN/PCI; RSRP and RSRQ continue to reflect the LTE anchor only (not SS-RSRP/SS-RSRQ).
+- Jitter uses a rolling last-5-sample window with stale high RTT values pruned on recovery.
+- When RTT or jitter exceeds 1000 ms, Geiger click interval is divided by 10.
+- Low-signal warning click duration increased from 12 ms to 100 ms.
+
+## [1.1.0] - 2026-09-07
+
+### Added
+
+- EARFCN / NR-ARFCN and PCI for the registered serving cell in cellular metrics.
+- Location permission request for cell identity (required by Android 10+; GPS is not tracked).
+- **Silent when connection is good** option in alert thresholds (suppresses Geiger clicks when the last test rates as good connection).
+- Rolling 20-cycle window for packet loss, aligned with RTT jitter sampling.
+
+### Changed
+
+- Technology labels now show **4G** (LTE) and **5G** (NR) instead of LTE / 5G NR.
+- Each test cycle always sends one RRC warm-up probe plus the configured measured pings (e.g. setting **1** runs 2 probes: warm-up + 1 measured).
+
+### Fixed
+
+- Crash on some devices when reading cell identity without location permission.
+- EARFCN and PCI staying blank until location permission was granted.
+- Packet loss staying elevated and Geiger clicks continuing after returning to good signal and RTT (loss was cumulative for the whole session).
+
+## [1.0.0] - 2026-09-07
+
+### Added
+
+- Geiger-counter-style monitoring of cellular mobile data quality (cellular-only TCP probes, not Wi‑Fi).
+- Foreground service with background monitoring, wake lock, and persistent notification.
+- Metrics: operator, technology, RTT, jitter, packet loss, RSRP, RSRQ, successful pings.
+- RTT graph (rolling 60 s window, reversed Y-axis).
+- Configurable ping target, pings per test, and test cycle interval.
+- Configurable alert thresholds for good/poor RTT, jitter, and packet loss.
+- Geiger audio: click rate scales with connection quality; flatline tone when no mobile data; warning click on weak RSRP/RSRQ.
+- Battery optimization prompt for reliable background monitoring.
