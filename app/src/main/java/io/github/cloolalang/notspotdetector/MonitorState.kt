@@ -15,7 +15,8 @@ import io.github.cloolalang.notspotdetector.model.RttSample
 import io.github.cloolalang.notspotdetector.model.ThresholdSettings
 import io.github.cloolalang.notspotdetector.model.SignalStateAnnouncement
 import io.github.cloolalang.notspotdetector.model.hasUsableSignalForMonitoring
-import io.github.cloolalang.notspotdetector.model.shouldPlayFlatline
+import io.github.cloolalang.notspotdetector.model.NoSignalDebouncer
+import io.github.cloolalang.notspotdetector.model.evaluateFlatlineCondition
 import io.github.cloolalang.notspotdetector.model.withStabilizedCellIdentity
 import io.github.cloolalang.notspotdetector.model.withQuality
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -55,6 +56,7 @@ object MonitorState {
     private var noSignalBaselineReady = false
     private var limitedServiceBaselineReady = false
     private var stableCellIdentity = CellIdentitySnapshot()
+    private val noSignalDebouncer = NoSignalDebouncer()
 
     fun setPassiveSignalSettings(settings: PassiveSignalSettings) {
         _passiveSignalSettings.value = settings.normalized()
@@ -94,8 +96,8 @@ object MonitorState {
         } else {
             displayStats.withQuality(_thresholds.value, passiveSettings)
         }
-        val events = buildMonitoringEvents(previous, enriched, passiveSettings)
-        _stats.value = enriched
+        val (finalStats, events) = buildMonitoringEvents(previous, enriched, passiveSettings)
+        _stats.value = finalStats
         if (!enriched.isPassiveIdleMode) {
             enriched.rttMs?.let { recordRttSample(it, enriched.lastPingTimestampMs) }
         }
@@ -118,7 +120,9 @@ object MonitorState {
     fun recomputeStatsQuality() {
         val current = _stats.value
         if (current.isMonitoring) {
-            _stats.value = current.withQuality(_thresholds.value, _passiveSignalSettings.value)
+            val passiveSettings = _passiveSignalSettings.value
+            val withQuality = current.withQuality(_thresholds.value, passiveSettings)
+            _stats.value = applyNoSignalDebounce(withQuality, passiveSettings)
         }
     }
 
@@ -210,39 +214,51 @@ object MonitorState {
         } else {
             stabilized
         }
-        val events = buildMonitoringEvents(previous, next, passiveSettings)
-        _stats.value = next
+        val (finalStats, events) = buildMonitoringEvents(previous, next, passiveSettings)
+        _stats.value = finalStats
         return events
+    }
+
+    private fun applyNoSignalDebounce(
+        stats: ConnectivityStats,
+        passiveSettings: PassiveSignalSettings
+    ): ConnectivityStats {
+        if (!stats.isMonitoring) return stats.copy(noSignalActive = false)
+
+        val debounceResult = noSignalDebouncer.update(stats.evaluateFlatlineCondition(passiveSettings))
+        return stats.copy(noSignalActive = debounceResult.confirmedActive)
     }
 
     private fun buildMonitoringEvents(
         previous: ConnectivityStats,
         next: ConnectivityStats,
         passiveSettings: PassiveSignalSettings
-    ): MonitoringUpdateEvents {
-        val networkOperatorName = next.networkOperatorName
-        return MonitoringUpdateEvents(
+    ): Pair<ConnectivityStats, MonitoringUpdateEvents> {
+        val nextDebounced = applyNoSignalDebounce(next, passiveSettings)
+        val networkOperatorName = nextDebounced.networkOperatorName
+        val events = MonitoringUpdateEvents(
             cellChangeAnnouncement = consumeCellIdentityChange(
-                next = CellIdentitySnapshot.fromStats(next),
-                radioAccessType = next.radioAccessType,
+                next = CellIdentitySnapshot.fromStats(nextDebounced),
+                radioAccessType = nextDebounced.radioAccessType,
                 networkOperatorName = networkOperatorName
             ),
             technologyChangeAnnouncement = consumeTechnologyChangeAnnouncement(
-                nextType = next.radioAccessType,
+                nextType = nextDebounced.radioAccessType,
                 networkOperatorName = networkOperatorName
             ),
             noSignalStateAnnouncement = consumeNoSignalStateChange(
-                previous = previous,
-                next = next,
-                passiveSettings = passiveSettings,
-                networkOperatorName = networkOperatorName
+                previousActive = previous.noSignalActive,
+                nextActive = nextDebounced.noSignalActive,
+                networkOperatorName = networkOperatorName,
+                isMonitoring = nextDebounced.isMonitoring
             ),
             limitedServiceStateAnnouncement = consumeLimitedServiceStateChange(
                 previous = previous,
-                next = next,
+                next = nextDebounced,
                 networkOperatorName = networkOperatorName
             )
         )
+        return nextDebounced to events
     }
 
     private fun consumeTechnologyChangeAnnouncement(
@@ -266,15 +282,12 @@ object MonitorState {
     }
 
     private fun consumeNoSignalStateChange(
-        previous: ConnectivityStats,
-        next: ConnectivityStats,
-        passiveSettings: PassiveSignalSettings,
-        networkOperatorName: String?
+        previousActive: Boolean,
+        nextActive: Boolean,
+        networkOperatorName: String?,
+        isMonitoring: Boolean
     ): String? {
-        if (!_isRunning.value || !next.isMonitoring) return null
-
-        val previousActive = previous.shouldPlayFlatline(passiveSettings)
-        val nextActive = next.shouldPlayFlatline(passiveSettings)
+        if (!_isRunning.value || !isMonitoring) return null
 
         if (!noSignalBaselineReady) {
             noSignalBaselineReady = true
@@ -334,6 +347,7 @@ object MonitorState {
         noSignalBaselineReady = false
         limitedServiceBaselineReady = false
         stableCellIdentity = CellIdentitySnapshot()
+        noSignalDebouncer.reset()
     }
 
     fun enterPassiveIdleMode() {

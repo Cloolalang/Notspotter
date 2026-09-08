@@ -40,6 +40,20 @@ object CellularSignalReader {
             return CellularRadioMetrics(permissionGranted = false)
         }
 
+        return try {
+            readInternal(context, monitor2gFallback, subscriptionId)
+        } catch (_: SecurityException) {
+            CellularRadioMetrics(permissionGranted = true)
+        } catch (_: RuntimeException) {
+            CellularRadioMetrics(permissionGranted = true)
+        }
+    }
+
+    private fun readInternal(
+        context: Context,
+        monitor2gFallback: Boolean,
+        subscriptionId: Int
+    ): CellularRadioMetrics {
         val telephonyManager = SimSubscriptionHelper.telephonyManagerFor(context, subscriptionId)
             ?: return CellularRadioMetrics(permissionGranted = true)
 

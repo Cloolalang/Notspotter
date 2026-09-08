@@ -1,8 +1,13 @@
 package io.github.cloolalang.notspotdetector.model
 
+import kotlin.math.roundToInt
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+
 data class AudioVolumeSettings(
     val pingClickVolume: Float = DEFAULT_VOLUME,
     val lowSignalClickVolume: Float = DEFAULT_VOLUME,
+    val signalPulseFrequencyHz: Int = DEFAULT_SIGNAL_PULSE_FREQUENCY_HZ,
     val signalPulseDurationMs: Int = DEFAULT_SIGNAL_PULSE_DURATION_MS,
     val cellChangeBellVolume: Float = DEFAULT_VOLUME,
     val cellChangeVoiceEnabled: Boolean = DEFAULT_CELL_CHANGE_VOICE_ENABLED,
@@ -21,6 +26,10 @@ data class AudioVolumeSettings(
         return copy(
             pingClickVolume = pingClickVolume.coerceIn(MIN_VOLUME, MAX_VOLUME),
             lowSignalClickVolume = lowSignalClickVolume.coerceIn(MIN_VOLUME, MAX_VOLUME),
+            signalPulseFrequencyHz = signalPulseFrequencyHz.coerceIn(
+                MIN_SIGNAL_PULSE_FREQUENCY_HZ,
+                MAX_SIGNAL_PULSE_FREQUENCY_HZ
+            ),
             signalPulseDurationMs = signalPulseDurationMs.coerceIn(
                 MIN_SIGNAL_PULSE_DURATION_MS,
                 MAX_SIGNAL_PULSE_DURATION_MS
@@ -36,6 +45,11 @@ data class AudioVolumeSettings(
         )
     }
 
+    /** Very strong tier tone: 25% above [signalPulseFrequencyHz]. */
+    fun veryStrongPulseFrequencyHz(): Int {
+        return (signalPulseFrequencyHz * VERY_STRONG_FREQUENCY_MULTIPLIER).roundToInt()
+    }
+
     companion object {
         const val DEFAULT_VOLUME = 1f
         const val MIN_VOLUME = 0f
@@ -47,7 +61,17 @@ data class AudioVolumeSettings(
         const val MIN_SIGNAL_PULSE_DURATION_MS = 10
         const val MAX_SIGNAL_PULSE_DURATION_MS = 600
 
-        /** Alert tone length plus a short gap before the spoken announcement. */
-        const val ALERT_VOICE_DELAY_MS = 500L
+        const val DEFAULT_SIGNAL_PULSE_FREQUENCY_HZ = 600
+        const val MIN_SIGNAL_PULSE_FREQUENCY_HZ = 400
+        const val MAX_SIGNAL_PULSE_FREQUENCY_HZ = 5_000
+        const val SIGNAL_PULSE_FREQUENCY_STEP_HZ = 10
+        const val VERY_STRONG_FREQUENCY_MULTIPLIER = 1.25
+
+        /** Gap between end of alert tone and start of TTS. */
+        const val ALERT_VOICE_GAP_MS = 50L
+
+        fun voiceDelayAfterAlertTone(toneDurationMs: Int): Duration {
+            return (toneDurationMs.coerceAtLeast(0).toLong() + ALERT_VOICE_GAP_MS).milliseconds
+        }
     }
 }

@@ -1,14 +1,26 @@
 package io.github.cloolalang.notspotdetector.data
 
 import android.content.Context
+import android.net.Uri
+import android.os.Environment
 import io.github.cloolalang.notspotdetector.model.AppSettingsSnapshot
+import io.github.cloolalang.notspotdetector.model.ProfileImportResult
 import io.github.cloolalang.notspotdetector.model.SettingsProfile
 import io.github.cloolalang.notspotdetector.model.SettingsProfileSummary
+import java.io.File
 import java.util.UUID
 
 class SettingsProfilesRepository(context: Context) {
 
-    private val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    private val appContext = context.applicationContext
+    private val legacyPrefs = appContext.getSharedPreferences(LEGACY_PREFS_NAME, Context.MODE_PRIVATE)
+    private val profilesDir: File = resolveProfilesDir()
+
+    init {
+        migrateFromSharedPreferencesIfNeeded()
+    }
+
+    fun profilesDirectory(): File = profilesDir
 
     fun listSummaries(): List<SettingsProfileSummary> {
         return loadProfiles().map { profile ->
@@ -22,12 +34,16 @@ class SettingsProfilesRepository(context: Context) {
     }
 
     fun loadProfiles(): List<SettingsProfile> {
-        return AppSettingsSnapshotCodec.decodeProfiles(prefs.getString(KEY_PROFILES_JSON, "") ?: "")
+        return profilesDir.listFiles { file ->
+            file.isFile && file.extension.equals("json", ignoreCase = true)
+        }?.mapNotNull(::readProfileFile).orEmpty()
     }
 
     fun findById(id: String): SettingsProfile? {
-        return loadProfiles().firstOrNull { it.id == id }
+        return readProfileFile(profileFile(id))
     }
+
+    fun profileFile(id: String): File = File(profilesDir, "$id$PROFILE_FILE_EXTENSION")
 
     fun saveProfile(name: String, settings: AppSettingsSnapshot): SettingsProfile {
         val trimmedName = name.trim()
@@ -37,16 +53,14 @@ class SettingsProfilesRepository(context: Context) {
             savedAtMs = System.currentTimeMillis(),
             settings = settings.normalized()
         )
-        val updated = loadProfiles() + profile
-        persist(updated)
+        writeProfileFile(profile)
         return profile
     }
 
     fun deleteProfile(id: String): Boolean {
-        val updated = loadProfiles().filterNot { it.id == id }
-        if (updated.size == loadProfiles().size) return false
-        persist(updated)
-        return true
+        val file = profileFile(id)
+        if (!file.exists()) return false
+        return file.delete()
     }
 
     fun hasName(name: String, ignoreId: String? = null): Boolean {
@@ -56,15 +70,88 @@ class SettingsProfilesRepository(context: Context) {
         }
     }
 
-    private fun persist(profiles: List<SettingsProfile>) {
-        prefs.edit()
-            .putString(KEY_PROFILES_JSON, AppSettingsSnapshotCodec.encodeProfiles(profiles))
-            .apply()
+    fun importFromUri(uri: Uri): ProfileImportResult {
+        if (loadProfiles().size >= MAX_PROFILES) return ProfileImportResult.TooManyProfiles
+        val json = appContext.contentResolver.openInputStream(uri)?.use { input ->
+            input.bufferedReader().readText()
+        } ?: return ProfileImportResult.InvalidFile
+        return importFromJson(json)
+    }
+
+    fun importFromJson(json: String): ProfileImportResult {
+        if (loadProfiles().size >= MAX_PROFILES) return ProfileImportResult.TooManyProfiles
+        val decoded = AppSettingsSnapshotCodec.decodeProfile(json) ?: return ProfileImportResult.InvalidFile
+        val profile = SettingsProfile(
+            id = UUID.randomUUID().toString(),
+            name = uniqueImportName(decoded.name.trim()),
+            savedAtMs = System.currentTimeMillis(),
+            settings = decoded.settings.normalized()
+        )
+        return if (writeProfileFile(profile)) {
+            ProfileImportResult.Imported
+        } else {
+            ProfileImportResult.Failed
+        }
+    }
+
+    private fun resolveProfilesDir(): File {
+        val externalDocuments = appContext.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
+        val dir = if (externalDocuments != null) {
+            File(externalDocuments, PROFILES_FOLDER_NAME)
+        } else {
+            File(appContext.filesDir, PROFILES_FOLDER_NAME)
+        }
+        dir.mkdirs()
+        return dir
+    }
+
+    private fun migrateFromSharedPreferencesIfNeeded() {
+        val legacyJson = legacyPrefs.getString(LEGACY_KEY_PROFILES_JSON, "") ?: ""
+        if (legacyJson.isBlank()) return
+
+        val profiles = AppSettingsSnapshotCodec.decodeProfiles(legacyJson)
+        for (profile in profiles) {
+            val file = profileFile(profile.id)
+            if (!file.exists()) {
+                writeProfileFile(profile)
+            }
+        }
+        legacyPrefs.edit().remove(LEGACY_KEY_PROFILES_JSON).apply()
+    }
+
+    private fun readProfileFile(file: File): SettingsProfile? {
+        if (!file.exists() || !file.isFile) return null
+        return runCatching {
+            AppSettingsSnapshotCodec.decodeProfile(file.readText())
+        }.getOrNull()
+    }
+
+    private fun writeProfileFile(profile: SettingsProfile): Boolean {
+        return runCatching {
+            profileFile(profile.id).writeText(AppSettingsSnapshotCodec.encodeProfile(profile))
+            true
+        }.getOrDefault(false)
+    }
+
+    private fun uniqueImportName(baseName: String): String {
+        if (baseName.isBlank()) return "Imported profile"
+        if (!hasName(baseName)) return baseName
+
+        var suffix = 2
+        while (true) {
+            val candidate = "$baseName ($suffix)"
+            if (!hasName(candidate)) return candidate
+            suffix++
+        }
     }
 
     companion object {
-        private const val PREFS_NAME = "notspot_settings_profiles"
-        private const val KEY_PROFILES_JSON = "profiles_json"
+        private const val LEGACY_PREFS_NAME = "notspot_settings_profiles"
+        private const val LEGACY_KEY_PROFILES_JSON = "profiles_json"
+        private const val PROFILES_FOLDER_NAME = "profiles"
+        private const val PROFILE_FILE_EXTENSION = ".json"
+
+        const val PROFILE_MIME_TYPE = "application/json"
         const val MAX_PROFILES = 24
         const val MAX_NAME_LENGTH = 40
     }

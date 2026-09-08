@@ -15,12 +15,34 @@ object AppSettingsSnapshotCodec {
 
     private const val SCHEMA_VERSION = 1
 
+    fun encodeProfile(profile: SettingsProfile): String {
+        val root = JSONObject()
+        root.put("schemaVersion", SCHEMA_VERSION)
+        root.put("profile", encodeProfileObject(profile))
+        return root.toString(2)
+    }
+
+    fun decodeProfile(json: String): SettingsProfile? {
+        if (json.isBlank()) return null
+        val root = runCatching { JSONObject(json) }.getOrNull() ?: return null
+        root.optJSONObject("profile")?.let { return decodeProfileObject(it) }
+        root.optJSONArray("profiles")?.let { array ->
+            if (array.length() > 0) {
+                return decodeProfileObject(array.getJSONObject(0))
+            }
+        }
+        if (root.has("settings")) {
+            return decodeProfileObject(root)
+        }
+        return null
+    }
+
     fun encodeProfiles(profiles: List<SettingsProfile>): String {
         val root = JSONObject()
         root.put("schemaVersion", SCHEMA_VERSION)
         val array = JSONArray()
         for (profile in profiles) {
-            array.put(encodeProfile(profile))
+            array.put(encodeProfileObject(profile))
         }
         root.put("profiles", array)
         return root.toString()
@@ -32,12 +54,12 @@ object AppSettingsSnapshotCodec {
         val array = root.optJSONArray("profiles") ?: return emptyList()
         return buildList {
             for (index in 0 until array.length()) {
-                decodeProfile(array.getJSONObject(index))?.let(::add)
+                decodeProfileObject(array.getJSONObject(index))?.let(::add)
             }
         }
     }
 
-    private fun encodeProfile(profile: SettingsProfile): JSONObject {
+    private fun encodeProfileObject(profile: SettingsProfile): JSONObject {
         return JSONObject()
             .put("id", profile.id)
             .put("name", profile.name)
@@ -45,7 +67,7 @@ object AppSettingsSnapshotCodec {
             .put("settings", encodeSettings(profile.settings))
     }
 
-    private fun decodeProfile(json: JSONObject): SettingsProfile? {
+    private fun decodeProfileObject(json: JSONObject): SettingsProfile? {
         val id = json.optString("id", "")
         val name = json.optString("name", "")
         if (id.isBlank() || name.isBlank()) return null
@@ -131,7 +153,6 @@ object AppSettingsSnapshotCodec {
             .put("subscriptionId", settings.subscriptionId)
             .put("passiveQuietUntilCritical", settings.passiveQuietUntilCritical)
             .put("passiveMeasurementIntervalMs", settings.passiveMeasurementIntervalMs)
-            .put("passiveSoundSpeed", settings.passiveSoundSpeed)
     }
 
     private fun decodeMonitoring(json: JSONObject?): MonitoringSettings {
@@ -152,10 +173,6 @@ object AppSettingsSnapshotCodec {
             passiveMeasurementIntervalMs = json.optLong(
                 "passiveMeasurementIntervalMs",
                 MonitoringSettings.DEFAULT_PASSIVE_MEASUREMENT_INTERVAL_MS
-            ),
-            passiveSoundSpeed = json.optInt(
-                "passiveSoundSpeed",
-                MonitoringSettings.DEFAULT_PASSIVE_SOUND_SPEED
             )
         )
     }
@@ -167,10 +184,17 @@ object AppSettingsSnapshotCodec {
             .put("fairRsrpMinDbm", settings.fairRsrpMinDbm)
             .put("goodRsrpMinDbm", settings.goodRsrpMinDbm)
             .put("mildRsrpMinDbm", settings.mildRsrpMinDbm)
+            .put("veryStrongRsrpMinDbm", settings.veryStrongRsrpMinDbm)
             .put("rsrqFairMinDb", settings.rsrqFairMinDb)
             .put("noisyRsrqPassiveClicks", settings.noisyRsrqPassiveClicks)
             .put("quietAlertRsrqDb", settings.quietAlertRsrqDb)
             .put("quietAlertRsrpMaxDbm", settings.quietAlertRsrpMaxDbm)
+            .put("criticalTierClickIntervalMs", settings.criticalTierClickIntervalMs)
+            .put("poorTierClickIntervalMs", settings.poorTierClickIntervalMs)
+            .put("fairTierClickIntervalMs", settings.fairTierClickIntervalMs)
+            .put("goodTierClickIntervalMs", settings.goodTierClickIntervalMs)
+            .put("mildTierClickIntervalMs", settings.mildTierClickIntervalMs)
+            .put("veryStrongTierClickIntervalMs", settings.veryStrongTierClickIntervalMs)
     }
 
     private fun decodePassiveSignal(json: JSONObject?): PassiveSignalSettings {
@@ -181,6 +205,10 @@ object AppSettingsSnapshotCodec {
             fairRsrpMinDbm = json.optInt("fairRsrpMinDbm", PassiveSignalSettings.DEFAULT_FAIR_RSRP_MIN_DBM),
             goodRsrpMinDbm = json.optInt("goodRsrpMinDbm", PassiveSignalSettings.DEFAULT_GOOD_RSRP_MIN_DBM),
             mildRsrpMinDbm = json.optInt("mildRsrpMinDbm", PassiveSignalSettings.DEFAULT_MILD_RSRP_MIN_DBM),
+            veryStrongRsrpMinDbm = json.optInt(
+                "veryStrongRsrpMinDbm",
+                PassiveSignalSettings.DEFAULT_VERY_STRONG_RSRP_MIN_DBM
+            ),
             rsrqFairMinDb = json.optInt("rsrqFairMinDb", PassiveSignalSettings.DEFAULT_RSRQ_FAIR_MIN_DB),
             noisyRsrqPassiveClicks = json.optBoolean(
                 "noisyRsrqPassiveClicks",
@@ -190,6 +218,30 @@ object AppSettingsSnapshotCodec {
             quietAlertRsrpMaxDbm = json.optInt(
                 "quietAlertRsrpMaxDbm",
                 PassiveSignalSettings.DEFAULT_QUIET_ALERT_RSRP_MAX_DBM
+            ),
+            criticalTierClickIntervalMs = json.optInt(
+                "criticalTierClickIntervalMs",
+                PassiveSignalSettings.DEFAULT_CRITICAL_TIER_CLICK_INTERVAL_MS
+            ),
+            poorTierClickIntervalMs = json.optInt(
+                "poorTierClickIntervalMs",
+                PassiveSignalSettings.DEFAULT_POOR_TIER_CLICK_INTERVAL_MS
+            ),
+            fairTierClickIntervalMs = json.optInt(
+                "fairTierClickIntervalMs",
+                PassiveSignalSettings.DEFAULT_FAIR_TIER_CLICK_INTERVAL_MS
+            ),
+            goodTierClickIntervalMs = json.optInt(
+                "goodTierClickIntervalMs",
+                PassiveSignalSettings.DEFAULT_GOOD_TIER_CLICK_INTERVAL_MS
+            ),
+            mildTierClickIntervalMs = json.optInt(
+                "mildTierClickIntervalMs",
+                PassiveSignalSettings.DEFAULT_MILD_TIER_CLICK_INTERVAL_MS
+            ),
+            veryStrongTierClickIntervalMs = json.optInt(
+                "veryStrongTierClickIntervalMs",
+                PassiveSignalSettings.DEFAULT_VERY_STRONG_TIER_CLICK_INTERVAL_MS
             )
         )
     }
@@ -214,6 +266,7 @@ object AppSettingsSnapshotCodec {
         return JSONObject()
             .put("pingClickVolume", settings.pingClickVolume.toDouble())
             .put("lowSignalClickVolume", settings.lowSignalClickVolume.toDouble())
+            .put("signalPulseFrequencyHz", settings.signalPulseFrequencyHz)
             .put("signalPulseDurationMs", settings.signalPulseDurationMs)
             .put("cellChangeBellVolume", settings.cellChangeBellVolume.toDouble())
             .put("cellChangeVoiceEnabled", settings.cellChangeVoiceEnabled)
@@ -238,6 +291,10 @@ object AppSettingsSnapshotCodec {
                 "lowSignalClickVolume",
                 AudioVolumeSettings.DEFAULT_VOLUME.toDouble()
             ).toFloat(),
+            signalPulseFrequencyHz = json.optInt(
+                "signalPulseFrequencyHz",
+                AudioVolumeSettings.DEFAULT_SIGNAL_PULSE_FREQUENCY_HZ
+            ),
             signalPulseDurationMs = json.optInt(
                 "signalPulseDurationMs",
                 AudioVolumeSettings.DEFAULT_SIGNAL_PULSE_DURATION_MS

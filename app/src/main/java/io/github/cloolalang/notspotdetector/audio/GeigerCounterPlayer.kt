@@ -11,8 +11,6 @@ import io.github.cloolalang.notspotdetector.model.ThresholdSettings
 import io.github.cloolalang.notspotdetector.model.computeSignalStrengthClickIntervalMs
 import io.github.cloolalang.notspotdetector.model.resolvePassiveClickRateTier
 import io.github.cloolalang.notspotdetector.model.resolveSignalStrengthTier
-import io.github.cloolalang.notspotdetector.model.SIGNAL_STRENGTH_TONE_HZ
-import io.github.cloolalang.notspotdetector.model.VERY_STRONG_SIGNAL_TONE_HZ
 import io.github.cloolalang.notspotdetector.model.SignalStrengthTier
 import io.github.cloolalang.notspotdetector.model.shouldPlay2gLimitedServicePulse
 import io.github.cloolalang.notspotdetector.model.shouldPlayContinuousFlatline
@@ -26,7 +24,6 @@ import io.github.cloolalang.notspotdetector.model.hasExtremeLatency
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
 import io.github.cloolalang.notspotdetector.model.shouldUseNoisyRsrqPassiveClick
-import io.github.cloolalang.notspotdetector.model.scalePassiveSoundIntervalMs
 import io.github.cloolalang.notspotdetector.model.shouldPlayPassiveSignalAndQualityAlerts
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -44,12 +41,10 @@ class GeigerCounterPlayer {
     private var flatlineTrackVolume = -1f
     private var flatlineTrackContinuous = false
     private var flatlineTrackPassiveOnly = false
-    private var flatlineTrackSoundSpeed = -1
     private var limitedServiceTrack: AudioTrack? = null
     private var limitedServiceTrackVolume = -1f
     private var limitedServiceTrack2gPulse = false
     private var limitedServiceTrackPassiveOnly = false
-    private var limitedServiceTrackSoundSpeed = -1
     private var lastHandledPingTimestampMs = 0L
     private var monitoringSettingsProvider: () -> MonitoringSettings = { MonitoringSettings() }
     private var passiveSignalSettingsProvider: () -> PassiveSignalSettings = { PassiveSignalSettings() }
@@ -75,7 +70,6 @@ class GeigerCounterPlayer {
                 val thresholds = thresholdsProvider()
                 val volumes = audioVolumesProvider().normalized()
                 val passiveSettings = passiveSignalSettingsProvider()
-                val passiveSoundSpeed = monitoringSettingsProvider().passiveSoundSpeed
                 val passiveAlertsEnabled = shouldPlayPassiveSignalAndQualityAlerts(stats, passiveSettings)
                 when {
                     !stats.isMonitoring -> {
@@ -88,8 +82,7 @@ class GeigerCounterPlayer {
                             ensureLimitedServicePlaying(
                                 volume = volumes.limitedServiceToneVolume,
                                 use2gPulse = true,
-                                passiveOnly = stats.isPassiveOnlySession,
-                                passiveSoundSpeed = passiveSoundSpeed
+                                passiveOnly = stats.isPassiveOnlySession
                             )
                         } else {
                             stopLimitedService()
@@ -102,8 +95,7 @@ class GeigerCounterPlayer {
                             ensureLimitedServicePlaying(
                                 volume = volumes.limitedServiceToneVolume,
                                 use2gPulse = false,
-                                passiveOnly = stats.isPassiveOnlySession,
-                                passiveSoundSpeed = passiveSoundSpeed
+                                passiveOnly = stats.isPassiveOnlySession
                             )
                         } else {
                             stopLimitedService()
@@ -115,8 +107,7 @@ class GeigerCounterPlayer {
                         ensureFlatlinePlaying(
                             volume = volumes.noSignalToneVolume,
                             continuous = stats.shouldPlayContinuousFlatline(passiveSettings),
-                            passiveOnly = stats.isPassiveOnlySession,
-                            passiveSoundSpeed = passiveSoundSpeed
+                            passiveOnly = stats.isPassiveOnlySession
                         )
                         delay(200)
                     }
@@ -125,7 +116,7 @@ class GeigerCounterPlayer {
                         if (stats.cellularAvailable) {
                             when {
                                 stats.shouldPlaySignalStrengthInterval(passiveSettings) ->
-                                    handleSignalStrengthIntervalAudio(stats, volumes, passiveSettings, passiveSoundSpeed)
+                                    handleSignalStrengthIntervalAudio(stats, volumes, passiveSettings)
                                 stats.isPassiveIdleMode -> delay(POLL_INTERVAL_MS)
                                 stats.quality == ConnectionQuality.GOOD && !stats.hasExtremeLatency() ->
                                     handleGoodConnectionAudio(stats, thresholds, volumes, passiveSettings)
@@ -165,27 +156,29 @@ class GeigerCounterPlayer {
     private suspend fun handleSignalStrengthIntervalAudio(
         stats: ConnectivityStats,
         volumes: AudioVolumeSettings,
-        passiveSettings: PassiveSignalSettings,
-        passiveSoundSpeed: Int
+        passiveSettings: PassiveSignalSettings
     ) {
-        val interval = stats.computeSignalStrengthClickIntervalMs(passiveSettings, passiveSoundSpeed)
+        val interval = stats.computeSignalStrengthClickIntervalMs(
+            passiveSettings,
+            volumes.signalPulseDurationMs
+        )
         if (shouldPlayPassiveSignalAndQualityAlerts(stats, passiveSettings)) {
             val tier = when {
                 stats.shouldPlayVeryStrongSignalIndicator(passiveSettings) -> SignalStrengthTier.MILD
                 else -> stats.resolvePassiveClickRateTier(passiveSettings) ?: SignalStrengthTier.FAIR
             }
-            val frequencyHz = if (stats.shouldPlayVeryStrongSignalIndicator(passiveSettings)) {
-                VERY_STRONG_SIGNAL_TONE_HZ
+            val isVeryStrong = stats.shouldPlayVeryStrongSignalIndicator(passiveSettings)
+            val pulseFrequencyHz = if (isVeryStrong) {
+                volumes.veryStrongPulseFrequencyHz().toDouble()
             } else {
-                SIGNAL_STRENGTH_TONE_HZ
+                volumes.signalPulseFrequencyHz.toDouble()
             }
             val mixWhiteNoise = stats.isPassiveOnlySession &&
-                passiveSettings.shouldUseNoisyRsrqPassiveClick(stats.rsrqDb) &&
-                frequencyHz == SIGNAL_STRENGTH_TONE_HZ
+                passiveSettings.shouldUseNoisyRsrqPassiveClick(stats.rsrqDb)
             playTieredWeakSignalClick(
                 volumes = volumes,
                 tier = tier,
-                frequencyHz = frequencyHz,
+                frequencyHz = pulseFrequencyHz,
                 mixWhiteNoise = mixWhiteNoise
             )
         }
@@ -234,8 +227,12 @@ class GeigerCounterPlayer {
                     tier = stats.resolveSignalStrengthTier(passiveSettings) ?: SignalStrengthTier.FAIR
                 )
             }
-            val passiveSoundSpeed = monitoringSettingsProvider().passiveSoundSpeed
-            delay(stats.computeSignalStrengthClickIntervalMs(passiveSettings, passiveSoundSpeed))
+            delay(
+                stats.computeSignalStrengthClickIntervalMs(
+                    passiveSettings,
+                    volumes.signalPulseDurationMs
+                )
+            )
         } else {
             playLowQualityClick(volumes)
             delay(interval)
@@ -263,7 +260,7 @@ class GeigerCounterPlayer {
     private fun playTieredWeakSignalClick(
         volumes: AudioVolumeSettings,
         tier: SignalStrengthTier,
-        frequencyHz: Double = SIGNAL_STRENGTH_TONE_HZ,
+        frequencyHz: Double = volumes.signalPulseFrequencyHz.toDouble(),
         mixWhiteNoise: Boolean = false
     ) {
         if (volumes.lowSignalClickVolume <= 0f) return
@@ -354,8 +351,7 @@ class GeigerCounterPlayer {
     private fun ensureFlatlinePlaying(
         volume: Float,
         continuous: Boolean,
-        passiveOnly: Boolean,
-        passiveSoundSpeed: Int
+        passiveOnly: Boolean
     ) {
         if (volume <= 0f) {
             stopFlatline()
@@ -366,8 +362,7 @@ class GeigerCounterPlayer {
         if (track != null &&
             track.playState == AudioTrack.PLAYSTATE_PLAYING &&
             continuous == flatlineTrackContinuous &&
-            passiveOnly == flatlineTrackPassiveOnly &&
-            passiveSoundSpeed == flatlineTrackSoundSpeed
+            passiveOnly == flatlineTrackPassiveOnly
         ) {
             if (volume != flatlineTrackVolume) {
                 track.setVolume(volume)
@@ -380,7 +375,7 @@ class GeigerCounterPlayer {
         flatlineTrack = if (continuous) {
             buildContinuousFlatlineTrack()
         } else {
-            buildPulsedFlatlineTrack(passiveOffMs = flatlineOffMs(passiveOnly, passiveSoundSpeed))
+            buildPulsedFlatlineTrack(passiveOffMs = flatlineOffMs(passiveOnly))
         }.apply {
             setVolume(volume)
             play()
@@ -388,7 +383,6 @@ class GeigerCounterPlayer {
         flatlineTrackVolume = volume
         flatlineTrackContinuous = continuous
         flatlineTrackPassiveOnly = passiveOnly
-        flatlineTrackSoundSpeed = passiveSoundSpeed
     }
 
     @Synchronized
@@ -403,15 +397,13 @@ class GeigerCounterPlayer {
         flatlineTrackVolume = -1f
         flatlineTrackContinuous = false
         flatlineTrackPassiveOnly = false
-        flatlineTrackSoundSpeed = -1
     }
 
     @Synchronized
     private fun ensureLimitedServicePlaying(
         volume: Float,
         use2gPulse: Boolean,
-        passiveOnly: Boolean,
-        passiveSoundSpeed: Int
+        passiveOnly: Boolean
     ) {
         if (volume <= 0f) {
             stopLimitedService()
@@ -422,8 +414,7 @@ class GeigerCounterPlayer {
         if (track != null &&
             track.playState == AudioTrack.PLAYSTATE_PLAYING &&
             use2gPulse == limitedServiceTrack2gPulse &&
-            passiveOnly == limitedServiceTrackPassiveOnly &&
-            passiveSoundSpeed == limitedServiceTrackSoundSpeed
+            passiveOnly == limitedServiceTrackPassiveOnly
         ) {
             if (volume != limitedServiceTrackVolume) {
                 track.setVolume(volume)
@@ -435,11 +426,11 @@ class GeigerCounterPlayer {
         stopLimitedService()
         limitedServiceTrack = if (use2gPulse) {
             build2gLimitedServicePulseTrack(
-                passiveOffMs = gsmLimitedOffMs(passiveOnly, passiveSoundSpeed)
+                passiveOffMs = gsmLimitedOffMs(passiveOnly)
             )
         } else {
             buildLimitedServiceLoopTrack(
-                passivePauseMs = limitedServicePauseMs(passiveOnly, passiveSoundSpeed)
+                passivePauseMs = limitedServicePauseMs(passiveOnly)
             )
         }.apply {
             setVolume(volume)
@@ -448,7 +439,6 @@ class GeigerCounterPlayer {
         limitedServiceTrackVolume = volume
         limitedServiceTrack2gPulse = use2gPulse
         limitedServiceTrackPassiveOnly = passiveOnly
-        limitedServiceTrackSoundSpeed = passiveSoundSpeed
     }
 
     @Synchronized
@@ -463,7 +453,6 @@ class GeigerCounterPlayer {
         limitedServiceTrackVolume = -1f
         limitedServiceTrack2gPulse = false
         limitedServiceTrackPassiveOnly = false
-        limitedServiceTrackSoundSpeed = -1
     }
 
     @Synchronized
@@ -570,10 +559,13 @@ class GeigerCounterPlayer {
         )
     }
 
-    fun previewLowSignalClick(volume: Float, pulseDurationMs: Int) {
+    fun previewLowSignalClick(volume: Float, pulseDurationMs: Int, frequencyHz: Int) {
         if (volume <= 0f) return
         playSineToneBurst(
-            frequencyHz = SIGNAL_STRENGTH_TONE_HZ,
+            frequencyHz = frequencyHz.coerceIn(
+                AudioVolumeSettings.MIN_SIGNAL_PULSE_FREQUENCY_HZ,
+                AudioVolumeSettings.MAX_SIGNAL_PULSE_FREQUENCY_HZ
+            ).toDouble(),
             durationMs = pulseDurationMs.coerceIn(
                 AudioVolumeSettings.MIN_SIGNAL_PULSE_DURATION_MS,
                 AudioVolumeSettings.MAX_SIGNAL_PULSE_DURATION_MS
@@ -586,7 +578,7 @@ class GeigerCounterPlayer {
         if (volume <= 0f) return
         playSineToneBurst(
             frequencyHz = NO_SIGNAL_TONE_HZ,
-            durationMs = FLATLINE_ON_MS,
+            durationMs = NO_SIGNAL_ALERT_TONE_DURATION_MS,
             amplitude = FLATLINE_AMPLITUDE * volume
         )
     }
@@ -631,7 +623,7 @@ class GeigerCounterPlayer {
     private fun playTechnologySweep(amplitude: Float) {
         if (amplitude <= 0f) return
 
-        val durationMs = TECHNOLOGY_CHANGE_DURATION_MS
+        val durationMs = TECHNOLOGY_CHANGE_TONE_DURATION_MS
         val sampleCount = sampleRate * durationMs / 1_000
         val buffer = ShortArray(sampleCount)
         var phase = 0.0
@@ -661,7 +653,7 @@ class GeigerCounterPlayer {
     private fun playBellChime(amplitude: Float) {
         if (amplitude <= 0f) return
 
-        val durationMs = BELL_DURATION_MS
+        val durationMs = CELL_CHANGE_BELL_DURATION_MS
         val sampleCount = sampleRate * durationMs / 1_000
         val buffer = ShortArray(sampleCount)
         val partials = arrayOf(
@@ -742,25 +734,31 @@ class GeigerCounterPlayer {
     }
 
     companion object {
+        /** Durations of one-shot alert tones (used for voice-announcement timing). */
+        const val CELL_CHANGE_BELL_DURATION_MS = 450
+        const val TECHNOLOGY_CHANGE_TONE_DURATION_MS = 300
+        const val NO_SIGNAL_ALERT_TONE_DURATION_MS = 250
+        const val LIMITED_SERVICE_ALERT_TONE_DURATION_MS = 800
+
         const val TONE_FREQUENCY_HZ = 3_200.0
         private const val PASSIVE_PULSE_RATE_MULTIPLIER = 2
-        private fun flatlineOffMs(passiveOnly: Boolean, passiveSoundSpeed: Int): Int {
+        private fun flatlineOffMs(passiveOnly: Boolean): Int {
             val base = if (passiveOnly) FLATLINE_OFF_MS / PASSIVE_PULSE_RATE_MULTIPLIER else FLATLINE_OFF_MS
-            return if (passiveOnly) scalePassiveSoundIntervalMs(base, passiveSoundSpeed) else base
+            return base
         }
 
-        private fun limitedServicePauseMs(passiveOnly: Boolean, passiveSoundSpeed: Int): Int {
+        private fun limitedServicePauseMs(passiveOnly: Boolean): Int {
             val base = if (passiveOnly) {
                 LIMITED_SERVICE_PAUSE_MS / PASSIVE_PULSE_RATE_MULTIPLIER
             } else {
                 LIMITED_SERVICE_PAUSE_MS
             }
-            return if (passiveOnly) scalePassiveSoundIntervalMs(base, passiveSoundSpeed) else base
+            return base
         }
 
-        private fun gsmLimitedOffMs(passiveOnly: Boolean, passiveSoundSpeed: Int): Int {
+        private fun gsmLimitedOffMs(passiveOnly: Boolean): Int {
             val base = if (passiveOnly) GSM_LIMITED_OFF_MS / PASSIVE_PULSE_RATE_MULTIPLIER else GSM_LIMITED_OFF_MS
-            return if (passiveOnly) scalePassiveSoundIntervalMs(base, passiveSoundSpeed) else base
+            return base
         }
 
         private const val CLICK_AMPLITUDE = 0.45f
@@ -781,10 +779,8 @@ class GeigerCounterPlayer {
         private const val GSM_LIMITED_OFF_MS = 300
         private const val LIMITED_SERVICE_AMPLITUDE = 0.38f
         private const val BELL_AMPLITUDE = 0.5f
-        private const val BELL_DURATION_MS = 450
         private const val BELL_DECAY_RATE = 3.5
         private const val TECHNOLOGY_CHANGE_AMPLITUDE = 0.46f
-        private const val TECHNOLOGY_CHANGE_DURATION_MS = 300
         private const val TECHNOLOGY_CHANGE_START_HZ = 320.0
         private const val TECHNOLOGY_CHANGE_END_HZ = 720.0
         private const val GOOD_CLICK_GAP_MS = 80L

@@ -22,6 +22,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.cloolalang.notspotdetector.R
+import io.github.cloolalang.notspotdetector.model.ProfileImportResult
 import io.github.cloolalang.notspotdetector.model.ProfileSaveResult
 import io.github.cloolalang.notspotdetector.model.SettingsProfileSummary
 import java.text.DateFormat
@@ -33,11 +34,14 @@ fun SettingsProfilesCard(
     onSaveProfile: (String) -> ProfileSaveResult,
     onLoadProfile: (String) -> Unit,
     onDeleteProfile: (String) -> Unit,
+    onImportProfile: (onResult: (ProfileImportResult) -> Unit) -> Unit,
+    onShareProfile: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     var profileName by rememberSaveable { mutableStateOf("") }
     var lastSaveResult by rememberSaveable { mutableStateOf<ProfileSaveResult?>(null) }
+    var lastImportResult by rememberSaveable { mutableStateOf<ProfileImportResult?>(null) }
 
     Card(modifier = modifier.fillMaxWidth()) {
         Column(
@@ -106,6 +110,30 @@ fun SettingsProfilesCard(
                     )
                 }
 
+                OutlinedButton(
+                    onClick = {
+                        lastImportResult = null
+                        onImportProfile { result ->
+                            lastImportResult = result
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(text = stringResource(R.string.settings_profiles_import))
+                }
+
+                importResultMessage(lastImportResult)?.let { message ->
+                    Text(
+                        text = message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (lastImportResult == ProfileImportResult.Imported) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.error
+                        }
+                    )
+                }
+
                 if (profiles.isEmpty()) {
                     Text(
                         text = stringResource(R.string.settings_profiles_empty),
@@ -119,6 +147,7 @@ fun SettingsProfilesCard(
                             profile = profile,
                             savedAtLabel = dateFormat.format(Date(profile.savedAtMs)),
                             onLoad = { onLoadProfile(profile.id) },
+                            onShare = { onShareProfile(profile.id) },
                             onDelete = { onDeleteProfile(profile.id) }
                         )
                     }
@@ -142,10 +171,22 @@ private fun saveResultMessage(result: ProfileSaveResult?): String? {
 }
 
 @Composable
+private fun importResultMessage(result: ProfileImportResult?): String? {
+    return when (result) {
+        ProfileImportResult.Imported -> stringResource(R.string.settings_profiles_imported)
+        ProfileImportResult.InvalidFile -> stringResource(R.string.settings_profiles_error_invalid_file)
+        ProfileImportResult.TooManyProfiles -> stringResource(R.string.settings_profiles_error_too_many)
+        ProfileImportResult.Failed -> stringResource(R.string.settings_profiles_error_import_failed)
+        null -> null
+    }
+}
+
+@Composable
 private fun ProfileRow(
     profile: SettingsProfileSummary,
     savedAtLabel: String,
     onLoad: () -> Unit,
+    onShare: () -> Unit,
     onDelete: () -> Unit
 ) {
     Column(
@@ -171,6 +212,12 @@ private fun ProfileRow(
                 modifier = Modifier.weight(1f)
             ) {
                 Text(text = stringResource(R.string.settings_profiles_load))
+            }
+            OutlinedButton(
+                onClick = onShare,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(text = stringResource(R.string.settings_profiles_share))
             }
             OutlinedButton(
                 onClick = onDelete,

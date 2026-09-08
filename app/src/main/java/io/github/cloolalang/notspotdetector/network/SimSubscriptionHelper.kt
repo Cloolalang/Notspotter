@@ -16,24 +16,30 @@ object SimSubscriptionHelper {
             return emptyList()
         }
 
-        val subscriptionManager = context.getSystemService(SubscriptionManager::class.java)
-            ?: return emptyList()
-        val active = subscriptionManager.activeSubscriptionInfoList ?: return emptyList()
+        return try {
+            val subscriptionManager = context.getSystemService(SubscriptionManager::class.java)
+                ?: return emptyList()
+            val active = subscriptionManager.activeSubscriptionInfoList ?: return emptyList()
 
-        return active
-            .sortedBy { it.simSlotIndex }
-            .map { info ->
-                val carrier = info.carrierName?.toString()?.takeIf { it.isNotBlank() }
-                val display = info.displayName?.toString()?.takeIf { it.isNotBlank() }
-                    ?: carrier
-                    ?: "SIM ${info.simSlotIndex + 1}"
-                SimSubscriptionOption(
-                    subscriptionId = info.subscriptionId,
-                    slotIndex = info.simSlotIndex,
-                    displayName = display,
-                    carrierName = carrier
-                )
-            }
+            active
+                .sortedBy { it.simSlotIndex }
+                .map { info ->
+                    val carrier = info.carrierName?.toString()?.takeIf { it.isNotBlank() }
+                    val display = info.displayName?.toString()?.takeIf { it.isNotBlank() }
+                        ?: carrier
+                        ?: "SIM ${info.simSlotIndex + 1}"
+                    SimSubscriptionOption(
+                        subscriptionId = info.subscriptionId,
+                        slotIndex = info.simSlotIndex,
+                        displayName = display,
+                        carrierName = carrier
+                    )
+                }
+        } catch (_: SecurityException) {
+            emptyList()
+        } catch (_: RuntimeException) {
+            emptyList()
+        }
     }
 
     @SuppressLint("MissingPermission")

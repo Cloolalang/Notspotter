@@ -5,6 +5,134 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.16.0] - 2026-09-08
+
+### Changed
+
+- **Settings profiles as JSON files** — each profile is saved as its own JSON file in app document storage, so profiles survive clearing app cache. Existing saved profiles are migrated automatically on first launch.
+- **Share and import profiles** — export a profile via the system share sheet (email, Drive, messaging, etc.) and import a `.json` profile file received from someone else.
+
+## [1.15.6] - 2026-09-08
+
+### Changed
+
+- **Passive signal thresholds layout** — tier settings are grouped and ordered Tier 1 (strongest) through Tier 6, then No signal. Each tier shows its click interval and RSRP boundary together instead of interleaved out of order.
+
+## [1.15.5] - 2026-09-08
+
+### Fixed
+
+- **App crash on launch** — startup no longer crashes on physical devices when reconciling tier click intervals; the ViewModel init path was reading `audioVolumes` before that StateFlow was created.
+
+## [1.15.4] - 2026-09-08
+
+### Fixed
+
+- **Physical device stability** — passive signal threshold sliders no longer use mismatched step counts that could crash when opening the settings panel; telephony/SIM reads on startup are wrapped so permission or OEM radio errors cannot take down the app.
+
+## [1.15.3] - 2026-09-08
+
+### Changed
+
+- **Passive signal settings tier colours** — RSRP boundary sliders and tier click-interval controls now use the same numbered tier colours as Cellular metrics (blue Tier 1, dark/light green Tiers 2–3, amber/orange/red for Tiers 4–6, dark red for no signal).
+
+## [1.15.2] - 2026-09-08
+
+### Changed
+
+- **Signal tier colours** — each numbered tier in Cellular metrics now has a distinct colour: Tier 1 blue, Tier 2 dark green, Tier 3 light green, then amber, orange, and red for Tiers 4–6.
+
+## [1.15.1] - 2026-09-08
+
+### Changed
+
+- **Numbered RSRP tiers** — passive signal tiers are now labelled **Tier 1** (strongest) through **Tier 6** (weakest) in Cellular metrics and passive signal settings, replacing Mild/Good/Fair/Poor/Critical/Very strong names.
+
+## [1.15.0] - 2026-09-08
+
+### Added
+
+- **Signal tier in Cellular metrics** — shows the passive alert tier (Very strong, Mild, Good, Fair, Poor, Critical, No signal, or Limited service) for the latest RSRP/RSRQ measurement, using the same boundaries as your passive signal settings.
+
+## [1.14.2] - 2026-09-08
+
+### Fixed
+
+- **Noisy RSRQ passive clicks on very strong signal** — white noise now mixes into tier clicks when RSRQ is below your fair threshold even if RSRP is in the very strong band (previously noise was skipped for very strong RSRP).
+
+## [1.14.1] - 2026-09-08
+
+### Changed
+
+- **Settings panel titles** — Alert sound volume → **Alert sound settings**; Alert thresholds → **Active mode alert thresholds**; Passive signal ranges → **Passive signal thresholds and signal pulse settings**.
+
+## [1.14.0] - 2026-09-08
+
+### Added
+
+- **Very strong RSRP threshold** — adjustable in Passive signal ranges (−90 to −30 dBm, default −80 dBm). Replaces the fixed −75 dBm boundary.
+
+### Changed
+
+- **Very strong tone frequency** — plays at **125%** of your signal pulse frequency (Alert sound volume), so it stays distinct from other tiers as you retune the pulse.
+
+## [1.13.0] - 2026-09-08
+
+### Removed
+
+- **Passive sound speed** — removed now that each RSRP tier has its own click interval. No-signal flatline and limited-service tones use fixed timing (same as the previous default speed of 5).
+
+## [1.12.3] - 2026-09-08
+
+### Fixed
+
+- **Voice alert delay** — uses `Duration`-based coroutine delay (lint fix).
+
+## [1.12.2] - 2026-09-08
+
+### Fixed
+
+- **Voice after alert tone** — spoken announcements now wait for the actual alert tone length plus a short gap (not a fixed 500 ms), so limited-service and other longer tones finish before TTS starts.
+
+## [1.12.1] - 2026-09-08
+
+### Added
+
+- **Settings compatibility UI** — tier click sliders now enforce a minimum based on signal pulse duration, show effective play intervals (passive-only and with ping monitoring), and warn when an interval is much slower than the measurement cycle.
+- **Profile round-trip tests** — verify saved profiles include per-tier click intervals, signal pulse frequency, passive sound speed, and voice alert toggles.
+
+### Changed
+
+- **Signal pulse duration** — increasing duration automatically raises tier click intervals that would otherwise overlap the pulse.
+- **Profile load** — tier click intervals are reconciled with signal pulse duration when a profile is loaded or normalized.
+
+## [1.12.0] - 2026-09-08
+
+### Added
+
+- **Per-tier signal pulse click intervals** — under Passive signal ranges, each RSRP tier has its own click interval slider (10–5000 ms). Defaults match the previous passive-only rates.
+
+### Changed
+
+- **Passive sound speed** — moved from Alert sound volume to Passive signal ranges. It now scales only no-signal flatline and limited-service tones; tier click timing uses the per-tier intervals above.
+- **Settings compatibility** — at runtime, tier click intervals are never shorter than the signal pulse duration plus a 25 ms gap, so pulses cannot overlap. Combined ping + passive sessions use double the configured tier interval (same behaviour as before).
+
+## [1.11.3] - 2026-09-08
+
+### Added
+
+- **Signal pulse frequency** — adjustable tone frequency (400–5000 Hz, default 600 Hz) for RSRP/RSRQ signal pulse alerts.
+
+### Changed
+
+- **Alert sound volume** — “Low &amp; very strong signal clicks” renamed to **Signal pulse**; “600 Hz signal pulse duration” renamed to **Signal pulse duration** (Test removed — use Test on Signal pulse volume above).
+
+## [1.11.2] - 2026-09-08
+
+### Changed
+
+- **No-signal sensitivity** — flatline tone and voice alerts now require **two consecutive polls** before entering or leaving the no-signal state, reducing false triggers from brief signal dips.
+
 ## [1.11.1] - 2026-09-08
 
 ### Changed

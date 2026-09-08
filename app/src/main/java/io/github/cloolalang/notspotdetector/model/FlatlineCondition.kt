@@ -1,15 +1,12 @@
 package io.github.cloolalang.notspotdetector.model
 
 /**
- * Pulsed no-signal tone while monitoring with no usable cellular/mobile data path,
- * on 2G when 2G monitoring is disabled, or when no radio metrics can be read at all.
- * Use [shouldPlayContinuousFlatline] for a steady tone in a complete dead zone.
+ * Raw no-signal condition from the latest radio metrics (single poll).
+ * Prefer [shouldPlayFlatline] for alerts — it uses the debounced [noSignalActive] flag.
  */
-fun ConnectivityStats.shouldPlayFlatline(
+internal fun ConnectivityStats.evaluateFlatlineCondition(
     settings: PassiveSignalSettings = PassiveSignalSettings()
 ): Boolean {
-    if (!isMonitoring) return false
-
     if (isLimitedService) return false
 
     if (isRsrpTooWeakForService(settings)) return true
@@ -26,6 +23,19 @@ fun ConnectivityStats.shouldPlayFlatline(
 
     if (hasNoRadioSignal(settings)) return true
     return false
+}
+
+/**
+ * Pulsed no-signal tone while monitoring with no usable cellular/mobile data path,
+ * on 2G when 2G monitoring is disabled, or when no radio metrics can be read at all.
+ * Requires two consecutive polls to enter or exit (see [noSignalActive]).
+ * Use [shouldPlayContinuousFlatline] for a steady tone in a complete dead zone.
+ */
+fun ConnectivityStats.shouldPlayFlatline(
+    settings: PassiveSignalSettings = PassiveSignalSettings()
+): Boolean {
+    if (!isMonitoring) return false
+    return noSignalActive
 }
 
 /** Steady no-signal tone when out of service on all technologies and no SOS on any SIM. */

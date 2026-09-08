@@ -4,7 +4,7 @@ package io.github.cloolalang.notspotdetector.model
  * Configurable RSRP/RSRQ band edges for passive monitoring (alert tiers, reception LED, no-signal).
  *
  * RSRP tiers use minimum dBm thresholds (stronger signal = higher / less negative value):
- * very strong (> [VERY_STRONG_RSRP_DBM]) > mild > good > fair > poor > no-signal,
+ * very strong (tier 1) > mild (2) > good (3) > fair (4) > poor (5) > no-signal,
  * within [MIN_RSRP_DBM, MAX_RSRP_DBM].
  *
  * RSRQ uses a single fair/critical boundary: below triggers critical tier and poor reception.
@@ -15,10 +15,19 @@ data class PassiveSignalSettings(
     val fairRsrpMinDbm: Int = DEFAULT_FAIR_RSRP_MIN_DBM,
     val goodRsrpMinDbm: Int = DEFAULT_GOOD_RSRP_MIN_DBM,
     val mildRsrpMinDbm: Int = DEFAULT_MILD_RSRP_MIN_DBM,
+    /** RSRP above this value triggers the very strong alert tier. */
+    val veryStrongRsrpMinDbm: Int = DEFAULT_VERY_STRONG_RSRP_MIN_DBM,
     val rsrqFairMinDb: Int = DEFAULT_RSRQ_FAIR_MIN_DB,
     val noisyRsrqPassiveClicks: Boolean = DEFAULT_NOISY_RSRQ_PASSIVE_CLICKS,
     val quietAlertRsrqDb: Int = DEFAULT_QUIET_ALERT_RSRQ_DB,
-    val quietAlertRsrpMaxDbm: Int = DEFAULT_QUIET_ALERT_RSRP_MAX_DBM
+    val quietAlertRsrpMaxDbm: Int = DEFAULT_QUIET_ALERT_RSRP_MAX_DBM,
+    /** Passive-only time between signal-pulse clicks in each RSRP tier (ms). */
+    val criticalTierClickIntervalMs: Int = DEFAULT_CRITICAL_TIER_CLICK_INTERVAL_MS,
+    val poorTierClickIntervalMs: Int = DEFAULT_POOR_TIER_CLICK_INTERVAL_MS,
+    val fairTierClickIntervalMs: Int = DEFAULT_FAIR_TIER_CLICK_INTERVAL_MS,
+    val goodTierClickIntervalMs: Int = DEFAULT_GOOD_TIER_CLICK_INTERVAL_MS,
+    val mildTierClickIntervalMs: Int = DEFAULT_MILD_TIER_CLICK_INTERVAL_MS,
+    val veryStrongTierClickIntervalMs: Int = DEFAULT_VERY_STRONG_TIER_CLICK_INTERVAL_MS
 ) {
     /** RSRQ below this value maps to the critical alert tier. */
     val criticalRsrqDb: Int
@@ -26,7 +35,8 @@ data class PassiveSignalSettings(
 
     fun normalized(): PassiveSignalSettings {
         val gap = MIN_RSRP_BAND_GAP_DBM
-        val maxMild = VERY_STRONG_RSRP_DBM - gap
+        var veryStrong = veryStrongRsrpMinDbm.coerceIn(MIN_VERY_STRONG_RSRP_DBM, MAX_VERY_STRONG_RSRP_DBM)
+        val maxMild = veryStrong - gap
 
         var noSignal = noSignalRsrpDbm.coerceIn(MIN_RSRP_DBM, maxMild - 4 * gap)
         var poor = poorRsrpMinDbm.coerceIn(noSignal + gap, maxMild - 3 * gap)
@@ -35,6 +45,7 @@ data class PassiveSignalSettings(
         var mild = mildRsrpMinDbm.coerceIn(good + gap, maxMild)
 
         mild = mild.coerceIn(good + gap, maxMild)
+        veryStrong = veryStrong.coerceIn(mild + gap, MAX_VERY_STRONG_RSRP_DBM)
         good = good.coerceIn(fair + gap, mild - gap)
         fair = fair.coerceIn(poor + gap, good - gap)
         poor = poor.coerceIn(noSignal + gap, fair - gap)
@@ -50,20 +61,29 @@ data class PassiveSignalSettings(
             fairRsrpMinDbm = fair,
             goodRsrpMinDbm = good,
             mildRsrpMinDbm = mild,
+            veryStrongRsrpMinDbm = veryStrong,
             rsrqFairMinDb = rsrqFair,
             noisyRsrqPassiveClicks = noisyRsrqPassiveClicks,
             quietAlertRsrqDb = quietRsrq,
-            quietAlertRsrpMaxDbm = quietRsrp
+            quietAlertRsrpMaxDbm = quietRsrp,
+            criticalTierClickIntervalMs = criticalTierClickIntervalMs.coerceTierClickInterval(),
+            poorTierClickIntervalMs = poorTierClickIntervalMs.coerceTierClickInterval(),
+            fairTierClickIntervalMs = fairTierClickIntervalMs.coerceTierClickInterval(),
+            goodTierClickIntervalMs = goodTierClickIntervalMs.coerceTierClickInterval(),
+            mildTierClickIntervalMs = mildTierClickIntervalMs.coerceTierClickInterval(),
+            veryStrongTierClickIntervalMs = veryStrongTierClickIntervalMs.coerceTierClickInterval()
         )
     }
 
     companion object {
         const val MIN_RSRP_DBM = -126
         const val MAX_RSRP_DBM = -50
-        /** Fixed threshold: RSRP above this value is very strong (800 Hz tone). */
-        const val VERY_STRONG_RSRP_DBM = -75
+        const val MIN_VERY_STRONG_RSRP_DBM = -90
+        const val MAX_VERY_STRONG_RSRP_DBM = -30
+        const val DEFAULT_VERY_STRONG_RSRP_MIN_DBM = -80
 
-        const val DEFAULT_NO_SIGNAL_RSRP_DBM = -125
+        /** @deprecated Use [DEFAULT_VERY_STRONG_RSRP_MIN_DBM]. */
+        const val VERY_STRONG_RSRP_DBM = DEFAULT_VERY_STRONG_RSRP_MIN_DBM
         const val DEFAULT_POOR_RSRP_MIN_DBM = -120
         const val DEFAULT_FAIR_RSRP_MIN_DBM = -105
         const val DEFAULT_GOOD_RSRP_MIN_DBM = -100
@@ -76,10 +96,7 @@ data class PassiveSignalSettings(
         /** @deprecated Use [DEFAULT_QUIET_ALERT_RSRQ_OFFSET_DB]. */
         const val QUIET_ALERT_RSRQ_OFFSET_DB = 2
 
-        /** @deprecated Use [VERY_STRONG_RSRP_DBM]. */
-        const val DEFAULT_VERY_STRONG_RSRP_MIN_DBM = VERY_STRONG_RSRP_DBM
-
-        /** @deprecated Use [DEFAULT_RSRQ_FAIR_MIN_DB]. */
+        const val DEFAULT_NO_SIGNAL_RSRP_DBM = -125
         const val DEFAULT_CRITICAL_RSRQ_DB = DEFAULT_RSRQ_FAIR_MIN_DB
 
         /** @deprecated Removed — RSRQ uses a single fair/critical boundary. */
@@ -92,7 +109,35 @@ data class PassiveSignalSettings(
         const val RSRQ_FAIR_MAX_DB = -13
         const val MIN_RSRQ_DB = -30
         const val MAX_RSRQ_DB = -1
+
+        const val MIN_TIER_CLICK_INTERVAL_MS = 10
+        const val MAX_TIER_CLICK_INTERVAL_MS = 5_000
+        const val TIER_CLICK_INTERVAL_STEP_MS = 10
+
+        const val DEFAULT_CRITICAL_TIER_CLICK_INTERVAL_MS = 250
+        const val DEFAULT_POOR_TIER_CLICK_INTERVAL_MS = 500
+        const val DEFAULT_FAIR_TIER_CLICK_INTERVAL_MS = 1_250
+        const val DEFAULT_GOOD_TIER_CLICK_INTERVAL_MS = 2_000
+        const val DEFAULT_MILD_TIER_CLICK_INTERVAL_MS = 2_500
+        const val DEFAULT_VERY_STRONG_TIER_CLICK_INTERVAL_MS = 1_250
     }
+}
+
+private fun Int.coerceTierClickInterval(): Int {
+    return coerceIn(
+        PassiveSignalSettings.MIN_TIER_CLICK_INTERVAL_MS,
+        PassiveSignalSettings.MAX_TIER_CLICK_INTERVAL_MS
+    )
+}
+
+fun PassiveSignalSettings.clickIntervalMsForTier(tier: SignalStrengthTier): Long {
+    return when (tier) {
+        SignalStrengthTier.MILD -> mildTierClickIntervalMs
+        SignalStrengthTier.GOOD -> goodTierClickIntervalMs
+        SignalStrengthTier.FAIR -> fairTierClickIntervalMs
+        SignalStrengthTier.POOR -> poorTierClickIntervalMs
+        SignalStrengthTier.CRITICAL -> criticalTierClickIntervalMs
+    }.toLong()
 }
 
 fun PassiveSignalSettings.shouldUseNoisyRsrqPassiveClick(rsrqDb: Int?): Boolean {
@@ -106,7 +151,7 @@ fun PassiveSignalSettings.isRsrpTooWeakForService(rsrpDbm: Int?): Boolean {
 }
 
 fun PassiveSignalSettings.isVeryStrongRsrp(rsrpDbm: Int): Boolean {
-    return rsrpDbm > PassiveSignalSettings.VERY_STRONG_RSRP_DBM
+    return rsrpDbm > veryStrongRsrpMinDbm
 }
 
 fun PassiveSignalSettings.resolveSignalStrengthTier(

@@ -14,6 +14,10 @@ class PassiveSignalSettingsRepository(context: Context) {
             fairRsrpMinDbm = prefs.getInt(KEY_FAIR_RSRP_MIN, PassiveSignalSettings.DEFAULT_FAIR_RSRP_MIN_DBM),
             goodRsrpMinDbm = prefs.getInt(KEY_GOOD_RSRP_MIN, PassiveSignalSettings.DEFAULT_GOOD_RSRP_MIN_DBM),
             mildRsrpMinDbm = prefs.getInt(KEY_MILD_RSRP_MIN, PassiveSignalSettings.DEFAULT_MILD_RSRP_MIN_DBM),
+            veryStrongRsrpMinDbm = prefs.getInt(
+                KEY_VERY_STRONG_RSRP_MIN,
+                PassiveSignalSettings.DEFAULT_VERY_STRONG_RSRP_MIN_DBM
+            ),
             rsrqFairMinDb = prefs.getInt(KEY_RSRQ_FAIR_MIN, PassiveSignalSettings.DEFAULT_RSRQ_FAIR_MIN_DB),
             noisyRsrqPassiveClicks = prefs.getBoolean(
                 KEY_NOISY_RSRQ_PASSIVE_CLICKS,
@@ -23,6 +27,30 @@ class PassiveSignalSettingsRepository(context: Context) {
             quietAlertRsrpMaxDbm = prefs.getInt(
                 KEY_QUIET_ALERT_RSRP_MAX,
                 PassiveSignalSettings.DEFAULT_QUIET_ALERT_RSRP_MAX_DBM
+            ),
+            criticalTierClickIntervalMs = prefs.getInt(
+                KEY_CRITICAL_TIER_CLICK_MS,
+                PassiveSignalSettings.DEFAULT_CRITICAL_TIER_CLICK_INTERVAL_MS
+            ),
+            poorTierClickIntervalMs = prefs.getInt(
+                KEY_POOR_TIER_CLICK_MS,
+                PassiveSignalSettings.DEFAULT_POOR_TIER_CLICK_INTERVAL_MS
+            ),
+            fairTierClickIntervalMs = prefs.getInt(
+                KEY_FAIR_TIER_CLICK_MS,
+                PassiveSignalSettings.DEFAULT_FAIR_TIER_CLICK_INTERVAL_MS
+            ),
+            goodTierClickIntervalMs = prefs.getInt(
+                KEY_GOOD_TIER_CLICK_MS,
+                PassiveSignalSettings.DEFAULT_GOOD_TIER_CLICK_INTERVAL_MS
+            ),
+            mildTierClickIntervalMs = prefs.getInt(
+                KEY_MILD_TIER_CLICK_MS,
+                PassiveSignalSettings.DEFAULT_MILD_TIER_CLICK_INTERVAL_MS
+            ),
+            veryStrongTierClickIntervalMs = prefs.getInt(
+                KEY_VERY_STRONG_TIER_CLICK_MS,
+                PassiveSignalSettings.DEFAULT_VERY_STRONG_TIER_CLICK_INTERVAL_MS
             )
         ).normalized()
     }
@@ -35,10 +63,17 @@ class PassiveSignalSettingsRepository(context: Context) {
             .putInt(KEY_FAIR_RSRP_MIN, normalized.fairRsrpMinDbm)
             .putInt(KEY_GOOD_RSRP_MIN, normalized.goodRsrpMinDbm)
             .putInt(KEY_MILD_RSRP_MIN, normalized.mildRsrpMinDbm)
+            .putInt(KEY_VERY_STRONG_RSRP_MIN, normalized.veryStrongRsrpMinDbm)
             .putInt(KEY_RSRQ_FAIR_MIN, normalized.rsrqFairMinDb)
             .putBoolean(KEY_NOISY_RSRQ_PASSIVE_CLICKS, normalized.noisyRsrqPassiveClicks)
             .putInt(KEY_QUIET_ALERT_RSRQ, normalized.quietAlertRsrqDb)
             .putInt(KEY_QUIET_ALERT_RSRP_MAX, normalized.quietAlertRsrpMaxDbm)
+            .putInt(KEY_CRITICAL_TIER_CLICK_MS, normalized.criticalTierClickIntervalMs)
+            .putInt(KEY_POOR_TIER_CLICK_MS, normalized.poorTierClickIntervalMs)
+            .putInt(KEY_FAIR_TIER_CLICK_MS, normalized.fairTierClickIntervalMs)
+            .putInt(KEY_GOOD_TIER_CLICK_MS, normalized.goodTierClickIntervalMs)
+            .putInt(KEY_MILD_TIER_CLICK_MS, normalized.mildTierClickIntervalMs)
+            .putInt(KEY_VERY_STRONG_TIER_CLICK_MS, normalized.veryStrongTierClickIntervalMs)
             .apply()
     }
 
@@ -49,9 +84,16 @@ class PassiveSignalSettingsRepository(context: Context) {
         private const val KEY_FAIR_RSRP_MIN = "fair_rsrp_min_dbm"
         private const val KEY_GOOD_RSRP_MIN = "good_rsrp_min_dbm"
         private const val KEY_MILD_RSRP_MIN = "mild_rsrp_min_dbm"
+        private const val KEY_VERY_STRONG_RSRP_MIN = "very_strong_rsrp_min_dbm"
         private const val KEY_RSRQ_FAIR_MIN = "rsrq_fair_min_db"
         private const val KEY_NOISY_RSRQ_PASSIVE_CLICKS = "noisy_rsrq_passive_clicks"
         private const val KEY_QUIET_ALERT_RSRQ = "quiet_alert_rsrq_db"
         private const val KEY_QUIET_ALERT_RSRP_MAX = "quiet_alert_rsrp_max_dbm"
+        private const val KEY_CRITICAL_TIER_CLICK_MS = "critical_tier_click_ms"
+        private const val KEY_POOR_TIER_CLICK_MS = "poor_tier_click_ms"
+        private const val KEY_FAIR_TIER_CLICK_MS = "fair_tier_click_ms"
+        private const val KEY_GOOD_TIER_CLICK_MS = "good_tier_click_ms"
+        private const val KEY_MILD_TIER_CLICK_MS = "mild_tier_click_ms"
+        private const val KEY_VERY_STRONG_TIER_CLICK_MS = "very_strong_tier_click_ms"
     }
 }

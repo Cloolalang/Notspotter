@@ -24,16 +24,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.cloolalang.notspotdetector.R
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
-import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import kotlin.math.roundToInt
 
 @Composable
 fun AudioVolumeSettingsCard(
     audioVolumes: AudioVolumeSettings,
-    passiveSoundSpeed: Int,
     previewEnabled: Boolean,
     onPingClickVolumeChange: (Float) -> Unit,
     onLowSignalClickVolumeChange: (Float) -> Unit,
+    onSignalPulseFrequencyChange: (Int) -> Unit,
     onSignalPulseDurationChange: (Int) -> Unit,
     onCellChangeBellVolumeChange: (Float) -> Unit,
     onCellChangeVoiceEnabledChange: (Boolean) -> Unit,
@@ -47,7 +46,6 @@ fun AudioVolumeSettingsCard(
     onLimitedServiceToneVolumeChange: (Float) -> Unit,
     onLimitedServiceVoiceEnabledChange: (Boolean) -> Unit,
     onLimitedServiceVoiceVolumeChange: (Float) -> Unit,
-    onPassiveSoundSpeedChange: (Int) -> Unit,
     onPreviewPingClick: () -> Unit,
     onPreviewLowSignalClick: () -> Unit,
     onPreviewCellChangeBell: () -> Unit,
@@ -102,11 +100,6 @@ fun AudioVolumeSettingsCard(
                     )
                 }
 
-                PassiveSoundSpeedSlider(
-                    speed = passiveSoundSpeed,
-                    onSpeedChange = onPassiveSoundSpeedChange
-                )
-
                 VolumeSlider(
                     label = stringResource(R.string.audio_volume_ping_clicks),
                     value = audioVolumes.pingClickVolume,
@@ -115,18 +108,22 @@ fun AudioVolumeSettingsCard(
                     onPreview = onPreviewPingClick
                 )
                 VolumeSlider(
-                    label = stringResource(R.string.audio_volume_signal_strength),
+                    label = stringResource(R.string.audio_volume_signal_pulse),
                     value = audioVolumes.lowSignalClickVolume,
                     onValueChange = onLowSignalClickVolumeChange,
                     previewEnabled = previewEnabled,
                     onPreview = onPreviewLowSignalClick
                 )
+                FrequencySlider(
+                    label = stringResource(R.string.audio_signal_pulse_frequency),
+                    frequencyHz = audioVolumes.signalPulseFrequencyHz,
+                    onValueChange = onSignalPulseFrequencyChange
+                )
                 DurationSlider(
                     label = stringResource(R.string.audio_signal_pulse_duration),
                     valueMs = audioVolumes.signalPulseDurationMs,
-                    onValueChange = onSignalPulseDurationChange,
-                    previewEnabled = previewEnabled,
-                    onPreview = onPreviewLowSignalClick
+                    hint = stringResource(R.string.audio_signal_pulse_duration_hint),
+                    onValueChange = onSignalPulseDurationChange
                 )
                 VolumeSlider(
                     label = stringResource(R.string.audio_volume_cell_change_bell),
@@ -276,13 +273,17 @@ private fun VoiceAnnouncementOption(
 }
 
 @Composable
-private fun PassiveSoundSpeedSlider(
-    speed: Int,
-    onSpeedChange: (Int) -> Unit
+private fun FrequencySlider(
+    label: String,
+    frequencyHz: Int,
+    onValueChange: (Int) -> Unit
 ) {
-    val minSpeed = MonitoringSettings.MIN_PASSIVE_SOUND_SPEED
-    val maxSpeed = MonitoringSettings.MAX_PASSIVE_SOUND_SPEED
-    val value = speed.coerceIn(minSpeed, maxSpeed)
+    val minHz = AudioVolumeSettings.MIN_SIGNAL_PULSE_FREQUENCY_HZ
+    val maxHz = AudioVolumeSettings.MAX_SIGNAL_PULSE_FREQUENCY_HZ
+    val stepHz = AudioVolumeSettings.SIGNAL_PULSE_FREQUENCY_STEP_HZ
+    val minStep = minHz / stepHz
+    val maxStep = maxHz / stepHz
+    val step = (frequencyHz / stepHz).coerceIn(minStep, maxStep)
 
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(
@@ -291,27 +292,22 @@ private fun PassiveSoundSpeedSlider(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = stringResource(R.string.passive_sound_speed_label),
+                text = label,
                 style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium
+                modifier = Modifier.weight(1f)
             )
             Text(
-                text = stringResource(R.string.passive_sound_speed_value, value),
-                style = MaterialTheme.typography.bodySmall,
+                text = stringResource(R.string.audio_signal_pulse_frequency_value, frequencyHz),
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Medium
             )
         }
-        Text(
-            text = stringResource(R.string.passive_sound_speed_hint),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
         Slider(
-            value = value.toFloat(),
-            onValueChange = { onSpeedChange(it.roundToInt()) },
-            valueRange = minSpeed.toFloat()..maxSpeed.toFloat(),
-            steps = maxSpeed - minSpeed - 1
+            value = step.toFloat(),
+            onValueChange = { onValueChange(it.roundToInt() * stepHz) },
+            valueRange = minStep.toFloat()..maxStep.toFloat(),
+            steps = maxStep - minStep - 1
         )
     }
 }
@@ -320,9 +316,8 @@ private fun PassiveSoundSpeedSlider(
 private fun DurationSlider(
     label: String,
     valueMs: Int,
-    onValueChange: (Int) -> Unit,
-    previewEnabled: Boolean,
-    onPreview: () -> Unit
+    hint: String? = null,
+    onValueChange: (Int) -> Unit
 ) {
     val minMs = AudioVolumeSettings.MIN_SIGNAL_PULSE_DURATION_MS
     val maxMs = AudioVolumeSettings.MAX_SIGNAL_PULSE_DURATION_MS
@@ -346,13 +341,13 @@ private fun DurationSlider(
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Medium
             )
-            OutlinedButton(
-                onClick = onPreview,
-                enabled = previewEnabled,
-                modifier = Modifier.padding(start = 8.dp)
-            ) {
-                Text(text = stringResource(R.string.audio_volume_test))
-            }
+        }
+        if (hint != null) {
+            Text(
+                text = hint,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
         Slider(
             value = valueMs.toFloat(),

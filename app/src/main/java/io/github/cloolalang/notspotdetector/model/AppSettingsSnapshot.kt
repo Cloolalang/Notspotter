@@ -12,13 +12,17 @@ data class AppSettingsSnapshot(
     val audioVolumes: AudioVolumeSettings = AudioVolumeSettings()
 ) {
     fun normalized(): AppSettingsSnapshot {
+        val normalizedAudio = audioVolumes.normalized()
         return copy(
             thresholds = thresholds.normalized(),
             pingSettings = pingSettings.normalized(),
             monitoringSettings = monitoringSettings.normalized(),
-            passiveSignalSettings = passiveSignalSettings.normalized(),
+            passiveSignalSettings = SettingsCompatibility.normalizePassiveSignalSettings(
+                passiveSignalSettings.normalized(),
+                normalizedAudio.signalPulseDurationMs
+            ),
             passiveMockSettings = passiveMockSettings.normalized(),
-            audioVolumes = audioVolumes.normalized()
+            audioVolumes = normalizedAudio
         )
     }
 
@@ -50,4 +54,11 @@ enum class ProfileSaveResult {
     MatchesDefaults,
     TooManyProfiles,
     NameTooLong
+}
+
+enum class ProfileImportResult {
+    Imported,
+    InvalidFile,
+    TooManyProfiles,
+    Failed
 }

@@ -45,5 +45,7 @@ data class ConnectivityStats(
     val simSlotIndex: Int? = null,
     val simDisplayName: String? = null,
     val signalPermissionGranted: Boolean = false,
-    val cellIdentityPermissionGranted: Boolean = false
+    val cellIdentityPermissionGranted: Boolean = false,
+    /** Debounced no-signal state (two consecutive polls to enter/exit). */
+    val noSignalActive: Boolean = false
 )

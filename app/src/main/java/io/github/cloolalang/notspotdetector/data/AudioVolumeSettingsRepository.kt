@@ -11,6 +11,10 @@ class AudioVolumeSettingsRepository(context: Context) {
         return AudioVolumeSettings(
             pingClickVolume = prefs.getFloat(KEY_PING_CLICK, AudioVolumeSettings.DEFAULT_VOLUME),
             lowSignalClickVolume = prefs.getFloat(KEY_LOW_SIGNAL_CLICK, AudioVolumeSettings.DEFAULT_VOLUME),
+            signalPulseFrequencyHz = prefs.getInt(
+                KEY_SIGNAL_PULSE_FREQUENCY,
+                AudioVolumeSettings.DEFAULT_SIGNAL_PULSE_FREQUENCY_HZ
+            ),
             signalPulseDurationMs = prefs.getInt(
                 KEY_SIGNAL_PULSE_DURATION,
                 AudioVolumeSettings.DEFAULT_SIGNAL_PULSE_DURATION_MS
@@ -68,6 +72,7 @@ class AudioVolumeSettingsRepository(context: Context) {
         prefs.edit()
             .putFloat(KEY_PING_CLICK, normalized.pingClickVolume)
             .putFloat(KEY_LOW_SIGNAL_CLICK, normalized.lowSignalClickVolume)
+            .putInt(KEY_SIGNAL_PULSE_FREQUENCY, normalized.signalPulseFrequencyHz)
             .putInt(KEY_SIGNAL_PULSE_DURATION, normalized.signalPulseDurationMs)
             .putFloat(KEY_CELL_CHANGE_BELL, normalized.cellChangeBellVolume)
             .putBoolean(KEY_CELL_CHANGE_VOICE_ENABLED, normalized.cellChangeVoiceEnabled)
@@ -88,6 +93,7 @@ class AudioVolumeSettingsRepository(context: Context) {
         private const val PREFS_NAME = "notspot_audio_volumes"
         private const val KEY_PING_CLICK = "ping_click_volume"
         private const val KEY_LOW_SIGNAL_CLICK = "low_signal_click_volume"
+        private const val KEY_SIGNAL_PULSE_FREQUENCY = "signal_pulse_frequency_hz"
         private const val KEY_SIGNAL_PULSE_DURATION = "signal_pulse_duration_ms"
         private const val KEY_CELL_CHANGE_BELL = "cell_change_bell_volume"
         private const val KEY_CELL_CHANGE_VOICE_ENABLED = "cell_change_voice_enabled"

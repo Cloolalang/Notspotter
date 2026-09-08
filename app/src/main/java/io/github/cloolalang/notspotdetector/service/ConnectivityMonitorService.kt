@@ -189,24 +189,25 @@ class ConnectivityMonitorService : Service() {
     }
 
     private fun playAlertWithVoice(
-        playTone: () -> Unit,
+        onPlayTone: () -> Unit,
+        toneDurationMs: Int,
         announcement: String?,
         voiceEnabled: Boolean,
         voiceVolume: Float
     ) {
-        playTone()
-        if (voiceEnabled && !announcement.isNullOrBlank()) {
-            serviceScope.launch {
-                delay(AudioVolumeSettings.ALERT_VOICE_DELAY_MS)
-                cellVoiceAnnouncer.speak(announcement, voiceVolume)
-            }
+        onPlayTone()
+        if (!voiceEnabled || announcement.isNullOrBlank() || voiceVolume <= 0f) return
+        serviceScope.launch {
+            delay(AudioVolumeSettings.voiceDelayAfterAlertTone(toneDurationMs))
+            cellVoiceAnnouncer.speak(announcement, voiceVolume)
         }
     }
 
     private fun playCellChangeAlert(announcement: String?) {
         val volumes = MonitorState.audioVolumes.value.normalized()
         playAlertWithVoice(
-            playTone = ::playCellChangeBell,
+            onPlayTone = ::playCellChangeBell,
+            toneDurationMs = GeigerCounterPlayer.CELL_CHANGE_BELL_DURATION_MS,
             announcement = announcement,
             voiceEnabled = volumes.cellChangeVoiceEnabled,
             voiceVolume = volumes.cellChangeVoiceVolume
@@ -216,7 +217,8 @@ class ConnectivityMonitorService : Service() {
     private fun playTechnologyChangeAlert(announcement: String?) {
         val volumes = MonitorState.audioVolumes.value.normalized()
         playAlertWithVoice(
-            playTone = ::playTechnologyChangeTone,
+            onPlayTone = ::playTechnologyChangeTone,
+            toneDurationMs = GeigerCounterPlayer.TECHNOLOGY_CHANGE_TONE_DURATION_MS,
             announcement = announcement,
             voiceEnabled = volumes.technologyChangeVoiceEnabled,
             voiceVolume = volumes.technologyChangeVoiceVolume
@@ -226,9 +228,10 @@ class ConnectivityMonitorService : Service() {
     private fun playNoSignalAlert(announcement: String?) {
         val volumes = MonitorState.audioVolumes.value.normalized()
         playAlertWithVoice(
-            playTone = {
+            onPlayTone = {
                 geigerPlayer.previewNoSignalTone(volumes.noSignalToneVolume)
             },
+            toneDurationMs = GeigerCounterPlayer.NO_SIGNAL_ALERT_TONE_DURATION_MS,
             announcement = announcement,
             voiceEnabled = volumes.noSignalVoiceEnabled,
             voiceVolume = volumes.noSignalVoiceVolume
@@ -238,9 +241,10 @@ class ConnectivityMonitorService : Service() {
     private fun playLimitedServiceAlert(announcement: String?) {
         val volumes = MonitorState.audioVolumes.value.normalized()
         playAlertWithVoice(
-            playTone = {
+            onPlayTone = {
                 geigerPlayer.previewLimitedServiceTone(volumes.limitedServiceToneVolume)
             },
+            toneDurationMs = GeigerCounterPlayer.LIMITED_SERVICE_ALERT_TONE_DURATION_MS,
             announcement = announcement,
             voiceEnabled = volumes.limitedServiceVoiceEnabled,
             voiceVolume = volumes.limitedServiceVoiceVolume

@@ -13,6 +13,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.cloolalang.notspotdetector.BuildConfig
+import io.github.cloolalang.notspotdetector.model.ProfileImportResult
 import io.github.cloolalang.notspotdetector.viewmodel.MonitorViewModel
 
 @Composable
@@ -20,6 +21,8 @@ fun MonitorApp(
     viewModel: MonitorViewModel,
     onRequestBatteryExemption: () -> Unit,
     onRequestCellIdentityPermission: () -> Unit,
+    onImportSettingsProfile: (onResult: (ProfileImportResult) -> Unit) -> Unit,
+    onShareSettingsProfile: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val stats by viewModel.stats.collectAsStateWithLifecycle()
@@ -84,6 +87,7 @@ fun MonitorApp(
             onSubscriptionChange = viewModel::updateSelectedSubscription,
             onPingClickVolumeChange = viewModel::updatePingClickVolume,
             onLowSignalClickVolumeChange = viewModel::updateLowSignalClickVolume,
+            onSignalPulseFrequencyChange = viewModel::updateSignalPulseFrequencyHz,
             onSignalPulseDurationChange = viewModel::updateSignalPulseDurationMs,
             onCellChangeBellVolumeChange = viewModel::updateCellChangeBellVolume,
             onCellChangeVoiceEnabledChange = viewModel::updateCellChangeVoiceEnabled,
@@ -97,7 +101,6 @@ fun MonitorApp(
             onLimitedServiceToneVolumeChange = viewModel::updateLimitedServiceToneVolume,
             onLimitedServiceVoiceEnabledChange = viewModel::updateLimitedServiceVoiceEnabled,
             onLimitedServiceVoiceVolumeChange = viewModel::updateLimitedServiceVoiceVolume,
-            onPassiveSoundSpeedChange = viewModel::updatePassiveSoundSpeed,
             onPreviewPingClick = viewModel::previewPingClickSound,
             onPreviewLowSignalClick = viewModel::previewLowSignalClickSound,
             onPreviewCellChangeBell = viewModel::previewCellChangeBellSound,
@@ -112,6 +115,8 @@ fun MonitorApp(
             onSaveSettingsProfile = viewModel::saveSettingsProfile,
             onLoadSettingsProfile = viewModel::loadSettingsProfile,
             onDeleteSettingsProfile = viewModel::deleteSettingsProfile,
+            onImportSettingsProfile = onImportSettingsProfile,
+            onShareSettingsProfile = onShareSettingsProfile,
             onRequestBatteryExemption = onRequestBatteryExemption,
             onRequestCellIdentityPermission = onRequestCellIdentityPermission,
             appVersion = BuildConfig.VERSION_NAME,

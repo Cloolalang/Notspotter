@@ -47,12 +47,15 @@ import io.github.cloolalang.notspotdetector.model.PassiveMockSettings
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
 import io.github.cloolalang.notspotdetector.model.PingSettings
 import io.github.cloolalang.notspotdetector.model.RttSample
+import io.github.cloolalang.notspotdetector.model.ProfileImportResult
 import io.github.cloolalang.notspotdetector.model.ProfileSaveResult
 import io.github.cloolalang.notspotdetector.model.SettingsProfileSummary
 import io.github.cloolalang.notspotdetector.model.SimSubscriptionOption
 import io.github.cloolalang.notspotdetector.model.ThresholdSettings
 import io.github.cloolalang.notspotdetector.model.receptionLevel
 import io.github.cloolalang.notspotdetector.model.ReceptionLevel
+import io.github.cloolalang.notspotdetector.model.SignalMeasurementTier
+import io.github.cloolalang.notspotdetector.model.resolveSignalMeasurementTier
 import io.github.cloolalang.notspotdetector.model.shouldPlayFlatline
 
 @Composable
@@ -92,6 +95,7 @@ fun MonitorScreen(
     onSubscriptionChange: (Int) -> Unit,
     onPingClickVolumeChange: (Float) -> Unit,
     onLowSignalClickVolumeChange: (Float) -> Unit,
+    onSignalPulseFrequencyChange: (Int) -> Unit,
     onSignalPulseDurationChange: (Int) -> Unit,
     onCellChangeBellVolumeChange: (Float) -> Unit,
     onCellChangeVoiceEnabledChange: (Boolean) -> Unit,
@@ -105,7 +109,6 @@ fun MonitorScreen(
     onLimitedServiceToneVolumeChange: (Float) -> Unit,
     onLimitedServiceVoiceEnabledChange: (Boolean) -> Unit,
     onLimitedServiceVoiceVolumeChange: (Float) -> Unit,
-    onPassiveSoundSpeedChange: (Int) -> Unit,
     onPreviewPingClick: () -> Unit,
     onPreviewLowSignalClick: () -> Unit,
     onPreviewCellChangeBell: () -> Unit,
@@ -120,6 +123,8 @@ fun MonitorScreen(
     onSaveSettingsProfile: (String) -> ProfileSaveResult,
     onLoadSettingsProfile: (String) -> Unit,
     onDeleteSettingsProfile: (String) -> Unit,
+    onImportSettingsProfile: (onResult: (ProfileImportResult) -> Unit) -> Unit,
+    onShareSettingsProfile: (String) -> Unit,
     onRequestBatteryExemption: () -> Unit,
     onRequestCellIdentityPermission: () -> Unit,
     appVersion: String,
@@ -228,6 +233,7 @@ fun MonitorScreen(
             MetricsCard(
                 stats = stats,
                 monitoringSettings = monitoringSettings,
+                passiveSignalSettings = passiveSignalSettings,
                 onRequestCellIdentityPermission = onRequestCellIdentityPermission
             )
         }
@@ -236,7 +242,9 @@ fun MonitorScreen(
             profiles = settingsProfiles,
             onSaveProfile = onSaveSettingsProfile,
             onLoadProfile = onLoadSettingsProfile,
-            onDeleteProfile = onDeleteSettingsProfile
+            onDeleteProfile = onDeleteSettingsProfile,
+            onImportProfile = onImportSettingsProfile,
+            onShareProfile = onShareSettingsProfile
         )
 
         PingSettingsCard(
@@ -261,6 +269,7 @@ fun MonitorScreen(
             settings = passiveSignalSettings,
             mockSettings = passiveMockSettings,
             passiveMeasurementIntervalMs = monitoringSettings.passiveMeasurementIntervalMs,
+            signalPulseDurationMs = audioVolumes.signalPulseDurationMs,
             onSettingsChange = onPassiveSignalSettingsChange,
             onMockSettingsChange = onPassiveMockSettingsChange,
             onPassiveMeasurementIntervalChange = onPassiveMeasurementIntervalChange,
@@ -280,10 +289,10 @@ fun MonitorScreen(
 
         AudioVolumeSettingsCard(
             audioVolumes = audioVolumes,
-            passiveSoundSpeed = monitoringSettings.passiveSoundSpeed,
             previewEnabled = !isRunning,
             onPingClickVolumeChange = onPingClickVolumeChange,
             onLowSignalClickVolumeChange = onLowSignalClickVolumeChange,
+            onSignalPulseFrequencyChange = onSignalPulseFrequencyChange,
             onSignalPulseDurationChange = onSignalPulseDurationChange,
             onCellChangeBellVolumeChange = onCellChangeBellVolumeChange,
             onCellChangeVoiceEnabledChange = onCellChangeVoiceEnabledChange,
@@ -297,7 +306,6 @@ fun MonitorScreen(
             onLimitedServiceToneVolumeChange = onLimitedServiceToneVolumeChange,
             onLimitedServiceVoiceEnabledChange = onLimitedServiceVoiceEnabledChange,
             onLimitedServiceVoiceVolumeChange = onLimitedServiceVoiceVolumeChange,
-            onPassiveSoundSpeedChange = onPassiveSoundSpeedChange,
             onPreviewPingClick = onPreviewPingClick,
             onPreviewLowSignalClick = onPreviewLowSignalClick,
             onPreviewCellChangeBell = onPreviewCellChangeBell,
@@ -537,6 +545,7 @@ private fun GeigerIndicator(
 private fun MetricsCard(
     stats: ConnectivityStats,
     monitoringSettings: MonitoringSettings,
+    passiveSignalSettings: PassiveSignalSettings,
     onRequestCellIdentityPermission: () -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -621,6 +630,9 @@ private fun MetricsCard(
                     )
                 )
             }
+            SignalTierMetricRow(
+                tier = stats.resolveSignalMeasurementTier(passiveSignalSettings)
+            )
         }
     }
 }
@@ -761,7 +773,41 @@ private fun formatCellIdentityValue(
 }
 
 @Composable
-private fun MetricRow(label: String, value: String) {
+private fun SignalTierMetricRow(tier: SignalMeasurementTier) {
+    MetricRow(
+        label = stringResource(R.string.metric_signal_tier),
+        value = signalMeasurementTierLabel(tier),
+        valueColor = signalMeasurementTierColor(tier)
+    )
+}
+
+@Composable
+private fun signalMeasurementTierLabel(tier: SignalMeasurementTier): String {
+    tier.displayNumber?.let { number ->
+        return stringResource(R.string.signal_tier_number, number)
+    }
+    return stringResource(
+        when (tier) {
+            SignalMeasurementTier.NO_SIGNAL -> R.string.signal_tier_no_signal
+            SignalMeasurementTier.LIMITED_SERVICE -> R.string.signal_tier_limited_service
+            SignalMeasurementTier.PERMISSION_REQUIRED -> R.string.signal_permission_required
+            SignalMeasurementTier.UNAVAILABLE -> R.string.signal_tier_unavailable
+            else -> R.string.signal_tier_unavailable
+        }
+    )
+}
+
+@Composable
+private fun signalMeasurementTierColor(tier: SignalMeasurementTier): Color {
+    return SignalTierColors.forMeasurementTier(tier)
+}
+
+@Composable
+private fun MetricRow(
+    label: String,
+    value: String,
+    valueColor: Color = MaterialTheme.colorScheme.onSurface
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -776,7 +822,13 @@ private fun MetricRow(label: String, value: String) {
             text = value,
             style = MaterialTheme.typography.bodyLarge,
             fontFamily = FontFamily.Monospace,
-            fontSize = 18.sp
+            fontSize = 18.sp,
+            color = valueColor,
+            fontWeight = if (valueColor != MaterialTheme.colorScheme.onSurface) {
+                FontWeight.SemiBold
+            } else {
+                FontWeight.Normal
+            }
         )
     }
 }
