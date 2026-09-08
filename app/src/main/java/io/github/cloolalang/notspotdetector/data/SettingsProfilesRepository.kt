@@ -4,6 +4,8 @@ import android.content.Context
 import android.net.Uri
 import android.os.Environment
 import io.github.cloolalang.notspotdetector.model.AppSettingsSnapshot
+import io.github.cloolalang.notspotdetector.model.ProfileExportOutcome
+import io.github.cloolalang.notspotdetector.model.ProfileExportResult
 import io.github.cloolalang.notspotdetector.model.ProfileImportResult
 import io.github.cloolalang.notspotdetector.model.SettingsProfile
 import io.github.cloolalang.notspotdetector.model.SettingsProfileSummary
@@ -18,6 +20,7 @@ class SettingsProfilesRepository(context: Context) {
 
     init {
         migrateFromSharedPreferencesIfNeeded()
+        migrateExternalProfileFilesIfNeeded()
     }
 
     fun profilesDirectory(): File = profilesDir
@@ -34,18 +37,22 @@ class SettingsProfilesRepository(context: Context) {
     }
 
     fun loadProfiles(): List<SettingsProfile> {
-        return profilesDir.listFiles { file ->
-            file.isFile && file.extension.equals("json", ignoreCase = true)
-        }?.mapNotNull(::readProfileFile).orEmpty()
+        return profileJsonFilesIn(profilesDir).mapNotNull(::readProfileFile)
     }
 
     fun findById(id: String): SettingsProfile? {
         return readProfileFile(profileFile(id))
     }
 
+    fun exportProfileToDownloads(context: Context, id: String): ProfileExportOutcome {
+        val profile = findById(id)
+            ?: return ProfileExportOutcome(ProfileExportResult.ProfileNotFound)
+        return SettingsProfileDownloadsExporter.exportProfile(context, profile)
+    }
+
     fun profileFile(id: String): File = File(profilesDir, "$id$PROFILE_FILE_EXTENSION")
 
-    fun saveProfile(name: String, settings: AppSettingsSnapshot): SettingsProfile {
+    fun saveProfile(name: String, settings: AppSettingsSnapshot): Boolean {
         val trimmedName = name.trim()
         val profile = SettingsProfile(
             id = UUID.randomUUID().toString(),
@@ -53,8 +60,7 @@ class SettingsProfilesRepository(context: Context) {
             savedAtMs = System.currentTimeMillis(),
             settings = settings.normalized()
         )
-        writeProfileFile(profile)
-        return profile
+        return writeProfileFile(profile)
     }
 
     fun deleteProfile(id: String): Boolean {
@@ -95,21 +101,32 @@ class SettingsProfilesRepository(context: Context) {
     }
 
     private fun resolveProfilesDir(): File {
-        val externalDocuments = appContext.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
-        val dir = if (externalDocuments != null) {
-            File(externalDocuments, PROFILES_FOLDER_NAME)
-        } else {
-            File(appContext.filesDir, PROFILES_FOLDER_NAME)
+        return File(appContext.filesDir, PROFILES_FOLDER_NAME).apply { mkdirs() }
+    }
+
+    private fun migrateExternalProfileFilesIfNeeded() {
+        val externalDir = legacyExternalProfilesDir() ?: return
+        for (file in profileJsonFilesIn(externalDir)) {
+            val target = File(profilesDir, file.name)
+            if (!target.exists()) {
+                runCatching { file.copyTo(target, overwrite = false) }
+            }
         }
-        dir.mkdirs()
-        return dir
+    }
+
+    private fun legacyExternalProfilesDir(): File? {
+        val externalDocuments = appContext.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS) ?: return null
+        val dir = File(externalDocuments, PROFILES_FOLDER_NAME)
+        return dir.takeIf { it.isDirectory }
     }
 
     private fun migrateFromSharedPreferencesIfNeeded() {
         val legacyJson = legacyPrefs.getString(LEGACY_KEY_PROFILES_JSON, "") ?: ""
         if (legacyJson.isBlank()) return
 
-        val profiles = AppSettingsSnapshotCodec.decodeProfiles(legacyJson)
+        val profiles = runCatching {
+            AppSettingsSnapshotCodec.decodeProfiles(legacyJson)
+        }.getOrDefault(emptyList())
         for (profile in profiles) {
             val file = profileFile(profile.id)
             if (!file.exists()) {
@@ -117,6 +134,12 @@ class SettingsProfilesRepository(context: Context) {
             }
         }
         legacyPrefs.edit().remove(LEGACY_KEY_PROFILES_JSON).apply()
+    }
+
+    private fun profileJsonFilesIn(dir: File): List<File> {
+        return dir.listFiles { file ->
+            file.isFile && file.extension.equals("json", ignoreCase = true)
+        }?.toList().orEmpty()
     }
 
     private fun readProfileFile(file: File): SettingsProfile? {

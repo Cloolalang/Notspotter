@@ -13,6 +13,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -22,6 +24,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.cloolalang.notspotdetector.R
+import io.github.cloolalang.notspotdetector.model.ProfileExportOutcome
+import io.github.cloolalang.notspotdetector.model.ProfileExportResult
 import io.github.cloolalang.notspotdetector.model.ProfileImportResult
 import io.github.cloolalang.notspotdetector.model.ProfileSaveResult
 import io.github.cloolalang.notspotdetector.model.SettingsProfileSummary
@@ -36,12 +40,14 @@ fun SettingsProfilesCard(
     onDeleteProfile: (String) -> Unit,
     onImportProfile: (onResult: (ProfileImportResult) -> Unit) -> Unit,
     onShareProfile: (String) -> Unit,
+    onExportProfileToDownloads: (String) -> ProfileExportOutcome,
     modifier: Modifier = Modifier
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     var profileName by rememberSaveable { mutableStateOf("") }
     var lastSaveResult by rememberSaveable { mutableStateOf<ProfileSaveResult?>(null) }
     var lastImportResult by rememberSaveable { mutableStateOf<ProfileImportResult?>(null) }
+    var lastExportOutcome by remember { mutableStateOf<ProfileExportOutcome?>(null) }
 
     Card(modifier = modifier.fillMaxWidth()) {
         Column(
@@ -134,6 +140,18 @@ fun SettingsProfilesCard(
                     )
                 }
 
+                lastExportOutcome?.let { outcome ->
+                    Text(
+                        text = exportResultMessage(outcome),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (outcome.result == ProfileExportResult.Exported) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.error
+                        }
+                    )
+                }
+
                 if (profiles.isEmpty()) {
                     Text(
                         text = stringResource(R.string.settings_profiles_empty),
@@ -148,6 +166,9 @@ fun SettingsProfilesCard(
                             savedAtLabel = dateFormat.format(Date(profile.savedAtMs)),
                             onLoad = { onLoadProfile(profile.id) },
                             onShare = { onShareProfile(profile.id) },
+                            onExportToDownloads = {
+                                lastExportOutcome = onExportProfileToDownloads(profile.id)
+                            },
                             onDelete = { onDeleteProfile(profile.id) }
                         )
                     }
@@ -166,6 +187,7 @@ private fun saveResultMessage(result: ProfileSaveResult?): String? {
         ProfileSaveResult.MatchesDefaults -> stringResource(R.string.settings_profiles_error_matches_defaults)
         ProfileSaveResult.TooManyProfiles -> stringResource(R.string.settings_profiles_error_too_many)
         ProfileSaveResult.NameTooLong -> stringResource(R.string.settings_profiles_error_name_too_long)
+        ProfileSaveResult.Failed -> stringResource(R.string.settings_profiles_error_save_failed)
         null -> null
     }
 }
@@ -182,11 +204,28 @@ private fun importResultMessage(result: ProfileImportResult?): String? {
 }
 
 @Composable
+private fun exportResultMessage(outcome: ProfileExportOutcome): String {
+    return when (outcome.result) {
+        ProfileExportResult.Exported -> {
+            val path = outcome.relativePath
+            if (path.isNullOrBlank()) {
+                stringResource(R.string.settings_profiles_exported)
+            } else {
+                stringResource(R.string.settings_profiles_exported_to, path)
+            }
+        }
+        ProfileExportResult.ProfileNotFound -> stringResource(R.string.settings_profiles_error_export_not_found)
+        ProfileExportResult.Failed -> stringResource(R.string.settings_profiles_error_export_failed)
+    }
+}
+
+@Composable
 private fun ProfileRow(
     profile: SettingsProfileSummary,
     savedAtLabel: String,
     onLoad: () -> Unit,
     onShare: () -> Unit,
+    onExportToDownloads: () -> Unit,
     onDelete: () -> Unit
 ) {
     Column(
@@ -218,6 +257,17 @@ private fun ProfileRow(
                 modifier = Modifier.weight(1f)
             ) {
                 Text(text = stringResource(R.string.settings_profiles_share))
+            }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            OutlinedButton(
+                onClick = onExportToDownloads,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(text = stringResource(R.string.settings_profiles_export_downloads))
             }
             OutlinedButton(
                 onClick = onDelete,

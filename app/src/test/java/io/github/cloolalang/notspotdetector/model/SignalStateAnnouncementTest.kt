@@ -9,6 +9,18 @@ import org.junit.Test
 class SignalStateAnnouncementTest {
 
     @Test
+    fun formatTier5SignalLow_includesOperatorTechnologyAndPhrase() {
+        assertEquals(
+            "E E, 4 G, signal low",
+            SignalStateAnnouncement.formatTier5SignalLowAnnouncement("EE", CellularSignalReader.RADIO_4G)
+        )
+        assertEquals(
+            "4 G, signal low",
+            SignalStateAnnouncement.formatTier5SignalLowAnnouncement(null, CellularSignalReader.RADIO_4G)
+        )
+    }
+
+    @Test
     fun formatTechnologyChange_includesOperatorAndSpokenRat() {
         val announcement = SignalStateAnnouncement.formatTechnologyChange(
             CellularSignalReader.RADIO_4G,

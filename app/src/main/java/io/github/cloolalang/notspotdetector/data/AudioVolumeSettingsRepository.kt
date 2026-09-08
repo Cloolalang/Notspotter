@@ -2,6 +2,7 @@ package io.github.cloolalang.notspotdetector.data
 
 import android.content.Context
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
+import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerChoice
 
 class AudioVolumeSettingsRepository(context: Context) {
 
@@ -43,7 +44,23 @@ class AudioVolumeSettingsRepository(context: Context) {
                 KEY_TECHNOLOGY_CHANGE_VOICE,
                 AudioVolumeSettings.DEFAULT_VOLUME
             ),
+            tier5AnnouncerEnabled = prefs.getBoolean(
+                KEY_TIER5_ANNOUNCER_ENABLED,
+                AudioVolumeSettings.DEFAULT_VOICE_ANNOUNCEMENT_ENABLED
+            ),
+            tier5AnnouncerVolume = prefs.getFloat(
+                KEY_TIER5_ANNOUNCER_VOLUME,
+                AudioVolumeSettings.DEFAULT_VOLUME
+            ),
+            voiceAnnouncerChoice = VoiceAnnouncerChoice.fromId(
+                prefs.getString(KEY_VOICE_ANNOUNCER_CHOICE, null)
+            ),
+            voiceAnnouncerEngineId = prefs.getString(KEY_VOICE_ANNOUNCER_ENGINE_ID, null),
             noSignalToneVolume = prefs.getFloat(KEY_NO_SIGNAL_TONE, AudioVolumeSettings.DEFAULT_VOLUME),
+            noSignalVibrationEnabled = prefs.getBoolean(
+                KEY_NO_SIGNAL_VIBRATION_ENABLED,
+                AudioVolumeSettings.DEFAULT_NO_SIGNAL_VIBRATION_ENABLED
+            ),
             noSignalVoiceEnabled = prefs.getBoolean(
                 KEY_NO_SIGNAL_VOICE_ENABLED,
                 AudioVolumeSettings.DEFAULT_VOICE_ANNOUNCEMENT_ENABLED
@@ -80,7 +97,12 @@ class AudioVolumeSettingsRepository(context: Context) {
             .putFloat(KEY_TECHNOLOGY_CHANGE, normalized.technologyChangeVolume)
             .putBoolean(KEY_TECHNOLOGY_CHANGE_VOICE_ENABLED, normalized.technologyChangeVoiceEnabled)
             .putFloat(KEY_TECHNOLOGY_CHANGE_VOICE, normalized.technologyChangeVoiceVolume)
+            .putBoolean(KEY_TIER5_ANNOUNCER_ENABLED, normalized.tier5AnnouncerEnabled)
+            .putFloat(KEY_TIER5_ANNOUNCER_VOLUME, normalized.tier5AnnouncerVolume)
+            .putString(KEY_VOICE_ANNOUNCER_CHOICE, normalized.voiceAnnouncerChoice.id)
+            .putString(KEY_VOICE_ANNOUNCER_ENGINE_ID, normalized.voiceAnnouncerEngineId)
             .putFloat(KEY_NO_SIGNAL_TONE, normalized.noSignalToneVolume)
+            .putBoolean(KEY_NO_SIGNAL_VIBRATION_ENABLED, normalized.noSignalVibrationEnabled)
             .putBoolean(KEY_NO_SIGNAL_VOICE_ENABLED, normalized.noSignalVoiceEnabled)
             .putFloat(KEY_NO_SIGNAL_VOICE, normalized.noSignalVoiceVolume)
             .putFloat(KEY_LIMITED_SERVICE_TONE, normalized.limitedServiceToneVolume)
@@ -101,7 +123,12 @@ class AudioVolumeSettingsRepository(context: Context) {
         private const val KEY_TECHNOLOGY_CHANGE = "technology_change_volume"
         private const val KEY_TECHNOLOGY_CHANGE_VOICE_ENABLED = "technology_change_voice_enabled"
         private const val KEY_TECHNOLOGY_CHANGE_VOICE = "technology_change_voice_volume"
+        private const val KEY_TIER5_ANNOUNCER_ENABLED = "tier5_announcer_enabled"
+        private const val KEY_TIER5_ANNOUNCER_VOLUME = "tier5_announcer_volume"
+        private const val KEY_VOICE_ANNOUNCER_CHOICE = "voice_announcer_choice"
+        private const val KEY_VOICE_ANNOUNCER_ENGINE_ID = "voice_announcer_engine_id"
         private const val KEY_NO_SIGNAL_TONE = "no_signal_tone_volume"
+        private const val KEY_NO_SIGNAL_VIBRATION_ENABLED = "no_signal_vibration_enabled"
         private const val KEY_NO_SIGNAL_VOICE_ENABLED = "no_signal_voice_enabled"
         private const val KEY_NO_SIGNAL_VOICE = "no_signal_voice_volume"
         private const val KEY_LIMITED_SERVICE_TONE = "limited_service_tone_volume"

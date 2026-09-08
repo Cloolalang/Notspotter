@@ -53,7 +53,8 @@ enum class ProfileSaveResult {
     DuplicateName,
     MatchesDefaults,
     TooManyProfiles,
-    NameTooLong
+    NameTooLong,
+    Failed
 }
 
 enum class ProfileImportResult {

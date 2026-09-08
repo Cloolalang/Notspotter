@@ -15,7 +15,12 @@ data class AudioVolumeSettings(
     val technologyChangeVolume: Float = DEFAULT_VOLUME,
     val technologyChangeVoiceEnabled: Boolean = DEFAULT_VOICE_ANNOUNCEMENT_ENABLED,
     val technologyChangeVoiceVolume: Float = DEFAULT_VOLUME,
+    val tier5AnnouncerEnabled: Boolean = DEFAULT_VOICE_ANNOUNCEMENT_ENABLED,
+    val tier5AnnouncerVolume: Float = DEFAULT_VOLUME,
+    val voiceAnnouncerChoice: VoiceAnnouncerChoice = DEFAULT_VOICE_ANNOUNCER_CHOICE,
+    val voiceAnnouncerEngineId: String? = null,
     val noSignalToneVolume: Float = DEFAULT_VOLUME,
+    val noSignalVibrationEnabled: Boolean = DEFAULT_NO_SIGNAL_VIBRATION_ENABLED,
     val noSignalVoiceEnabled: Boolean = DEFAULT_VOICE_ANNOUNCEMENT_ENABLED,
     val noSignalVoiceVolume: Float = DEFAULT_VOLUME,
     val limitedServiceToneVolume: Float = DEFAULT_VOLUME,
@@ -38,6 +43,7 @@ data class AudioVolumeSettings(
             cellChangeVoiceVolume = cellChangeVoiceVolume.coerceIn(MIN_VOLUME, MAX_VOLUME),
             technologyChangeVolume = technologyChangeVolume.coerceIn(MIN_VOLUME, MAX_VOLUME),
             technologyChangeVoiceVolume = technologyChangeVoiceVolume.coerceIn(MIN_VOLUME, MAX_VOLUME),
+            tier5AnnouncerVolume = tier5AnnouncerVolume.coerceIn(MIN_VOLUME, MAX_VOLUME),
             noSignalToneVolume = noSignalToneVolume.coerceIn(MIN_VOLUME, MAX_VOLUME),
             noSignalVoiceVolume = noSignalVoiceVolume.coerceIn(MIN_VOLUME, MAX_VOLUME),
             limitedServiceToneVolume = limitedServiceToneVolume.coerceIn(MIN_VOLUME, MAX_VOLUME),
@@ -56,6 +62,8 @@ data class AudioVolumeSettings(
         const val MAX_VOLUME = 1f
         const val DEFAULT_CELL_CHANGE_VOICE_ENABLED = false
         const val DEFAULT_VOICE_ANNOUNCEMENT_ENABLED = false
+        const val DEFAULT_NO_SIGNAL_VIBRATION_ENABLED = false
+        val DEFAULT_VOICE_ANNOUNCER_CHOICE = VoiceAnnouncerChoice.SYSTEM_DEFAULT
 
         const val DEFAULT_SIGNAL_PULSE_DURATION_MS = 250
         const val MIN_SIGNAL_PULSE_DURATION_MS = 10

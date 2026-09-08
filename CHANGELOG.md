@@ -5,6 +5,90 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.28.2] - 2026-09-08
+
+### Fixed
+
+- **Voice announcer** — stores and applies the exact TTS engine voice ID for each selection, runs voice changes on the main thread, and uses per-option pitch so male/female choices sound distinct even when the device only exposes one engine voice.
+
+## [1.28.1] - 2026-09-08
+
+### Fixed
+
+- **Voice announcer preview** — each male/female option now maps to a distinct TTS engine voice. Improved Google voice detection, removed duplicate fallback that sent every choice to the same default voice, and apply the selected voice before each test playback.
+
+## [1.28.0] - 2026-09-08
+
+### Added
+
+- **No signal vibration buzz** — optional toggle in alert sound settings (below no signal tone). When enabled, the phone vibrates in sync with each no-signal alert while monitoring. Test via the no signal tone button when monitoring is stopped.
+
+## [1.27.2] - 2026-09-08
+
+### Fixed
+
+- **Voice announcer selector** — replaced the dropdown with radio buttons so voice choices register taps reliably inside the scrollable settings screen.
+
+## [1.27.1] - 2026-09-08
+
+### Changed
+
+- **Tier 5 announcer** — volume slider and test button are always visible in alert sound settings (below the enable toggle). Test works while monitoring is stopped, even if the announcer is still disabled.
+
+## [1.27.0] - 2026-09-08
+
+### Added
+
+- **Voice announcer selector** — choose from system default plus three male and three female text-to-speech voices for all voice announcements. Each option shows the mapped engine voice when available, with a test button in alert sound settings. Saved in settings profiles.
+
+## [1.26.0] - 2026-09-08
+
+### Added
+
+- **Tier 5 announcer** — new voice-only section in alert sound settings (below technology change). Toggle, volume, and test. Announces on entering tier 5 (poor signal) and every 15 seconds while tier 5 continues (e.g. “E E, 4 G, signal low”). Saved in settings profiles.
+
+## [1.25.0] - 2026-09-08
+
+### Added
+
+- **Export profile to Downloads** — each saved profile now has an **Export to Downloads** button. JSON is written to `Downloads/NotSpotter/NotSpotter - {profile name}.json`, ready to pick up with **Import profile from file**.
+
+## [1.24.2] - 2026-09-08
+
+### Fixed
+
+- **Saved profiles missing** — profiles now always save to a stable app folder and any older copies in the previous external location are migrated in on launch. The profile list refreshes when you return to the app. Failed saves show an error instead of silently doing nothing.
+
+## [1.24.1] - 2026-09-08
+
+### Changed
+
+- **Operator title colour** — the operator name turns red only at signal tier 5 and above (poor, critical, 2G tiers, dead zone, and no signal). Tiers 1–4 keep the brand colour.
+
+## [1.24.0] - 2026-09-08
+
+### Added
+
+- **Operator in home title** — the top bar now shows your home operator next to NotSpotter (e.g. “NotSpotter - EE”). EE is green, Vodafone white, and VMO2 blue when signal is good; all turn red in low or no-signal states.
+
+## [1.23.5] - 2026-09-08
+
+### Fixed
+
+- **App crash on launch** — startup no longer reads ViewModel state flows before they are initialized (same class of bug as the earlier tier-reconciliation fix). Clearing app data or a fresh install no longer crashes immediately on open.
+
+## [1.23.4] - 2026-09-08
+
+### Fixed
+
+- **Monitoring crash on Android 13+** — wake locks now use a supported timed acquire/renew pattern (required when targeting current Android versions). Network callback unregister after a timed cellular request no longer throws and crash the app.
+
+## [1.23.3] - 2026-09-08
+
+### Fixed
+
+- **Screen lock freeze** — monitoring no longer stalls when the screen locks. The foreground service renews its wake lock, the ping monitor keeps reading radio metrics and retries cellular network binding after sleep, and the UI no longer races the service with telephony reads on resume.
+
 ## [1.23.2] - 2026-09-08
 
 ### Added

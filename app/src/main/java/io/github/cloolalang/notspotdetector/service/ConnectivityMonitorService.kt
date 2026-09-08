@@ -13,6 +13,7 @@ import androidx.core.app.NotificationCompat
 import io.github.cloolalang.notspotdetector.MainActivity
 import io.github.cloolalang.notspotdetector.MonitorState
 import io.github.cloolalang.notspotdetector.R
+import io.github.cloolalang.notspotdetector.audio.AlertVibrator
 import io.github.cloolalang.notspotdetector.audio.CellVoiceAnnouncer
 import io.github.cloolalang.notspotdetector.audio.GeigerCounterPlayer
 import io.github.cloolalang.notspotdetector.data.AudioVolumeSettingsRepository
@@ -23,9 +24,11 @@ import io.github.cloolalang.notspotdetector.data.PingSettingsRepository
 import io.github.cloolalang.notspotdetector.data.ThresholdSettingsRepository
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
 import io.github.cloolalang.notspotdetector.model.SignalStateAnnouncement
+import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerSelection
 import io.github.cloolalang.notspotdetector.model.shouldPlayFlatline
 import io.github.cloolalang.notspotdetector.model.shouldPlayPassiveSignalAndQualityAlerts
 import io.github.cloolalang.notspotdetector.model.usesG2SignalTiers
+import io.github.cloolalang.notspotdetector.model.isTier5PoorSignal
 import io.github.cloolalang.notspotdetector.network.CellularPassiveSignalMonitor
 import io.github.cloolalang.notspotdetector.network.CellularPingMonitor
 import kotlinx.coroutines.CoroutineScope
@@ -54,6 +57,7 @@ class ConnectivityMonitorService : Service() {
     private var g2ModePeriodicAnnouncementJob: Job? = null
     private var limitedServicePeriodicAnnouncementJob: Job? = null
     private var deadzonePeriodicAnnouncementJob: Job? = null
+    private var tier5PeriodicAnnouncementJob: Job? = null
     private var searching2gAnnouncementJob: Job? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -84,7 +88,11 @@ class ConnectivityMonitorService : Service() {
             passiveOnlySessionProvider = { isPassiveOnlyStart }
         )
         geigerPlayer = GeigerCounterPlayer()
-        cellVoiceAnnouncer = CellVoiceAnnouncer(this)
+        cellVoiceAnnouncer = CellVoiceAnnouncer(this).also { announcer ->
+            announcer.setVoiceSelectionProvider {
+                VoiceAnnouncerSelection.fromSettings(MonitorState.audioVolumes.value)
+            }
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -175,6 +183,7 @@ class ConnectivityMonitorService : Service() {
     }
 
     private fun handleStatsUpdate(stats: io.github.cloolalang.notspotdetector.model.ConnectivityStats) {
+        renewWakeLockIfNeeded()
         val events = MonitorState.updateStats(stats)
         val passiveSettings = MonitorState.passiveSignalSettings.value
         val monitoringSettings = MonitorState.monitoringSettings.value
@@ -212,6 +221,9 @@ class ConnectivityMonitorService : Service() {
         if (events.deadzoneAnnounced) {
             playDeadzoneAlert(events.deadzoneAnnouncement)
         }
+        if (events.tier5Announced && playQualityAlerts) {
+            playTier5VoiceAlert(events.tier5Announcement)
+        }
         if (events.searching2gStateEntered) {
             scheduleSearching2gAnnouncement()
         } else if (!stats.noSignalActive || stats.isOn2g || stats.isCompleteNoService) {
@@ -222,6 +234,7 @@ class ConnectivityMonitorService : Service() {
         updateG2ModePeriodicAnnouncements()
         updateLimitedServicePeriodicAnnouncements()
         updateDeadzonePeriodicAnnouncements()
+        updateTier5PeriodicAnnouncements()
         updateNotification(MonitorState.stats.value.statusLabel(this))
     }
 
@@ -366,6 +379,41 @@ class ConnectivityMonitorService : Service() {
         }
     }
 
+    private fun updateTier5PeriodicAnnouncements() {
+        val stats = MonitorState.stats.value
+        val passiveSettings = MonitorState.passiveSignalSettings.value
+        val volumes = MonitorState.audioVolumes.value.normalized()
+        val shouldAnnounce = stats.isMonitoring &&
+            !stats.isPassiveIdleMode &&
+            volumes.tier5AnnouncerEnabled &&
+            stats.isTier5PoorSignal(passiveSettings)
+
+        if (!shouldAnnounce) {
+            tier5PeriodicAnnouncementJob?.cancel()
+            tier5PeriodicAnnouncementJob = null
+            return
+        }
+
+        if (tier5PeriodicAnnouncementJob?.isActive == true) return
+
+        tier5PeriodicAnnouncementJob = serviceScope.launch {
+            while (isActive) {
+                delay(TIER5_PERIODIC_ANNOUNCEMENT_MS)
+                val current = MonitorState.stats.value
+                val settings = MonitorState.passiveSignalSettings.value
+                val audio = MonitorState.audioVolumes.value.normalized()
+                if (!current.isMonitoring ||
+                    current.isPassiveIdleMode ||
+                    !audio.tier5AnnouncerEnabled ||
+                    !current.isTier5PoorSignal(settings)
+                ) {
+                    break
+                }
+                playTier5VoiceAlert(MonitorState.formatTier5Announcement(current))
+            }
+        }
+    }
+
     private fun playAlertWithVoice(
         onPlayTone: () -> Unit,
         toneDurationMs: Int,
@@ -405,6 +453,9 @@ class ConnectivityMonitorService : Service() {
 
     private fun playNoSignalAlert(announcement: String?) {
         val volumes = MonitorState.audioVolumes.value.normalized()
+        if (volumes.noSignalVibrationEnabled) {
+            AlertVibrator.buzzNoSignal(this)
+        }
         playAlertWithVoice(
             onPlayTone = {
                 geigerPlayer.previewNoSignalTone(volumes.noSignalToneVolume)
@@ -451,6 +502,16 @@ class ConnectivityMonitorService : Service() {
             voiceEnabled = volumes.noSignalVoiceEnabled,
             voiceVolume = volumes.noSignalVoiceVolume
         )
+    }
+
+    private fun playTier5VoiceAlert(announcement: String?) {
+        val volumes = MonitorState.audioVolumes.value.normalized()
+        if (!volumes.tier5AnnouncerEnabled || announcement.isNullOrBlank() || volumes.tier5AnnouncerVolume <= 0f) {
+            return
+        }
+        serviceScope.launch {
+            cellVoiceAnnouncer.speak(announcement, volumes.tier5AnnouncerVolume)
+        }
     }
 
     private fun playCellChangeBell() {
@@ -509,6 +570,8 @@ class ConnectivityMonitorService : Service() {
         limitedServicePeriodicAnnouncementJob = null
         deadzonePeriodicAnnouncementJob?.cancel()
         deadzonePeriodicAnnouncementJob = null
+        tier5PeriodicAnnouncementJob?.cancel()
+        tier5PeriodicAnnouncementJob = null
         searching2gAnnouncementJob?.cancel()
         searching2gAnnouncementJob = null
         pingMonitor.stop()
@@ -527,7 +590,15 @@ class ConnectivityMonitorService : Service() {
             "NotspotDetector::ConnectivityMonitor"
         ).apply {
             setReferenceCounted(false)
-            acquire()
+        }
+        renewWakeLockIfNeeded()
+    }
+
+    private fun renewWakeLockIfNeeded() {
+        if (!isMonitoringActive) return
+        val lock = wakeLock ?: return
+        runCatching {
+            lock.acquire(WAKE_LOCK_TIMEOUT_MS)
         }
     }
 
@@ -584,7 +655,9 @@ class ConnectivityMonitorService : Service() {
         private const val NOTIFICATION_ID = 1001
         private const val ACTIVE_PING_DURATION_MS = 10 * 60 * 1000L
         private const val PERIODIC_ANNOUNCEMENT_MS = 30_000L
+        private const val TIER5_PERIODIC_ANNOUNCEMENT_MS = 15_000L
         private const val SEARCHING_2G_ANNOUNCEMENT_DELAY_MS = 5_000L
+        private const val WAKE_LOCK_TIMEOUT_MS = 10 * 60 * 1000L
 
         fun start(context: Context, passiveOnly: Boolean = false) {
             val intent = Intent(context, ConnectivityMonitorService::class.java)

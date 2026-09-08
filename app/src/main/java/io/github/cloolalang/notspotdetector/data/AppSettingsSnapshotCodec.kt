@@ -8,6 +8,7 @@ import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
 import io.github.cloolalang.notspotdetector.model.PingSettings
 import io.github.cloolalang.notspotdetector.model.SettingsProfile
 import io.github.cloolalang.notspotdetector.model.ThresholdSettings
+import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerChoice
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -344,7 +345,12 @@ object AppSettingsSnapshotCodec {
             .put("technologyChangeVolume", settings.technologyChangeVolume.toDouble())
             .put("technologyChangeVoiceEnabled", settings.technologyChangeVoiceEnabled)
             .put("technologyChangeVoiceVolume", settings.technologyChangeVoiceVolume.toDouble())
+            .put("tier5AnnouncerEnabled", settings.tier5AnnouncerEnabled)
+            .put("tier5AnnouncerVolume", settings.tier5AnnouncerVolume.toDouble())
+            .put("voiceAnnouncerChoice", settings.voiceAnnouncerChoice.id)
+            .put("voiceAnnouncerEngineId", settings.voiceAnnouncerEngineId)
             .put("noSignalToneVolume", settings.noSignalToneVolume.toDouble())
+            .put("noSignalVibrationEnabled", settings.noSignalVibrationEnabled)
             .put("noSignalVoiceEnabled", settings.noSignalVoiceEnabled)
             .put("noSignalVoiceVolume", settings.noSignalVoiceVolume.toDouble())
             .put("limitedServiceToneVolume", settings.limitedServiceToneVolume.toDouble())
@@ -393,10 +399,26 @@ object AppSettingsSnapshotCodec {
                 "technologyChangeVoiceVolume",
                 AudioVolumeSettings.DEFAULT_VOLUME.toDouble()
             ).toFloat(),
+            tier5AnnouncerEnabled = json.optBoolean(
+                "tier5AnnouncerEnabled",
+                AudioVolumeSettings.DEFAULT_VOICE_ANNOUNCEMENT_ENABLED
+            ),
+            tier5AnnouncerVolume = json.optDouble(
+                "tier5AnnouncerVolume",
+                AudioVolumeSettings.DEFAULT_VOLUME.toDouble()
+            ).toFloat(),
+            voiceAnnouncerChoice = VoiceAnnouncerChoice.fromId(
+                json.optString("voiceAnnouncerChoice", VoiceAnnouncerChoice.SYSTEM_DEFAULT.id)
+            ),
+            voiceAnnouncerEngineId = json.optString("voiceAnnouncerEngineId").ifBlank { null },
             noSignalToneVolume = json.optDouble(
                 "noSignalToneVolume",
                 AudioVolumeSettings.DEFAULT_VOLUME.toDouble()
             ).toFloat(),
+            noSignalVibrationEnabled = json.optBoolean(
+                "noSignalVibrationEnabled",
+                AudioVolumeSettings.DEFAULT_NO_SIGNAL_VIBRATION_ENABLED
+            ),
             noSignalVoiceEnabled = json.optBoolean(
                 "noSignalVoiceEnabled",
                 AudioVolumeSettings.DEFAULT_VOICE_ANNOUNCEMENT_ENABLED

@@ -33,6 +33,9 @@ class CellularPingMonitor(
 
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
     private var pingJob: Job? = null
+    private var radioFallbackJob: Job? = null
+    private var networkRetryJob: Job? = null
+    private var monitorScope: CoroutineScope? = null
     private var activeNetwork: Network? = null
 
     private val rttSamples = ArrayDeque<Long>()
@@ -42,6 +45,35 @@ class CellularPingMonitor(
 
     fun start(scope: CoroutineScope, onStatsUpdated: (ConnectivityStats) -> Unit) {
         stop()
+        monitorScope = scope
+        requestCellularNetwork(scope, onStatsUpdated)
+        startRadioFallbackLoop(scope, onStatsUpdated)
+        emitStats(onStatsUpdated, cellularAvailable = activeNetwork != null)
+    }
+
+    fun stop() {
+        pingJob?.cancel()
+        pingJob = null
+        radioFallbackJob?.cancel()
+        radioFallbackJob = null
+        networkRetryJob?.cancel()
+        networkRetryJob = null
+        unregisterNetworkCallbackSafe(networkCallback)
+        networkCallback = null
+        monitorScope = null
+        activeNetwork = null
+        rttSamples.clear()
+        pingCycleStats.clear()
+        pingsSent = 0
+        pingsFailed = 0
+    }
+
+    private fun requestCellularNetwork(
+        scope: CoroutineScope,
+        onStatsUpdated: (ConnectivityStats) -> Unit
+    ) {
+        unregisterNetworkCallbackSafe(networkCallback)
+        networkCallback = null
 
         val subscriptionId = monitoringSettingsProvider().subscriptionId
         val request = buildNetworkRequest(subscriptionId)
@@ -49,6 +81,8 @@ class CellularPingMonitor(
         val callback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
                 activeNetwork = network
+                networkRetryJob?.cancel()
+                networkRetryJob = null
                 startPingLoop(scope, network, onStatsUpdated)
             }
 
@@ -58,30 +92,76 @@ class CellularPingMonitor(
                     pingJob?.cancel()
                     pingJob = null
                     emitStats(onStatsUpdated, cellularAvailable = false)
+                    scheduleNetworkRetry(scope, onStatsUpdated)
                 }
             }
 
             override fun onUnavailable() {
                 activeNetwork = null
+                pingJob?.cancel()
+                pingJob = null
+                networkCallback = null
                 emitStats(onStatsUpdated, cellularAvailable = false)
+                scheduleNetworkRetry(scope, onStatsUpdated)
             }
         }
 
         networkCallback = callback
-        connectivityManager.requestNetwork(request, callback)
-        emitStats(onStatsUpdated, cellularAvailable = activeNetwork != null)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            connectivityManager.requestNetwork(request, callback, NETWORK_REQUEST_TIMEOUT_MS)
+        } else {
+            connectivityManager.requestNetwork(request, callback)
+        }
     }
 
-    fun stop() {
-        pingJob?.cancel()
-        pingJob = null
-        networkCallback?.let { connectivityManager.unregisterNetworkCallback(it) }
-        networkCallback = null
-        activeNetwork = null
-        rttSamples.clear()
-        pingCycleStats.clear()
-        pingsSent = 0
-        pingsFailed = 0
+    private fun scheduleNetworkRetry(
+        scope: CoroutineScope,
+        onStatsUpdated: (ConnectivityStats) -> Unit
+    ) {
+        if (monitorScope == null) return
+        if (networkRetryJob?.isActive == true) return
+
+        networkRetryJob = scope.launch {
+            delay(NETWORK_RETRY_DELAY_MS)
+            if (monitorScope == null) return@launch
+            requestCellularNetwork(scope, onStatsUpdated)
+        }
+    }
+
+    private fun unregisterNetworkCallbackSafe(callback: ConnectivityManager.NetworkCallback?) {
+        if (callback == null) return
+        try {
+            connectivityManager.unregisterNetworkCallback(callback)
+        } catch (_: IllegalArgumentException) {
+            // Timed requestNetwork() releases the callback before onUnavailable().
+        }
+    }
+
+    private fun startRadioFallbackLoop(
+        scope: CoroutineScope,
+        onStatsUpdated: (ConnectivityStats) -> Unit
+    ) {
+        radioFallbackJob = scope.launch {
+            while (isActive) {
+                val intervalMs = settingsProvider().testIntervalMs.coerceAtLeast(MIN_RADIO_FALLBACK_INTERVAL_MS)
+                delay(intervalMs)
+                if (activeNetwork != null || pingJob?.isActive == true) continue
+
+                val monitoring = monitoringSettingsProvider()
+                val radio = CellularSignalReader.read(
+                    context,
+                    monitoring.monitor2gFallback,
+                    monitoring.subscriptionId
+                )
+                emitStats(
+                    onStatsUpdated = onStatsUpdated,
+                    cellularAvailable = false,
+                    radio = radio,
+                    monitor2gFallback = monitoring.monitor2gFallback,
+                    subscriptionId = monitoring.subscriptionId
+                )
+            }
+        }
     }
 
     private fun startPingLoop(
@@ -91,7 +171,7 @@ class CellularPingMonitor(
     ) {
         pingJob?.cancel()
         pingJob = scope.launch {
-            while (isActive) {
+            while (isActive && activeNetwork == network) {
                 val settings = settingsProvider()
                 val monitoring = monitoringSettingsProvider()
                 val radio = CellularSignalReader.read(
@@ -132,7 +212,6 @@ class CellularPingMonitor(
         repeat(settings.totalPingsPerTest) { index ->
             val rtt = measureRtt(network, settings.host, settings.port)
             if (index < PingSettings.RRC_WARMUP_PINGS) {
-                // First probe warms up RRC / bearer setup and is excluded from metrics.
                 return@repeat
             }
             if (rtt != null) {
@@ -319,5 +398,8 @@ class CellularPingMonitor(
         private const val PACKET_LOSS_WINDOW_SIZE = 5
         private const val RECOVERY_CYCLES = 3
         private const val STALE_RTT_FLOOR_MS = 300L
+        private const val NETWORK_REQUEST_TIMEOUT_MS = 60_000
+        private const val NETWORK_RETRY_DELAY_MS = 15_000L
+        private const val MIN_RADIO_FALLBACK_INTERVAL_MS = 2_000L
     }
 }

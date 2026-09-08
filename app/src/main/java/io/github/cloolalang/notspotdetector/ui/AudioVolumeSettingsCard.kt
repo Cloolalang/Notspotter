@@ -13,6 +13,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -24,12 +25,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.cloolalang.notspotdetector.R
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
+import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerChoice
+import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerOption
 import kotlin.math.roundToInt
 
 @Composable
 fun AudioVolumeSettingsCard(
     audioVolumes: AudioVolumeSettings,
+    voiceAnnouncerOptions: List<VoiceAnnouncerOption>,
     previewEnabled: Boolean,
+    onVoiceAnnouncerChoiceChange: (VoiceAnnouncerChoice) -> Unit,
+    onRefreshVoiceAnnouncerOptions: () -> Unit,
+    onPreviewVoiceAnnouncer: () -> Unit,
     onPingClickVolumeChange: (Float) -> Unit,
     onLowSignalClickVolumeChange: (Float) -> Unit,
     onSignalPulseFrequencyChange: (Int) -> Unit,
@@ -40,7 +47,10 @@ fun AudioVolumeSettingsCard(
     onTechnologyChangeVolumeChange: (Float) -> Unit,
     onTechnologyChangeVoiceEnabledChange: (Boolean) -> Unit,
     onTechnologyChangeVoiceVolumeChange: (Float) -> Unit,
+    onTier5AnnouncerEnabledChange: (Boolean) -> Unit,
+    onTier5AnnouncerVolumeChange: (Float) -> Unit,
     onNoSignalToneVolumeChange: (Float) -> Unit,
+    onNoSignalVibrationEnabledChange: (Boolean) -> Unit,
     onNoSignalVoiceEnabledChange: (Boolean) -> Unit,
     onNoSignalVoiceVolumeChange: (Float) -> Unit,
     onLimitedServiceToneVolumeChange: (Float) -> Unit,
@@ -52,6 +62,7 @@ fun AudioVolumeSettingsCard(
     onPreviewCellChangeVoice: () -> Unit,
     onPreviewTechnologyChange: () -> Unit,
     onPreviewTechnologyChangeVoice: () -> Unit,
+    onPreviewTier5Announcer: () -> Unit,
     onPreviewNoSignalTone: () -> Unit,
     onPreviewNoSignalVoice: () -> Unit,
     onPreviewLimitedServiceTone: () -> Unit,
@@ -92,6 +103,10 @@ fun AudioVolumeSettingsCard(
             )
 
             if (expanded) {
+                LaunchedEffect(Unit) {
+                    onRefreshVoiceAnnouncerOptions()
+                }
+
                 if (!previewEnabled) {
                     Text(
                         text = stringResource(R.string.audio_volume_test_disabled_hint),
@@ -99,6 +114,14 @@ fun AudioVolumeSettingsCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+
+                VoiceAnnouncerSelector(
+                    selectedChoice = audioVolumes.voiceAnnouncerChoice,
+                    options = voiceAnnouncerOptions,
+                    previewEnabled = previewEnabled,
+                    onChoiceChange = onVoiceAnnouncerChoiceChange,
+                    onPreview = onPreviewVoiceAnnouncer
+                )
 
                 VolumeSlider(
                     label = stringResource(R.string.audio_volume_ping_clicks),
@@ -180,6 +203,19 @@ fun AudioVolumeSettingsCard(
                     previewEnabled = previewEnabled,
                     onPreviewVoice = onPreviewTechnologyChangeVoice
                 )
+                VoiceAnnouncementOption(
+                    enabled = audioVolumes.tier5AnnouncerEnabled,
+                    onEnabledChange = onTier5AnnouncerEnabledChange,
+                    title = stringResource(R.string.audio_tier5_announcer_enabled),
+                    hint = stringResource(R.string.audio_tier5_announcer_enabled_hint),
+                    volumeLabel = stringResource(R.string.audio_volume_tier5_announcer),
+                    volume = audioVolumes.tier5AnnouncerVolume,
+                    onVolumeChange = onTier5AnnouncerVolumeChange,
+                    previewEnabled = previewEnabled,
+                    showVolumeControlsWhenDisabled = true,
+                    previewRequiresEnabled = false,
+                    onPreviewVoice = onPreviewTier5Announcer
+                )
                 VolumeSlider(
                     label = stringResource(R.string.audio_volume_no_signal),
                     value = audioVolumes.noSignalToneVolume,
@@ -187,6 +223,26 @@ fun AudioVolumeSettingsCard(
                     previewEnabled = previewEnabled,
                     onPreview = onPreviewNoSignalTone
                 )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = audioVolumes.noSignalVibrationEnabled,
+                        onCheckedChange = onNoSignalVibrationEnabledChange
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.audio_no_signal_vibration_enabled),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            text = stringResource(R.string.audio_no_signal_vibration_enabled_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
                 VoiceAnnouncementOption(
                     enabled = audioVolumes.noSignalVoiceEnabled,
                     onEnabledChange = onNoSignalVoiceEnabledChange,
@@ -238,7 +294,9 @@ private fun VoiceAnnouncementOption(
     volume: Float,
     onVolumeChange: (Float) -> Unit,
     previewEnabled: Boolean,
-    onPreviewVoice: () -> Unit
+    onPreviewVoice: () -> Unit,
+    showVolumeControlsWhenDisabled: Boolean = false,
+    previewRequiresEnabled: Boolean = true
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -260,13 +318,15 @@ private fun VoiceAnnouncementOption(
             )
         }
     }
-    if (enabled) {
+    if (enabled || showVolumeControlsWhenDisabled) {
         VolumeSlider(
             label = volumeLabel,
             value = volume,
             onValueChange = onVolumeChange,
             previewEnabled = previewEnabled,
-            previewEnabledOverride = previewEnabled && enabled,
+            previewEnabledOverride = previewEnabled &&
+                volume > 0f &&
+                (!previewRequiresEnabled || enabled),
             onPreview = onPreviewVoice
         )
     }

@@ -17,6 +17,7 @@ import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.PassiveMockSettings
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
+import io.github.cloolalang.notspotdetector.model.ProfileExportOutcome
 import io.github.cloolalang.notspotdetector.model.ProfileImportResult
 import io.github.cloolalang.notspotdetector.model.ProfileSaveResult
 import io.github.cloolalang.notspotdetector.model.SettingsCompatibility
@@ -25,15 +26,21 @@ import io.github.cloolalang.notspotdetector.model.toConnectivityStats
 import io.github.cloolalang.notspotdetector.model.PingSettings
 import io.github.cloolalang.notspotdetector.model.SimSubscriptionOption
 import io.github.cloolalang.notspotdetector.model.ThresholdSettings
+import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerChoice
+import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerOption
+import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerSelection
+import io.github.cloolalang.notspotdetector.R
 import java.io.File
 import io.github.cloolalang.notspotdetector.network.CellularSignalReader
 import io.github.cloolalang.notspotdetector.network.SimSubscriptionHelper
 import io.github.cloolalang.notspotdetector.audio.CellVoiceAnnouncer
+import io.github.cloolalang.notspotdetector.audio.AlertVibrator
 import io.github.cloolalang.notspotdetector.audio.GeigerCounterPlayer
 import io.github.cloolalang.notspotdetector.model.CellIdentityAnnouncement
 import io.github.cloolalang.notspotdetector.model.SignalStateAnnouncement
 import io.github.cloolalang.notspotdetector.service.ConnectivityMonitorService
 import io.github.cloolalang.notspotdetector.util.BackgroundHelper
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -54,6 +61,9 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
     private val alertSoundPreview = GeigerCounterPlayer()
     private val cellVoiceAnnouncer = CellVoiceAnnouncer(application)
 
+    private val _voiceAnnouncerOptions = MutableStateFlow(defaultVoiceAnnouncerOptions())
+    val voiceAnnouncerOptions: StateFlow<List<VoiceAnnouncerOption>> = _voiceAnnouncerOptions.asStateFlow()
+
     private val _settingsProfiles = MutableStateFlow(settingsProfilesRepository.listSummaries())
     val settingsProfiles: StateFlow<List<SettingsProfileSummary>> = _settingsProfiles.asStateFlow()
 
@@ -68,6 +78,10 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         MonitorState.setPassiveSignalSettings(passiveSignalSettingsRepository.load())
         MonitorState.setPassiveMockSettings(passiveMockSettingsRepository.load())
         reconcilePassiveTierClickIntervals(MonitorState.audioVolumes.value.signalPulseDurationMs)
+        cellVoiceAnnouncer.setVoiceSelectionProvider {
+            VoiceAnnouncerSelection.fromSettings(MonitorState.audioVolumes.value)
+        }
+        cellVoiceAnnouncer.setOnReadyListener { refreshVoiceAnnouncerOptions() }
         refreshSimSubscriptions()
         refreshCellularSignal()
     }
@@ -269,8 +283,52 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         updateAudioVolumes(audioVolumes.value.copy(technologyChangeVoiceVolume = value))
     }
 
+    fun updateTier5AnnouncerEnabled(enabled: Boolean) {
+        updateAudioVolumes(audioVolumes.value.copy(tier5AnnouncerEnabled = enabled))
+    }
+
+    fun updateTier5AnnouncerVolume(value: Float) {
+        updateAudioVolumes(audioVolumes.value.copy(tier5AnnouncerVolume = value))
+    }
+
+    fun updateVoiceAnnouncerChoice(choice: VoiceAnnouncerChoice) {
+        val engineVoiceId = if (choice == VoiceAnnouncerChoice.SYSTEM_DEFAULT) {
+            null
+        } else {
+            cellVoiceAnnouncer.getResolvedOptions()
+                .find { it.choice == choice }
+                ?.engineVoiceId
+        }
+        updateAudioVolumes(
+            audioVolumes.value.copy(
+                voiceAnnouncerChoice = choice,
+                voiceAnnouncerEngineId = engineVoiceId
+            )
+        )
+    }
+
+    fun refreshVoiceAnnouncerOptions() {
+        val options = cellVoiceAnnouncer.getResolvedOptions()
+        _voiceAnnouncerOptions.value = options
+        val current = audioVolumes.value
+        if (current.voiceAnnouncerChoice == VoiceAnnouncerChoice.SYSTEM_DEFAULT) {
+            if (current.voiceAnnouncerEngineId != null) {
+                updateAudioVolumes(current.copy(voiceAnnouncerEngineId = null))
+            }
+            return
+        }
+        val resolvedEngineId = options.find { it.choice == current.voiceAnnouncerChoice }?.engineVoiceId
+        if (resolvedEngineId != null && resolvedEngineId != current.voiceAnnouncerEngineId) {
+            updateAudioVolumes(current.copy(voiceAnnouncerEngineId = resolvedEngineId))
+        }
+    }
+
     fun updateNoSignalToneVolume(value: Float) {
         updateAudioVolumes(audioVolumes.value.copy(noSignalToneVolume = value))
+    }
+
+    fun updateNoSignalVibrationEnabled(enabled: Boolean) {
+        updateAudioVolumes(audioVolumes.value.copy(noSignalVibrationEnabled = enabled))
     }
 
     fun updateNoSignalVoiceEnabled(enabled: Boolean) {
@@ -347,15 +405,44 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         )
     }
 
+    fun previewTier5AnnouncerSound() {
+        if (isRunning.value) return
+        val volumes = audioVolumes.value.normalized()
+        if (volumes.tier5AnnouncerVolume <= 0f) return
+        val announcement = SignalStateAnnouncement.previewTier5SignalLow(readCurrentOperatorName())
+        if (announcement.isBlank()) return
+        viewModelScope.launch {
+            cellVoiceAnnouncer.speak(announcement, volumes.tier5AnnouncerVolume)
+        }
+    }
+
+    fun previewVoiceAnnouncerSound() {
+        if (isRunning.value) return
+        val volumes = audioVolumes.value.normalized()
+        cellVoiceAnnouncer.stop()
+        cellVoiceAnnouncer.speak(
+            getApplication<Application>().getString(R.string.audio_voice_announcer_preview),
+            AudioVolumeSettings.DEFAULT_VOLUME,
+            VoiceAnnouncerSelection.fromSettings(volumes)
+        )
+    }
+
     fun previewNoSignalToneSound() {
         if (isRunning.value) return
-        alertSoundPreview.previewNoSignalTone(audioVolumes.value.normalized().noSignalToneVolume)
+        val volumes = audioVolumes.value.normalized()
+        if (volumes.noSignalVibrationEnabled) {
+            AlertVibrator.buzzNoSignal(getApplication())
+        }
+        alertSoundPreview.previewNoSignalTone(volumes.noSignalToneVolume)
     }
 
     fun previewNoSignalVoiceSound() {
         if (isRunning.value) return
         val volumes = audioVolumes.value.normalized()
         if (!volumes.noSignalVoiceEnabled) return
+        if (volumes.noSignalVibrationEnabled) {
+            AlertVibrator.buzzNoSignal(getApplication())
+        }
         previewAlertWithVoice(
             onPlayTone = { alertSoundPreview.previewNoSignalTone(volumes.noSignalToneVolume) },
             toneDurationMs = GeigerCounterPlayer.NO_SIGNAL_ALERT_TONE_DURATION_MS,
@@ -414,7 +501,9 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         }
         val snapshot = captureCurrentSettingsSnapshot()
         if (snapshot.isDefault()) return ProfileSaveResult.MatchesDefaults
-        settingsProfilesRepository.saveProfile(trimmed, snapshot)
+        if (!settingsProfilesRepository.saveProfile(trimmed, snapshot)) {
+            return ProfileSaveResult.Failed
+        }
         refreshSettingsProfiles()
         return ProfileSaveResult.Saved
     }
@@ -446,6 +535,10 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
     fun exportSettingsProfile(id: String): File? {
         val file = settingsProfilesRepository.profileFile(id)
         return file.takeIf { it.exists() }
+    }
+
+    fun exportSettingsProfileToDownloads(id: String): ProfileExportOutcome {
+        return settingsProfilesRepository.exportProfileToDownloads(getApplication(), id)
     }
 
     fun profileShareLabel(id: String): String? {
@@ -483,23 +576,29 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
     fun refreshCellularSignal() {
         refreshSimSubscriptions()
         if (applyMockSignalIfActive()) return
-        MonitorState.updateSignalMetrics(
-            CellularSignalReader.read(
+        if (MonitorState.isRunning.value) return
+
+        viewModelScope.launch(Dispatchers.IO) {
+            val metrics = CellularSignalReader.read(
                 getApplication(),
                 MonitorState.monitoringSettings.value.monitor2gFallback,
                 MonitorState.monitoringSettings.value.subscriptionId
             )
-        )
+            MonitorState.updateSignalMetrics(metrics)
+        }
     }
 
     private fun applyMockSignalIfActive(): Boolean {
         val mock = MonitorState.passiveMockSettings.value
-        if (!mock.enabled || !isRunning.value || !stats.value.isPassiveOnlySession) return false
+        val currentStats = MonitorState.stats.value
+        if (!mock.enabled || !MonitorState.isRunning.value || !currentStats.isPassiveOnlySession) {
+            return false
+        }
         MonitorState.updateStats(
             mock.toConnectivityStats(
                 monitor2gFallback = MonitorState.monitoringSettings.value.monitor2gFallback,
                 passiveSettings = MonitorState.passiveSignalSettings.value,
-                passiveIdleMode = stats.value.isPassiveIdleMode,
+                passiveIdleMode = currentStats.isPassiveIdleMode,
                 passiveOnlySession = true
             )
         )
@@ -566,8 +665,23 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         _settingsProfiles.value = settingsProfilesRepository.listSummaries()
     }
 
+    fun reloadSettingsProfiles() {
+        refreshSettingsProfiles()
+    }
+
     override fun onCleared() {
         cellVoiceAnnouncer.shutdown()
         super.onCleared()
+    }
+
+    private fun defaultVoiceAnnouncerOptions(): List<VoiceAnnouncerOption> {
+        return VoiceAnnouncerChoice.selectableChoices.map { choice ->
+            VoiceAnnouncerOption(
+                choice = choice,
+                engineVoiceId = null,
+                engineVoiceName = null,
+                available = choice == VoiceAnnouncerChoice.SYSTEM_DEFAULT
+            )
+        }
     }
 }

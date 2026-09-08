@@ -40,11 +40,14 @@ import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
 import io.github.cloolalang.notspotdetector.model.PingSettings
 import io.github.cloolalang.notspotdetector.model.RsrpSample
 import io.github.cloolalang.notspotdetector.model.RttSample
+import io.github.cloolalang.notspotdetector.model.ProfileExportOutcome
 import io.github.cloolalang.notspotdetector.model.ProfileImportResult
 import io.github.cloolalang.notspotdetector.model.ProfileSaveResult
 import io.github.cloolalang.notspotdetector.model.SettingsProfileSummary
 import io.github.cloolalang.notspotdetector.model.SimSubscriptionOption
 import io.github.cloolalang.notspotdetector.model.ThresholdSettings
+import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerChoice
+import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerOption
 import io.github.cloolalang.notspotdetector.model.SignalMeasurementTier
 import io.github.cloolalang.notspotdetector.model.resolveSignalMeasurementTier
 
@@ -59,6 +62,7 @@ fun MonitorScreen(
     simSubscriptions: List<SimSubscriptionOption>,
     phoneStatePermissionGranted: Boolean,
     audioVolumes: AudioVolumeSettings,
+    voiceAnnouncerOptions: List<VoiceAnnouncerOption>,
     settingsProfiles: List<SettingsProfileSummary>,
     rttHistory: List<RttSample>,
     rsrpHistory: List<RsrpSample>,
@@ -84,6 +88,9 @@ fun MonitorScreen(
     onRsrpHistogramWindowChange: (Long) -> Unit,
     onResetPassiveSignalSettings: () -> Unit,
     onSubscriptionChange: (Int) -> Unit,
+    onVoiceAnnouncerChoiceChange: (VoiceAnnouncerChoice) -> Unit,
+    onRefreshVoiceAnnouncerOptions: () -> Unit,
+    onPreviewVoiceAnnouncer: () -> Unit,
     onPingClickVolumeChange: (Float) -> Unit,
     onLowSignalClickVolumeChange: (Float) -> Unit,
     onSignalPulseFrequencyChange: (Int) -> Unit,
@@ -94,7 +101,10 @@ fun MonitorScreen(
     onTechnologyChangeVolumeChange: (Float) -> Unit,
     onTechnologyChangeVoiceEnabledChange: (Boolean) -> Unit,
     onTechnologyChangeVoiceVolumeChange: (Float) -> Unit,
+    onTier5AnnouncerEnabledChange: (Boolean) -> Unit,
+    onTier5AnnouncerVolumeChange: (Float) -> Unit,
     onNoSignalToneVolumeChange: (Float) -> Unit,
+    onNoSignalVibrationEnabledChange: (Boolean) -> Unit,
     onNoSignalVoiceEnabledChange: (Boolean) -> Unit,
     onNoSignalVoiceVolumeChange: (Float) -> Unit,
     onLimitedServiceToneVolumeChange: (Float) -> Unit,
@@ -106,6 +116,7 @@ fun MonitorScreen(
     onPreviewCellChangeVoice: () -> Unit,
     onPreviewTechnologyChange: () -> Unit,
     onPreviewTechnologyChangeVoice: () -> Unit,
+    onPreviewTier5Announcer: () -> Unit,
     onPreviewNoSignalTone: () -> Unit,
     onPreviewNoSignalVoice: () -> Unit,
     onPreviewLimitedServiceTone: () -> Unit,
@@ -116,6 +127,7 @@ fun MonitorScreen(
     onDeleteSettingsProfile: (String) -> Unit,
     onImportSettingsProfile: (onResult: (ProfileImportResult) -> Unit) -> Unit,
     onShareSettingsProfile: (String) -> Unit,
+    onExportSettingsProfileToDownloads: (String) -> ProfileExportOutcome,
     onRequestCellIdentityPermission: () -> Unit,
     appVersion: String,
     modifier: Modifier = Modifier
@@ -132,10 +144,9 @@ fun MonitorScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.Top
         ) {
-            Text(
-                text = stringResource(R.string.home_title),
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
+            HomeTitleBar(
+                stats = stats,
+                passiveSignalSettings = passiveSignalSettings,
                 modifier = Modifier.weight(1f)
             )
             Text(
@@ -223,7 +234,8 @@ fun MonitorScreen(
             onLoadProfile = onLoadSettingsProfile,
             onDeleteProfile = onDeleteSettingsProfile,
             onImportProfile = onImportSettingsProfile,
-            onShareProfile = onShareSettingsProfile
+            onShareProfile = onShareSettingsProfile,
+            onExportProfileToDownloads = onExportSettingsProfileToDownloads
         )
 
         PingSettingsCard(
@@ -268,7 +280,11 @@ fun MonitorScreen(
 
         AudioVolumeSettingsCard(
             audioVolumes = audioVolumes,
+            voiceAnnouncerOptions = voiceAnnouncerOptions,
             previewEnabled = !isRunning,
+            onVoiceAnnouncerChoiceChange = onVoiceAnnouncerChoiceChange,
+            onRefreshVoiceAnnouncerOptions = onRefreshVoiceAnnouncerOptions,
+            onPreviewVoiceAnnouncer = onPreviewVoiceAnnouncer,
             onPingClickVolumeChange = onPingClickVolumeChange,
             onLowSignalClickVolumeChange = onLowSignalClickVolumeChange,
             onSignalPulseFrequencyChange = onSignalPulseFrequencyChange,
@@ -279,7 +295,10 @@ fun MonitorScreen(
             onTechnologyChangeVolumeChange = onTechnologyChangeVolumeChange,
             onTechnologyChangeVoiceEnabledChange = onTechnologyChangeVoiceEnabledChange,
             onTechnologyChangeVoiceVolumeChange = onTechnologyChangeVoiceVolumeChange,
+            onTier5AnnouncerEnabledChange = onTier5AnnouncerEnabledChange,
+            onTier5AnnouncerVolumeChange = onTier5AnnouncerVolumeChange,
             onNoSignalToneVolumeChange = onNoSignalToneVolumeChange,
+            onNoSignalVibrationEnabledChange = onNoSignalVibrationEnabledChange,
             onNoSignalVoiceEnabledChange = onNoSignalVoiceEnabledChange,
             onNoSignalVoiceVolumeChange = onNoSignalVoiceVolumeChange,
             onLimitedServiceToneVolumeChange = onLimitedServiceToneVolumeChange,
@@ -291,6 +310,7 @@ fun MonitorScreen(
             onPreviewCellChangeVoice = onPreviewCellChangeVoice,
             onPreviewTechnologyChange = onPreviewTechnologyChange,
             onPreviewTechnologyChangeVoice = onPreviewTechnologyChangeVoice,
+            onPreviewTier5Announcer = onPreviewTier5Announcer,
             onPreviewNoSignalTone = onPreviewNoSignalTone,
             onPreviewNoSignalVoice = onPreviewNoSignalVoice,
             onPreviewLimitedServiceTone = onPreviewLimitedServiceTone,

@@ -34,6 +34,7 @@ fun MonitorApp(
     val passiveMockSettings by viewModel.passiveMockSettings.collectAsStateWithLifecycle()
     val simSubscriptions by viewModel.simSubscriptions.collectAsStateWithLifecycle()
     val audioVolumes by viewModel.audioVolumes.collectAsStateWithLifecycle()
+    val voiceAnnouncerOptions by viewModel.voiceAnnouncerOptions.collectAsStateWithLifecycle()
     val settingsProfiles by viewModel.settingsProfiles.collectAsStateWithLifecycle()
     val rttHistory by viewModel.rttHistory.collectAsStateWithLifecycle()
     val rsrpHistory by viewModel.rsrpHistory.collectAsStateWithLifecycle()
@@ -44,6 +45,7 @@ fun MonitorApp(
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         phoneStatePermissionGranted = viewModel.phoneStatePermissionGranted
+        viewModel.reloadSettingsProfiles()
         viewModel.refreshCellularSignal()
     }
 
@@ -64,6 +66,7 @@ fun MonitorApp(
             simSubscriptions = simSubscriptions,
             phoneStatePermissionGranted = phoneStatePermissionGranted,
             audioVolumes = audioVolumes,
+            voiceAnnouncerOptions = voiceAnnouncerOptions,
             settingsProfiles = settingsProfiles,
             rttHistory = rttHistory,
             rsrpHistory = rsrpHistory,
@@ -95,6 +98,9 @@ fun MonitorApp(
             onRsrpHistogramWindowChange = viewModel::updateRsrpHistogramWindowMs,
             onResetPassiveSignalSettings = viewModel::resetPassiveSignalSettings,
             onSubscriptionChange = viewModel::updateSelectedSubscription,
+            onVoiceAnnouncerChoiceChange = viewModel::updateVoiceAnnouncerChoice,
+            onRefreshVoiceAnnouncerOptions = viewModel::refreshVoiceAnnouncerOptions,
+            onPreviewVoiceAnnouncer = viewModel::previewVoiceAnnouncerSound,
             onPingClickVolumeChange = viewModel::updatePingClickVolume,
             onLowSignalClickVolumeChange = viewModel::updateLowSignalClickVolume,
             onSignalPulseFrequencyChange = viewModel::updateSignalPulseFrequencyHz,
@@ -105,7 +111,10 @@ fun MonitorApp(
             onTechnologyChangeVolumeChange = viewModel::updateTechnologyChangeVolume,
             onTechnologyChangeVoiceEnabledChange = viewModel::updateTechnologyChangeVoiceEnabled,
             onTechnologyChangeVoiceVolumeChange = viewModel::updateTechnologyChangeVoiceVolume,
+            onTier5AnnouncerEnabledChange = viewModel::updateTier5AnnouncerEnabled,
+            onTier5AnnouncerVolumeChange = viewModel::updateTier5AnnouncerVolume,
             onNoSignalToneVolumeChange = viewModel::updateNoSignalToneVolume,
+            onNoSignalVibrationEnabledChange = viewModel::updateNoSignalVibrationEnabled,
             onNoSignalVoiceEnabledChange = viewModel::updateNoSignalVoiceEnabled,
             onNoSignalVoiceVolumeChange = viewModel::updateNoSignalVoiceVolume,
             onLimitedServiceToneVolumeChange = viewModel::updateLimitedServiceToneVolume,
@@ -117,6 +126,7 @@ fun MonitorApp(
             onPreviewCellChangeVoice = viewModel::previewCellChangeVoiceSound,
             onPreviewTechnologyChange = viewModel::previewTechnologyChangeSound,
             onPreviewTechnologyChangeVoice = viewModel::previewTechnologyChangeVoiceSound,
+            onPreviewTier5Announcer = viewModel::previewTier5AnnouncerSound,
             onPreviewNoSignalTone = viewModel::previewNoSignalToneSound,
             onPreviewNoSignalVoice = viewModel::previewNoSignalVoiceSound,
             onPreviewLimitedServiceTone = viewModel::previewLimitedServiceToneSound,
@@ -127,6 +137,7 @@ fun MonitorApp(
             onDeleteSettingsProfile = viewModel::deleteSettingsProfile,
             onImportSettingsProfile = onImportSettingsProfile,
             onShareSettingsProfile = onShareSettingsProfile,
+            onExportSettingsProfileToDownloads = viewModel::exportSettingsProfileToDownloads,
             onRequestCellIdentityPermission = onRequestCellIdentityPermission,
             appVersion = BuildConfig.VERSION_NAME,
             modifier = Modifier.padding(innerPadding)

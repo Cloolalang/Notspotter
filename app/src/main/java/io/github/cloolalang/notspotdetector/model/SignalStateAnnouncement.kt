@@ -18,6 +18,10 @@ object SignalStateAnnouncement {
         return formatTechnologyChange(CellularSignalReader.RADIO_4G, networkOperatorName)
     }
 
+    fun previewTier5SignalLow(networkOperatorName: String?): String {
+        return formatTier5SignalLowAnnouncement(networkOperatorName, CellularSignalReader.RADIO_4G)
+    }
+
     fun previewNoSignal(networkOperatorName: String?): String {
         return formatNoSignalAnnouncement(networkOperatorName, CellularSignalReader.RADIO_4G)
     }
@@ -33,6 +37,20 @@ object SignalStateAnnouncement {
     fun formatTechnologyChange(radioAccessType: String, networkOperatorName: String?): String {
         val tech = formatTechnologyForSpeech(radioAccessType)
         return prefixNetworkOperator("Technology change, $tech", networkOperatorName)
+    }
+
+    fun formatTier5SignalLowAnnouncement(
+        networkOperatorName: String?,
+        radioAccessType: String?
+    ): String {
+        val parts = buildList {
+            NetworkOperatorSpeech.formatForSpeech(networkOperatorName)?.let(::add)
+            radioAccessType?.takeIf { it.isNotBlank() }?.let {
+                add(formatTechnologyForSpeech(it))
+            }
+            add("signal low")
+        }
+        return parts.joinToString(", ")
     }
 
     fun formatNoSignalAnnouncement(

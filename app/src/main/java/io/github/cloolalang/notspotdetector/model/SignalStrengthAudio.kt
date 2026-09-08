@@ -227,6 +227,13 @@ fun ConnectivityStats.resolveSignalMeasurementTier(
     }
 }
 
+/** True when the latest measurement maps to passive signal tier 5 (poor RSRP band). */
+fun ConnectivityStats.isTier5PoorSignal(
+    settings: PassiveSignalSettings = PassiveSignalSettings()
+): Boolean {
+    return resolveSignalMeasurementTier(settings) == SignalMeasurementTier.POOR
+}
+
 /** Tier used for passive click interval when noisy RSRQ clicks may suppress RSRQ-driven rate increases. */
 fun ConnectivityStats.resolvePassiveClickRateTier(
     settings: PassiveSignalSettings = PassiveSignalSettings()

@@ -18,6 +18,7 @@ import io.github.cloolalang.notspotdetector.model.SignalStateAnnouncement
 import io.github.cloolalang.notspotdetector.model.hasUsableSignalForMonitoring
 import io.github.cloolalang.notspotdetector.model.NoSignalDebouncer
 import io.github.cloolalang.notspotdetector.model.evaluateFlatlineCondition
+import io.github.cloolalang.notspotdetector.model.isTier5PoorSignal
 import io.github.cloolalang.notspotdetector.model.limitedServiceAlternativeOperatorChanged
 import io.github.cloolalang.notspotdetector.model.resolveLimitedServiceAlternativeOperatorName
 import io.github.cloolalang.notspotdetector.model.resolveNoSignalAnnouncementRadioAccessType
@@ -70,6 +71,8 @@ object MonitorState {
     private var searching2gAnnounced = false
     private var deadzoneAnnouncedThisEpisode = false
     private var g2FallbackBaselineReady = false
+    private var tier5BaselineReady = false
+    private val monitorLock = Any()
 
     fun formatNoSignalAnnouncement(stats: ConnectivityStats = _stats.value): String {
         return SignalStateAnnouncement.formatNoSignalAnnouncement(
@@ -80,6 +83,13 @@ object MonitorState {
 
     fun formatDeadzoneAnnouncement(stats: ConnectivityStats = _stats.value): String {
         return SignalStateAnnouncement.formatDeadzoneAnnouncement(stats.networkOperatorName)
+    }
+
+    fun formatTier5Announcement(stats: ConnectivityStats = _stats.value): String {
+        return SignalStateAnnouncement.formatTier5SignalLowAnnouncement(
+            stats.networkOperatorName,
+            stats.resolveNoSignalAnnouncementRadioAccessType(lastKnownRadioAccessType)
+        )
     }
 
     fun formatLimitedServiceAnnouncement(stats: ConnectivityStats = _stats.value): String {
@@ -106,7 +116,9 @@ object MonitorState {
     }
 
     fun markSearching2gAnnounced() {
-        searching2gAnnounced = true
+        synchronized(monitorLock) {
+            searching2gAnnounced = true
+        }
     }
 
     fun setPassiveSignalSettings(settings: PassiveSignalSettings) {
@@ -138,23 +150,25 @@ object MonitorState {
     }
 
     fun updateStats(stats: ConnectivityStats): MonitoringUpdateEvents {
-        rememberRadioAccessType(stats)
-        val passiveSettings = _passiveSignalSettings.value
-        val previous = _stats.value
-        val (displayStats, updatedIdentity) = stats.withStabilizedCellIdentity(stableCellIdentity)
-        stableCellIdentity = updatedIdentity
-        val enriched = if (displayStats.isPassiveIdleMode) {
-            displayStats.copy(quality = ConnectionQuality.PASSIVE_IDLE, severity = 0f)
-        } else {
-            displayStats.withQuality(_thresholds.value, passiveSettings)
+        synchronized(monitorLock) {
+            rememberRadioAccessType(stats)
+            val passiveSettings = _passiveSignalSettings.value
+            val previous = _stats.value
+            val (displayStats, updatedIdentity) = stats.withStabilizedCellIdentity(stableCellIdentity)
+            stableCellIdentity = updatedIdentity
+            val enriched = if (displayStats.isPassiveIdleMode) {
+                displayStats.copy(quality = ConnectionQuality.PASSIVE_IDLE, severity = 0f)
+            } else {
+                displayStats.withQuality(_thresholds.value, passiveSettings)
+            }
+            val (finalStats, events) = buildMonitoringEvents(previous, enriched, passiveSettings)
+            _stats.value = finalStats
+            recordRsrpSample(displayStats.rsrpDbm, stats.isMonitoring)
+            if (!enriched.isPassiveIdleMode) {
+                enriched.rttMs?.let { recordRttSample(it, enriched.lastPingTimestampMs) }
+            }
+            return events
         }
-        val (finalStats, events) = buildMonitoringEvents(previous, enriched, passiveSettings)
-        _stats.value = finalStats
-        recordRsrpSample(displayStats.rsrpDbm, stats.isMonitoring)
-        if (!enriched.isPassiveIdleMode) {
-            enriched.rttMs?.let { recordRttSample(it, enriched.lastPingTimestampMs) }
-        }
-        return events
     }
 
     private fun recordRttSample(rttMs: Long, timestampMs: Long) {
@@ -184,20 +198,24 @@ object MonitorState {
     }
 
     fun recomputeStatsQuality() {
-        val current = _stats.value
-        if (current.isMonitoring) {
-            val passiveSettings = _passiveSignalSettings.value
-            val withQuality = current.withQuality(_thresholds.value, passiveSettings)
-            _stats.value = applyNoSignalDebounce(withQuality, passiveSettings)
+        synchronized(monitorLock) {
+            val current = _stats.value
+            if (current.isMonitoring) {
+                val passiveSettings = _passiveSignalSettings.value
+                val withQuality = current.withQuality(_thresholds.value, passiveSettings)
+                _stats.value = applyNoSignalDebounce(withQuality, passiveSettings)
+            }
         }
     }
 
     fun refreshSignalMetrics(metrics: CellularRadioMetrics): MonitoringUpdateEvents {
-        if (!_isRunning.value) {
-            applyIdleSignalMetrics(metrics)
-            return MonitoringUpdateEvents()
+        synchronized(monitorLock) {
+            if (!_isRunning.value) {
+                applyIdleSignalMetrics(metrics)
+                return MonitoringUpdateEvents()
+            }
+            return updateMonitoringSignalMetrics(metrics)
         }
-        return updateMonitoringSignalMetrics(metrics)
     }
 
     private fun applyIdleSignalMetrics(metrics: CellularRadioMetrics) {
@@ -348,6 +366,11 @@ object MonitorState {
                 next = nextDebounced,
                 networkOperatorName = networkOperatorName
             ),
+            tier5Announcement = consumeTier5StateChange(
+                previous = previous,
+                next = nextDebounced,
+                passiveSettings = passiveSettings
+            ),
             searching2gStateEntered = shouldScheduleSearching2gAnnouncement(nextDebounced) &&
                 !previous.noSignalActive &&
                 nextDebounced.noSignalActive
@@ -381,6 +404,27 @@ object MonitorState {
         }
 
         return SignalStateAnnouncement.formatTechnologyChange(nextType, networkOperatorName)
+    }
+
+    private fun consumeTier5StateChange(
+        previous: ConnectivityStats,
+        next: ConnectivityStats,
+        passiveSettings: PassiveSignalSettings
+    ): String? {
+        if (!_isRunning.value || !next.isMonitoring || next.isPassiveIdleMode) return null
+
+        val wasTier5 = previous.isTier5PoorSignal(passiveSettings)
+        val isTier5 = next.isTier5PoorSignal(passiveSettings)
+
+        if (!tier5BaselineReady) {
+            tier5BaselineReady = true
+            return if (isTier5) formatTier5Announcement(next) else null
+        }
+
+        if (!wasTier5 && isTier5) {
+            return formatTier5Announcement(next)
+        }
+        return null
     }
 
     private fun consumeNoSignalStateChange(
@@ -537,6 +581,7 @@ object MonitorState {
         noSignalBaselineReady = false
         limitedServiceBaselineReady = false
         g2FallbackBaselineReady = false
+        tier5BaselineReady = false
         stableCellIdentity = CellIdentitySnapshot()
         noSignalDebouncer.reset()
         lastKnownRadioAccessType = null
@@ -566,34 +611,40 @@ object MonitorState {
     }
 
     fun enterPassiveIdleMode() {
-        if (!_isRunning.value) return
-        _stats.value = _stats.value.copy(
-            isPassiveIdleMode = true,
-            isMonitoring = true,
-            rttMs = null,
-            jitterMs = 0,
-            packetLossPercent = 0f,
-            quality = ConnectionQuality.PASSIVE_IDLE,
-            severity = 0f
-        )
+        synchronized(monitorLock) {
+            if (!_isRunning.value) return
+            _stats.value = _stats.value.copy(
+                isPassiveIdleMode = true,
+                isMonitoring = true,
+                rttMs = null,
+                jitterMs = 0,
+                packetLossPercent = 0f,
+                quality = ConnectionQuality.PASSIVE_IDLE,
+                severity = 0f
+            )
+        }
     }
 
     fun beginPassiveOnlySession() {
-        _stats.value = ConnectivityStats(
-            isMonitoring = true,
-            isPassiveOnlySession = true
-        )
+        synchronized(monitorLock) {
+            _stats.value = ConnectivityStats(
+                isMonitoring = true,
+                isPassiveOnlySession = true
+            )
+        }
     }
 
     fun setRunning(running: Boolean) {
-        _isRunning.value = running
-        if (running) {
-            resetCellIdentityTracking()
-        } else {
-            resetCellIdentityTracking()
-            _stats.value = ConnectivityStats(isMonitoring = false)
-            _rttHistory.value = emptyList()
-            _rsrpHistory.value = emptyList()
+        synchronized(monitorLock) {
+            _isRunning.value = running
+            if (running) {
+                resetCellIdentityTracking()
+            } else {
+                resetCellIdentityTracking()
+                _stats.value = ConnectivityStats(isMonitoring = false)
+                _rttHistory.value = emptyList()
+                _rsrpHistory.value = emptyList()
+            }
         }
     }
 

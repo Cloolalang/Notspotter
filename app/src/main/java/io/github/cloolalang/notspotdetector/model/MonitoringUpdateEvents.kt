@@ -8,6 +8,7 @@ data class MonitoringUpdateEvents(
     val limitedServiceOperatorChangeAnnouncement: String? = null,
     val g2FallbackAnnouncement: String? = null,
     val deadzoneAnnouncement: String? = null,
+    val tier5Announcement: String? = null,
     val searching2gStateEntered: Boolean = false
 ) {
     val cellIdentityChanged: Boolean
@@ -30,4 +31,7 @@ data class MonitoringUpdateEvents(
 
     val deadzoneAnnounced: Boolean
         get() = !deadzoneAnnouncement.isNullOrBlank()
+
+    val tier5Announced: Boolean
+        get() = !tier5Announcement.isNullOrBlank()
 }
