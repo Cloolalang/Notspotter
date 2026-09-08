@@ -49,7 +49,7 @@ private fun ConnectivityStats.hasPoorReceptionSignal(
     if (isRsrpTooWeakForService(settings)) return true
     if (isOn2g && !monitor2gFallbackEnabled) return true
     if (!cellularAvailable) return true
-    if (isOn2g && monitor2gFallbackEnabled && !hasLteNrSignal) return true
+    if (isOn2g && monitor2gFallbackEnabled && !hasHomeGsmSignal && rsrpDbm == null) return true
     if (signalPermissionGranted && radioAccessType == null && rsrpDbm == null) return true
     return false
 }

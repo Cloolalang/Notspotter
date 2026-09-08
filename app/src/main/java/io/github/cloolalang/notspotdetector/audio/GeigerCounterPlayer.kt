@@ -9,13 +9,18 @@ import io.github.cloolalang.notspotdetector.model.ConnectivityStats
 import io.github.cloolalang.notspotdetector.model.ConnectionQuality
 import io.github.cloolalang.notspotdetector.model.ThresholdSettings
 import io.github.cloolalang.notspotdetector.model.computeSignalStrengthClickIntervalMs
+import io.github.cloolalang.notspotdetector.model.resolveG2SignalStrengthTier
 import io.github.cloolalang.notspotdetector.model.resolvePassiveClickRateTier
 import io.github.cloolalang.notspotdetector.model.resolveSignalStrengthTier
 import io.github.cloolalang.notspotdetector.model.SignalStrengthTier
+import io.github.cloolalang.notspotdetector.model.usesG2SignalTiers
 import io.github.cloolalang.notspotdetector.model.shouldPlay2gLimitedServicePulse
+import io.github.cloolalang.notspotdetector.model.computeDeadzoneClickIntervalMs
 import io.github.cloolalang.notspotdetector.model.shouldPlayContinuousFlatline
+import io.github.cloolalang.notspotdetector.model.shouldPlayDeadzoneTier
 import io.github.cloolalang.notspotdetector.model.shouldPlayFlatline
 import io.github.cloolalang.notspotdetector.model.shouldPlayLimitedServiceTone
+import io.github.cloolalang.notspotdetector.model.shouldPlayCurrentTierSignalPulse
 import io.github.cloolalang.notspotdetector.model.shouldPlaySignalStrengthInterval
 import io.github.cloolalang.notspotdetector.model.shouldPlayVeryStrongSignalIndicator
 import io.github.cloolalang.notspotdetector.model.shouldPlayWeakSignalWarning
@@ -23,6 +28,7 @@ import io.github.cloolalang.notspotdetector.model.shouldSuppressGeigerClicks
 import io.github.cloolalang.notspotdetector.model.hasExtremeLatency
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
+import io.github.cloolalang.notspotdetector.model.isTierSoundEnabled
 import io.github.cloolalang.notspotdetector.model.shouldUseNoisyRsrqPassiveClick
 import io.github.cloolalang.notspotdetector.model.shouldPlayPassiveSignalAndQualityAlerts
 import kotlinx.coroutines.CoroutineScope
@@ -102,6 +108,11 @@ class GeigerCounterPlayer {
                         }
                         delay(200)
                     }
+                    stats.shouldPlayDeadzoneTier(passiveSettings) -> {
+                        stopLimitedService()
+                        stopFlatline()
+                        handleDeadzoneTierAudio(stats, volumes, passiveSettings)
+                    }
                     stats.shouldPlayFlatline(passiveSettings) -> {
                         stopLimitedService()
                         ensureFlatlinePlaying(
@@ -162,8 +173,12 @@ class GeigerCounterPlayer {
             passiveSettings,
             volumes.signalPulseDurationMs
         )
-        if (shouldPlayPassiveSignalAndQualityAlerts(stats, passiveSettings)) {
+        if (shouldPlayPassiveSignalAndQualityAlerts(stats, passiveSettings) &&
+            stats.shouldPlayCurrentTierSignalPulse(passiveSettings)
+        ) {
             val tier = when {
+                stats.usesG2SignalTiers() ->
+                    stats.resolveG2SignalStrengthTier(passiveSettings) ?: SignalStrengthTier.G2_WEAK
                 stats.shouldPlayVeryStrongSignalIndicator(passiveSettings) -> SignalStrengthTier.MILD
                 else -> stats.resolvePassiveClickRateTier(passiveSettings) ?: SignalStrengthTier.FAIR
             }
@@ -180,6 +195,26 @@ class GeigerCounterPlayer {
                 tier = tier,
                 frequencyHz = pulseFrequencyHz,
                 mixWhiteNoise = mixWhiteNoise
+            )
+        }
+        delay(interval)
+    }
+
+    private suspend fun handleDeadzoneTierAudio(
+        stats: ConnectivityStats,
+        volumes: AudioVolumeSettings,
+        passiveSettings: PassiveSignalSettings
+    ) {
+        val pulseDurationMs = passiveSettings.deadzoneTierPulseDurationMs
+        val interval = stats.computeDeadzoneClickIntervalMs(
+            passiveSettings,
+            pulseDurationMs
+        )
+        if (shouldPlayPassiveSignalAndQualityAlerts(stats, passiveSettings)) {
+            playTieredWeakSignalClick(
+                volumes = volumes,
+                tier = SignalStrengthTier.DEADZONE,
+                pulseDurationMs = pulseDurationMs
             )
         }
         delay(interval)
@@ -221,10 +256,17 @@ class GeigerCounterPlayer {
         }
 
         if (stats.shouldPlayWeakSignalWarning(passiveSettings)) {
-            if (shouldPlayPassiveSignalAndQualityAlerts(stats, passiveSettings)) {
+            val tier = if (stats.usesG2SignalTiers()) {
+                stats.resolveG2SignalStrengthTier(passiveSettings) ?: SignalStrengthTier.G2_WEAK
+            } else {
+                stats.resolveSignalStrengthTier(passiveSettings) ?: SignalStrengthTier.FAIR
+            }
+            if (shouldPlayPassiveSignalAndQualityAlerts(stats, passiveSettings) &&
+                passiveSettings.isTierSoundEnabled(tier)
+            ) {
                 playTieredWeakSignalClick(
                     volumes = volumes,
-                    tier = stats.resolveSignalStrengthTier(passiveSettings) ?: SignalStrengthTier.FAIR
+                    tier = tier
                 )
             }
             delay(
@@ -261,12 +303,13 @@ class GeigerCounterPlayer {
         volumes: AudioVolumeSettings,
         tier: SignalStrengthTier,
         frequencyHz: Double = volumes.signalPulseFrequencyHz.toDouble(),
-        mixWhiteNoise: Boolean = false
+        mixWhiteNoise: Boolean = false,
+        pulseDurationMs: Int? = null
     ) {
         if (volumes.lowSignalClickVolume <= 0f) return
         playSineToneBurst(
             frequencyHz = frequencyHz,
-            durationMs = tier.pulseDurationMs(volumes.signalPulseDurationMs),
+            durationMs = pulseDurationMs ?: tier.pulseDurationMs(volumes.signalPulseDurationMs),
             amplitude = FLATLINE_AMPLITUDE * volumes.lowSignalClickVolume,
             mixWhiteNoise = mixWhiteNoise
         )

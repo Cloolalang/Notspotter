@@ -51,6 +51,58 @@ class PassiveSignalSettingsRepository(context: Context) {
             veryStrongTierClickIntervalMs = prefs.getInt(
                 KEY_VERY_STRONG_TIER_CLICK_MS,
                 PassiveSignalSettings.DEFAULT_VERY_STRONG_TIER_CLICK_INTERVAL_MS
+            ),
+            veryStrongTierSoundEnabled = prefs.getBoolean(
+                KEY_VERY_STRONG_TIER_SOUND,
+                PassiveSignalSettings.DEFAULT_TIER_SOUND_ENABLED
+            ),
+            mildTierSoundEnabled = prefs.getBoolean(
+                KEY_MILD_TIER_SOUND,
+                PassiveSignalSettings.DEFAULT_TIER_SOUND_ENABLED
+            ),
+            goodTierSoundEnabled = prefs.getBoolean(
+                KEY_GOOD_TIER_SOUND,
+                PassiveSignalSettings.DEFAULT_TIER_SOUND_ENABLED
+            ),
+            fairTierSoundEnabled = prefs.getBoolean(
+                KEY_FAIR_TIER_SOUND,
+                PassiveSignalSettings.DEFAULT_TIER_SOUND_ENABLED
+            ),
+            poorTierSoundEnabled = prefs.getBoolean(
+                KEY_POOR_TIER_SOUND,
+                PassiveSignalSettings.DEFAULT_TIER_SOUND_ENABLED
+            ),
+            criticalTierSoundEnabled = prefs.getBoolean(
+                KEY_CRITICAL_TIER_SOUND,
+                PassiveSignalSettings.DEFAULT_TIER_SOUND_ENABLED
+            ),
+            g2StrongTierClickIntervalMs = prefs.getInt(
+                KEY_G2_STRONG_TIER_CLICK_MS,
+                PassiveSignalSettings.DEFAULT_G2_STRONG_TIER_CLICK_INTERVAL_MS
+            ),
+            g2WeakTierClickIntervalMs = prefs.getInt(
+                KEY_G2_WEAK_TIER_CLICK_MS,
+                PassiveSignalSettings.DEFAULT_G2_WEAK_TIER_CLICK_INTERVAL_MS
+            ),
+            g2StrongTierSoundEnabled = prefs.getBoolean(
+                KEY_G2_STRONG_TIER_SOUND,
+                PassiveSignalSettings.DEFAULT_TIER_SOUND_ENABLED
+            ),
+            g2WeakTierSoundEnabled = prefs.getBoolean(
+                KEY_G2_WEAK_TIER_SOUND,
+                PassiveSignalSettings.DEFAULT_TIER_SOUND_ENABLED
+            ),
+            deadzoneTierClickIntervalMs = prefs.getInt(
+                KEY_DEADZONE_TIER_CLICK_MS,
+                PassiveSignalSettings.DEFAULT_DEADZONE_TIER_CLICK_INTERVAL_MS
+            ),
+            deadzoneTierSoundEnabled = prefs.getBoolean(
+                KEY_DEADZONE_TIER_SOUND,
+                PassiveSignalSettings.DEFAULT_TIER_SOUND_ENABLED
+            ),
+            deadzoneTierPulseDurationMs = prefs.getInt(
+                KEY_DEADZONE_TIER_PULSE_MS,
+                PassiveSignalSettings.DEFAULT_DEADZONE_TIER_PULSE_DURATION_MS
             )
         ).normalized()
     }
@@ -74,6 +126,19 @@ class PassiveSignalSettingsRepository(context: Context) {
             .putInt(KEY_GOOD_TIER_CLICK_MS, normalized.goodTierClickIntervalMs)
             .putInt(KEY_MILD_TIER_CLICK_MS, normalized.mildTierClickIntervalMs)
             .putInt(KEY_VERY_STRONG_TIER_CLICK_MS, normalized.veryStrongTierClickIntervalMs)
+            .putBoolean(KEY_VERY_STRONG_TIER_SOUND, normalized.veryStrongTierSoundEnabled)
+            .putBoolean(KEY_MILD_TIER_SOUND, normalized.mildTierSoundEnabled)
+            .putBoolean(KEY_GOOD_TIER_SOUND, normalized.goodTierSoundEnabled)
+            .putBoolean(KEY_FAIR_TIER_SOUND, normalized.fairTierSoundEnabled)
+            .putBoolean(KEY_POOR_TIER_SOUND, normalized.poorTierSoundEnabled)
+            .putBoolean(KEY_CRITICAL_TIER_SOUND, normalized.criticalTierSoundEnabled)
+            .putInt(KEY_G2_STRONG_TIER_CLICK_MS, normalized.g2StrongTierClickIntervalMs)
+            .putInt(KEY_G2_WEAK_TIER_CLICK_MS, normalized.g2WeakTierClickIntervalMs)
+            .putBoolean(KEY_G2_STRONG_TIER_SOUND, normalized.g2StrongTierSoundEnabled)
+            .putBoolean(KEY_G2_WEAK_TIER_SOUND, normalized.g2WeakTierSoundEnabled)
+            .putInt(KEY_DEADZONE_TIER_CLICK_MS, normalized.deadzoneTierClickIntervalMs)
+            .putBoolean(KEY_DEADZONE_TIER_SOUND, normalized.deadzoneTierSoundEnabled)
+            .putInt(KEY_DEADZONE_TIER_PULSE_MS, normalized.deadzoneTierPulseDurationMs)
             .apply()
     }
 
@@ -95,5 +160,18 @@ class PassiveSignalSettingsRepository(context: Context) {
         private const val KEY_GOOD_TIER_CLICK_MS = "good_tier_click_ms"
         private const val KEY_MILD_TIER_CLICK_MS = "mild_tier_click_ms"
         private const val KEY_VERY_STRONG_TIER_CLICK_MS = "very_strong_tier_click_ms"
+        private const val KEY_VERY_STRONG_TIER_SOUND = "very_strong_tier_sound_enabled"
+        private const val KEY_MILD_TIER_SOUND = "mild_tier_sound_enabled"
+        private const val KEY_GOOD_TIER_SOUND = "good_tier_sound_enabled"
+        private const val KEY_FAIR_TIER_SOUND = "fair_tier_sound_enabled"
+        private const val KEY_POOR_TIER_SOUND = "poor_tier_sound_enabled"
+        private const val KEY_CRITICAL_TIER_SOUND = "critical_tier_sound_enabled"
+        private const val KEY_G2_STRONG_TIER_CLICK_MS = "g2_strong_tier_click_ms"
+        private const val KEY_G2_WEAK_TIER_CLICK_MS = "g2_weak_tier_click_ms"
+        private const val KEY_G2_STRONG_TIER_SOUND = "g2_strong_tier_sound_enabled"
+        private const val KEY_G2_WEAK_TIER_SOUND = "g2_weak_tier_sound_enabled"
+        private const val KEY_DEADZONE_TIER_CLICK_MS = "deadzone_tier_click_ms"
+        private const val KEY_DEADZONE_TIER_SOUND = "deadzone_tier_sound_enabled"
+        private const val KEY_DEADZONE_TIER_PULSE_MS = "deadzone_tier_pulse_ms"
     }
 }

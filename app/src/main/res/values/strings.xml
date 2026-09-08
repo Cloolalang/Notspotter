@@ -53,6 +53,7 @@
     <string name="passive_signal_tier_click_ping_mode">With ping monitoring: %1$d ms</string>
     <string name="passive_signal_tier_click_measurement_warning">Interval is more than twice your %1$d s measurement cycle — signal tier may change before the next click.</string>
     <string name="passive_signal_tier_click_interval">Tier %1$d click interval</string>
+    <string name="passive_signal_tier_sound_enabled">Tier %1$d signal pulse sound</string>
     <string name="passive_mock_enabled">Mock signal</string>
     <string name="passive_mock_hint">Use manual RSRP/RSRQ during passive-only monitoring instead of live readings. Adjust sliders while running to test alert tiers.</string>
     <string name="passive_mock_rsrp">Mock RSRP</string>
@@ -60,6 +61,15 @@
     <string name="passive_mock_active_hint">Mock signal active — RSRP and RSRQ come from your manual settings, not the radio. Drag the mock sliders to test tiers and audio.</string>
     <string name="passive_signal_settings_reset">Reset to defaults</string>
     <string name="passive_signal_rsrp_section">RSRP tiers</string>
+    <string name="passive_signal_g2_section">2G fallback tiers</string>
+    <string name="passive_signal_g2_section_hint">Used instead of tiers 1–6 when 2G fallback is enabled and the phone is on 2G. Split at %1$d dBm: tier 7 at or above, tier 8 below.</string>
+    <string name="passive_signal_g2_tier7_threshold">2G only — RX level at or above %1$d dBm</string>
+    <string name="passive_signal_g2_tier8_threshold">2G only — RX level below %1$d dBm</string>
+    <string name="passive_signal_deadzone_section">Dead zone tier</string>
+    <string name="passive_signal_deadzone_section_hint">Used when there is no signal from any network or technology (out of service everywhere, no limited service). Tier 9 clicks replace the continuous flatline tone when enabled.</string>
+    <string name="passive_signal_tier_pulse_duration">Tier %1$d signal pulse duration</string>
+    <string name="passive_signal_tier_pulse_duration_hint">Click interval cannot be shorter than this duration plus 25 ms.</string>
+    <string name="passive_signal_deadzone_tier_threshold">Complete dead zone — no signal on any technology</string>
     <string name="passive_signal_rsrp_section_hint">Signal range is fixed from %1$d to %2$d dBm. Drag each boundary to divide the tiers.</string>
     <string name="passive_signal_rsrq_section">RSRQ</string>
     <string name="passive_signal_rsrq_section_hint">Fair boundary range is %1$d to %2$d dB. One boundary splits poor/critical from fair.</string>
@@ -154,7 +164,7 @@
     <string name="rtt_graph_empty">Waiting for RTT samples…</string>
     <string name="rtt_graph_time_start">−60 s</string>
     <string name="rtt_graph_time_now">Now</string>
-    <string name="rsrp_histogram_title">RSRP histogram</string>
+    <string name="rsrp_histogram_title">RF signal level Histogram (all technologies)</string>
     <string name="rsrp_histogram_summary">−70 to −126 dBm · 5 dB bins · active bins only</string>
     <string name="rsrp_histogram_window_label">Sample window</string>
     <string name="rsrp_histogram_empty">Waiting for RSRP samples…</string>
@@ -183,11 +193,11 @@
     <string name="audio_volume_technology_change_voice">Technology change voice announcement</string>
     <string name="audio_volume_no_signal">No signal tone</string>
     <string name="audio_no_signal_voice_enabled">Voice announcement on no signal</string>
-    <string name="audio_no_signal_voice_enabled_hint">After the no-signal tone, speaks when signal is lost or restored (e.g. “E E, No signal” / “E E, Signal restored”).</string>
+    <string name="audio_no_signal_voice_enabled_hint">After the no-signal tone, speaks when signal is lost or restored (e.g. “E E, 4 G, no signal” / “E E, Signal restored, 4 G”).</string>
     <string name="audio_volume_no_signal_voice">No signal voice announcement</string>
     <string name="audio_volume_limited_service">Limited service tone</string>
     <string name="audio_limited_service_voice_enabled">Voice announcement on limited service</string>
-    <string name="audio_limited_service_voice_enabled_hint">After the limited-service tone, speaks when emergency-only service starts or ends (e.g. “E E, Limited service” / “E E, Full service”).</string>
+    <string name="audio_limited_service_voice_enabled_hint">After the limited-service tone, speaks when emergency-only service starts or ends (e.g. “Vodafone UK, E E, Limited service, 4 G” / “Vodafone UK, Full service, 4 G”). Repeats every 30 s while active, including when the camped operator changes.</string>
     <string name="audio_volume_limited_service_voice">Limited service voice announcement</string>
     <string name="audio_volume_percent">%1$d%%</string>
     <string name="audio_volume_reset">Reset to defaults</string>

@@ -60,6 +60,18 @@ object SettingsCompatibility {
             veryStrongTierClickIntervalMs = coerceStoredTierClickIntervalMs(
                 normalized.veryStrongTierClickIntervalMs,
                 signalPulseDurationMs
+            ),
+            g2StrongTierClickIntervalMs = coerceStoredTierClickIntervalMs(
+                normalized.g2StrongTierClickIntervalMs,
+                signalPulseDurationMs
+            ),
+            g2WeakTierClickIntervalMs = coerceStoredTierClickIntervalMs(
+                normalized.g2WeakTierClickIntervalMs,
+                signalPulseDurationMs
+            ),
+            deadzoneTierClickIntervalMs = coerceStoredTierClickIntervalMs(
+                normalized.deadzoneTierClickIntervalMs,
+                normalized.deadzoneTierPulseDurationMs
             )
         )
     }

@@ -4,7 +4,11 @@ data class MonitoringUpdateEvents(
     val cellChangeAnnouncement: String? = null,
     val technologyChangeAnnouncement: String? = null,
     val noSignalStateAnnouncement: String? = null,
-    val limitedServiceStateAnnouncement: String? = null
+    val limitedServiceStateAnnouncement: String? = null,
+    val limitedServiceOperatorChangeAnnouncement: String? = null,
+    val g2FallbackAnnouncement: String? = null,
+    val deadzoneAnnouncement: String? = null,
+    val searching2gStateEntered: Boolean = false
 ) {
     val cellIdentityChanged: Boolean
         get() = !cellChangeAnnouncement.isNullOrBlank()
@@ -17,4 +21,13 @@ data class MonitoringUpdateEvents(
 
     val limitedServiceStateChanged: Boolean
         get() = !limitedServiceStateAnnouncement.isNullOrBlank()
+
+    val limitedServiceOperatorChanged: Boolean
+        get() = !limitedServiceOperatorChangeAnnouncement.isNullOrBlank()
+
+    val g2FallbackAnnounced: Boolean
+        get() = !g2FallbackAnnouncement.isNullOrBlank()
+
+    val deadzoneAnnounced: Boolean
+        get() = !deadzoneAnnouncement.isNullOrBlank()
 }

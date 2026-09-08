@@ -81,4 +81,31 @@ class CellIdentityStabilizerTest {
         assertEquals(42, display.ltePci)
         assertEquals(42, cache.ltePci)
     }
+
+    @Test
+    fun withStabilizedCellIdentity_keepsGsmSignalOn2gFallbackWithoutLteNr() {
+        val stats = ConnectivityStats(
+            isOn2g = true,
+            monitor2gFallbackEnabled = true,
+            hasLteNrSignal = false,
+            hasHomeGsmSignal = true,
+            rsrpDbm = -85,
+            radioAccessType = "2G",
+            gsmEarfcn = 62,
+            gsmBsic = 12,
+            lteEarfcn = 1_800,
+            ltePci = 42
+        )
+        val previous = CellIdentitySnapshot(lteEarfcn = 1_800, ltePci = 42, gsmEarfcn = 62, gsmBsic = 12)
+
+        val (display, cache) = stats.withStabilizedCellIdentity(previous)
+
+        assertEquals(-85, display.rsrpDbm)
+        assertEquals(62, display.gsmEarfcn)
+        assertEquals(12, display.gsmBsic)
+        assertNull(display.lteEarfcn)
+        assertNull(display.ltePci)
+        assertNull(cache.lteEarfcn)
+        assertNull(cache.ltePci)
+    }
 }

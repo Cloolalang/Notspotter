@@ -34,6 +34,19 @@ class SettingsCompatibilityTest {
     }
 
     @Test
+    fun normalizePassiveSignalSettingsRaisesDeadzoneClickIntervalBelowPulseDuration() {
+        val settings = PassiveSignalSettings(
+            deadzoneTierClickIntervalMs = 50,
+            deadzoneTierPulseDurationMs = 250
+        )
+        val normalized = SettingsCompatibility.normalizePassiveSignalSettings(
+            settings,
+            signalPulseDurationMs = 100
+        )
+        assertEquals(280, normalized.deadzoneTierClickIntervalMs)
+    }
+
+    @Test
     fun passiveOnlyUsesConfiguredIntervalWhenLongEnough() {
         assertEquals(
             500L,

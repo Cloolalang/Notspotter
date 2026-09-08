@@ -5,6 +5,121 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.23.2] - 2026-09-08
+
+### Added
+
+- **Tier 9 signal pulse duration** — dead zone tier settings now include a dedicated pulse duration slider that controls how long each tier 9 click sounds. Click interval is kept in sync with this duration. Saved profiles include the new setting.
+
+## [1.23.1] - 2026-09-08
+
+### Changed
+
+- **Dead zone voice** — on entering tier 9 and every 30 seconds while still in a complete dead zone, announces the home operator followed by “all technologies dead zone, scanning” (e.g. “Vodafone UK, all technologies dead zone, scanning”). Works during all monitoring sessions, not only when 2G fallback is enabled.
+
+## [1.23.0] - 2026-09-08
+
+### Added
+
+- **Tier 9 dead zone** — when there is no signal from any network or technology, the monitor shows tier 9 and can play fast Geiger-style clicks instead of the continuous flatline tone. Settings include a sound toggle and click interval, same as other tiers. Saved profiles include the new dead zone tier settings.
+
+## [1.22.0] - 2026-09-08
+
+### Added
+
+- **Limited service home and camped operator voice** — limited-service announcements now speak the SIM/home operator first, then the alternative camped operator when different (e.g. “Vodafone UK, E E, Limited service, 4 G”). If the camped operator changes while still in limited service, the new operator is announced immediately and used in subsequent 30-second repeats.
+
+## [1.21.3] - 2026-09-08
+
+### Fixed
+
+- **Limited service periodic announcements** — now repeat every 30 seconds during all monitoring sessions (not blocked by quiet passive mode), same as no-signal and 2G fallback repeats. Enter/exit limited-service voice alerts also bypass quiet mode.
+
+## [1.21.2] - 2026-09-08
+
+### Fixed
+
+- **2G fallback periodic announcements** — while camped on 2G with fallback enabled, repeats operator and technology every 30 seconds (“Vodafone UK, 2 G” with signal, or “Vodafone UK, 2 G, no signal” without).
+
+## [1.21.1] - 2026-09-08
+
+### Changed
+
+- **Signal restored announcement** — now includes the current radio technology (e.g. “E E, Signal restored, 4 G”).
+- **Full service announcement** — now includes the current radio technology when leaving limited service (e.g. “E E, Full service, 4 G”).
+
+## [1.21.0] - 2026-09-08
+
+### Added
+
+- **2G fallback voice alerts** — when the phone camps on 2G after losing LTE/NR, announces operator and technology (e.g. “Vodafone UK, 2 G”). After 5 seconds of 4G no signal with 2G fallback enabled, announces “no signal, searching 2 G”. If no 2G is found, announces “Dead zone” and plays the continuous flatline tone.
+- **Limited service periodic announcements** — repeats “Limited service, <technology>” every 30 seconds while in limited service mode.
+
+### Changed
+
+- **No-signal periodic announcements** — 30-second no-signal repeats (including on 2G fallback) now run during all monitoring sessions, not only passive-only starts.
+- **Limited service enter announcement** — now includes the current radio technology.
+
+## [1.20.5] - 2026-09-08
+
+### Changed
+
+- **2G fallback tier split** — tier 7 is at or above −100 dBm RX level; tier 8 is below −100 dBm.
+
+## [1.20.4] - 2026-09-08
+
+### Changed
+
+- **Histogram title** — renamed to “RF signal level Histogram (all technologies)”.
+
+## [1.20.3] - 2026-09-08
+
+### Changed
+
+- **2G fallback tier thresholds** — tier 7 now applies above −70 dBm RX level; tier 8 applies at −70 dBm and below (including below −100 dBm).
+
+## [1.20.2] - 2026-09-08
+
+### Fixed
+
+- **2G no-signal voice announcements** — technology is now included when 2G drops to no signal: the app remembers the last RAT, detects 2G-only network mode, and announces “operator, 2 G, no signal” on state-change and periodic passive alerts.
+
+## [1.20.1] - 2026-09-08
+
+### Fixed
+
+- **2G no-signal voice announcements** — no-signal alerts on 2G now follow the same pattern as 4G: operator, technology, then “no signal” (e.g. “Vodafone UK, 2 G, no signal”), including periodic passive-only repeats.
+
+## [1.20.0] - 2026-09-08
+
+### Added
+
+- **2G fallback tiers 7 and 8** — when 2G fallback is enabled and the phone is on 2G, signal tier uses fixed RX level thresholds instead of tiers 1–6: tier 7 above −95 dBm, tier 8 at or below −95 dBm. Each tier has its own signal pulse sound toggle and click interval in Passive signal thresholds.
+
+## [1.19.4] - 2026-09-08
+
+### Fixed
+
+- **2G fallback monitoring** — on pure 2G with 2G fallback enabled, the app no longer reports “no signal” or blanks RX level in cellular metrics when GSM signal is present. LTE/NR-only checks were incorrectly treating every 2G camp as having no usable signal.
+
+## [1.19.3] - 2026-09-08
+
+### Fixed
+
+- **Passive signal thresholds panel** — expanding the panel no longer crashes; tier click interval sliders use a coarser step size when the 20-second maximum would create too many slider stops.
+
+## [1.19.2] - 2026-09-08
+
+### Added
+
+- **Per-tier signal pulse sound** — each tier in Passive signal thresholds has a checkbox to enable or disable its signal-pulse clicks while monitoring.
+
+## [1.19.1] - 2026-09-08
+
+### Changed
+
+- **Signal pulse click intervals** — tier click interval sliders now go up to 20 seconds (was 5 seconds).
+
 ## [1.19.0] - 2026-09-08
 
 ### Changed

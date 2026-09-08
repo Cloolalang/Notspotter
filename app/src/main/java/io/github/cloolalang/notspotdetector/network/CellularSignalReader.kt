@@ -58,9 +58,10 @@ object CellularSignalReader {
             ?: return CellularRadioMetrics(permissionGranted = true)
 
         val cellIdentityPermissionGranted = hasCellIdentityPermission(context)
-        val operatorName = readNetworkOperatorName(context, telephonyManager, subscriptionId)
-        val plmn = readPlmn(telephonyManager)
+        val operatorInfo = readOperatorInfo(context, telephonyManager, subscriptionId)
+        val plmn = operatorInfo.servingPlmn
         val networkReports2g = isServing2gNetwork(telephonyManager)
+        val restrictedTo2gNetwork = isRestrictedTo2gNetwork(telephonyManager)
         val networkServiceMode = readNetworkServiceMode(telephonyManager)
         val simSlotIndex = SimSubscriptionHelper.resolveSlotIndex(context, subscriptionId)
         val simDisplayName = SimSubscriptionHelper.resolveSubscriptionLabel(context, subscriptionId)
@@ -86,8 +87,11 @@ object CellularSignalReader {
         )
 
         var metrics = signalMetrics.copy(
-            networkOperatorName = operatorName,
+            networkOperatorName = operatorInfo.displayOperatorName,
+            homeNetworkOperatorName = operatorInfo.homeOperatorName,
+            servingNetworkOperatorName = operatorInfo.servingOperatorName,
             plmn = plmn,
+            homePlmn = operatorInfo.homePlmn,
             lteEarfcn = servingCell.lteEarfcn,
             ltePci = servingCell.ltePci,
             nrEarfcn = servingCell.nrEarfcn,
@@ -96,6 +100,7 @@ object CellularSignalReader {
             gsmBsic = servingCell.gsmBsic,
             cellIdentityPermissionGranted = cellIdentityPermissionGranted,
             isOn2g = isOn2g,
+            restrictedTo2gNetwork = restrictedTo2gNetwork,
             isLimitedService = isLimitedService,
             networkServiceMode = networkServiceMode,
             hasHomeGsmSignal = hasHomeGsmSignal,
@@ -117,6 +122,13 @@ object CellularSignalReader {
                 nrPci = null,
                 gsmEarfcn = null,
                 gsmBsic = null
+            )
+        } else if (isOn2g && monitor2gFallback && metrics.radioAccessType == null) {
+            metrics = metrics.copy(radioAccessType = RADIO_2G)
+        } else if (monitor2gFallback && restrictedTo2gNetwork && metrics.radioAccessType == null) {
+            metrics = metrics.copy(
+                radioAccessType = RADIO_2G,
+                isOn2g = true
             )
         }
 
@@ -262,25 +274,39 @@ object CellularSignalReader {
         return hasPhoneStatePermission(context)
     }
 
+    private data class OperatorInfo(
+        val homeOperatorName: String?,
+        val servingOperatorName: String?,
+        val homePlmn: String?,
+        val servingPlmn: String?,
+        val displayOperatorName: String?
+    )
+
     @SuppressLint("MissingPermission")
-    private fun readNetworkOperatorName(
+    private fun readOperatorInfo(
         context: Context,
         telephonyManager: TelephonyManager,
         subscriptionId: Int
-    ): String? {
-        return normalizeOperatorName(telephonyManager.networkOperatorName)
-            ?: normalizeOperatorName(telephonyManager.simOperatorName)
+    ): OperatorInfo {
+        val homeOperatorName = normalizeOperatorName(telephonyManager.simOperatorName)
             ?: SimSubscriptionHelper.resolveCarrierName(context, subscriptionId)
+        val servingOperatorName = normalizeOperatorName(telephonyManager.networkOperatorName)
+        val homePlmn = telephonyManager.simOperator
+            .takeIf { it.isNotBlank() && it.length >= 5 }
+        val servingPlmn = telephonyManager.networkOperator
+            .takeIf { it.isNotBlank() && it.length >= 5 }
+        val displayOperatorName = servingOperatorName ?: homeOperatorName
+        return OperatorInfo(
+            homeOperatorName = homeOperatorName,
+            servingOperatorName = servingOperatorName,
+            homePlmn = homePlmn,
+            servingPlmn = servingPlmn,
+            displayOperatorName = displayOperatorName
+        )
     }
 
     private fun normalizeOperatorName(raw: String?): String? {
         return raw?.trim()?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
-    }
-
-    @SuppressLint("MissingPermission")
-    private fun readPlmn(telephonyManager: TelephonyManager): String? {
-        return telephonyManager.networkOperator
-            .takeIf { it.isNotBlank() && it.length >= 5 }
     }
 
     @SuppressLint("MissingPermission")
@@ -346,6 +372,23 @@ object CellularSignalReader {
         val voiceNetworkType = telephonyManager.voiceNetworkType
         return voiceNetworkType in TWO_G_NETWORK_TYPES &&
             dataNetworkType == TelephonyManager.NETWORK_TYPE_UNKNOWN
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun isRestrictedTo2gNetwork(telephonyManager: TelephonyManager): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return false
+        return runCatching {
+            val allowed = telephonyManager.getAllowedNetworkTypesForReason(
+                TelephonyManager.ALLOWED_NETWORK_TYPES_REASON_USER
+            )
+            if (allowed == 0L) return false
+            val twoGOnlyMask = (
+                TelephonyManager.NETWORK_TYPE_BITMASK_GSM or
+                    TelephonyManager.NETWORK_TYPE_BITMASK_GPRS or
+                    TelephonyManager.NETWORK_TYPE_BITMASK_EDGE
+                ).toLong()
+            (allowed and twoGOnlyMask.inv()) == 0L
+        }.getOrDefault(false)
     }
 
     @SuppressLint("MissingPermission")

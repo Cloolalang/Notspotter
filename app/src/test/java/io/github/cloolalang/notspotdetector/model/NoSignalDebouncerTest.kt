@@ -11,8 +11,9 @@ class NoSignalDebouncerTest {
     fun requiresTwoPollsToEnterNoSignal() {
         val debouncer = NoSignalDebouncer()
 
-        assertFalse(debouncer.update(true).confirmedActive)
-        assertFalse(debouncer.update(true).transitioned)
+        val firstEnterPoll = debouncer.update(true)
+        assertFalse(firstEnterPoll.confirmedActive)
+        assertFalse(firstEnterPoll.transitioned)
 
         val result = debouncer.update(true)
         assertTrue(result.confirmedActive)
@@ -25,8 +26,9 @@ class NoSignalDebouncerTest {
         debouncer.update(true)
         debouncer.update(true)
 
-        assertTrue(debouncer.update(false).confirmedActive)
-        assertFalse(debouncer.update(false).transitioned)
+        val firstExitPoll = debouncer.update(false)
+        assertTrue(firstExitPoll.confirmedActive)
+        assertFalse(firstExitPoll.transitioned)
 
         val result = debouncer.update(false)
         assertFalse(result.confirmedActive)

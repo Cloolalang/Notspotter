@@ -18,7 +18,7 @@ internal fun ConnectivityStats.evaluateFlatlineCondition(
     if (!cellularAvailable) return true
 
     if (isOn2g && monitor2gFallbackEnabled) {
-        return !hasLteNrSignal
+        return !hasHomeGsmSignal && rsrpDbm == null
     }
 
     if (hasNoRadioSignal(settings)) return true
@@ -43,6 +43,7 @@ fun ConnectivityStats.shouldPlayContinuousFlatline(
     settings: PassiveSignalSettings = PassiveSignalSettings()
 ): Boolean {
     if (!shouldPlayFlatline(settings)) return false
+    if (shouldPlayDeadzoneTier(settings)) return false
     return isCompleteNoService
 }
 
@@ -75,7 +76,7 @@ fun ConnectivityStats.shouldPlaySignalStrengthInterval(
     if (shouldPlayFlatline(settings)) return false
     if (shouldPlayLimitedServiceTone() || shouldPlay2gLimitedServicePulse()) return false
     if (!signalPermissionGranted) return false
-    return shouldPlayWeakSignalWarning(settings) || shouldPlayVeryStrongSignalIndicator(settings)
+    return shouldPlayCurrentTierSignalPulse(settings)
 }
 
 /**

@@ -23,6 +23,9 @@ class SignalMeasurementTierTest {
         assertEquals(4, SignalStrengthTier.FAIR.displayNumber)
         assertEquals(5, SignalStrengthTier.POOR.displayNumber)
         assertEquals(6, SignalStrengthTier.CRITICAL.displayNumber)
+        assertEquals(7, SignalMeasurementTier.G2_STRONG.displayNumber)
+        assertEquals(8, SignalMeasurementTier.G2_WEAK.displayNumber)
+        assertEquals(9, SignalMeasurementTier.DEADZONE.displayNumber)
         assertEquals(null, SignalMeasurementTier.NO_SIGNAL.displayNumber)
     }
 
@@ -54,6 +57,17 @@ class SignalMeasurementTierTest {
     fun noSignalRsrpMapsToNoSignalTier() {
         val stats = baseStats(rsrpDbm = -126, rsrqDb = -12)
         assertEquals(SignalMeasurementTier.NO_SIGNAL, stats.resolveSignalMeasurementTier(settings))
+    }
+
+    @Test
+    fun completeNoServiceMapsToDeadzoneTier() {
+        val stats = ConnectivityStats(
+            isMonitoring = true,
+            isCompleteNoService = true,
+            cellularAvailable = false,
+            signalPermissionGranted = true
+        )
+        assertEquals(SignalMeasurementTier.DEADZONE, stats.resolveSignalMeasurementTier(settings))
     }
 
     private fun baseStats(

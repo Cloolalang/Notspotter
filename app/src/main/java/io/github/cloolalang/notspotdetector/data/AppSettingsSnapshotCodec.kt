@@ -200,6 +200,19 @@ object AppSettingsSnapshotCodec {
             .put("goodTierClickIntervalMs", settings.goodTierClickIntervalMs)
             .put("mildTierClickIntervalMs", settings.mildTierClickIntervalMs)
             .put("veryStrongTierClickIntervalMs", settings.veryStrongTierClickIntervalMs)
+            .put("veryStrongTierSoundEnabled", settings.veryStrongTierSoundEnabled)
+            .put("mildTierSoundEnabled", settings.mildTierSoundEnabled)
+            .put("goodTierSoundEnabled", settings.goodTierSoundEnabled)
+            .put("fairTierSoundEnabled", settings.fairTierSoundEnabled)
+            .put("poorTierSoundEnabled", settings.poorTierSoundEnabled)
+            .put("criticalTierSoundEnabled", settings.criticalTierSoundEnabled)
+            .put("g2StrongTierClickIntervalMs", settings.g2StrongTierClickIntervalMs)
+            .put("g2WeakTierClickIntervalMs", settings.g2WeakTierClickIntervalMs)
+            .put("g2StrongTierSoundEnabled", settings.g2StrongTierSoundEnabled)
+            .put("g2WeakTierSoundEnabled", settings.g2WeakTierSoundEnabled)
+            .put("deadzoneTierClickIntervalMs", settings.deadzoneTierClickIntervalMs)
+            .put("deadzoneTierSoundEnabled", settings.deadzoneTierSoundEnabled)
+            .put("deadzoneTierPulseDurationMs", settings.deadzoneTierPulseDurationMs)
     }
 
     private fun decodePassiveSignal(json: JSONObject?): PassiveSignalSettings {
@@ -247,6 +260,58 @@ object AppSettingsSnapshotCodec {
             veryStrongTierClickIntervalMs = json.optInt(
                 "veryStrongTierClickIntervalMs",
                 PassiveSignalSettings.DEFAULT_VERY_STRONG_TIER_CLICK_INTERVAL_MS
+            ),
+            veryStrongTierSoundEnabled = json.optBoolean(
+                "veryStrongTierSoundEnabled",
+                PassiveSignalSettings.DEFAULT_TIER_SOUND_ENABLED
+            ),
+            mildTierSoundEnabled = json.optBoolean(
+                "mildTierSoundEnabled",
+                PassiveSignalSettings.DEFAULT_TIER_SOUND_ENABLED
+            ),
+            goodTierSoundEnabled = json.optBoolean(
+                "goodTierSoundEnabled",
+                PassiveSignalSettings.DEFAULT_TIER_SOUND_ENABLED
+            ),
+            fairTierSoundEnabled = json.optBoolean(
+                "fairTierSoundEnabled",
+                PassiveSignalSettings.DEFAULT_TIER_SOUND_ENABLED
+            ),
+            poorTierSoundEnabled = json.optBoolean(
+                "poorTierSoundEnabled",
+                PassiveSignalSettings.DEFAULT_TIER_SOUND_ENABLED
+            ),
+            criticalTierSoundEnabled = json.optBoolean(
+                "criticalTierSoundEnabled",
+                PassiveSignalSettings.DEFAULT_TIER_SOUND_ENABLED
+            ),
+            g2StrongTierClickIntervalMs = json.optInt(
+                "g2StrongTierClickIntervalMs",
+                PassiveSignalSettings.DEFAULT_G2_STRONG_TIER_CLICK_INTERVAL_MS
+            ),
+            g2WeakTierClickIntervalMs = json.optInt(
+                "g2WeakTierClickIntervalMs",
+                PassiveSignalSettings.DEFAULT_G2_WEAK_TIER_CLICK_INTERVAL_MS
+            ),
+            g2StrongTierSoundEnabled = json.optBoolean(
+                "g2StrongTierSoundEnabled",
+                PassiveSignalSettings.DEFAULT_TIER_SOUND_ENABLED
+            ),
+            g2WeakTierSoundEnabled = json.optBoolean(
+                "g2WeakTierSoundEnabled",
+                PassiveSignalSettings.DEFAULT_TIER_SOUND_ENABLED
+            ),
+            deadzoneTierClickIntervalMs = json.optInt(
+                "deadzoneTierClickIntervalMs",
+                PassiveSignalSettings.DEFAULT_DEADZONE_TIER_CLICK_INTERVAL_MS
+            ),
+            deadzoneTierSoundEnabled = json.optBoolean(
+                "deadzoneTierSoundEnabled",
+                PassiveSignalSettings.DEFAULT_TIER_SOUND_ENABLED
+            ),
+            deadzoneTierPulseDurationMs = json.optInt(
+                "deadzoneTierPulseDurationMs",
+                PassiveSignalSettings.DEFAULT_DEADZONE_TIER_PULSE_DURATION_MS
             )
         )
     }

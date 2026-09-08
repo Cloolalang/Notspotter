@@ -51,6 +51,13 @@ class AppSettingsSnapshotCodecTest {
                 mildRsrpMinDbm = -92,
                 veryStrongRsrpMinDbm = -78,
                 veryStrongTierClickIntervalMs = 1_400,
+                g2StrongTierClickIntervalMs = 1_800,
+                g2WeakTierClickIntervalMs = 450,
+                g2StrongTierSoundEnabled = false,
+                g2WeakTierSoundEnabled = true,
+                deadzoneTierClickIntervalMs = 320,
+                deadzoneTierSoundEnabled = false,
+                deadzoneTierPulseDurationMs = 180,
                 noisyRsrqPassiveClicks = true
             ),
             passiveMockSettings = PassiveMockSettings(enabled = true, rsrpDbm = -110, rsrqDb = -15),

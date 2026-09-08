@@ -18,6 +18,10 @@ import io.github.cloolalang.notspotdetector.model.SignalStateAnnouncement
 import io.github.cloolalang.notspotdetector.model.hasUsableSignalForMonitoring
 import io.github.cloolalang.notspotdetector.model.NoSignalDebouncer
 import io.github.cloolalang.notspotdetector.model.evaluateFlatlineCondition
+import io.github.cloolalang.notspotdetector.model.limitedServiceAlternativeOperatorChanged
+import io.github.cloolalang.notspotdetector.model.resolveLimitedServiceAlternativeOperatorName
+import io.github.cloolalang.notspotdetector.model.resolveNoSignalAnnouncementRadioAccessType
+import io.github.cloolalang.notspotdetector.network.CellularSignalReader
 import io.github.cloolalang.notspotdetector.model.withStabilizedCellIdentity
 import io.github.cloolalang.notspotdetector.model.withQuality
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -61,6 +65,49 @@ object MonitorState {
     private var limitedServiceBaselineReady = false
     private var stableCellIdentity = CellIdentitySnapshot()
     private val noSignalDebouncer = NoSignalDebouncer()
+    private var lastKnownRadioAccessType: String? = null
+    private var lteRatBeforeNoSignalEpisode: String? = null
+    private var searching2gAnnounced = false
+    private var deadzoneAnnouncedThisEpisode = false
+    private var g2FallbackBaselineReady = false
+
+    fun formatNoSignalAnnouncement(stats: ConnectivityStats = _stats.value): String {
+        return SignalStateAnnouncement.formatNoSignalAnnouncement(
+            stats,
+            lastKnownRadioAccessType
+        )
+    }
+
+    fun formatDeadzoneAnnouncement(stats: ConnectivityStats = _stats.value): String {
+        return SignalStateAnnouncement.formatDeadzoneAnnouncement(stats.networkOperatorName)
+    }
+
+    fun formatLimitedServiceAnnouncement(stats: ConnectivityStats = _stats.value): String {
+        return SignalStateAnnouncement.formatLimitedServiceAnnouncement(
+            stats,
+            lastKnownRadioAccessType
+        )
+    }
+
+    fun formatSearching2gAnnouncement(): String {
+        return SignalStateAnnouncement.formatSearching2gAnnouncement(
+            _stats.value.networkOperatorName,
+            lteRatBeforeNoSignalEpisode
+        )
+    }
+
+    fun shouldScheduleSearching2gAnnouncement(stats: ConnectivityStats = _stats.value): Boolean {
+        return stats.noSignalActive &&
+            stats.monitor2gFallbackEnabled &&
+            !stats.isOn2g &&
+            !stats.isCompleteNoService &&
+            SignalStateAnnouncement.isLteNrRadioAccessType(lteRatBeforeNoSignalEpisode) &&
+            !searching2gAnnounced
+    }
+
+    fun markSearching2gAnnounced() {
+        searching2gAnnounced = true
+    }
 
     fun setPassiveSignalSettings(settings: PassiveSignalSettings) {
         _passiveSignalSettings.value = settings.normalized()
@@ -91,6 +138,7 @@ object MonitorState {
     }
 
     fun updateStats(stats: ConnectivityStats): MonitoringUpdateEvents {
+        rememberRadioAccessType(stats)
         val passiveSettings = _passiveSignalSettings.value
         val previous = _stats.value
         val (displayStats, updatedIdentity) = stats.withStabilizedCellIdentity(stableCellIdentity)
@@ -102,7 +150,7 @@ object MonitorState {
         }
         val (finalStats, events) = buildMonitoringEvents(previous, enriched, passiveSettings)
         _stats.value = finalStats
-        recordRsrpSample(stats.rsrpDbm, stats.isMonitoring)
+        recordRsrpSample(displayStats.rsrpDbm, stats.isMonitoring)
         if (!enriched.isPassiveIdleMode) {
             enriched.rttMs?.let { recordRttSample(it, enriched.lastPingTimestampMs) }
         }
@@ -169,6 +217,7 @@ object MonitorState {
             gsmEarfcn = metrics.gsmEarfcn,
             gsmBsic = metrics.gsmBsic,
             isOn2g = metrics.isOn2g,
+            restrictedTo2gNetwork = metrics.restrictedTo2gNetwork,
             isLimitedService = metrics.isLimitedService,
             networkServiceMode = metrics.networkServiceMode,
             hasLimitedServiceOnAnySim = metrics.hasLimitedServiceOnAnySim,
@@ -177,7 +226,10 @@ object MonitorState {
             hasLteNrSignal = metrics.hasLteNrSignal,
             monitor2gFallbackEnabled = monitor2gFallback,
             networkOperatorName = metrics.networkOperatorName,
+            homeNetworkOperatorName = metrics.homeNetworkOperatorName,
+            servingNetworkOperatorName = metrics.servingNetworkOperatorName,
             plmn = metrics.plmn,
+            homePlmn = metrics.homePlmn,
             subscriptionId = metrics.subscriptionId,
             simSlotIndex = metrics.simSlotIndex,
             simDisplayName = metrics.simDisplayName,
@@ -196,6 +248,8 @@ object MonitorState {
     private fun updateMonitoringSignalMetrics(metrics: CellularRadioMetrics): MonitoringUpdateEvents {
         if (!_isRunning.value) return MonitoringUpdateEvents()
 
+        rememberRadioAccessType(metrics)
+
         val monitor2gFallback = _monitoringSettings.value.monitor2gFallback
         val passiveSettings = _passiveSignalSettings.value
         val merged = _stats.value.copy(
@@ -209,6 +263,7 @@ object MonitorState {
             gsmEarfcn = metrics.gsmEarfcn,
             gsmBsic = metrics.gsmBsic,
             isOn2g = metrics.isOn2g,
+            restrictedTo2gNetwork = metrics.restrictedTo2gNetwork,
             isLimitedService = metrics.isLimitedService,
             networkServiceMode = metrics.networkServiceMode,
             hasLimitedServiceOnAnySim = metrics.hasLimitedServiceOnAnySim,
@@ -217,7 +272,10 @@ object MonitorState {
             hasLteNrSignal = metrics.hasLteNrSignal,
             monitor2gFallbackEnabled = monitor2gFallback,
             networkOperatorName = metrics.networkOperatorName,
+            homeNetworkOperatorName = metrics.homeNetworkOperatorName,
+            servingNetworkOperatorName = metrics.servingNetworkOperatorName,
             plmn = metrics.plmn,
+            homePlmn = metrics.homePlmn,
             subscriptionId = metrics.subscriptionId,
             simSlotIndex = metrics.simSlotIndex,
             simDisplayName = metrics.simDisplayName,
@@ -254,6 +312,17 @@ object MonitorState {
     ): Pair<ConnectivityStats, MonitoringUpdateEvents> {
         val nextDebounced = applyNoSignalDebounce(next, passiveSettings)
         val networkOperatorName = nextDebounced.networkOperatorName
+        val noSignalAnnouncement = consumeNoSignalStateChange(
+            previousActive = previous.noSignalActive,
+            nextActive = nextDebounced.noSignalActive,
+            next = nextDebounced,
+            networkOperatorName = networkOperatorName
+        )
+        val g2FallbackAnnouncement = consumeG2FallbackAnnouncement(
+            previous = previous,
+            next = nextDebounced,
+            networkOperatorName = networkOperatorName
+        )
         val events = MonitoringUpdateEvents(
             cellChangeAnnouncement = consumeCellIdentityChange(
                 next = CellIdentitySnapshot.fromStats(nextDebounced),
@@ -264,18 +333,24 @@ object MonitorState {
                 nextType = nextDebounced.radioAccessType,
                 networkOperatorName = networkOperatorName
             ),
-            noSignalStateAnnouncement = consumeNoSignalStateChange(
-                previousActive = previous.noSignalActive,
-                nextActive = nextDebounced.noSignalActive,
-                networkOperatorName = networkOperatorName,
-                radioAccessType = nextDebounced.radioAccessType,
-                isMonitoring = nextDebounced.isMonitoring
-            ),
+            noSignalStateAnnouncement = noSignalAnnouncement,
             limitedServiceStateAnnouncement = consumeLimitedServiceStateChange(
+                previous = previous,
+                next = nextDebounced
+            ),
+            limitedServiceOperatorChangeAnnouncement = consumeLimitedServiceOperatorChange(
+                previous = previous,
+                next = nextDebounced
+            ),
+            g2FallbackAnnouncement = g2FallbackAnnouncement,
+            deadzoneAnnouncement = consumeDeadzoneChange(
                 previous = previous,
                 next = nextDebounced,
                 networkOperatorName = networkOperatorName
-            )
+            ),
+            searching2gStateEntered = shouldScheduleSearching2gAnnouncement(nextDebounced) &&
+                !previous.noSignalActive &&
+                nextDebounced.noSignalActive
         )
         return nextDebounced to events
     }
@@ -293,9 +368,17 @@ object MonitorState {
             return null
         }
 
-        val previousType = _stats.value.radioAccessType
+        val previousType = _stats.value.radioAccessType?.takeIf { it.isNotBlank() }
+            ?: if (_stats.value.noSignalActive) lastKnownRadioAccessType else null
         if (previousType == nextType) return null
         if (previousType.isNullOrBlank() || nextType.isNullOrBlank()) return null
+
+        if (nextType == CellularSignalReader.RADIO_2G &&
+            SignalStateAnnouncement.isLteNrRadioAccessType(previousType) &&
+            _monitoringSettings.value.monitor2gFallback
+        ) {
+            return null
+        }
 
         return SignalStateAnnouncement.formatTechnologyChange(nextType, networkOperatorName)
     }
@@ -303,11 +386,10 @@ object MonitorState {
     private fun consumeNoSignalStateChange(
         previousActive: Boolean,
         nextActive: Boolean,
-        networkOperatorName: String?,
-        radioAccessType: String?,
-        isMonitoring: Boolean
+        next: ConnectivityStats,
+        networkOperatorName: String?
     ): String? {
-        if (!_isRunning.value || !isMonitoring) return null
+        if (!_isRunning.value || !next.isMonitoring) return null
 
         if (!noSignalBaselineReady) {
             noSignalBaselineReady = true
@@ -316,17 +398,69 @@ object MonitorState {
 
         if (previousActive == nextActive) return null
 
+        if (nextActive) {
+            beginNoSignalEpisode()
+            return SignalStateAnnouncement.formatNoSignalChange(
+                active = true,
+                networkOperatorName = networkOperatorName,
+                radioAccessType = next.resolveNoSignalAnnouncementRadioAccessType(lastKnownRadioAccessType)
+            )
+        }
+
+        if (next.isOn2g && next.monitor2gFallbackEnabled && lteRatBeforeNoSignalEpisode != null) {
+            endNoSignalEpisode()
+            return null
+        }
+
+        endNoSignalEpisode()
         return SignalStateAnnouncement.formatNoSignalChange(
-            active = nextActive,
+            active = false,
             networkOperatorName = networkOperatorName,
-            radioAccessType = radioAccessType
+            radioAccessType = next.resolveNoSignalAnnouncementRadioAccessType(lastKnownRadioAccessType)
         )
+    }
+
+    private fun consumeG2FallbackAnnouncement(
+        previous: ConnectivityStats,
+        next: ConnectivityStats,
+        networkOperatorName: String?
+    ): String? {
+        if (!_isRunning.value || !next.isMonitoring) return null
+        if (!next.monitor2gFallbackEnabled) return null
+        if (previous.isOn2g || !next.isOn2g) return null
+
+        if (!g2FallbackBaselineReady) {
+            g2FallbackBaselineReady = true
+            return null
+        }
+
+        val fromLteNr = SignalStateAnnouncement.isLteNrRadioAccessType(lteRatBeforeNoSignalEpisode) ||
+            SignalStateAnnouncement.isLteNrRadioAccessType(lastKnownRadioAccessType) ||
+            SignalStateAnnouncement.isLteNrRadioAccessType(previous.radioAccessType)
+        if (!fromLteNr) return null
+
+        endNoSignalEpisode()
+        return SignalStateAnnouncement.formatG2CampedAnnouncement(networkOperatorName)
+    }
+
+    private fun consumeDeadzoneChange(
+        previous: ConnectivityStats,
+        next: ConnectivityStats,
+        networkOperatorName: String?
+    ): String? {
+        if (!_isRunning.value || !next.isMonitoring) return null
+        if (previous.isCompleteNoService == next.isCompleteNoService) return null
+        if (!next.isCompleteNoService) return null
+        if (deadzoneAnnouncedThisEpisode) return null
+
+        deadzoneAnnouncedThisEpisode = true
+        searching2gAnnounced = true
+        return SignalStateAnnouncement.formatDeadzoneAnnouncement(networkOperatorName)
     }
 
     private fun consumeLimitedServiceStateChange(
         previous: ConnectivityStats,
-        next: ConnectivityStats,
-        networkOperatorName: String?
+        next: ConnectivityStats
     ): String? {
         if (!_isRunning.value || !next.isMonitoring) return null
 
@@ -340,7 +474,25 @@ object MonitorState {
 
         if (previousActive == nextActive) return null
 
-        return SignalStateAnnouncement.formatLimitedServiceChange(nextActive, networkOperatorName)
+        return SignalStateAnnouncement.formatLimitedServiceChange(
+            active = nextActive,
+            stats = next,
+            lastKnownRadioAccessType = lastKnownRadioAccessType
+        )
+    }
+
+    private fun consumeLimitedServiceOperatorChange(
+        previous: ConnectivityStats,
+        next: ConnectivityStats
+    ): String? {
+        if (!_isRunning.value || !next.isMonitoring) return null
+        if (!limitedServiceBaselineReady) return null
+        if (!next.limitedServiceAlternativeOperatorChanged(previous)) return null
+
+        return SignalStateAnnouncement.formatLimitedServiceAnnouncement(
+            stats = next,
+            lastKnownRadioAccessType = lastKnownRadioAccessType
+        )
     }
 
     private fun consumeCellIdentityChange(
@@ -365,13 +517,52 @@ object MonitorState {
         return CellIdentityAnnouncement.format(previous, next, radioAccessType, networkOperatorName)
     }
 
+    private fun beginNoSignalEpisode() {
+        if (SignalStateAnnouncement.isLteNrRadioAccessType(lastKnownRadioAccessType)) {
+            lteRatBeforeNoSignalEpisode = lastKnownRadioAccessType
+        }
+        searching2gAnnounced = false
+        deadzoneAnnouncedThisEpisode = false
+    }
+
+    private fun endNoSignalEpisode() {
+        lteRatBeforeNoSignalEpisode = null
+        searching2gAnnounced = false
+        deadzoneAnnouncedThisEpisode = false
+    }
+
     private fun resetCellIdentityTracking() {
         cellIdentityBaselineReady = false
         radioTechnologyBaselineReady = false
         noSignalBaselineReady = false
         limitedServiceBaselineReady = false
+        g2FallbackBaselineReady = false
         stableCellIdentity = CellIdentitySnapshot()
         noSignalDebouncer.reset()
+        lastKnownRadioAccessType = null
+        lteRatBeforeNoSignalEpisode = null
+        searching2gAnnounced = false
+        deadzoneAnnouncedThisEpisode = false
+    }
+
+    private fun rememberRadioAccessType(stats: ConnectivityStats) {
+        if (!stats.radioAccessType.isNullOrBlank()) {
+            lastKnownRadioAccessType = stats.radioAccessType
+            return
+        }
+        if (stats.isOn2g || stats.restrictedTo2gNetwork) {
+            lastKnownRadioAccessType = CellularSignalReader.RADIO_2G
+        }
+    }
+
+    private fun rememberRadioAccessType(metrics: CellularRadioMetrics) {
+        rememberRadioAccessType(
+            ConnectivityStats(
+                radioAccessType = metrics.radioAccessType,
+                isOn2g = metrics.isOn2g,
+                restrictedTo2gNetwork = metrics.restrictedTo2gNetwork
+            )
+        )
     }
 
     fun enterPassiveIdleMode() {

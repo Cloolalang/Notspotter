@@ -25,10 +25,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.cloolalang.notspotdetector.R
+import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.PassiveMockSettings
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
 import io.github.cloolalang.notspotdetector.model.SettingsCompatibility
+import io.github.cloolalang.notspotdetector.model.DEADZONE_TIER_NUMBER
+import io.github.cloolalang.notspotdetector.model.G2_STRONG_TIER_NUMBER
+import io.github.cloolalang.notspotdetector.model.G2_WEAK_TIER_NUMBER
 import io.github.cloolalang.notspotdetector.model.SignalStrengthTier
 import io.github.cloolalang.notspotdetector.model.VERY_STRONG_TIER_NUMBER
 import kotlin.math.roundToInt
@@ -116,6 +120,20 @@ fun PassiveSignalSettingsCard(
                     onSettingsChange = onSettingsChange
                 )
 
+                G2TierSettings(
+                    settings = settings,
+                    signalPulseDurationMs = signalPulseDurationMs,
+                    passiveMeasurementIntervalMs = passiveMeasurementIntervalMs,
+                    onSettingsChange = onSettingsChange
+                )
+
+                DeadzoneTierSettings(
+                    settings = settings,
+                    signalPulseDurationMs = signalPulseDurationMs,
+                    passiveMeasurementIntervalMs = passiveMeasurementIntervalMs,
+                    onSettingsChange = onSettingsChange
+                )
+
                 Text(
                     text = stringResource(R.string.passive_signal_rsrq_section),
                     style = MaterialTheme.typography.bodyMedium,
@@ -153,6 +171,79 @@ fun PassiveSignalSettingsCard(
 }
 
 @Composable
+private fun TierSoundEnabledOption(
+    tierNumber: Int,
+    enabled: Boolean,
+    onEnabledChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Checkbox(
+            checked = enabled,
+            onCheckedChange = onEnabledChange
+        )
+        Text(
+            text = stringResource(R.string.passive_signal_tier_sound_enabled, tierNumber),
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.Medium
+        )
+    }
+}
+
+@Composable
+private fun TierPulseDurationSlider(
+    label: String,
+    durationMs: Int,
+    accentColor: Color,
+    onDurationChange: (Int) -> Unit
+) {
+    val minMs = AudioVolumeSettings.MIN_SIGNAL_PULSE_DURATION_MS
+    val maxMs = AudioVolumeSettings.MAX_SIGNAL_PULSE_DURATION_MS
+    val stepMs = 10
+    val steps = ((maxMs - minMs) / stepMs) - 1
+    val coercedMs = durationMs.coerceIn(minMs, maxMs)
+
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Medium,
+                color = accentColor,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                text = stringResource(R.string.audio_signal_pulse_duration_value, coercedMs),
+                style = MaterialTheme.typography.bodySmall,
+                color = accentColor,
+                fontWeight = FontWeight.Medium
+            )
+        }
+        Text(
+            text = stringResource(R.string.passive_signal_tier_pulse_duration_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Slider(
+            value = coercedMs.toFloat(),
+            onValueChange = { raw ->
+                val snapped = minMs + (((raw - minMs) / stepMs).roundToInt() * stepMs)
+                onDurationChange(snapped.coerceIn(minMs, maxMs))
+            },
+            valueRange = minMs.toFloat()..maxMs.toFloat(),
+            steps = steps.coerceAtLeast(0),
+            colors = tierSliderColors(accentColor)
+        )
+    }
+}
+
+@Composable
 private fun TierClickSpeedSlider(
     label: String,
     intervalMs: Int,
@@ -162,11 +253,12 @@ private fun TierClickSpeedSlider(
     onIntervalChange: (Int) -> Unit
 ) {
     val minUiMs = SettingsCompatibility.minTierClickIntervalUiMs(signalPulseDurationMs)
-    val stepSize = PassiveSignalSettings.TIER_CLICK_INTERVAL_STEP_MS
-    val minStep = minUiMs / stepSize
-    val maxStep = PassiveSignalSettings.MAX_TIER_CLICK_INTERVAL_MS / stepSize
+    val uiStepSize = TierSliderSupport.tierClickSliderStepSizeMs(minUiMs)
+    val minStep = TierSliderSupport.tierClickSliderIndex(minUiMs, minUiMs, uiStepSize)
+    val maxStep = PassiveSignalSettings.MAX_TIER_CLICK_INTERVAL_MS / uiStepSize
     val coercedIntervalMs = intervalMs.coerceIn(minUiMs, PassiveSignalSettings.MAX_TIER_CLICK_INTERVAL_MS)
-    val step = (coercedIntervalMs / stepSize).coerceIn(minStep, maxStep)
+    val step = TierSliderSupport.tierClickSliderIndex(coercedIntervalMs, minUiMs, uiStepSize)
+        .coerceIn(minStep, maxStep)
     val passiveOnlyEffectiveMs = SettingsCompatibility.resolveTierClickIntervalMs(
         configuredMs = coercedIntervalMs.toLong(),
         signalPulseDurationMs = signalPulseDurationMs,
@@ -237,7 +329,7 @@ private fun TierClickSpeedSlider(
         Slider(
             value = step.toFloat().coerceIn(minStep.toFloat(), maxStep.toFloat()),
             onValueChange = {
-                val selectedMs = (it.roundToInt() * stepSize).coerceIn(minUiMs, PassiveSignalSettings.MAX_TIER_CLICK_INTERVAL_MS)
+                val selectedMs = (it.roundToInt() * uiStepSize).coerceIn(minUiMs, PassiveSignalSettings.MAX_TIER_CLICK_INTERVAL_MS)
                 onIntervalChange(selectedMs)
             },
             valueRange = minStep.toFloat()..maxStep.toFloat(),
@@ -359,6 +451,11 @@ private fun RsrpTierSettings(
             tierNumber = VERY_STRONG_TIER_NUMBER,
             accentColor = SignalTierColors.forTierNumber(VERY_STRONG_TIER_NUMBER)
         ) {
+            TierSoundEnabledOption(
+                tierNumber = VERY_STRONG_TIER_NUMBER,
+                enabled = settings.veryStrongTierSoundEnabled,
+                onEnabledChange = { onSettingsChange(settings.copy(veryStrongTierSoundEnabled = it)) }
+            )
             TierClickSpeedSlider(
                 label = stringResource(R.string.passive_signal_tier_click_interval, VERY_STRONG_TIER_NUMBER),
                 intervalMs = settings.veryStrongTierClickIntervalMs,
@@ -390,6 +487,11 @@ private fun RsrpTierSettings(
             tierNumber = SignalStrengthTier.MILD.displayNumber,
             accentColor = SignalTierColors.forStrengthTier(SignalStrengthTier.MILD)
         ) {
+            TierSoundEnabledOption(
+                tierNumber = SignalStrengthTier.MILD.displayNumber,
+                enabled = settings.mildTierSoundEnabled,
+                onEnabledChange = { onSettingsChange(settings.copy(mildTierSoundEnabled = it)) }
+            )
             TierClickSpeedSlider(
                 label = stringResource(
                     R.string.passive_signal_tier_click_interval,
@@ -422,6 +524,11 @@ private fun RsrpTierSettings(
             tierNumber = SignalStrengthTier.GOOD.displayNumber,
             accentColor = SignalTierColors.forStrengthTier(SignalStrengthTier.GOOD)
         ) {
+            TierSoundEnabledOption(
+                tierNumber = SignalStrengthTier.GOOD.displayNumber,
+                enabled = settings.goodTierSoundEnabled,
+                onEnabledChange = { onSettingsChange(settings.copy(goodTierSoundEnabled = it)) }
+            )
             TierClickSpeedSlider(
                 label = stringResource(
                     R.string.passive_signal_tier_click_interval,
@@ -454,6 +561,11 @@ private fun RsrpTierSettings(
             tierNumber = SignalStrengthTier.FAIR.displayNumber,
             accentColor = SignalTierColors.forStrengthTier(SignalStrengthTier.FAIR)
         ) {
+            TierSoundEnabledOption(
+                tierNumber = SignalStrengthTier.FAIR.displayNumber,
+                enabled = settings.fairTierSoundEnabled,
+                onEnabledChange = { onSettingsChange(settings.copy(fairTierSoundEnabled = it)) }
+            )
             TierClickSpeedSlider(
                 label = stringResource(
                     R.string.passive_signal_tier_click_interval,
@@ -486,6 +598,11 @@ private fun RsrpTierSettings(
             tierNumber = SignalStrengthTier.POOR.displayNumber,
             accentColor = SignalTierColors.forStrengthTier(SignalStrengthTier.POOR)
         ) {
+            TierSoundEnabledOption(
+                tierNumber = SignalStrengthTier.POOR.displayNumber,
+                enabled = settings.poorTierSoundEnabled,
+                onEnabledChange = { onSettingsChange(settings.copy(poorTierSoundEnabled = it)) }
+            )
             TierClickSpeedSlider(
                 label = stringResource(
                     R.string.passive_signal_tier_click_interval,
@@ -518,6 +635,11 @@ private fun RsrpTierSettings(
             tierNumber = SignalStrengthTier.CRITICAL.displayNumber,
             accentColor = SignalTierColors.forStrengthTier(SignalStrengthTier.CRITICAL)
         ) {
+            TierSoundEnabledOption(
+                tierNumber = SignalStrengthTier.CRITICAL.displayNumber,
+                enabled = settings.criticalTierSoundEnabled,
+                onEnabledChange = { onSettingsChange(settings.copy(criticalTierSoundEnabled = it)) }
+            )
             TierClickSpeedSlider(
                 label = stringResource(
                     R.string.passive_signal_tier_click_interval,
@@ -549,6 +671,135 @@ private fun RsrpTierSettings(
                 valueRange = PassiveSignalSettings.MIN_RSRP_DBM..(settings.poorRsrpMinDbm - gap),
                 accentColor = SignalTierColors.noSignal,
                 onValueChange = { onSettingsChange(settings.copy(noSignalRsrpDbm = it)) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun G2TierSettings(
+    settings: PassiveSignalSettings,
+    signalPulseDurationMs: Int,
+    passiveMeasurementIntervalMs: Long,
+    onSettingsChange: (PassiveSignalSettings) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Text(
+            text = stringResource(R.string.passive_signal_g2_section),
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium
+        )
+        Text(
+            text = stringResource(
+                R.string.passive_signal_g2_section_hint,
+                PassiveSignalSettings.G2_TIER_RX_LEVEL_SPLIT_DBM
+            ),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        TierSettingSection(
+            tierNumber = G2_STRONG_TIER_NUMBER,
+            accentColor = SignalTierColors.forTierNumber(G2_STRONG_TIER_NUMBER)
+        ) {
+            TierSoundEnabledOption(
+                tierNumber = G2_STRONG_TIER_NUMBER,
+                enabled = settings.g2StrongTierSoundEnabled,
+                onEnabledChange = { onSettingsChange(settings.copy(g2StrongTierSoundEnabled = it)) }
+            )
+            TierClickSpeedSlider(
+                label = stringResource(R.string.passive_signal_tier_click_interval, G2_STRONG_TIER_NUMBER),
+                intervalMs = settings.g2StrongTierClickIntervalMs,
+                signalPulseDurationMs = signalPulseDurationMs,
+                passiveMeasurementIntervalMs = passiveMeasurementIntervalMs,
+                accentColor = SignalTierColors.forTierNumber(G2_STRONG_TIER_NUMBER),
+                onIntervalChange = { onSettingsChange(settings.copy(g2StrongTierClickIntervalMs = it)) }
+            )
+            Text(
+                text = stringResource(
+                    R.string.passive_signal_g2_tier7_threshold,
+                    PassiveSignalSettings.G2_TIER_RX_LEVEL_SPLIT_DBM
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = SignalTierColors.forTierNumber(G2_STRONG_TIER_NUMBER)
+            )
+        }
+
+        TierSettingSection(
+            tierNumber = G2_WEAK_TIER_NUMBER,
+            accentColor = SignalTierColors.forTierNumber(G2_WEAK_TIER_NUMBER)
+        ) {
+            TierSoundEnabledOption(
+                tierNumber = G2_WEAK_TIER_NUMBER,
+                enabled = settings.g2WeakTierSoundEnabled,
+                onEnabledChange = { onSettingsChange(settings.copy(g2WeakTierSoundEnabled = it)) }
+            )
+            TierClickSpeedSlider(
+                label = stringResource(R.string.passive_signal_tier_click_interval, G2_WEAK_TIER_NUMBER),
+                intervalMs = settings.g2WeakTierClickIntervalMs,
+                signalPulseDurationMs = signalPulseDurationMs,
+                passiveMeasurementIntervalMs = passiveMeasurementIntervalMs,
+                accentColor = SignalTierColors.forTierNumber(G2_WEAK_TIER_NUMBER),
+                onIntervalChange = { onSettingsChange(settings.copy(g2WeakTierClickIntervalMs = it)) }
+            )
+            Text(
+                text = stringResource(
+                    R.string.passive_signal_g2_tier8_threshold,
+                    PassiveSignalSettings.G2_TIER_RX_LEVEL_SPLIT_DBM
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = SignalTierColors.forTierNumber(G2_WEAK_TIER_NUMBER)
+            )
+        }
+    }
+}
+
+@Composable
+private fun DeadzoneTierSettings(
+    settings: PassiveSignalSettings,
+    signalPulseDurationMs: Int,
+    passiveMeasurementIntervalMs: Long,
+    onSettingsChange: (PassiveSignalSettings) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Text(
+            text = stringResource(R.string.passive_signal_deadzone_section),
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium
+        )
+        Text(
+            text = stringResource(R.string.passive_signal_deadzone_section_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        TierSettingSection(
+            tierNumber = DEADZONE_TIER_NUMBER,
+            accentColor = SignalTierColors.forTierNumber(DEADZONE_TIER_NUMBER)
+        ) {
+            TierSoundEnabledOption(
+                tierNumber = DEADZONE_TIER_NUMBER,
+                enabled = settings.deadzoneTierSoundEnabled,
+                onEnabledChange = { onSettingsChange(settings.copy(deadzoneTierSoundEnabled = it)) }
+            )
+            TierPulseDurationSlider(
+                label = stringResource(R.string.passive_signal_tier_pulse_duration, DEADZONE_TIER_NUMBER),
+                durationMs = settings.deadzoneTierPulseDurationMs,
+                accentColor = SignalTierColors.forTierNumber(DEADZONE_TIER_NUMBER),
+                onDurationChange = { onSettingsChange(settings.copy(deadzoneTierPulseDurationMs = it)) }
+            )
+            TierClickSpeedSlider(
+                label = stringResource(R.string.passive_signal_tier_click_interval, DEADZONE_TIER_NUMBER),
+                intervalMs = settings.deadzoneTierClickIntervalMs,
+                signalPulseDurationMs = settings.deadzoneTierPulseDurationMs,
+                passiveMeasurementIntervalMs = passiveMeasurementIntervalMs,
+                accentColor = SignalTierColors.forTierNumber(DEADZONE_TIER_NUMBER),
+                onIntervalChange = { onSettingsChange(settings.copy(deadzoneTierClickIntervalMs = it)) }
+            )
+            Text(
+                text = stringResource(R.string.passive_signal_deadzone_tier_threshold),
+                style = MaterialTheme.typography.bodySmall,
+                color = SignalTierColors.forTierNumber(DEADZONE_TIER_NUMBER)
             )
         }
     }

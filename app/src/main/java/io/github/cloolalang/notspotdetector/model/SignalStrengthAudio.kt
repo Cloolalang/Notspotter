@@ -10,9 +10,15 @@ enum class SignalStrengthTier {
     /** Weak RSRP band — tier 5. */
     POOR,
     /** Weakest usable RSRP or critical RSRQ — tier 6. */
-    CRITICAL;
+    CRITICAL,
+    /** 2G fallback only — RX level above fixed threshold — tier 7. */
+    G2_STRONG,
+    /** 2G fallback only — RX level at or below fixed threshold — tier 8. */
+    G2_WEAK,
+    /** Complete dead zone — no signal on any technology — tier 9. */
+    DEADZONE;
 
-    /** UI tier number: 2 (mild) through 6 (critical). Tier 1 is very strong RSRP. */
+    /** UI tier number: 2 (mild) through 6 (critical); 7–9 are special tiers. Tier 1 is very strong RSRP. */
     val displayNumber: Int
         get() = when (this) {
             MILD -> 2
@@ -20,6 +26,9 @@ enum class SignalStrengthTier {
             FAIR -> 4
             POOR -> 5
             CRITICAL -> 6
+            G2_STRONG -> G2_STRONG_TIER_NUMBER
+            G2_WEAK -> G2_WEAK_TIER_NUMBER
+            DEADZONE -> DEADZONE_TIER_NUMBER
         }
 
     val intervalMs: Long
@@ -29,6 +38,9 @@ enum class SignalStrengthTier {
             FAIR -> 2_500L
             POOR -> 1_000L
             CRITICAL -> 500L
+            G2_STRONG -> 2_000L
+            G2_WEAK -> 500L
+            DEADZONE -> 250L
         }
 
     val pulseDurationRatio: Float
@@ -47,12 +59,15 @@ enum class SignalMeasurementTier {
     FAIR,
     POOR,
     CRITICAL,
+    G2_STRONG,
+    G2_WEAK,
+    DEADZONE,
     NO_SIGNAL,
     LIMITED_SERVICE,
     PERMISSION_REQUIRED,
     UNAVAILABLE;
 
-    /** UI tier number 1 (best) through 6 (worst), or null for non-tier states. */
+    /** UI tier number 1 (best) through 9 (dead zone), or null for non-tier states. */
     val displayNumber: Int?
         get() = when (this) {
             VERY_STRONG -> VERY_STRONG_TIER_NUMBER
@@ -61,12 +76,24 @@ enum class SignalMeasurementTier {
             FAIR -> SignalStrengthTier.FAIR.displayNumber
             POOR -> SignalStrengthTier.POOR.displayNumber
             CRITICAL -> SignalStrengthTier.CRITICAL.displayNumber
+            G2_STRONG -> G2_STRONG_TIER_NUMBER
+            G2_WEAK -> G2_WEAK_TIER_NUMBER
+            DEADZONE -> DEADZONE_TIER_NUMBER
             else -> null
         }
 }
 
 /** RSRP tier 1 — above [PassiveSignalSettings.veryStrongRsrpMinDbm]. */
 const val VERY_STRONG_TIER_NUMBER = 1
+
+/** 2G fallback tier 7 — RX level at or above [PassiveSignalSettings.G2_TIER_RX_LEVEL_SPLIT_DBM]. */
+const val G2_STRONG_TIER_NUMBER = 7
+
+/** 2G fallback tier 8 — RX level below [PassiveSignalSettings.G2_TIER_RX_LEVEL_SPLIT_DBM]. */
+const val G2_WEAK_TIER_NUMBER = 8
+
+/** Dead zone tier 9 — out of service on all technologies with no SOS on any SIM. */
+const val DEADZONE_TIER_NUMBER = 9
 
 const val DEFAULT_SIGNAL_PULSE_DURATION_MS = AudioVolumeSettings.DEFAULT_SIGNAL_PULSE_DURATION_MS
 const val MIN_SIGNAL_PULSE_DURATION_MS = AudioVolumeSettings.MIN_SIGNAL_PULSE_DURATION_MS
@@ -123,7 +150,38 @@ fun ConnectivityStats.resolveSignalStrengthTier(
 ): SignalStrengthTier? {
     if (!signalPermissionGranted) return null
     if (isRsrpTooWeakForService(settings)) return null
+    if (usesG2SignalTiers()) {
+        return settings.resolveG2SignalStrengthTier(rsrpDbm)
+    }
     return settings.resolveSignalStrengthTier(rsrpDbm, rsrqDb)
+}
+
+fun ConnectivityStats.usesG2SignalTiers(): Boolean {
+    return isOn2g && monitor2gFallbackEnabled
+}
+
+fun ConnectivityStats.shouldPlayDeadzoneTier(
+    settings: PassiveSignalSettings = PassiveSignalSettings()
+): Boolean {
+    return isMonitoring && isCompleteNoService && settings.deadzoneTierSoundEnabled
+}
+
+fun ConnectivityStats.computeDeadzoneClickIntervalMs(
+    settings: PassiveSignalSettings = PassiveSignalSettings(),
+    pulseDurationMs: Int = settings.deadzoneTierPulseDurationMs
+): Long {
+    return SettingsCompatibility.resolveTierClickIntervalMs(
+        configuredMs = settings.deadzoneTierClickIntervalMs.toLong(),
+        signalPulseDurationMs = pulseDurationMs,
+        isPassiveOnlySession = isPassiveOnlySession
+    )
+}
+
+fun ConnectivityStats.resolveG2SignalStrengthTier(
+    settings: PassiveSignalSettings = PassiveSignalSettings()
+): SignalStrengthTier? {
+    if (!usesG2SignalTiers()) return null
+    return settings.resolveG2SignalStrengthTier(rsrpDbm)
 }
 
 /**
@@ -135,10 +193,20 @@ fun ConnectivityStats.resolveSignalMeasurementTier(
 ): SignalMeasurementTier {
     if (!signalPermissionGranted) return SignalMeasurementTier.PERMISSION_REQUIRED
     if (isLimitedService) return SignalMeasurementTier.LIMITED_SERVICE
+    if (isMonitoring && isCompleteNoService) return SignalMeasurementTier.DEADZONE
     if (isMonitoring && noSignalActive) return SignalMeasurementTier.NO_SIGNAL
     if (isRsrpTooWeakForService(settings)) return SignalMeasurementTier.NO_SIGNAL
     if (!cellularAvailable && rsrpDbm == null && rsrqDb == null) {
         return SignalMeasurementTier.UNAVAILABLE
+    }
+
+    if (usesG2SignalTiers()) {
+        return when (settings.resolveG2SignalStrengthTier(rsrpDbm)) {
+            SignalStrengthTier.G2_STRONG -> SignalMeasurementTier.G2_STRONG
+            SignalStrengthTier.G2_WEAK -> SignalMeasurementTier.G2_WEAK
+            null -> SignalMeasurementTier.NO_SIGNAL
+            else -> SignalMeasurementTier.UNAVAILABLE
+        }
     }
 
     val rsrp = rsrpDbm
@@ -152,6 +220,9 @@ fun ConnectivityStats.resolveSignalMeasurementTier(
         SignalStrengthTier.FAIR -> SignalMeasurementTier.FAIR
         SignalStrengthTier.POOR -> SignalMeasurementTier.POOR
         SignalStrengthTier.CRITICAL -> SignalMeasurementTier.CRITICAL
+        SignalStrengthTier.G2_STRONG -> SignalMeasurementTier.G2_STRONG
+        SignalStrengthTier.G2_WEAK -> SignalMeasurementTier.G2_WEAK
+        SignalStrengthTier.DEADZONE -> SignalMeasurementTier.DEADZONE
         null -> SignalMeasurementTier.UNAVAILABLE
     }
 }
@@ -162,6 +233,9 @@ fun ConnectivityStats.resolvePassiveClickRateTier(
 ): SignalStrengthTier? {
     if (!signalPermissionGranted) return null
     if (isRsrpTooWeakForService(settings)) return null
+    if (usesG2SignalTiers()) {
+        return settings.resolveG2SignalStrengthTier(rsrpDbm)
+    }
     val ignoreRsrqForRate = isPassiveOnlySession && settings.shouldUseNoisyRsrqPassiveClick(rsrqDb)
     return settings.resolveSignalStrengthTier(rsrpDbm, rsrqDb, ignoreRsrqForRate = ignoreRsrqForRate)
 }
@@ -170,6 +244,9 @@ fun ConnectivityStats.shouldPlayWeakSignalTier(
     settings: PassiveSignalSettings = PassiveSignalSettings()
 ): Boolean {
     if (isRsrpTooWeakForService(settings)) return false
+    if (usesG2SignalTiers()) {
+        return resolveG2SignalStrengthTier(settings) != null
+    }
     if (shouldPlayVeryStrongSignalIndicator(settings)) return false
     if (rsrqDb != null && rsrqDb < settings.criticalRsrqDb) return true
     val rsrp = rsrpDbm ?: return false
@@ -180,7 +257,10 @@ fun ConnectivityStats.computeSignalStrengthClickIntervalMs(
     settings: PassiveSignalSettings = PassiveSignalSettings(),
     signalPulseDurationMs: Int = DEFAULT_SIGNAL_PULSE_DURATION_MS
 ): Long {
-    val configuredMs = if (shouldPlayVeryStrongSignalIndicator(settings)) {
+    val configuredMs = if (usesG2SignalTiers()) {
+        val tier = resolveG2SignalStrengthTier(settings)
+        (tier?.let { settings.clickIntervalMsForTier(it) } ?: settings.g2WeakTierClickIntervalMs).toLong()
+    } else if (shouldPlayVeryStrongSignalIndicator(settings)) {
         settings.veryStrongTierClickIntervalMs.toLong()
     } else {
         resolvePassiveClickRateTier(settings)?.let { settings.clickIntervalMsForTier(it) }
@@ -200,9 +280,25 @@ fun ConnectivityStats.computeSignalStrengthClickDurationMs(
     return resolveSignalStrengthTier(settings)?.pulseDurationMs(baseDurationMs) ?: baseDurationMs
 }
 
+fun ConnectivityStats.shouldPlayCurrentTierSignalPulse(
+    settings: PassiveSignalSettings = PassiveSignalSettings()
+): Boolean {
+    if (usesG2SignalTiers()) {
+        val tier = resolveG2SignalStrengthTier(settings) ?: return false
+        return settings.isTierSoundEnabled(tier)
+    }
+    if (shouldPlayVeryStrongSignalIndicator(settings)) {
+        return settings.veryStrongTierSoundEnabled
+    }
+    if (!shouldPlayWeakSignalTier(settings)) return false
+    val tier = resolvePassiveClickRateTier(settings) ?: resolveSignalStrengthTier(settings) ?: return false
+    return settings.isTierSoundEnabled(tier)
+}
+
 fun ConnectivityStats.shouldPlayVeryStrongSignalIndicator(
     settings: PassiveSignalSettings = PassiveSignalSettings()
 ): Boolean {
+    if (usesG2SignalTiers()) return false
     if (!isMonitoring || !cellularAvailable || shouldPlayFlatline(settings)) return false
     if (shouldPlayLimitedServiceTone()) return false
     if (shouldPlay2gLimitedServicePulse()) return false

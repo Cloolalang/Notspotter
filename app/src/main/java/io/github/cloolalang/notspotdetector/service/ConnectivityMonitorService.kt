@@ -25,6 +25,7 @@ import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
 import io.github.cloolalang.notspotdetector.model.SignalStateAnnouncement
 import io.github.cloolalang.notspotdetector.model.shouldPlayFlatline
 import io.github.cloolalang.notspotdetector.model.shouldPlayPassiveSignalAndQualityAlerts
+import io.github.cloolalang.notspotdetector.model.usesG2SignalTiers
 import io.github.cloolalang.notspotdetector.network.CellularPassiveSignalMonitor
 import io.github.cloolalang.notspotdetector.network.CellularPingMonitor
 import kotlinx.coroutines.CoroutineScope
@@ -50,6 +51,10 @@ class ConnectivityMonitorService : Service() {
     private var isPassiveOnlyStart = false
     private var activePingTimeoutJob: Job? = null
     private var noSignalPeriodicAnnouncementJob: Job? = null
+    private var g2ModePeriodicAnnouncementJob: Job? = null
+    private var limitedServicePeriodicAnnouncementJob: Job? = null
+    private var deadzonePeriodicAnnouncementJob: Job? = null
+    private var searching2gAnnouncementJob: Job? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -192,23 +197,53 @@ class ConnectivityMonitorService : Service() {
         ) {
             playTechnologyChangeAlert(events.technologyChangeAnnouncement)
         }
-        if (events.limitedServiceStateChanged && playQualityAlerts) {
+        if (events.limitedServiceStateChanged) {
             playLimitedServiceAlert(events.limitedServiceStateAnnouncement)
+        }
+        if (events.limitedServiceOperatorChanged) {
+            playLimitedServiceAlert(events.limitedServiceOperatorChangeAnnouncement)
         }
         if (events.noSignalStateChanged) {
             playNoSignalAlert(events.noSignalStateAnnouncement)
         }
+        if (events.g2FallbackAnnounced) {
+            playG2FallbackAlert(events.g2FallbackAnnouncement)
+        }
+        if (events.deadzoneAnnounced) {
+            playDeadzoneAlert(events.deadzoneAnnouncement)
+        }
+        if (events.searching2gStateEntered) {
+            scheduleSearching2gAnnouncement()
+        } else if (!stats.noSignalActive || stats.isOn2g || stats.isCompleteNoService) {
+            searching2gAnnouncementJob?.cancel()
+            searching2gAnnouncementJob = null
+        }
         updateNoSignalPeriodicAnnouncements()
+        updateG2ModePeriodicAnnouncements()
+        updateLimitedServicePeriodicAnnouncements()
+        updateDeadzonePeriodicAnnouncements()
         updateNotification(MonitorState.stats.value.statusLabel(this))
+    }
+
+    private fun scheduleSearching2gAnnouncement() {
+        searching2gAnnouncementJob?.cancel()
+        searching2gAnnouncementJob = serviceScope.launch {
+            delay(SEARCHING_2G_ANNOUNCEMENT_DELAY_MS)
+            val current = MonitorState.stats.value
+            if (!MonitorState.shouldScheduleSearching2gAnnouncement(current)) return@launch
+            MonitorState.markSearching2gAnnounced()
+            playNoSignalAlert(MonitorState.formatSearching2gAnnouncement())
+        }
     }
 
     private fun updateNoSignalPeriodicAnnouncements() {
         val stats = MonitorState.stats.value
         val passiveSettings = MonitorState.passiveSignalSettings.value
-        val shouldAnnounce = isPassiveOnlyStart &&
-            stats.isMonitoring &&
+        val shouldAnnounce = stats.isMonitoring &&
             !stats.isPassiveIdleMode &&
-            stats.shouldPlayFlatline(passiveSettings)
+            stats.shouldPlayFlatline(passiveSettings) &&
+            !stats.usesG2SignalTiers() &&
+            !stats.isCompleteNoService
 
         if (!shouldAnnounce) {
             noSignalPeriodicAnnouncementJob?.cancel()
@@ -220,21 +255,113 @@ class ConnectivityMonitorService : Service() {
 
         noSignalPeriodicAnnouncementJob = serviceScope.launch {
             while (isActive) {
-                delay(NO_SIGNAL_PERIODIC_ANNOUNCEMENT_MS)
+                delay(PERIODIC_ANNOUNCEMENT_MS)
                 val current = MonitorState.stats.value
                 val settings = MonitorState.passiveSignalSettings.value
-                if (!isPassiveOnlyStart ||
-                    !current.isMonitoring ||
-                    !current.shouldPlayFlatline(settings)
+                if (!current.isMonitoring ||
+                    current.isPassiveIdleMode ||
+                    !current.shouldPlayFlatline(settings) ||
+                    current.usesG2SignalTiers() ||
+                    current.isCompleteNoService
                 ) {
                     break
                 }
-                playNoSignalAlert(
-                    SignalStateAnnouncement.formatNoSignalAnnouncement(
-                        networkOperatorName = current.networkOperatorName,
-                        radioAccessType = current.radioAccessType
+                playNoSignalAlert(MonitorState.formatNoSignalAnnouncement(current))
+            }
+        }
+    }
+
+    private fun updateG2ModePeriodicAnnouncements() {
+        val stats = MonitorState.stats.value
+        val passiveSettings = MonitorState.passiveSignalSettings.value
+        val shouldAnnounce = stats.isMonitoring &&
+            !stats.isPassiveIdleMode &&
+            stats.usesG2SignalTiers()
+
+        if (!shouldAnnounce) {
+            g2ModePeriodicAnnouncementJob?.cancel()
+            g2ModePeriodicAnnouncementJob = null
+            return
+        }
+
+        if (g2ModePeriodicAnnouncementJob?.isActive == true) return
+
+        g2ModePeriodicAnnouncementJob = serviceScope.launch {
+            while (isActive) {
+                delay(PERIODIC_ANNOUNCEMENT_MS)
+                val current = MonitorState.stats.value
+                val settings = MonitorState.passiveSignalSettings.value
+                if (!current.isMonitoring ||
+                    current.isPassiveIdleMode ||
+                    !current.usesG2SignalTiers()
+                ) {
+                    break
+                }
+                if (current.shouldPlayFlatline(settings)) {
+                    playNoSignalAlert(MonitorState.formatNoSignalAnnouncement(current))
+                } else {
+                    playG2FallbackAlert(
+                        SignalStateAnnouncement.formatG2CampedAnnouncement(current.networkOperatorName)
                     )
-                )
+                }
+            }
+        }
+    }
+
+    private fun updateLimitedServicePeriodicAnnouncements() {
+        val stats = MonitorState.stats.value
+        val shouldAnnounce = stats.isMonitoring &&
+            !stats.isPassiveIdleMode &&
+            stats.isLimitedService
+
+        if (!shouldAnnounce) {
+            limitedServicePeriodicAnnouncementJob?.cancel()
+            limitedServicePeriodicAnnouncementJob = null
+            return
+        }
+
+        if (limitedServicePeriodicAnnouncementJob?.isActive == true) return
+
+        limitedServicePeriodicAnnouncementJob = serviceScope.launch {
+            while (isActive) {
+                delay(PERIODIC_ANNOUNCEMENT_MS)
+                val current = MonitorState.stats.value
+                if (!current.isMonitoring ||
+                    current.isPassiveIdleMode ||
+                    !current.isLimitedService
+                ) {
+                    break
+                }
+                playLimitedServiceAlert(MonitorState.formatLimitedServiceAnnouncement(current))
+            }
+        }
+    }
+
+    private fun updateDeadzonePeriodicAnnouncements() {
+        val stats = MonitorState.stats.value
+        val shouldAnnounce = stats.isMonitoring &&
+            !stats.isPassiveIdleMode &&
+            stats.isCompleteNoService
+
+        if (!shouldAnnounce) {
+            deadzonePeriodicAnnouncementJob?.cancel()
+            deadzonePeriodicAnnouncementJob = null
+            return
+        }
+
+        if (deadzonePeriodicAnnouncementJob?.isActive == true) return
+
+        deadzonePeriodicAnnouncementJob = serviceScope.launch {
+            while (isActive) {
+                delay(PERIODIC_ANNOUNCEMENT_MS)
+                val current = MonitorState.stats.value
+                if (!current.isMonitoring ||
+                    current.isPassiveIdleMode ||
+                    !current.isCompleteNoService
+                ) {
+                    break
+                }
+                playDeadzoneAlert(MonitorState.formatDeadzoneAnnouncement(current))
             }
         }
     }
@@ -302,6 +429,30 @@ class ConnectivityMonitorService : Service() {
         )
     }
 
+    private fun playG2FallbackAlert(announcement: String?) {
+        val volumes = MonitorState.audioVolumes.value.normalized()
+        playAlertWithVoice(
+            onPlayTone = ::playTechnologyChangeTone,
+            toneDurationMs = GeigerCounterPlayer.TECHNOLOGY_CHANGE_TONE_DURATION_MS,
+            announcement = announcement,
+            voiceEnabled = volumes.technologyChangeVoiceEnabled,
+            voiceVolume = volumes.technologyChangeVoiceVolume
+        )
+    }
+
+    private fun playDeadzoneAlert(announcement: String?) {
+        val volumes = MonitorState.audioVolumes.value.normalized()
+        playAlertWithVoice(
+            onPlayTone = {
+                geigerPlayer.previewNoSignalTone(volumes.noSignalToneVolume)
+            },
+            toneDurationMs = GeigerCounterPlayer.NO_SIGNAL_ALERT_TONE_DURATION_MS,
+            announcement = announcement,
+            voiceEnabled = volumes.noSignalVoiceEnabled,
+            voiceVolume = volumes.noSignalVoiceVolume
+        )
+    }
+
     private fun playCellChangeBell() {
         geigerPlayer.playCellChangeBell(
             MonitorState.audioVolumes.value.normalized().cellChangeBellVolume
@@ -352,6 +503,14 @@ class ConnectivityMonitorService : Service() {
         activePingTimeoutJob = null
         noSignalPeriodicAnnouncementJob?.cancel()
         noSignalPeriodicAnnouncementJob = null
+        g2ModePeriodicAnnouncementJob?.cancel()
+        g2ModePeriodicAnnouncementJob = null
+        limitedServicePeriodicAnnouncementJob?.cancel()
+        limitedServicePeriodicAnnouncementJob = null
+        deadzonePeriodicAnnouncementJob?.cancel()
+        deadzonePeriodicAnnouncementJob = null
+        searching2gAnnouncementJob?.cancel()
+        searching2gAnnouncementJob = null
         pingMonitor.stop()
         passiveSignalMonitor.stop()
         geigerPlayer.stop()
@@ -424,7 +583,8 @@ class ConnectivityMonitorService : Service() {
         const val EXTRA_PASSIVE_ONLY = "io.github.cloolalang.notspotdetector.extra.PASSIVE_ONLY"
         private const val NOTIFICATION_ID = 1001
         private const val ACTIVE_PING_DURATION_MS = 10 * 60 * 1000L
-        private const val NO_SIGNAL_PERIODIC_ANNOUNCEMENT_MS = 30_000L
+        private const val PERIODIC_ANNOUNCEMENT_MS = 30_000L
+        private const val SEARCHING_2G_ANNOUNCEMENT_DELAY_MS = 5_000L
 
         fun start(context: Context, passiveOnly: Boolean = false) {
             val intent = Intent(context, ConnectivityMonitorService::class.java)

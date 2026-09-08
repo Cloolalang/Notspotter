@@ -19,8 +19,12 @@ fun ConnectivityStats.shouldClearCellIdentity(): Boolean {
     if (isMonitoring && noSignalActive) return true
     if (isOn2g && !monitor2gFallbackEnabled) return true
     if (isCompleteNoService) return true
-    if (isOn2g && monitor2gFallbackEnabled && !hasLteNrSignal) return true
     return false
+}
+
+/** On pure 2G fallback, drop stale LTE/NR cell identity but keep GSM signal and identity. */
+fun ConnectivityStats.shouldClearLteNrCellIdentity(): Boolean {
+    return isOn2g && monitor2gFallbackEnabled && !hasLteNrSignal
 }
 
 fun ConnectivityStats.withStabilizedCellIdentity(
@@ -39,7 +43,19 @@ fun ConnectivityStats.withStabilizedCellIdentity(
         ) to CellIdentitySnapshot()
     }
 
-    val stabilized = CellIdentitySnapshot.fromStats(this).coalesceWith(previous)
+    val current = CellIdentitySnapshot.fromStats(this)
+    val stabilized = if (shouldClearLteNrCellIdentity()) {
+        CellIdentitySnapshot(
+            lteEarfcn = null,
+            ltePci = null,
+            nrEarfcn = null,
+            nrPci = null,
+            gsmEarfcn = current.gsmEarfcn ?: previous.gsmEarfcn,
+            gsmBsic = current.gsmBsic ?: previous.gsmBsic
+        )
+    } else {
+        current.coalesceWith(previous)
+    }
     return copy(
         lteEarfcn = stabilized.lteEarfcn,
         ltePci = stabilized.ltePci,

@@ -117,6 +117,9 @@ private fun ConnectivityStats.signalOnlySeverity(
         SignalStrengthTier.FAIR -> 0.45f
         SignalStrengthTier.POOR -> 0.75f
         SignalStrengthTier.CRITICAL -> 0.95f
+        SignalStrengthTier.G2_STRONG -> 0.25f
+        SignalStrengthTier.G2_WEAK -> 0.8f
+        SignalStrengthTier.DEADZONE -> 1f
     }
 }
 

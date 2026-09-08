@@ -27,7 +27,24 @@ data class PassiveSignalSettings(
     val fairTierClickIntervalMs: Int = DEFAULT_FAIR_TIER_CLICK_INTERVAL_MS,
     val goodTierClickIntervalMs: Int = DEFAULT_GOOD_TIER_CLICK_INTERVAL_MS,
     val mildTierClickIntervalMs: Int = DEFAULT_MILD_TIER_CLICK_INTERVAL_MS,
-    val veryStrongTierClickIntervalMs: Int = DEFAULT_VERY_STRONG_TIER_CLICK_INTERVAL_MS
+    val veryStrongTierClickIntervalMs: Int = DEFAULT_VERY_STRONG_TIER_CLICK_INTERVAL_MS,
+    val veryStrongTierSoundEnabled: Boolean = DEFAULT_TIER_SOUND_ENABLED,
+    val mildTierSoundEnabled: Boolean = DEFAULT_TIER_SOUND_ENABLED,
+    val goodTierSoundEnabled: Boolean = DEFAULT_TIER_SOUND_ENABLED,
+    val fairTierSoundEnabled: Boolean = DEFAULT_TIER_SOUND_ENABLED,
+    val poorTierSoundEnabled: Boolean = DEFAULT_TIER_SOUND_ENABLED,
+    val criticalTierSoundEnabled: Boolean = DEFAULT_TIER_SOUND_ENABLED,
+    /** 2G fallback tier 7 — click interval and sound toggle. */
+    val g2StrongTierClickIntervalMs: Int = DEFAULT_G2_STRONG_TIER_CLICK_INTERVAL_MS,
+    val g2StrongTierSoundEnabled: Boolean = DEFAULT_TIER_SOUND_ENABLED,
+    /** 2G fallback tier 8 — click interval and sound toggle. */
+    val g2WeakTierClickIntervalMs: Int = DEFAULT_G2_WEAK_TIER_CLICK_INTERVAL_MS,
+    val g2WeakTierSoundEnabled: Boolean = DEFAULT_TIER_SOUND_ENABLED,
+    /** Dead zone tier 9 — no service on any technology; click interval and sound toggle. */
+    val deadzoneTierClickIntervalMs: Int = DEFAULT_DEADZONE_TIER_CLICK_INTERVAL_MS,
+    val deadzoneTierSoundEnabled: Boolean = DEFAULT_TIER_SOUND_ENABLED,
+    /** Length of each tier 9 Geiger click (ms). Independent of the global signal pulse duration. */
+    val deadzoneTierPulseDurationMs: Int = DEFAULT_DEADZONE_TIER_PULSE_DURATION_MS
 ) {
     /** RSRQ below this value maps to the critical alert tier. */
     val criticalRsrqDb: Int
@@ -71,7 +88,14 @@ data class PassiveSignalSettings(
             fairTierClickIntervalMs = fairTierClickIntervalMs.coerceTierClickInterval(),
             goodTierClickIntervalMs = goodTierClickIntervalMs.coerceTierClickInterval(),
             mildTierClickIntervalMs = mildTierClickIntervalMs.coerceTierClickInterval(),
-            veryStrongTierClickIntervalMs = veryStrongTierClickIntervalMs.coerceTierClickInterval()
+            veryStrongTierClickIntervalMs = veryStrongTierClickIntervalMs.coerceTierClickInterval(),
+            g2StrongTierClickIntervalMs = g2StrongTierClickIntervalMs.coerceTierClickInterval(),
+            g2WeakTierClickIntervalMs = g2WeakTierClickIntervalMs.coerceTierClickInterval(),
+            deadzoneTierClickIntervalMs = deadzoneTierClickIntervalMs.coerceTierClickInterval(),
+            deadzoneTierPulseDurationMs = deadzoneTierPulseDurationMs.coerceIn(
+                AudioVolumeSettings.MIN_SIGNAL_PULSE_DURATION_MS,
+                AudioVolumeSettings.MAX_SIGNAL_PULSE_DURATION_MS
+            )
         )
     }
 
@@ -111,7 +135,7 @@ data class PassiveSignalSettings(
         const val MAX_RSRQ_DB = -1
 
         const val MIN_TIER_CLICK_INTERVAL_MS = 10
-        const val MAX_TIER_CLICK_INTERVAL_MS = 5_000
+        const val MAX_TIER_CLICK_INTERVAL_MS = 20_000
         const val TIER_CLICK_INTERVAL_STEP_MS = 10
 
         const val DEFAULT_CRITICAL_TIER_CLICK_INTERVAL_MS = 250
@@ -120,6 +144,27 @@ data class PassiveSignalSettings(
         const val DEFAULT_GOOD_TIER_CLICK_INTERVAL_MS = 2_000
         const val DEFAULT_MILD_TIER_CLICK_INTERVAL_MS = 2_500
         const val DEFAULT_VERY_STRONG_TIER_CLICK_INTERVAL_MS = 1_250
+        const val DEFAULT_TIER_SOUND_ENABLED = true
+
+        /** Fixed RX level split between 2G fallback tier 7 (at or above) and tier 8 (below). */
+        const val G2_TIER_RX_LEVEL_SPLIT_DBM = -100
+        const val DEFAULT_G2_STRONG_TIER_CLICK_INTERVAL_MS = 2_000
+        const val DEFAULT_G2_WEAK_TIER_CLICK_INTERVAL_MS = 500
+        const val DEFAULT_DEADZONE_TIER_CLICK_INTERVAL_MS = 250
+        const val DEFAULT_DEADZONE_TIER_PULSE_DURATION_MS = AudioVolumeSettings.DEFAULT_SIGNAL_PULSE_DURATION_MS
+    }
+}
+
+fun PassiveSignalSettings.isTierSoundEnabled(tier: SignalStrengthTier): Boolean {
+    return when (tier) {
+        SignalStrengthTier.MILD -> mildTierSoundEnabled
+        SignalStrengthTier.GOOD -> goodTierSoundEnabled
+        SignalStrengthTier.FAIR -> fairTierSoundEnabled
+        SignalStrengthTier.POOR -> poorTierSoundEnabled
+        SignalStrengthTier.CRITICAL -> criticalTierSoundEnabled
+        SignalStrengthTier.G2_STRONG -> g2StrongTierSoundEnabled
+        SignalStrengthTier.G2_WEAK -> g2WeakTierSoundEnabled
+        SignalStrengthTier.DEADZONE -> deadzoneTierSoundEnabled
     }
 }
 
@@ -137,7 +182,19 @@ fun PassiveSignalSettings.clickIntervalMsForTier(tier: SignalStrengthTier): Long
         SignalStrengthTier.FAIR -> fairTierClickIntervalMs
         SignalStrengthTier.POOR -> poorTierClickIntervalMs
         SignalStrengthTier.CRITICAL -> criticalTierClickIntervalMs
+        SignalStrengthTier.G2_STRONG -> g2StrongTierClickIntervalMs
+        SignalStrengthTier.G2_WEAK -> g2WeakTierClickIntervalMs
+        SignalStrengthTier.DEADZONE -> deadzoneTierClickIntervalMs
     }.toLong()
+}
+
+fun PassiveSignalSettings.resolveG2SignalStrengthTier(rsrpDbm: Int?): SignalStrengthTier? {
+    if (rsrpDbm == null || isRsrpTooWeakForService(rsrpDbm)) return null
+    return if (rsrpDbm < PassiveSignalSettings.G2_TIER_RX_LEVEL_SPLIT_DBM) {
+        SignalStrengthTier.G2_WEAK
+    } else {
+        SignalStrengthTier.G2_STRONG
+    }
 }
 
 fun PassiveSignalSettings.shouldUseNoisyRsrqPassiveClick(rsrqDb: Int?): Boolean {

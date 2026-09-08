@@ -28,7 +28,10 @@ data class PassiveMockSettings(
             hasHomeGsmSignal = false,
             hasLteNrSignal = true,
             networkOperatorName = MOCK_NETWORK_OPERATOR,
+            homeNetworkOperatorName = MOCK_NETWORK_OPERATOR,
+            servingNetworkOperatorName = MOCK_NETWORK_OPERATOR,
             plmn = MOCK_PLMN,
+            homePlmn = MOCK_PLMN,
             permissionGranted = true,
             cellIdentityPermissionGranted = true
         )
@@ -82,7 +85,10 @@ fun PassiveMockSettings.toConnectivityStats(
         hasLteNrSignal = radio.hasLteNrSignal,
         monitor2gFallbackEnabled = monitor2gFallback,
         networkOperatorName = radio.networkOperatorName,
+        homeNetworkOperatorName = radio.homeNetworkOperatorName,
+        servingNetworkOperatorName = radio.servingNetworkOperatorName,
         plmn = radio.plmn,
+        homePlmn = radio.homePlmn,
         subscriptionId = radio.subscriptionId,
         simSlotIndex = radio.simSlotIndex,
         simDisplayName = radio.simDisplayName,
