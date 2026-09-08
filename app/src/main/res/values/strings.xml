@@ -1,5 +1,6 @@
 <resources>
-    <string name="app_name">Notspot detector</string>
+    <string name="app_name">NotSpotter</string>
+    <string name="home_title">NotSpotter</string>
     <string name="app_version">v%1$s</string>
     <string name="tagline">Geiger counter for poor mobile data. Pings run on cellular only. Tune each alert sound below; media volume buttons still apply.</string>
     <string name="start_monitoring">Start monitoring</string>
@@ -31,8 +32,8 @@
     <string name="reception_hint">Reception LED from RSRP/RSRQ: green above −95 dBm, yellow −105 to −95 dBm, red below −105 dBm or RSRQ below −18 dB. RSRP at or below −125 dBm triggers the no-signal tone. Alert tones follow the same signal rules.</string>
     <string name="geiger_hint">Clicks speed up when RTT, jitter, or packet loss worsen. Low-signal clicks follow RSRP/RSRQ tiers (5 s / 2.5 s / 1 s / 0.5 s). Limited service uses a two-tone alert, or 300 ms on/off on 2G with no home GSM. No signal is pulsed unless you are completely out of service with no SOS on any SIM — then it stays continuous.</string>
     <string name="notification_channel_name">Connectivity monitor</string>
-    <string name="notification_channel_description">Shows when Notspot detector is measuring mobile data quality.</string>
-    <string name="notification_title">Notspot detector</string>
+    <string name="notification_channel_description">Shows when NotSpotter is measuring mobile data quality.</string>
+    <string name="notification_title">NotSpotter</string>
     <string name="notification_starting">Monitoring mobile data…</string>
     <string name="notification_passive_idle">Passive idle — checking signal KPIs</string>
     <string name="passive_idle_hint">Active ping tests stopped after 10 minutes. Signal alert sounds and KPI polling continue until you tap Stop.</string>
@@ -40,7 +41,7 @@
     <string name="passive_only_idle_hint">Passive-only monitoring — RSRP, EARFCN, and PCI continue updating. Tap Stop to end monitoring.</string>
     <string name="notification_passive_only">Signal monitoring — no pings</string>
     <string name="passive_signal_settings_title">Passive signal thresholds and signal pulse settings</string>
-    <string name="passive_signal_settings_summary">Tap to set RSRP and RSRQ tier boundaries for passive monitoring alerts, reception LED, and no-signal detection.</string>
+    <string name="passive_signal_settings_summary">Tap to set RSRP and RSRQ tier boundaries for passive monitoring alerts and no-signal detection.</string>
     <string name="passive_measurement_interval_label">Measurement cycle</string>
     <string name="passive_measurement_interval_value">%1$d s</string>
     <string name="passive_measurement_interval_hint">How often RSRP, RSRQ, and cell identity are refreshed during passive monitoring (1–10 s).</string>
@@ -153,6 +154,14 @@
     <string name="rtt_graph_empty">Waiting for RTT samples…</string>
     <string name="rtt_graph_time_start">−60 s</string>
     <string name="rtt_graph_time_now">Now</string>
+    <string name="rsrp_histogram_title">RSRP histogram</string>
+    <string name="rsrp_histogram_summary">−70 to −126 dBm · 5 dB bins · active bins only</string>
+    <string name="rsrp_histogram_window_label">Sample window</string>
+    <string name="rsrp_histogram_empty">Waiting for RSRP samples…</string>
+    <string name="rsrp_histogram_bin_label">%1$d</string>
+    <string name="rsrp_histogram_sample_count">%1$d samples in window</string>
+    <string name="rsrp_histogram_sample_count_active">%1$d samples · %2$d active bins</string>
+    <string name="rsrp_histogram_bin_percent">%1$d%%</string>
     <string name="audio_volume_title">Alert sound settings</string>
     <string name="audio_volume_summary">Separate loudness for each alert type. Changes apply immediately while monitoring. Use Test to preview a sound when monitoring is stopped.</string>
     <string name="audio_volume_test">Test</string>

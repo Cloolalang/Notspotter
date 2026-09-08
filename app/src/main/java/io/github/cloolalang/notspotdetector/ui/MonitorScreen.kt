@@ -1,13 +1,6 @@
 package io.github.cloolalang.notspotdetector.ui
 
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -26,19 +18,19 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.cloolalang.notspotdetector.network.CellularSignalReader
 import io.github.cloolalang.notspotdetector.R
-import io.github.cloolalang.notspotdetector.model.ConnectionQuality
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
 import io.github.cloolalang.notspotdetector.model.ConnectivityStats
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
@@ -46,17 +38,15 @@ import io.github.cloolalang.notspotdetector.model.NetworkServiceMode
 import io.github.cloolalang.notspotdetector.model.PassiveMockSettings
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
 import io.github.cloolalang.notspotdetector.model.PingSettings
+import io.github.cloolalang.notspotdetector.model.RsrpSample
 import io.github.cloolalang.notspotdetector.model.RttSample
 import io.github.cloolalang.notspotdetector.model.ProfileImportResult
 import io.github.cloolalang.notspotdetector.model.ProfileSaveResult
 import io.github.cloolalang.notspotdetector.model.SettingsProfileSummary
 import io.github.cloolalang.notspotdetector.model.SimSubscriptionOption
 import io.github.cloolalang.notspotdetector.model.ThresholdSettings
-import io.github.cloolalang.notspotdetector.model.receptionLevel
-import io.github.cloolalang.notspotdetector.model.ReceptionLevel
 import io.github.cloolalang.notspotdetector.model.SignalMeasurementTier
 import io.github.cloolalang.notspotdetector.model.resolveSignalMeasurementTier
-import io.github.cloolalang.notspotdetector.model.shouldPlayFlatline
 
 @Composable
 fun MonitorScreen(
@@ -71,8 +61,8 @@ fun MonitorScreen(
     audioVolumes: AudioVolumeSettings,
     settingsProfiles: List<SettingsProfileSummary>,
     rttHistory: List<RttSample>,
+    rsrpHistory: List<RsrpSample>,
     isRunning: Boolean,
-    isBatteryOptimizationDisabled: Boolean,
     onStart: () -> Unit,
     onStartPassiveOnly: () -> Unit,
     onStop: () -> Unit,
@@ -91,6 +81,7 @@ fun MonitorScreen(
     onPassiveSignalSettingsChange: (PassiveSignalSettings) -> Unit,
     onPassiveMockSettingsChange: (PassiveMockSettings) -> Unit,
     onPassiveMeasurementIntervalChange: (Long) -> Unit,
+    onRsrpHistogramWindowChange: (Long) -> Unit,
     onResetPassiveSignalSettings: () -> Unit,
     onSubscriptionChange: (Int) -> Unit,
     onPingClickVolumeChange: (Float) -> Unit,
@@ -125,7 +116,6 @@ fun MonitorScreen(
     onDeleteSettingsProfile: (String) -> Unit,
     onImportSettingsProfile: (onResult: (ProfileImportResult) -> Unit) -> Unit,
     onShareSettingsProfile: (String) -> Unit,
-    onRequestBatteryExemption: () -> Unit,
     onRequestCellIdentityPermission: () -> Unit,
     appVersion: String,
     modifier: Modifier = Modifier
@@ -143,7 +133,7 @@ fun MonitorScreen(
             verticalAlignment = Alignment.Top
         ) {
             Text(
-                text = stringResource(R.string.app_name),
+                text = stringResource(R.string.home_title),
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f)
@@ -156,30 +146,19 @@ fun MonitorScreen(
             )
         }
 
-        Text(
-            text = stringResource(R.string.tagline),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+        MonitoringControlButtons(
+            isRunning = isRunning,
+            passiveMockEnabled = passiveMockSettings.enabled,
+            onStart = onStart,
+            onStartPassiveOnly = onStartPassiveOnly,
+            onStop = onStop
         )
 
-        if (isRunning) {
-            BackgroundStatusCard(
-                isBatteryOptimizationDisabled = isBatteryOptimizationDisabled,
-                onRequestBatteryExemption = onRequestBatteryExemption
-            )
-        }
-
-        GeigerIndicator(
-            quality = stats.quality,
-            severity = stats.severity,
-            isFlatline = isRunning && !stats.isPassiveIdleMode &&
-                stats.shouldPlayFlatline(passiveSignalSettings) && !stats.isLimitedService,
-            isLimitedService = isRunning && !stats.isPassiveIdleMode && stats.isLimitedService,
-            isActive = isRunning && !stats.isPassiveIdleMode && stats.cellularAvailable &&
-                !stats.shouldPlayFlatline(passiveSignalSettings) && !stats.isLimitedService,
-            receptionMode = isRunning && stats.isPassiveOnlySession,
-            stats = stats,
-            passiveSignalSettings = passiveSignalSettings
+        RsrpHistogramCard(
+            samples = rsrpHistory,
+            windowMs = monitoringSettings.rsrpHistogramWindowMs,
+            isActive = isRunning,
+            onWindowChange = onRsrpHistogramWindowChange
         )
 
         if (isRunning) {
@@ -319,39 +298,6 @@ fun MonitorScreen(
             onReset = onResetAudioVolumes
         )
 
-        if (isRunning) {
-            Button(
-                onClick = onStop,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error
-                )
-            ) {
-                Text(text = stringResource(R.string.stop_monitoring))
-            }
-        } else {
-            Button(
-                onClick = onStart,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(text = stringResource(R.string.start_monitoring))
-            }
-            OutlinedButton(
-                onClick = onStartPassiveOnly,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = stringResource(
-                        if (passiveMockSettings.enabled) {
-                            R.string.start_passive_mock
-                        } else {
-                            R.string.start_passive_only
-                        }
-                    )
-                )
-            }
-        }
-
         if (!stats.cellularAvailable && isRunning) {
             Text(
                 text = stringResource(R.string.waiting_for_cellular),
@@ -360,182 +306,47 @@ fun MonitorScreen(
             )
         }
 
-        if (isRunning) {
-            Text(
-                text = stringResource(R.string.background_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
         Spacer(modifier = Modifier.size(8.dp))
     }
 }
 
 @Composable
-private fun BackgroundStatusCard(
-    isBatteryOptimizationDisabled: Boolean,
-    onRequestBatteryExemption: () -> Unit
+private fun MonitoringControlButtons(
+    isRunning: Boolean,
+    passiveMockEnabled: Boolean,
+    onStart: () -> Unit,
+    onStartPassiveOnly: () -> Unit,
+    onStop: () -> Unit
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isBatteryOptimizationDisabled) {
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
-            } else {
-                MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f)
-            }
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.background_title),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold
+    if (isRunning) {
+        Button(
+            onClick = onStop,
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.error
             )
+        ) {
+            Text(text = stringResource(R.string.stop_monitoring))
+        }
+    } else {
+        Button(
+            onClick = onStart,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(text = stringResource(R.string.start_monitoring))
+        }
+        OutlinedButton(
+            onClick = onStartPassiveOnly,
+            modifier = Modifier.fillMaxWidth()
+        ) {
             Text(
                 text = stringResource(
-                    if (isBatteryOptimizationDisabled) {
-                        R.string.background_status_ok
+                    if (passiveMockEnabled) {
+                        R.string.start_passive_mock
                     } else {
-                        R.string.background_status_restricted
+                        R.string.start_passive_only
                     }
-                ),
-                style = MaterialTheme.typography.bodySmall
-            )
-            if (!isBatteryOptimizationDisabled) {
-                OutlinedButton(
-                    onClick = onRequestBatteryExemption,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(text = stringResource(R.string.background_allow))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun GeigerIndicator(
-    quality: ConnectionQuality,
-    severity: Float,
-    isFlatline: Boolean,
-    isLimitedService: Boolean,
-    isActive: Boolean,
-    receptionMode: Boolean = false,
-    stats: ConnectivityStats = ConnectivityStats(),
-    passiveSignalSettings: PassiveSignalSettings = PassiveSignalSettings()
-) {
-    val receptionLevel = if (receptionMode) stats.receptionLevel(passiveSignalSettings) else null
-
-    val pulseSpeed = when {
-        receptionLevel != null -> when (receptionLevel) {
-            ReceptionLevel.GOOD -> 1800
-            ReceptionLevel.FAIR -> 700
-            ReceptionLevel.POOR -> 350
-            ReceptionLevel.UNKNOWN -> 2000
-        }
-        isLimitedService -> 500
-        isFlatline -> 400
-        !isActive -> 2000
-        quality == ConnectionQuality.POOR -> (400 - severity * 340).toInt().coerceAtLeast(80)
-        quality == ConnectionQuality.DEGRADED -> (1200 - severity * 800).toInt().coerceAtLeast(300)
-        else -> 1800
-    }
-
-    val infiniteTransition = rememberInfiniteTransition(label = "geiger_pulse")
-    val scale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = when {
-            receptionLevel != null -> when (receptionLevel) {
-                ReceptionLevel.GOOD -> 1.08f
-                ReceptionLevel.FAIR -> 1.12f
-                ReceptionLevel.POOR -> 1.18f
-                ReceptionLevel.UNKNOWN -> 1f
-            }
-            isLimitedService -> 1.1f
-            isFlatline -> 1.08f
-            isActive -> 1.15f + severity * 0.2f
-            else -> 1f
-        },
-        animationSpec = infiniteRepeatable(
-            animation = tween(pulseSpeed),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "scale"
-    )
-
-    val indicatorColor = when {
-        receptionLevel != null -> when (receptionLevel) {
-            ReceptionLevel.GOOD -> Color(0xFF4CAF50)
-            ReceptionLevel.FAIR -> Color(0xFFFFC107)
-            ReceptionLevel.POOR -> Color(0xFFF44336)
-            ReceptionLevel.UNKNOWN -> Color(0xFF9E9E9E)
-        }
-        isLimitedService -> Color(0xFFFF6F00)
-        isFlatline -> Color(0xFFB71C1C)
-        quality == ConnectionQuality.GOOD -> Color(0xFF4CAF50)
-        quality == ConnectionQuality.DEGRADED -> Color(0xFFFFC107)
-        quality == ConnectionQuality.POOR -> Color(0xFFF44336)
-        quality == ConnectionQuality.NO_CELLULAR -> Color(0xFF9E9E9E)
-        quality == ConnectionQuality.PASSIVE_IDLE -> Color(0xFF5C6BC0)
-        else -> Color(0xFF607D8B)
-    }
-
-    val statusLabel = when {
-        receptionLevel != null -> receptionLabel(receptionLevel)
-        isLimitedService -> stringResource(R.string.quality_limited_service)
-        isFlatline -> stringResource(R.string.quality_flatline)
-        else -> qualityLabel(quality)
-    }
-
-    val hintText = if (receptionMode) {
-        stringResource(R.string.reception_hint)
-    } else {
-        stringResource(R.string.geiger_hint)
-    }
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(96.dp)
-                    .scale(scale)
-                    .background(indicatorColor.copy(alpha = 0.25f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .background(indicatorColor, CircleShape)
                 )
-            }
-
-            Text(
-                text = statusLabel,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = indicatorColor
-            )
-
-            Text(
-                text = hintText,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -561,7 +372,9 @@ private fun MetricsCard(
 
             MetricRow(
                 label = stringResource(R.string.metric_sim),
-                value = formatSimMetric(stats, monitoringSettings)
+                value = formatSimMetric(stats, monitoringSettings),
+                valueFontSize = 13.sp,
+                valueSingleLine = true
             )
             MetricRow(
                 label = stringResource(R.string.metric_network),
@@ -753,7 +566,7 @@ private fun formatSignalValue(
         return stringResource(R.string.signal_permission_required)
     }
     if (value == null) {
-        return stringResource(R.string.signal_unavailable)
+        return "—"
     }
     return "$value $unit"
 }
@@ -767,7 +580,7 @@ private fun formatCellIdentityValue(
         return stringResource(R.string.cell_identity_permission_required)
     }
     if (value == null) {
-        return stringResource(R.string.signal_unavailable)
+        return "—"
     }
     return value.toString()
 }
@@ -806,7 +619,9 @@ private fun signalMeasurementTierColor(tier: SignalMeasurementTier): Color {
 private fun MetricRow(
     label: String,
     value: String,
-    valueColor: Color = MaterialTheme.colorScheme.onSurface
+    valueColor: Color = MaterialTheme.colorScheme.onSurface,
+    valueFontSize: TextUnit = 18.sp,
+    valueSingleLine: Boolean = false
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -816,45 +631,29 @@ private fun MetricRow(
         Text(
             text = label,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(end = 8.dp)
         )
         Text(
             text = value,
+            modifier = if (valueSingleLine) {
+                Modifier.weight(1f)
+            } else {
+                Modifier
+            },
             style = MaterialTheme.typography.bodyLarge,
             fontFamily = FontFamily.Monospace,
-            fontSize = 18.sp,
+            fontSize = valueFontSize,
             color = valueColor,
             fontWeight = if (valueColor != MaterialTheme.colorScheme.onSurface) {
                 FontWeight.SemiBold
             } else {
                 FontWeight.Normal
-            }
+            },
+            textAlign = if (valueSingleLine) TextAlign.End else TextAlign.Unspecified,
+            maxLines = if (valueSingleLine) 1 else Int.MAX_VALUE,
+            softWrap = !valueSingleLine,
+            overflow = if (valueSingleLine) TextOverflow.Ellipsis else TextOverflow.Clip
         )
     }
-}
-
-@Composable
-private fun receptionLabel(level: ReceptionLevel): String {
-    return stringResource(
-        when (level) {
-            ReceptionLevel.GOOD -> R.string.quality_reception_good
-            ReceptionLevel.FAIR -> R.string.quality_reception_fair
-            ReceptionLevel.POOR -> R.string.quality_reception_poor
-            ReceptionLevel.UNKNOWN -> R.string.quality_reception_unknown
-        }
-    )
-}
-
-@Composable
-private fun qualityLabel(quality: ConnectionQuality): String {
-    return stringResource(
-        when (quality) {
-            ConnectionQuality.GOOD -> R.string.quality_good
-            ConnectionQuality.DEGRADED -> R.string.quality_degraded
-            ConnectionQuality.POOR -> R.string.quality_poor
-            ConnectionQuality.NO_CELLULAR -> R.string.quality_no_cellular
-            ConnectionQuality.PASSIVE_IDLE -> R.string.quality_passive_idle
-            ConnectionQuality.MONITORING_STOPPED -> R.string.monitoring_stopped
-        }
-    )
 }

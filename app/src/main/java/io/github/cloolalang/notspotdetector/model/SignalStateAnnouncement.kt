@@ -9,7 +9,7 @@ object SignalStateAnnouncement {
     }
 
     fun previewNoSignal(networkOperatorName: String?): String {
-        return formatNoSignalChange(active = true, networkOperatorName)
+        return formatNoSignalAnnouncement(networkOperatorName, CellularSignalReader.RADIO_4G)
     }
 
     fun previewLimitedService(networkOperatorName: String?): String {
@@ -21,9 +21,29 @@ object SignalStateAnnouncement {
         return prefixNetworkOperator("Technology change, $tech", networkOperatorName)
     }
 
-    fun formatNoSignalChange(active: Boolean, networkOperatorName: String?): String {
-        val message = if (active) "No signal" else "Signal restored"
-        return prefixNetworkOperator(message, networkOperatorName)
+    fun formatNoSignalAnnouncement(
+        networkOperatorName: String?,
+        radioAccessType: String?
+    ): String {
+        val parts = buildList {
+            NetworkOperatorSpeech.formatForSpeech(networkOperatorName)?.let(::add)
+            radioAccessType?.takeIf { it.isNotBlank() }?.let {
+                add(formatTechnologyForSpeech(it))
+            }
+            add("no signal")
+        }
+        return parts.joinToString(", ")
+    }
+
+    fun formatNoSignalChange(
+        active: Boolean,
+        networkOperatorName: String?,
+        radioAccessType: String? = null
+    ): String {
+        if (active) {
+            return formatNoSignalAnnouncement(networkOperatorName, radioAccessType)
+        }
+        return prefixNetworkOperator("Signal restored", networkOperatorName)
     }
 
     fun formatLimitedServiceChange(active: Boolean, networkOperatorName: String?): String {

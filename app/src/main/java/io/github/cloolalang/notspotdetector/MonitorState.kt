@@ -12,6 +12,7 @@ import io.github.cloolalang.notspotdetector.model.PassiveMockSettings
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
 import io.github.cloolalang.notspotdetector.model.PingSettings
 import io.github.cloolalang.notspotdetector.model.RttSample
+import io.github.cloolalang.notspotdetector.model.RsrpSample
 import io.github.cloolalang.notspotdetector.model.ThresholdSettings
 import io.github.cloolalang.notspotdetector.model.SignalStateAnnouncement
 import io.github.cloolalang.notspotdetector.model.hasUsableSignalForMonitoring
@@ -50,6 +51,9 @@ object MonitorState {
 
     private val _rttHistory = MutableStateFlow<List<RttSample>>(emptyList())
     val rttHistory: StateFlow<List<RttSample>> = _rttHistory.asStateFlow()
+
+    private val _rsrpHistory = MutableStateFlow<List<RsrpSample>>(emptyList())
+    val rsrpHistory: StateFlow<List<RsrpSample>> = _rsrpHistory.asStateFlow()
 
     private var cellIdentityBaselineReady = false
     private var radioTechnologyBaselineReady = false
@@ -98,6 +102,7 @@ object MonitorState {
         }
         val (finalStats, events) = buildMonitoringEvents(previous, enriched, passiveSettings)
         _stats.value = finalStats
+        recordRsrpSample(stats.rsrpDbm, stats.isMonitoring)
         if (!enriched.isPassiveIdleMode) {
             enriched.rttMs?.let { recordRttSample(it, enriched.lastPingTimestampMs) }
         }
@@ -115,6 +120,19 @@ object MonitorState {
     fun pruneRttHistory(nowMs: Long = System.currentTimeMillis()) {
         val cutoff = nowMs - RTT_HISTORY_WINDOW_MS
         _rttHistory.value = _rttHistory.value.filter { it.timestampMs >= cutoff }
+    }
+
+    private fun recordRsrpSample(rsrpDbm: Int?, isMonitoring: Boolean) {
+        if (!_isRunning.value || !isMonitoring || rsrpDbm == null) return
+        val timestampMs = System.currentTimeMillis()
+        val cutoff = timestampMs - RSRP_HISTORY_RETENTION_MS
+        _rsrpHistory.value = (_rsrpHistory.value + RsrpSample(timestampMs, rsrpDbm))
+            .filter { it.timestampMs >= cutoff }
+    }
+
+    fun pruneRsrpHistory(nowMs: Long = System.currentTimeMillis()) {
+        val cutoff = nowMs - RSRP_HISTORY_RETENTION_MS
+        _rsrpHistory.value = _rsrpHistory.value.filter { it.timestampMs >= cutoff }
     }
 
     fun recomputeStatsQuality() {
@@ -250,6 +268,7 @@ object MonitorState {
                 previousActive = previous.noSignalActive,
                 nextActive = nextDebounced.noSignalActive,
                 networkOperatorName = networkOperatorName,
+                radioAccessType = nextDebounced.radioAccessType,
                 isMonitoring = nextDebounced.isMonitoring
             ),
             limitedServiceStateAnnouncement = consumeLimitedServiceStateChange(
@@ -285,6 +304,7 @@ object MonitorState {
         previousActive: Boolean,
         nextActive: Boolean,
         networkOperatorName: String?,
+        radioAccessType: String?,
         isMonitoring: Boolean
     ): String? {
         if (!_isRunning.value || !isMonitoring) return null
@@ -296,7 +316,11 @@ object MonitorState {
 
         if (previousActive == nextActive) return null
 
-        return SignalStateAnnouncement.formatNoSignalChange(nextActive, networkOperatorName)
+        return SignalStateAnnouncement.formatNoSignalChange(
+            active = nextActive,
+            networkOperatorName = networkOperatorName,
+            radioAccessType = radioAccessType
+        )
     }
 
     private fun consumeLimitedServiceStateChange(
@@ -378,8 +402,10 @@ object MonitorState {
             resetCellIdentityTracking()
             _stats.value = ConnectivityStats(isMonitoring = false)
             _rttHistory.value = emptyList()
+            _rsrpHistory.value = emptyList()
         }
     }
 
     const val RTT_HISTORY_WINDOW_MS = 60_000L
+    const val RSRP_HISTORY_RETENTION_MS = 300_000L
 }

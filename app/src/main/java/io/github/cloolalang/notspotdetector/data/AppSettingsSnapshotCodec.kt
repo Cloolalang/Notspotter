@@ -153,6 +153,7 @@ object AppSettingsSnapshotCodec {
             .put("subscriptionId", settings.subscriptionId)
             .put("passiveQuietUntilCritical", settings.passiveQuietUntilCritical)
             .put("passiveMeasurementIntervalMs", settings.passiveMeasurementIntervalMs)
+            .put("rsrpHistogramWindowMs", settings.rsrpHistogramWindowMs)
     }
 
     private fun decodeMonitoring(json: JSONObject?): MonitoringSettings {
@@ -173,6 +174,10 @@ object AppSettingsSnapshotCodec {
             passiveMeasurementIntervalMs = json.optLong(
                 "passiveMeasurementIntervalMs",
                 MonitoringSettings.DEFAULT_PASSIVE_MEASUREMENT_INTERVAL_MS
+            ),
+            rsrpHistogramWindowMs = json.optLong(
+                "rsrpHistogramWindowMs",
+                MonitoringSettings.DEFAULT_RSRP_HISTOGRAM_WINDOW_MS
             )
         )
     }

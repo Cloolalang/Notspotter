@@ -9,6 +9,8 @@ fun ConnectivityStats.withCellIdentityForDisplay(
 ): ConnectivityStats {
     if (!shouldClearCellIdentity()) return this
     return copy(
+        rsrpDbm = null,
+        rsrqDb = null,
         lteEarfcn = null,
         ltePci = null,
         nrEarfcn = null,

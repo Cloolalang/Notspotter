@@ -22,6 +22,8 @@ import io.github.cloolalang.notspotdetector.data.MonitoringSettingsRepository
 import io.github.cloolalang.notspotdetector.data.PingSettingsRepository
 import io.github.cloolalang.notspotdetector.data.ThresholdSettingsRepository
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
+import io.github.cloolalang.notspotdetector.model.SignalStateAnnouncement
+import io.github.cloolalang.notspotdetector.model.shouldPlayFlatline
 import io.github.cloolalang.notspotdetector.model.shouldPlayPassiveSignalAndQualityAlerts
 import io.github.cloolalang.notspotdetector.network.CellularPassiveSignalMonitor
 import io.github.cloolalang.notspotdetector.network.CellularPingMonitor
@@ -31,6 +33,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class ConnectivityMonitorService : Service() {
@@ -46,6 +49,7 @@ class ConnectivityMonitorService : Service() {
     private var isPassiveIdleMode = false
     private var isPassiveOnlyStart = false
     private var activePingTimeoutJob: Job? = null
+    private var noSignalPeriodicAnnouncementJob: Job? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -176,7 +180,16 @@ class ConnectivityMonitorService : Service() {
         if (events.cellIdentityChanged && playQualityAlerts) {
             playCellChangeAlert(events.cellChangeAnnouncement)
         }
-        if (events.radioTechnologyChanged && playQualityAlerts) {
+        val stats = MonitorState.stats.value
+        if (events.radioTechnologyChanged && (
+                playQualityAlerts ||
+                    (
+                        isPassiveOnlyStart &&
+                            stats.noSignalActive &&
+                            monitoringSettings.monitor2gFallback
+                        )
+                )
+        ) {
             playTechnologyChangeAlert(events.technologyChangeAnnouncement)
         }
         if (events.limitedServiceStateChanged && playQualityAlerts) {
@@ -185,7 +198,45 @@ class ConnectivityMonitorService : Service() {
         if (events.noSignalStateChanged) {
             playNoSignalAlert(events.noSignalStateAnnouncement)
         }
+        updateNoSignalPeriodicAnnouncements()
         updateNotification(MonitorState.stats.value.statusLabel(this))
+    }
+
+    private fun updateNoSignalPeriodicAnnouncements() {
+        val stats = MonitorState.stats.value
+        val passiveSettings = MonitorState.passiveSignalSettings.value
+        val shouldAnnounce = isPassiveOnlyStart &&
+            stats.isMonitoring &&
+            !stats.isPassiveIdleMode &&
+            stats.shouldPlayFlatline(passiveSettings)
+
+        if (!shouldAnnounce) {
+            noSignalPeriodicAnnouncementJob?.cancel()
+            noSignalPeriodicAnnouncementJob = null
+            return
+        }
+
+        if (noSignalPeriodicAnnouncementJob?.isActive == true) return
+
+        noSignalPeriodicAnnouncementJob = serviceScope.launch {
+            while (isActive) {
+                delay(NO_SIGNAL_PERIODIC_ANNOUNCEMENT_MS)
+                val current = MonitorState.stats.value
+                val settings = MonitorState.passiveSignalSettings.value
+                if (!isPassiveOnlyStart ||
+                    !current.isMonitoring ||
+                    !current.shouldPlayFlatline(settings)
+                ) {
+                    break
+                }
+                playNoSignalAlert(
+                    SignalStateAnnouncement.formatNoSignalAnnouncement(
+                        networkOperatorName = current.networkOperatorName,
+                        radioAccessType = current.radioAccessType
+                    )
+                )
+            }
+        }
     }
 
     private fun playAlertWithVoice(
@@ -299,6 +350,8 @@ class ConnectivityMonitorService : Service() {
         isPassiveOnlyStart = false
         activePingTimeoutJob?.cancel()
         activePingTimeoutJob = null
+        noSignalPeriodicAnnouncementJob?.cancel()
+        noSignalPeriodicAnnouncementJob = null
         pingMonitor.stop()
         passiveSignalMonitor.stop()
         geigerPlayer.stop()
@@ -371,6 +424,7 @@ class ConnectivityMonitorService : Service() {
         const val EXTRA_PASSIVE_ONLY = "io.github.cloolalang.notspotdetector.extra.PASSIVE_ONLY"
         private const val NOTIFICATION_ID = 1001
         private const val ACTIVE_PING_DURATION_MS = 10 * 60 * 1000L
+        private const val NO_SIGNAL_PERIODIC_ANNOUNCEMENT_MS = 30_000L
 
         fun start(context: Context, passiveOnly: Boolean = false) {
             val intent = Intent(context, ConnectivityMonitorService::class.java)

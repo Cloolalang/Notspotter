@@ -45,7 +45,28 @@ class CellIdentityStabilizerTest {
     }
 
     @Test
-    fun withStabilizedCellIdentity_keepsIdentityWhenRsrpIsWeak() {
+    fun withStabilizedCellIdentity_clearsMetricsWhenNoSignalActive() {
+        val stats = ConnectivityStats(
+            isMonitoring = true,
+            noSignalActive = true,
+            rsrpDbm = -130,
+            rsrqDb = -20,
+            lteEarfcn = 1_800,
+            ltePci = 42
+        )
+        val previous = CellIdentitySnapshot(lteEarfcn = 1_800, ltePci = 42)
+
+        val (display, cache) = stats.withStabilizedCellIdentity(previous)
+
+        assertNull(display.rsrpDbm)
+        assertNull(display.rsrqDb)
+        assertNull(display.lteEarfcn)
+        assertNull(display.ltePci)
+        assertEquals(CellIdentitySnapshot(), cache)
+    }
+
+    @Test
+    fun withStabilizedCellIdentity_keepsIdentityWhenRsrpIsWeakButNotNoSignal() {
         val stats = ConnectivityStats(
             cellularAvailable = false,
             rsrpDbm = -130,

@@ -24,6 +24,10 @@ class MonitoringSettingsRepository(context: Context) {
             passiveMeasurementIntervalMs = prefs.getLong(
                 KEY_PASSIVE_MEASUREMENT_INTERVAL,
                 MonitoringSettings.DEFAULT_PASSIVE_MEASUREMENT_INTERVAL_MS
+            ),
+            rsrpHistogramWindowMs = prefs.getLong(
+                KEY_RSRP_HISTOGRAM_WINDOW,
+                MonitoringSettings.DEFAULT_RSRP_HISTOGRAM_WINDOW_MS
             )
         ).normalized()
     }
@@ -35,6 +39,7 @@ class MonitoringSettingsRepository(context: Context) {
             .putInt(KEY_SUBSCRIPTION_ID, normalized.subscriptionId)
             .putBoolean(KEY_PASSIVE_QUIET_UNTIL_CRITICAL, normalized.passiveQuietUntilCritical)
             .putLong(KEY_PASSIVE_MEASUREMENT_INTERVAL, normalized.passiveMeasurementIntervalMs)
+            .putLong(KEY_RSRP_HISTOGRAM_WINDOW, normalized.rsrpHistogramWindowMs)
             .apply()
     }
 
@@ -44,5 +49,6 @@ class MonitoringSettingsRepository(context: Context) {
         private const val KEY_SUBSCRIPTION_ID = "subscription_id"
         private const val KEY_PASSIVE_QUIET_UNTIL_CRITICAL = "passive_quiet_until_critical"
         private const val KEY_PASSIVE_MEASUREMENT_INTERVAL = "passive_measurement_interval_ms"
+        private const val KEY_RSRP_HISTOGRAM_WINDOW = "rsrp_histogram_window_ms"
     }
 }

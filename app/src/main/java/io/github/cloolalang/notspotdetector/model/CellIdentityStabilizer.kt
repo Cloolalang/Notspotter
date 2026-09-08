@@ -16,6 +16,7 @@ fun CellIdentitySnapshot.coalesceWith(previous: CellIdentitySnapshot): CellIdent
 }
 
 fun ConnectivityStats.shouldClearCellIdentity(): Boolean {
+    if (isMonitoring && noSignalActive) return true
     if (isOn2g && !monitor2gFallbackEnabled) return true
     if (isCompleteNoService) return true
     if (isOn2g && monitor2gFallbackEnabled && !hasLteNrSignal) return true
@@ -27,6 +28,8 @@ fun ConnectivityStats.withStabilizedCellIdentity(
 ): Pair<ConnectivityStats, CellIdentitySnapshot> {
     if (shouldClearCellIdentity()) {
         return copy(
+            rsrpDbm = null,
+            rsrqDb = null,
             lteEarfcn = null,
             ltePci = null,
             nrEarfcn = null,

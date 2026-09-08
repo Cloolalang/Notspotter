@@ -5,6 +5,85 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.19.0] - 2026-09-08
+
+### Changed
+
+- **Home screen layout** — renamed to NotSpotter; start/stop controls sit directly under the title; the RSRP histogram replaces the reception LED panel; removed the tagline and background-monitoring info cards.
+- **Background monitoring** — battery exemption is requested automatically when you start monitoring (no separate panel).
+
+## [1.18.8] - 2026-09-08
+
+### Changed
+
+- **RSRP histogram** — each bar now shows its share of all samples in the window as a percentage below the count.
+
+## [1.18.7] - 2026-09-08
+
+### Added
+
+- **RSRP histogram sample window** — slider below the graph to choose how far back samples are counted, from 30 seconds to 5 minutes (default 30 seconds). Saved with your other settings and profiles.
+
+## [1.18.6] - 2026-09-08
+
+### Changed
+
+- **RSRP histogram colours** — bars now use fixed signal bands: light blue above −80 dBm, green −80 to −95, yellow −95 to −110, orange −110 to −120, and bright red below −120.
+
+## [1.18.5] - 2026-09-08
+
+### Changed
+
+- **RSRP histogram** — only bins with samples in the 30-second window are shown, and each active bar grows wider when fewer bins are visible.
+
+## [1.18.4] - 2026-09-08
+
+### Fixed
+
+- **RSRP histogram axis labels** — dBm values were clipped to dots because the rotated labels sat in a box as narrow as the bars; labels now use a wider slot so −70, −75, etc. display fully.
+
+## [1.18.3] - 2026-09-08
+
+### Changed
+
+- **RSRP histogram layout** — narrower bars and vertically oriented dBm labels so all 12 bins fit on one row without wrapping.
+
+## [1.18.2] - 2026-09-08
+
+### Changed
+
+- **RSRP histogram bins** — bin width reduced from 10 dB to 5 dB (12 bins from −70 to −126 dBm).
+
+## [1.18.1] - 2026-09-08
+
+### Changed
+
+- **RSRP histogram layout** — bars are now vertical with dBm labels along the bottom, like a classic histogram.
+
+## [1.18.0] - 2026-09-08
+
+### Added
+
+- **RSRP histogram** — while monitoring, a new panel shows how often recent RSRP readings fell into each 10 dB bin from −70 to −126 dBm, using a rolling 30-second window.
+
+## [1.17.2] - 2026-09-08
+
+### Changed
+
+- **Cellular metrics SIM row** — SIM value uses a smaller font and stays on one line so long labels (for example “System default · …”) no longer wrap.
+
+## [1.17.1] - 2026-09-08
+
+### Changed
+
+- **Cellular metrics during no signal** — RSRP, RSRQ, EARFCN, and PCI show blank (—) while the debounced no-signal state is active, instead of stale readings from the modem.
+
+## [1.17.0] - 2026-09-08
+
+### Changed
+
+- **Passive no-signal voice alerts** — in passive-only monitoring, while no signal is active the app plays the no-signal tone and announces the operator, radio technology, and “no signal” every 30 seconds (for example “E E, 4 G, no signal”). If 2G fallback is enabled and the phone drops to 2G while still out of signal, the technology change is announced and the 30-second no-signal reminders continue with the updated technology.
+
 ## [1.16.0] - 2026-09-08
 
 ### Changed

@@ -126,6 +126,12 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         MonitorState.rttHistory.value
     )
 
+    val rsrpHistory = MonitorState.rsrpHistory.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        MonitorState.rsrpHistory.value
+    )
+
     val isBatteryOptimizationDisabled: Boolean
         get() = BackgroundHelper.isIgnoringBatteryOptimizations(getApplication())
 
@@ -196,6 +202,10 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
 
     fun updatePassiveMeasurementIntervalMs(value: Long) {
         updateMonitoringSettings(monitoringSettings.value.copy(passiveMeasurementIntervalMs = value))
+    }
+
+    fun updateRsrpHistogramWindowMs(value: Long) {
+        updateMonitoringSettings(monitoringSettings.value.copy(rsrpHistogramWindowMs = value))
     }
 
     fun updateSelectedSubscription(subscriptionId: Int) {

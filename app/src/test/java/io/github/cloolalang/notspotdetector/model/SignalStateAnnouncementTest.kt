@@ -18,8 +18,20 @@ class SignalStateAnnouncementTest {
     @Test
     fun formatNoSignalChange_announcesEnterAndExit() {
         assertEquals(
-            "No signal",
-            SignalStateAnnouncement.formatNoSignalChange(active = true, networkOperatorName = null)
+            "4 G, no signal",
+            SignalStateAnnouncement.formatNoSignalChange(
+                active = true,
+                networkOperatorName = null,
+                radioAccessType = CellularSignalReader.RADIO_4G
+            )
+        )
+        assertEquals(
+            "E E, 4 G, no signal",
+            SignalStateAnnouncement.formatNoSignalChange(
+                active = true,
+                networkOperatorName = "EE",
+                radioAccessType = CellularSignalReader.RADIO_4G
+            )
         )
         assertEquals(
             "E E, Signal restored",

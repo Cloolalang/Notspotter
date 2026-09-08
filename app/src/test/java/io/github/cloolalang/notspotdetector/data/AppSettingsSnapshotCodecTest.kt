@@ -39,7 +39,8 @@ class AppSettingsSnapshotCodecTest {
             thresholds = ThresholdSettings(goodConnectionClicksPerPing = 3),
             pingSettings = PingSettings(host = "1.1.1.1", pingsPerTest = 4),
             monitoringSettings = MonitoringSettings(
-                passiveMeasurementIntervalMs = 3_000L
+                passiveMeasurementIntervalMs = 3_000L,
+                rsrpHistogramWindowMs = 120_000L
             ),
             passiveSignalSettings = PassiveSignalSettings(
                 criticalTierClickIntervalMs = 400,

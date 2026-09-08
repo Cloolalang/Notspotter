@@ -36,18 +36,21 @@ fun MonitorApp(
     val audioVolumes by viewModel.audioVolumes.collectAsStateWithLifecycle()
     val settingsProfiles by viewModel.settingsProfiles.collectAsStateWithLifecycle()
     val rttHistory by viewModel.rttHistory.collectAsStateWithLifecycle()
+    val rsrpHistory by viewModel.rsrpHistory.collectAsStateWithLifecycle()
 
-    var batteryOptimizationDisabled by remember {
-        mutableStateOf(viewModel.isBatteryOptimizationDisabled)
-    }
     var phoneStatePermissionGranted by remember {
         mutableStateOf(viewModel.phoneStatePermissionGranted)
     }
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-        batteryOptimizationDisabled = viewModel.isBatteryOptimizationDisabled
         phoneStatePermissionGranted = viewModel.phoneStatePermissionGranted
         viewModel.refreshCellularSignal()
+    }
+
+    fun ensureBackgroundMonitoringEnabled() {
+        if (!viewModel.isBatteryOptimizationDisabled) {
+            onRequestBatteryExemption()
+        }
     }
 
     Scaffold(modifier = modifier.fillMaxSize()) { innerPadding ->
@@ -63,10 +66,16 @@ fun MonitorApp(
             audioVolumes = audioVolumes,
             settingsProfiles = settingsProfiles,
             rttHistory = rttHistory,
+            rsrpHistory = rsrpHistory,
             isRunning = isRunning,
-            isBatteryOptimizationDisabled = batteryOptimizationDisabled,
-            onStart = viewModel::startMonitoring,
-            onStartPassiveOnly = viewModel::startPassiveOnlyMonitoring,
+            onStart = {
+                ensureBackgroundMonitoringEnabled()
+                viewModel.startMonitoring()
+            },
+            onStartPassiveOnly = {
+                ensureBackgroundMonitoringEnabled()
+                viewModel.startPassiveOnlyMonitoring()
+            },
             onStop = viewModel::stopMonitoring,
             onGoodRttChange = viewModel::updateGoodRttMs,
             onPoorRttChange = viewModel::updatePoorRttMs,
@@ -83,6 +92,7 @@ fun MonitorApp(
             onPassiveSignalSettingsChange = viewModel::updatePassiveSignalSettings,
             onPassiveMockSettingsChange = viewModel::updatePassiveMockSettings,
             onPassiveMeasurementIntervalChange = viewModel::updatePassiveMeasurementIntervalMs,
+            onRsrpHistogramWindowChange = viewModel::updateRsrpHistogramWindowMs,
             onResetPassiveSignalSettings = viewModel::resetPassiveSignalSettings,
             onSubscriptionChange = viewModel::updateSelectedSubscription,
             onPingClickVolumeChange = viewModel::updatePingClickVolume,
@@ -117,7 +127,6 @@ fun MonitorApp(
             onDeleteSettingsProfile = viewModel::deleteSettingsProfile,
             onImportSettingsProfile = onImportSettingsProfile,
             onShareSettingsProfile = onShareSettingsProfile,
-            onRequestBatteryExemption = onRequestBatteryExemption,
             onRequestCellIdentityPermission = onRequestCellIdentityPermission,
             appVersion = BuildConfig.VERSION_NAME,
             modifier = Modifier.padding(innerPadding)

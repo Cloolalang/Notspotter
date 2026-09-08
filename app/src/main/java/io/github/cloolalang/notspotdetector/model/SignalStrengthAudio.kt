@@ -135,6 +135,7 @@ fun ConnectivityStats.resolveSignalMeasurementTier(
 ): SignalMeasurementTier {
     if (!signalPermissionGranted) return SignalMeasurementTier.PERMISSION_REQUIRED
     if (isLimitedService) return SignalMeasurementTier.LIMITED_SERVICE
+    if (isMonitoring && noSignalActive) return SignalMeasurementTier.NO_SIGNAL
     if (isRsrpTooWeakForService(settings)) return SignalMeasurementTier.NO_SIGNAL
     if (!cellularAvailable && rsrpDbm == null && rsrqDb == null) {
         return SignalMeasurementTier.UNAVAILABLE
