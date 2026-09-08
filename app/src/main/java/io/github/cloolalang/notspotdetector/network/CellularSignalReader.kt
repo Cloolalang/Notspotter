@@ -23,7 +23,6 @@ import androidx.core.content.ContextCompat
 import io.github.cloolalang.notspotdetector.model.CellularRadioMetrics
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.NetworkServiceMode
-import io.github.cloolalang.notspotdetector.model.withCellIdentityForDisplay
 
 object CellularSignalReader {
 
@@ -45,7 +44,7 @@ object CellularSignalReader {
             ?: return CellularRadioMetrics(permissionGranted = true)
 
         val cellIdentityPermissionGranted = hasCellIdentityPermission(context)
-        val operatorName = readNetworkOperatorName(telephonyManager)
+        val operatorName = readNetworkOperatorName(context, telephonyManager, subscriptionId)
         val plmn = readPlmn(telephonyManager)
         val networkReports2g = isServing2gNetwork(telephonyManager)
         val networkServiceMode = readNetworkServiceMode(telephonyManager)
@@ -112,7 +111,7 @@ object CellularSignalReader {
             isCompleteNoService = isCompleteNoService(metrics, hasLimitedServiceOnAnySim)
         )
 
-        return metrics.withCellIdentityForDisplay(monitor2gFallback)
+        return metrics
     }
 
     /**
@@ -250,9 +249,18 @@ object CellularSignalReader {
     }
 
     @SuppressLint("MissingPermission")
-    private fun readNetworkOperatorName(telephonyManager: TelephonyManager): String? {
-        return telephonyManager.networkOperatorName
-            .takeIf { it.isNotBlank() && it != "null" }
+    private fun readNetworkOperatorName(
+        context: Context,
+        telephonyManager: TelephonyManager,
+        subscriptionId: Int
+    ): String? {
+        return normalizeOperatorName(telephonyManager.networkOperatorName)
+            ?: normalizeOperatorName(telephonyManager.simOperatorName)
+            ?: SimSubscriptionHelper.resolveCarrierName(context, subscriptionId)
+    }
+
+    private fun normalizeOperatorName(raw: String?): String? {
+        return raw?.trim()?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
     }
 
     @SuppressLint("MissingPermission")
@@ -425,9 +433,23 @@ object CellularSignalReader {
     ): ServingCellIdentity {
         return try {
             val cellInfoList = telephonyManager.allCellInfo ?: return ServingCellIdentity()
-            extractServingCellIdentities(cellInfoList, registeredOnly = true, monitor2gFallback, expectedPlmn)
-                ?: extractServingCellIdentities(cellInfoList, registeredOnly = false, monitor2gFallback, expectedPlmn)
-                ?: ServingCellIdentity()
+            val registered = extractServingCellIdentities(
+                cellInfoList,
+                registeredOnly = true,
+                monitor2gFallback,
+                expectedPlmn
+            )
+            val fromAllCells = extractServingCellIdentities(
+                cellInfoList,
+                registeredOnly = false,
+                monitor2gFallback,
+                expectedPlmn
+            )
+            when {
+                registered == null -> fromAllCells ?: ServingCellIdentity()
+                fromAllCells == null -> registered
+                else -> registered.fillGapsFrom(fromAllCells)
+            }
         } catch (_: SecurityException) {
             ServingCellIdentity()
         } catch (_: RuntimeException) {
@@ -646,7 +668,30 @@ object CellularSignalReader {
         val nrPci: Int? = null,
         val gsmEarfcn: Int? = null,
         val gsmBsic: Int? = null
-    )
+    ) {
+        fun fillGapsFrom(fallback: ServingCellIdentity): ServingCellIdentity {
+            return copy(
+                lteEarfcn = lteEarfcn ?: fallback.lteEarfcn,
+                ltePci = ltePci ?: fallback.ltePci?.takeIf {
+                    lteEarfcn == null ||
+                        fallback.lteEarfcn == null ||
+                        lteEarfcn == fallback.lteEarfcn
+                },
+                nrEarfcn = nrEarfcn ?: fallback.nrEarfcn,
+                nrPci = nrPci ?: fallback.nrPci?.takeIf {
+                    nrEarfcn == null ||
+                        fallback.nrEarfcn == null ||
+                        nrEarfcn == fallback.nrEarfcn
+                },
+                gsmEarfcn = gsmEarfcn ?: fallback.gsmEarfcn,
+                gsmBsic = gsmBsic ?: fallback.gsmBsic?.takeIf {
+                    gsmEarfcn == null ||
+                        fallback.gsmEarfcn == null ||
+                        gsmEarfcn == fallback.gsmEarfcn
+                }
+            )
+        }
+    }
 
     private fun isValidCellIdentityValue(value: Int): Boolean {
         return value != CellInfo.UNAVAILABLE && value != Int.MAX_VALUE

@@ -24,14 +24,19 @@ import io.github.cloolalang.notspotdetector.model.SimSubscriptionOption
 import io.github.cloolalang.notspotdetector.model.ThresholdSettings
 import io.github.cloolalang.notspotdetector.network.CellularSignalReader
 import io.github.cloolalang.notspotdetector.network.SimSubscriptionHelper
+import io.github.cloolalang.notspotdetector.audio.CellVoiceAnnouncer
 import io.github.cloolalang.notspotdetector.audio.GeigerCounterPlayer
+import io.github.cloolalang.notspotdetector.model.CellIdentityAnnouncement
+import io.github.cloolalang.notspotdetector.model.SignalStateAnnouncement
 import io.github.cloolalang.notspotdetector.service.ConnectivityMonitorService
 import io.github.cloolalang.notspotdetector.util.BackgroundHelper
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 class MonitorViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -43,6 +48,7 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
     private val passiveMockSettingsRepository = PassiveMockSettingsRepository(application)
     private val settingsProfilesRepository = SettingsProfilesRepository(application)
     private val alertSoundPreview = GeigerCounterPlayer()
+    private val cellVoiceAnnouncer = CellVoiceAnnouncer(application)
 
     private val _settingsProfiles = MutableStateFlow(settingsProfilesRepository.listSummaries())
     val settingsProfiles: StateFlow<List<SettingsProfileSummary>> = _settingsProfiles.asStateFlow()
@@ -226,16 +232,48 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         updateAudioVolumes(audioVolumes.value.copy(cellChangeBellVolume = value))
     }
 
+    fun updateCellChangeVoiceEnabled(enabled: Boolean) {
+        updateAudioVolumes(audioVolumes.value.copy(cellChangeVoiceEnabled = enabled))
+    }
+
+    fun updateCellChangeVoiceVolume(value: Float) {
+        updateAudioVolumes(audioVolumes.value.copy(cellChangeVoiceVolume = value))
+    }
+
     fun updateTechnologyChangeVolume(value: Float) {
         updateAudioVolumes(audioVolumes.value.copy(technologyChangeVolume = value))
+    }
+
+    fun updateTechnologyChangeVoiceEnabled(enabled: Boolean) {
+        updateAudioVolumes(audioVolumes.value.copy(technologyChangeVoiceEnabled = enabled))
+    }
+
+    fun updateTechnologyChangeVoiceVolume(value: Float) {
+        updateAudioVolumes(audioVolumes.value.copy(technologyChangeVoiceVolume = value))
     }
 
     fun updateNoSignalToneVolume(value: Float) {
         updateAudioVolumes(audioVolumes.value.copy(noSignalToneVolume = value))
     }
 
+    fun updateNoSignalVoiceEnabled(enabled: Boolean) {
+        updateAudioVolumes(audioVolumes.value.copy(noSignalVoiceEnabled = enabled))
+    }
+
+    fun updateNoSignalVoiceVolume(value: Float) {
+        updateAudioVolumes(audioVolumes.value.copy(noSignalVoiceVolume = value))
+    }
+
     fun updateLimitedServiceToneVolume(value: Float) {
         updateAudioVolumes(audioVolumes.value.copy(limitedServiceToneVolume = value))
+    }
+
+    fun updateLimitedServiceVoiceEnabled(enabled: Boolean) {
+        updateAudioVolumes(audioVolumes.value.copy(limitedServiceVoiceEnabled = enabled))
+    }
+
+    fun updateLimitedServiceVoiceVolume(value: Float) {
+        updateAudioVolumes(audioVolumes.value.copy(limitedServiceVoiceVolume = value))
     }
 
     fun resetAudioVolumes() {
@@ -259,9 +297,31 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         alertSoundPreview.playCellChangeBell(audioVolumes.value.normalized().cellChangeBellVolume)
     }
 
+    fun previewCellChangeVoiceSound() {
+        if (isRunning.value) return
+        val volumes = audioVolumes.value.normalized()
+        if (!volumes.cellChangeVoiceEnabled) return
+        previewAlertWithVoice(
+            playTone = { alertSoundPreview.playCellChangeBell(volumes.cellChangeBellVolume) },
+            announcement = CellIdentityAnnouncement.previewText(readCurrentOperatorName()),
+            voiceVolume = volumes.cellChangeVoiceVolume
+        )
+    }
+
     fun previewTechnologyChangeSound() {
         if (isRunning.value) return
         alertSoundPreview.playTechnologyChangeTone(audioVolumes.value.normalized().technologyChangeVolume)
+    }
+
+    fun previewTechnologyChangeVoiceSound() {
+        if (isRunning.value) return
+        val volumes = audioVolumes.value.normalized()
+        if (!volumes.technologyChangeVoiceEnabled) return
+        previewAlertWithVoice(
+            playTone = { alertSoundPreview.playTechnologyChangeTone(volumes.technologyChangeVolume) },
+            announcement = SignalStateAnnouncement.previewTechnologyChange(readCurrentOperatorName()),
+            voiceVolume = volumes.technologyChangeVoiceVolume
+        )
     }
 
     fun previewNoSignalToneSound() {
@@ -269,9 +329,52 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         alertSoundPreview.previewNoSignalTone(audioVolumes.value.normalized().noSignalToneVolume)
     }
 
+    fun previewNoSignalVoiceSound() {
+        if (isRunning.value) return
+        val volumes = audioVolumes.value.normalized()
+        if (!volumes.noSignalVoiceEnabled) return
+        previewAlertWithVoice(
+            playTone = { alertSoundPreview.previewNoSignalTone(volumes.noSignalToneVolume) },
+            announcement = SignalStateAnnouncement.previewNoSignal(readCurrentOperatorName()),
+            voiceVolume = volumes.noSignalVoiceVolume
+        )
+    }
+
     fun previewLimitedServiceToneSound() {
         if (isRunning.value) return
         alertSoundPreview.previewLimitedServiceTone(audioVolumes.value.normalized().limitedServiceToneVolume)
+    }
+
+    fun previewLimitedServiceVoiceSound() {
+        if (isRunning.value) return
+        val volumes = audioVolumes.value.normalized()
+        if (!volumes.limitedServiceVoiceEnabled) return
+        previewAlertWithVoice(
+            playTone = { alertSoundPreview.previewLimitedServiceTone(volumes.limitedServiceToneVolume) },
+            announcement = SignalStateAnnouncement.previewLimitedService(readCurrentOperatorName()),
+            voiceVolume = volumes.limitedServiceVoiceVolume
+        )
+    }
+
+    private fun previewAlertWithVoice(
+        playTone: () -> Unit,
+        announcement: String,
+        voiceVolume: Float
+    ) {
+        playTone()
+        viewModelScope.launch {
+            delay(AudioVolumeSettings.ALERT_VOICE_DELAY_MS)
+            cellVoiceAnnouncer.speak(announcement, voiceVolume)
+        }
+    }
+
+    private fun readCurrentOperatorName(): String? {
+        val monitoring = monitoringSettings.value
+        return CellularSignalReader.read(
+            getApplication(),
+            monitoring.monitor2gFallback,
+            monitoring.subscriptionId
+        ).networkOperatorName
     }
 
     fun saveSettingsProfile(name: String): ProfileSaveResult {
@@ -403,5 +506,10 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
 
     private fun refreshSettingsProfiles() {
         _settingsProfiles.value = settingsProfilesRepository.listSummaries()
+    }
+
+    override fun onCleared() {
+        cellVoiceAnnouncer.shutdown()
+        super.onCleared()
     }
 }

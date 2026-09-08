@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
@@ -35,16 +36,28 @@ fun AudioVolumeSettingsCard(
     onLowSignalClickVolumeChange: (Float) -> Unit,
     onSignalPulseDurationChange: (Int) -> Unit,
     onCellChangeBellVolumeChange: (Float) -> Unit,
+    onCellChangeVoiceEnabledChange: (Boolean) -> Unit,
+    onCellChangeVoiceVolumeChange: (Float) -> Unit,
     onTechnologyChangeVolumeChange: (Float) -> Unit,
+    onTechnologyChangeVoiceEnabledChange: (Boolean) -> Unit,
+    onTechnologyChangeVoiceVolumeChange: (Float) -> Unit,
     onNoSignalToneVolumeChange: (Float) -> Unit,
+    onNoSignalVoiceEnabledChange: (Boolean) -> Unit,
+    onNoSignalVoiceVolumeChange: (Float) -> Unit,
     onLimitedServiceToneVolumeChange: (Float) -> Unit,
+    onLimitedServiceVoiceEnabledChange: (Boolean) -> Unit,
+    onLimitedServiceVoiceVolumeChange: (Float) -> Unit,
     onPassiveSoundSpeedChange: (Int) -> Unit,
     onPreviewPingClick: () -> Unit,
     onPreviewLowSignalClick: () -> Unit,
     onPreviewCellChangeBell: () -> Unit,
+    onPreviewCellChangeVoice: () -> Unit,
     onPreviewTechnologyChange: () -> Unit,
+    onPreviewTechnologyChangeVoice: () -> Unit,
     onPreviewNoSignalTone: () -> Unit,
+    onPreviewNoSignalVoice: () -> Unit,
     onPreviewLimitedServiceTone: () -> Unit,
+    onPreviewLimitedServiceVoice: () -> Unit,
     onReset: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -122,12 +135,53 @@ fun AudioVolumeSettingsCard(
                     previewEnabled = previewEnabled,
                     onPreview = onPreviewCellChangeBell
                 )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = audioVolumes.cellChangeVoiceEnabled,
+                        onCheckedChange = onCellChangeVoiceEnabledChange
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.audio_cell_change_voice_enabled),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            text = stringResource(R.string.audio_cell_change_voice_enabled_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                if (audioVolumes.cellChangeVoiceEnabled) {
+                    VolumeSlider(
+                        label = stringResource(R.string.audio_volume_cell_change_voice),
+                        value = audioVolumes.cellChangeVoiceVolume,
+                        onValueChange = onCellChangeVoiceVolumeChange,
+                        previewEnabled = previewEnabled,
+                        previewEnabledOverride = previewEnabled && audioVolumes.cellChangeVoiceEnabled,
+                        onPreview = onPreviewCellChangeVoice
+                    )
+                }
                 VolumeSlider(
                     label = stringResource(R.string.audio_volume_technology_change),
                     value = audioVolumes.technologyChangeVolume,
                     onValueChange = onTechnologyChangeVolumeChange,
                     previewEnabled = previewEnabled,
                     onPreview = onPreviewTechnologyChange
+                )
+                VoiceAnnouncementOption(
+                    enabled = audioVolumes.technologyChangeVoiceEnabled,
+                    onEnabledChange = onTechnologyChangeVoiceEnabledChange,
+                    title = stringResource(R.string.audio_technology_change_voice_enabled),
+                    hint = stringResource(R.string.audio_technology_change_voice_enabled_hint),
+                    volumeLabel = stringResource(R.string.audio_volume_technology_change_voice),
+                    volume = audioVolumes.technologyChangeVoiceVolume,
+                    onVolumeChange = onTechnologyChangeVoiceVolumeChange,
+                    previewEnabled = previewEnabled,
+                    onPreviewVoice = onPreviewTechnologyChangeVoice
                 )
                 VolumeSlider(
                     label = stringResource(R.string.audio_volume_no_signal),
@@ -136,12 +190,34 @@ fun AudioVolumeSettingsCard(
                     previewEnabled = previewEnabled,
                     onPreview = onPreviewNoSignalTone
                 )
+                VoiceAnnouncementOption(
+                    enabled = audioVolumes.noSignalVoiceEnabled,
+                    onEnabledChange = onNoSignalVoiceEnabledChange,
+                    title = stringResource(R.string.audio_no_signal_voice_enabled),
+                    hint = stringResource(R.string.audio_no_signal_voice_enabled_hint),
+                    volumeLabel = stringResource(R.string.audio_volume_no_signal_voice),
+                    volume = audioVolumes.noSignalVoiceVolume,
+                    onVolumeChange = onNoSignalVoiceVolumeChange,
+                    previewEnabled = previewEnabled,
+                    onPreviewVoice = onPreviewNoSignalVoice
+                )
                 VolumeSlider(
                     label = stringResource(R.string.audio_volume_limited_service),
                     value = audioVolumes.limitedServiceToneVolume,
                     onValueChange = onLimitedServiceToneVolumeChange,
                     previewEnabled = previewEnabled,
                     onPreview = onPreviewLimitedServiceTone
+                )
+                VoiceAnnouncementOption(
+                    enabled = audioVolumes.limitedServiceVoiceEnabled,
+                    onEnabledChange = onLimitedServiceVoiceEnabledChange,
+                    title = stringResource(R.string.audio_limited_service_voice_enabled),
+                    hint = stringResource(R.string.audio_limited_service_voice_enabled_hint),
+                    volumeLabel = stringResource(R.string.audio_volume_limited_service_voice),
+                    volume = audioVolumes.limitedServiceVoiceVolume,
+                    onVolumeChange = onLimitedServiceVoiceVolumeChange,
+                    previewEnabled = previewEnabled,
+                    onPreviewVoice = onPreviewLimitedServiceVoice
                 )
 
                 OutlinedButton(
@@ -152,6 +228,50 @@ fun AudioVolumeSettingsCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun VoiceAnnouncementOption(
+    enabled: Boolean,
+    onEnabledChange: (Boolean) -> Unit,
+    title: String,
+    hint: String,
+    volumeLabel: String,
+    volume: Float,
+    onVolumeChange: (Float) -> Unit,
+    previewEnabled: Boolean,
+    onPreviewVoice: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Checkbox(
+            checked = enabled,
+            onCheckedChange = onEnabledChange
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Text(
+                text = hint,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+    if (enabled) {
+        VolumeSlider(
+            label = volumeLabel,
+            value = volume,
+            onValueChange = onVolumeChange,
+            previewEnabled = previewEnabled,
+            previewEnabledOverride = previewEnabled && enabled,
+            onPreview = onPreviewVoice
+        )
     }
 }
 
@@ -252,7 +372,8 @@ private fun VolumeSlider(
     value: Float,
     onValueChange: (Float) -> Unit,
     previewEnabled: Boolean,
-    onPreview: () -> Unit
+    onPreview: () -> Unit,
+    previewEnabledOverride: Boolean = previewEnabled
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(
@@ -273,7 +394,7 @@ private fun VolumeSlider(
             )
             OutlinedButton(
                 onClick = onPreview,
-                enabled = previewEnabled,
+                enabled = previewEnabledOverride,
                 modifier = Modifier.padding(start = 8.dp)
             ) {
                 Text(text = stringResource(R.string.audio_volume_test))

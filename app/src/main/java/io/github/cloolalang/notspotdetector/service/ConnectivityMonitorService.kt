@@ -13,6 +13,7 @@ import androidx.core.app.NotificationCompat
 import io.github.cloolalang.notspotdetector.MainActivity
 import io.github.cloolalang.notspotdetector.MonitorState
 import io.github.cloolalang.notspotdetector.R
+import io.github.cloolalang.notspotdetector.audio.CellVoiceAnnouncer
 import io.github.cloolalang.notspotdetector.audio.GeigerCounterPlayer
 import io.github.cloolalang.notspotdetector.data.AudioVolumeSettingsRepository
 import io.github.cloolalang.notspotdetector.data.PassiveMockSettingsRepository
@@ -20,6 +21,7 @@ import io.github.cloolalang.notspotdetector.data.PassiveSignalSettingsRepository
 import io.github.cloolalang.notspotdetector.data.MonitoringSettingsRepository
 import io.github.cloolalang.notspotdetector.data.PingSettingsRepository
 import io.github.cloolalang.notspotdetector.data.ThresholdSettingsRepository
+import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
 import io.github.cloolalang.notspotdetector.model.shouldPlayPassiveSignalAndQualityAlerts
 import io.github.cloolalang.notspotdetector.network.CellularPassiveSignalMonitor
 import io.github.cloolalang.notspotdetector.network.CellularPingMonitor
@@ -38,6 +40,7 @@ class ConnectivityMonitorService : Service() {
     private lateinit var pingMonitor: CellularPingMonitor
     private lateinit var passiveSignalMonitor: CellularPassiveSignalMonitor
     private lateinit var geigerPlayer: GeigerCounterPlayer
+    private lateinit var cellVoiceAnnouncer: CellVoiceAnnouncer
     private var wakeLock: PowerManager.WakeLock? = null
     private var isMonitoringActive = false
     private var isPassiveIdleMode = false
@@ -72,6 +75,7 @@ class ConnectivityMonitorService : Service() {
             passiveOnlySessionProvider = { isPassiveOnlyStart }
         )
         geigerPlayer = GeigerCounterPlayer()
+        cellVoiceAnnouncer = CellVoiceAnnouncer(this)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -113,8 +117,8 @@ class ConnectivityMonitorService : Service() {
             startPassiveOnlyMonitoring()
         } else {
             startActivePingMonitoring()
+            scheduleActivePingTimeout()
         }
-        scheduleActivePingTimeout()
 
         return START_STICKY
     }
@@ -170,12 +174,77 @@ class ConnectivityMonitorService : Service() {
             passiveSettings
         )
         if (events.cellIdentityChanged && playQualityAlerts) {
-            playCellChangeBell()
+            playCellChangeAlert(events.cellChangeAnnouncement)
         }
         if (events.radioTechnologyChanged && playQualityAlerts) {
-            playTechnologyChangeTone()
+            playTechnologyChangeAlert(events.technologyChangeAnnouncement)
+        }
+        if (events.limitedServiceStateChanged && playQualityAlerts) {
+            playLimitedServiceAlert(events.limitedServiceStateAnnouncement)
+        }
+        if (events.noSignalStateChanged) {
+            playNoSignalAlert(events.noSignalStateAnnouncement)
         }
         updateNotification(MonitorState.stats.value.statusLabel(this))
+    }
+
+    private fun playAlertWithVoice(
+        playTone: () -> Unit,
+        announcement: String?,
+        voiceEnabled: Boolean,
+        voiceVolume: Float
+    ) {
+        playTone()
+        if (voiceEnabled && !announcement.isNullOrBlank()) {
+            serviceScope.launch {
+                delay(AudioVolumeSettings.ALERT_VOICE_DELAY_MS)
+                cellVoiceAnnouncer.speak(announcement, voiceVolume)
+            }
+        }
+    }
+
+    private fun playCellChangeAlert(announcement: String?) {
+        val volumes = MonitorState.audioVolumes.value.normalized()
+        playAlertWithVoice(
+            playTone = ::playCellChangeBell,
+            announcement = announcement,
+            voiceEnabled = volumes.cellChangeVoiceEnabled,
+            voiceVolume = volumes.cellChangeVoiceVolume
+        )
+    }
+
+    private fun playTechnologyChangeAlert(announcement: String?) {
+        val volumes = MonitorState.audioVolumes.value.normalized()
+        playAlertWithVoice(
+            playTone = ::playTechnologyChangeTone,
+            announcement = announcement,
+            voiceEnabled = volumes.technologyChangeVoiceEnabled,
+            voiceVolume = volumes.technologyChangeVoiceVolume
+        )
+    }
+
+    private fun playNoSignalAlert(announcement: String?) {
+        val volumes = MonitorState.audioVolumes.value.normalized()
+        playAlertWithVoice(
+            playTone = {
+                geigerPlayer.previewNoSignalTone(volumes.noSignalToneVolume)
+            },
+            announcement = announcement,
+            voiceEnabled = volumes.noSignalVoiceEnabled,
+            voiceVolume = volumes.noSignalVoiceVolume
+        )
+    }
+
+    private fun playLimitedServiceAlert(announcement: String?) {
+        val volumes = MonitorState.audioVolumes.value.normalized()
+        playAlertWithVoice(
+            playTone = {
+                geigerPlayer.previewLimitedServiceTone(volumes.limitedServiceToneVolume)
+            },
+            announcement = announcement,
+            voiceEnabled = volumes.limitedServiceVoiceEnabled,
+            voiceVolume = volumes.limitedServiceVoiceVolume
+        )
     }
 
     private fun playCellChangeBell() {
@@ -206,7 +275,6 @@ class ConnectivityMonitorService : Service() {
         activePingTimeoutJob = null
 
         pingMonitor.stop()
-        geigerPlayer.stop()
         MonitorState.enterPassiveIdleMode()
 
         if (!isPassiveOnlyStart) {
@@ -230,6 +298,7 @@ class ConnectivityMonitorService : Service() {
         pingMonitor.stop()
         passiveSignalMonitor.stop()
         geigerPlayer.stop()
+        cellVoiceAnnouncer.shutdown()
         releaseWakeLock()
         MonitorState.setRunning(false)
         stopForeground(STOP_FOREGROUND_REMOVE)

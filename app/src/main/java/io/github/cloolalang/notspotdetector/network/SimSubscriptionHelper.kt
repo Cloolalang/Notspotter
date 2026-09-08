@@ -52,6 +52,17 @@ object SimSubscriptionHelper {
             ?.let { formatSimLabel(it) }
     }
 
+    fun resolveCarrierName(context: Context, subscriptionId: Int): String? {
+        if (!CellularSignalReader.hasPhoneStatePermission(context)) {
+            return null
+        }
+
+        val effectiveId = resolveEffectiveSubscriptionId(context, subscriptionId) ?: return null
+        return listActiveSubscriptions(context)
+            .firstOrNull { it.subscriptionId == effectiveId }
+            ?.carrierName
+    }
+
     @SuppressLint("MissingPermission")
     fun resolveSlotIndex(
         context: Context,

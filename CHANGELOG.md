@@ -5,6 +5,55 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.1] - 2026-09-08
+
+### Changed
+
+- **No-signal tone frequency** — flatline / no-signal alert now uses **554 Hz** (D♭) instead of 600 Hz.
+
+## [1.11.0] - 2026-09-08
+
+### Added
+
+- **Voice announcements for technology, no-signal, and limited-service changes** — optional spoken alerts (default off) under each alert’s volume control, with separate voice volume and Test button. Tone plays first, then the announcement, only when the state actually changes. Technology changes announce the new RAT (2 G, 4 G, 5 G); no-signal and limited-service announce entry and exit (“No signal” / “Signal restored”, “Limited service” / “Full service”).
+
+## [1.10.3] - 2026-09-08
+
+### Changed
+
+- **Cell-change voice announcements** — channel, PCI, ARFCN, and BSIC values are now spoken digit by digit (e.g. “6 4 0 0” and “1 2 3”) instead of as whole numbers.
+
+## [1.10.2] - 2026-09-08
+
+### Fixed
+
+- **Network name missing from cell-change voice test** — operator name is now read live for Test (and when idle on the main screen), with fallbacks from SIM/carrier info when the camped network name is blank.
+- **Short operator names (e.g. EE) hard to hear** — acronyms are spaced for clearer TTS (“E E, Cell reselect…”).
+
+## [1.10.1] - 2026-09-08
+
+### Changed
+
+- **Cell-change voice announcements** — now lead with the mobile network operator name (e.g. “EE, Cell reselect, channel 6400, PCI 123”) and speak at a slightly faster pace.
+
+## [1.10.0] - 2026-09-08
+
+### Added
+
+- **Voice announcement on cell change** (default off) — optional spoken alert after the cell change bell, e.g. “Cell reselect, channel 6400, PCI 123”. Separate volume slider and Test button under Alert sound volume; included in settings profiles.
+
+## [1.9.2] - 2026-09-08
+
+### Fixed
+
+- **Intermittent EARFCN/PCI display** — cell identity is now held across poll cycles when Android returns partial or transient nulls. Values are only cleared on genuine no-service or 2G-without-fallback conditions, not when RSRP dips briefly or the cellular ping path is unavailable. Registered serving cells also merge missing PCI/EARFCN fields from the same EARFCN when the OS splits them across reads.
+
+## [1.9.1] - 2026-09-08
+
+### Fixed
+
+- **Alert audio stopping after ~10 minutes** — passive-only monitoring no longer enters a silent idle phase; tier clicks, flatline, and limited-service tones keep playing until you tap Stop. Active ping monitoring still stops ping tests after 10 minutes, but signal alert sounds now continue alongside KPI polling.
+
 ## [1.9.0] - 2026-09-08
 
 ### Added

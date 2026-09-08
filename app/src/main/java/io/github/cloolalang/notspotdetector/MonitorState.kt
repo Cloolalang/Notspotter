@@ -1,6 +1,7 @@
 package io.github.cloolalang.notspotdetector
 
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
+import io.github.cloolalang.notspotdetector.model.CellIdentityAnnouncement
 import io.github.cloolalang.notspotdetector.model.CellIdentitySnapshot
 import io.github.cloolalang.notspotdetector.model.CellularRadioMetrics
 import io.github.cloolalang.notspotdetector.model.ConnectionQuality
@@ -12,7 +13,10 @@ import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
 import io.github.cloolalang.notspotdetector.model.PingSettings
 import io.github.cloolalang.notspotdetector.model.RttSample
 import io.github.cloolalang.notspotdetector.model.ThresholdSettings
-import io.github.cloolalang.notspotdetector.model.withCellIdentityForDisplay
+import io.github.cloolalang.notspotdetector.model.SignalStateAnnouncement
+import io.github.cloolalang.notspotdetector.model.hasUsableSignalForMonitoring
+import io.github.cloolalang.notspotdetector.model.shouldPlayFlatline
+import io.github.cloolalang.notspotdetector.model.withStabilizedCellIdentity
 import io.github.cloolalang.notspotdetector.model.withQuality
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -48,6 +52,9 @@ object MonitorState {
 
     private var cellIdentityBaselineReady = false
     private var radioTechnologyBaselineReady = false
+    private var noSignalBaselineReady = false
+    private var limitedServiceBaselineReady = false
+    private var stableCellIdentity = CellIdentitySnapshot()
 
     fun setPassiveSignalSettings(settings: PassiveSignalSettings) {
         _passiveSignalSettings.value = settings.normalized()
@@ -79,22 +86,20 @@ object MonitorState {
 
     fun updateStats(stats: ConnectivityStats): MonitoringUpdateEvents {
         val passiveSettings = _passiveSignalSettings.value
-        val displayStats = stats.withCellIdentityForDisplay(passiveSettings)
-        val cellIdentityChanged = consumeCellIdentityChange(CellIdentitySnapshot.fromStats(displayStats))
-        val radioTechnologyChanged = consumeRadioTechnologyChange(displayStats.radioAccessType)
+        val previous = _stats.value
+        val (displayStats, updatedIdentity) = stats.withStabilizedCellIdentity(stableCellIdentity)
+        stableCellIdentity = updatedIdentity
         val enriched = if (displayStats.isPassiveIdleMode) {
             displayStats.copy(quality = ConnectionQuality.PASSIVE_IDLE, severity = 0f)
         } else {
             displayStats.withQuality(_thresholds.value, passiveSettings)
         }
+        val events = buildMonitoringEvents(previous, enriched, passiveSettings)
         _stats.value = enriched
         if (!enriched.isPassiveIdleMode) {
             enriched.rttMs?.let { recordRttSample(it, enriched.lastPingTimestampMs) }
         }
-        return MonitoringUpdateEvents(
-            cellIdentityChanged = cellIdentityChanged,
-            radioTechnologyChanged = radioTechnologyChanged
-        )
+        return events
     }
 
     private fun recordRttSample(rttMs: Long, timestampMs: Long) {
@@ -117,26 +122,30 @@ object MonitorState {
         }
     }
 
-    fun updateSignalMetrics(metrics: CellularRadioMetrics): MonitoringUpdateEvents {
-        if (!_isRunning.value) return MonitoringUpdateEvents()
+    fun refreshSignalMetrics(metrics: CellularRadioMetrics): MonitoringUpdateEvents {
+        if (!_isRunning.value) {
+            applyIdleSignalMetrics(metrics)
+            return MonitoringUpdateEvents()
+        }
+        return updateMonitoringSignalMetrics(metrics)
+    }
 
+    private fun applyIdleSignalMetrics(metrics: CellularRadioMetrics) {
         val monitor2gFallback = _monitoringSettings.value.monitor2gFallback
         val passiveSettings = _passiveSignalSettings.value
-        val displayMetrics = metrics.withCellIdentityForDisplay(monitor2gFallback, passiveSettings)
-        val cellIdentityChanged = consumeCellIdentityChange(
-            CellIdentitySnapshot.fromMetrics(displayMetrics)
-        )
-        val radioTechnologyChanged = consumeRadioTechnologyChange(metrics.radioAccessType)
-        _stats.value = _stats.value.copy(
+        val hasSignal = metrics.hasUsableSignalForMonitoring(monitor2gFallback, passiveSettings)
+        val merged = _stats.value.copy(
+            isMonitoring = false,
+            cellularAvailable = hasSignal,
             rsrpDbm = metrics.rsrpDbm,
             rsrqDb = metrics.rsrqDb,
             radioAccessType = metrics.radioAccessType,
-            lteEarfcn = displayMetrics.lteEarfcn,
-            ltePci = displayMetrics.ltePci,
-            nrEarfcn = displayMetrics.nrEarfcn,
-            nrPci = displayMetrics.nrPci,
-            gsmEarfcn = displayMetrics.gsmEarfcn,
-            gsmBsic = displayMetrics.gsmBsic,
+            lteEarfcn = metrics.lteEarfcn,
+            ltePci = metrics.ltePci,
+            nrEarfcn = metrics.nrEarfcn,
+            nrPci = metrics.nrPci,
+            gsmEarfcn = metrics.gsmEarfcn,
+            gsmBsic = metrics.gsmBsic,
             isOn2g = metrics.isOn2g,
             isLimitedService = metrics.isLimitedService,
             networkServiceMode = metrics.networkServiceMode,
@@ -152,57 +161,179 @@ object MonitorState {
             simDisplayName = metrics.simDisplayName,
             signalPermissionGranted = metrics.permissionGranted,
             cellIdentityPermissionGranted = metrics.cellIdentityPermissionGranted
-        ).let { current ->
-            val withQuality = if (current.isMonitoring && !current.isPassiveIdleMode) {
-                current.withQuality(_thresholds.value, passiveSettings)
-            } else {
-                current
-            }
-            withQuality.withCellIdentityForDisplay(passiveSettings)
+        )
+        val (display, updatedIdentity) = merged.withStabilizedCellIdentity(stableCellIdentity)
+        stableCellIdentity = updatedIdentity
+        _stats.value = display.withQuality(_thresholds.value, passiveSettings)
+    }
+
+    fun updateSignalMetrics(metrics: CellularRadioMetrics): MonitoringUpdateEvents {
+        return refreshSignalMetrics(metrics)
+    }
+
+    private fun updateMonitoringSignalMetrics(metrics: CellularRadioMetrics): MonitoringUpdateEvents {
+        if (!_isRunning.value) return MonitoringUpdateEvents()
+
+        val monitor2gFallback = _monitoringSettings.value.monitor2gFallback
+        val passiveSettings = _passiveSignalSettings.value
+        val merged = _stats.value.copy(
+            rsrpDbm = metrics.rsrpDbm,
+            rsrqDb = metrics.rsrqDb,
+            radioAccessType = metrics.radioAccessType,
+            lteEarfcn = metrics.lteEarfcn,
+            ltePci = metrics.ltePci,
+            nrEarfcn = metrics.nrEarfcn,
+            nrPci = metrics.nrPci,
+            gsmEarfcn = metrics.gsmEarfcn,
+            gsmBsic = metrics.gsmBsic,
+            isOn2g = metrics.isOn2g,
+            isLimitedService = metrics.isLimitedService,
+            networkServiceMode = metrics.networkServiceMode,
+            hasLimitedServiceOnAnySim = metrics.hasLimitedServiceOnAnySim,
+            isCompleteNoService = metrics.isCompleteNoService,
+            hasHomeGsmSignal = metrics.hasHomeGsmSignal,
+            hasLteNrSignal = metrics.hasLteNrSignal,
+            monitor2gFallbackEnabled = monitor2gFallback,
+            networkOperatorName = metrics.networkOperatorName,
+            plmn = metrics.plmn,
+            subscriptionId = metrics.subscriptionId,
+            simSlotIndex = metrics.simSlotIndex,
+            simDisplayName = metrics.simDisplayName,
+            signalPermissionGranted = metrics.permissionGranted,
+            cellIdentityPermissionGranted = metrics.cellIdentityPermissionGranted
+        )
+        val (stabilized, updatedIdentity) = merged.withStabilizedCellIdentity(stableCellIdentity)
+        stableCellIdentity = updatedIdentity
+        val previous = _stats.value
+        val next = if (stabilized.isMonitoring && !stabilized.isPassiveIdleMode) {
+            stabilized.withQuality(_thresholds.value, passiveSettings)
+        } else {
+            stabilized
         }
+        val events = buildMonitoringEvents(previous, next, passiveSettings)
+        _stats.value = next
+        return events
+    }
+
+    private fun buildMonitoringEvents(
+        previous: ConnectivityStats,
+        next: ConnectivityStats,
+        passiveSettings: PassiveSignalSettings
+    ): MonitoringUpdateEvents {
+        val networkOperatorName = next.networkOperatorName
         return MonitoringUpdateEvents(
-            cellIdentityChanged = cellIdentityChanged,
-            radioTechnologyChanged = radioTechnologyChanged
+            cellChangeAnnouncement = consumeCellIdentityChange(
+                next = CellIdentitySnapshot.fromStats(next),
+                radioAccessType = next.radioAccessType,
+                networkOperatorName = networkOperatorName
+            ),
+            technologyChangeAnnouncement = consumeTechnologyChangeAnnouncement(
+                nextType = next.radioAccessType,
+                networkOperatorName = networkOperatorName
+            ),
+            noSignalStateAnnouncement = consumeNoSignalStateChange(
+                previous = previous,
+                next = next,
+                passiveSettings = passiveSettings,
+                networkOperatorName = networkOperatorName
+            ),
+            limitedServiceStateAnnouncement = consumeLimitedServiceStateChange(
+                previous = previous,
+                next = next,
+                networkOperatorName = networkOperatorName
+            )
         )
     }
 
-    private fun consumeRadioTechnologyChange(nextType: String?): Boolean {
-        if (!_isRunning.value) return false
+    private fun consumeTechnologyChangeAnnouncement(
+        nextType: String?,
+        networkOperatorName: String?
+    ): String? {
+        if (!_isRunning.value) return null
 
         if (!radioTechnologyBaselineReady) {
             if (!nextType.isNullOrBlank()) {
                 radioTechnologyBaselineReady = true
             }
-            return false
+            return null
         }
 
-        val previous = _stats.value.radioAccessType
-        if (previous == nextType) return false
-        if (previous.isNullOrBlank() || nextType.isNullOrBlank()) return false
-        return true
+        val previousType = _stats.value.radioAccessType
+        if (previousType == nextType) return null
+        if (previousType.isNullOrBlank() || nextType.isNullOrBlank()) return null
+
+        return SignalStateAnnouncement.formatTechnologyChange(nextType, networkOperatorName)
     }
 
-    private fun consumeCellIdentityChange(next: CellIdentitySnapshot): Boolean {
+    private fun consumeNoSignalStateChange(
+        previous: ConnectivityStats,
+        next: ConnectivityStats,
+        passiveSettings: PassiveSignalSettings,
+        networkOperatorName: String?
+    ): String? {
+        if (!_isRunning.value || !next.isMonitoring) return null
+
+        val previousActive = previous.shouldPlayFlatline(passiveSettings)
+        val nextActive = next.shouldPlayFlatline(passiveSettings)
+
+        if (!noSignalBaselineReady) {
+            noSignalBaselineReady = true
+            return null
+        }
+
+        if (previousActive == nextActive) return null
+
+        return SignalStateAnnouncement.formatNoSignalChange(nextActive, networkOperatorName)
+    }
+
+    private fun consumeLimitedServiceStateChange(
+        previous: ConnectivityStats,
+        next: ConnectivityStats,
+        networkOperatorName: String?
+    ): String? {
+        if (!_isRunning.value || !next.isMonitoring) return null
+
+        val previousActive = previous.isLimitedService
+        val nextActive = next.isLimitedService
+
+        if (!limitedServiceBaselineReady) {
+            limitedServiceBaselineReady = true
+            return null
+        }
+
+        if (previousActive == nextActive) return null
+
+        return SignalStateAnnouncement.formatLimitedServiceChange(nextActive, networkOperatorName)
+    }
+
+    private fun consumeCellIdentityChange(
+        next: CellIdentitySnapshot,
+        radioAccessType: String?,
+        networkOperatorName: String?
+    ): String? {
         if (!_isRunning.value || !next.hasAnyIdentity()) {
-            return false
+            return null
         }
 
         if (!cellIdentityBaselineReady) {
             cellIdentityBaselineReady = true
-            return false
+            return null
         }
 
         val previous = CellIdentitySnapshot.fromStats(_stats.value)
         if (previous == next) {
-            return false
+            return null
         }
 
-        return true
+        return CellIdentityAnnouncement.format(previous, next, radioAccessType, networkOperatorName)
     }
 
     private fun resetCellIdentityTracking() {
         cellIdentityBaselineReady = false
         radioTechnologyBaselineReady = false
+        noSignalBaselineReady = false
+        limitedServiceBaselineReady = false
+        stableCellIdentity = CellIdentitySnapshot()
     }
 
     fun enterPassiveIdleMode() {

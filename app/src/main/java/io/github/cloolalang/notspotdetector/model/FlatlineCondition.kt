@@ -8,7 +8,7 @@ package io.github.cloolalang.notspotdetector.model
 fun ConnectivityStats.shouldPlayFlatline(
     settings: PassiveSignalSettings = PassiveSignalSettings()
 ): Boolean {
-    if (!isMonitoring || isPassiveIdleMode) return false
+    if (!isMonitoring) return false
 
     if (isLimitedService) return false
 
@@ -40,7 +40,7 @@ fun ConnectivityStats.shouldPlayContinuousFlatline(
  * Alternating two-tone alert while the network is in emergency-only (limited) service.
  */
 fun ConnectivityStats.shouldPlayLimitedServiceTone(): Boolean {
-    if (!isMonitoring || isPassiveIdleMode) return false
+    if (!isMonitoring) return false
     if (!isLimitedService) return false
     if (shouldPlay2gLimitedServicePulse()) return false
     return true
@@ -50,7 +50,7 @@ fun ConnectivityStats.shouldPlayLimitedServiceTone(): Boolean {
  * 300 ms on / 300 ms off while 2G monitoring is enabled, in limited service, with no home GSM signal.
  */
 fun ConnectivityStats.shouldPlay2gLimitedServicePulse(): Boolean {
-    if (!isMonitoring || isPassiveIdleMode) return false
+    if (!isMonitoring) return false
     if (!isLimitedService || !monitor2gFallbackEnabled) return false
     return !hasHomeGsmSignal
 }
@@ -61,7 +61,7 @@ fun ConnectivityStats.shouldPlay2gLimitedServicePulse(): Boolean {
 fun ConnectivityStats.shouldPlaySignalStrengthInterval(
     settings: PassiveSignalSettings = PassiveSignalSettings()
 ): Boolean {
-    if (!isMonitoring || isPassiveIdleMode || !cellularAvailable) return false
+    if (!isMonitoring || !cellularAvailable) return false
     if (shouldPlayFlatline(settings)) return false
     if (shouldPlayLimitedServiceTone() || shouldPlay2gLimitedServicePulse()) return false
     if (!signalPermissionGranted) return false
@@ -74,7 +74,7 @@ fun ConnectivityStats.shouldPlaySignalStrengthInterval(
 fun ConnectivityStats.shouldPlayWeakSignalWarning(
     settings: PassiveSignalSettings = PassiveSignalSettings()
 ): Boolean {
-    if (!isMonitoring || isPassiveIdleMode || !cellularAvailable || shouldPlayFlatline(settings)) return false
+    if (!isMonitoring || !cellularAvailable || shouldPlayFlatline(settings)) return false
     if (shouldPlayLimitedServiceTone()) return false
     if (shouldPlay2gLimitedServicePulse()) return false
     if (!signalPermissionGranted) return false

@@ -152,7 +152,7 @@ fun ConnectivityStats.computeSignalStrengthClickDurationMs(
 fun ConnectivityStats.shouldPlayVeryStrongSignalIndicator(
     settings: PassiveSignalSettings = PassiveSignalSettings()
 ): Boolean {
-    if (!isMonitoring || isPassiveIdleMode || !cellularAvailable || shouldPlayFlatline(settings)) return false
+    if (!isMonitoring || !cellularAvailable || shouldPlayFlatline(settings)) return false
     if (shouldPlayLimitedServiceTone()) return false
     if (shouldPlay2gLimitedServicePulse()) return false
     if (!signalPermissionGranted) return false

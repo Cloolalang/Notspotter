@@ -216,9 +216,17 @@ object AppSettingsSnapshotCodec {
             .put("lowSignalClickVolume", settings.lowSignalClickVolume.toDouble())
             .put("signalPulseDurationMs", settings.signalPulseDurationMs)
             .put("cellChangeBellVolume", settings.cellChangeBellVolume.toDouble())
+            .put("cellChangeVoiceEnabled", settings.cellChangeVoiceEnabled)
+            .put("cellChangeVoiceVolume", settings.cellChangeVoiceVolume.toDouble())
             .put("technologyChangeVolume", settings.technologyChangeVolume.toDouble())
+            .put("technologyChangeVoiceEnabled", settings.technologyChangeVoiceEnabled)
+            .put("technologyChangeVoiceVolume", settings.technologyChangeVoiceVolume.toDouble())
             .put("noSignalToneVolume", settings.noSignalToneVolume.toDouble())
+            .put("noSignalVoiceEnabled", settings.noSignalVoiceEnabled)
+            .put("noSignalVoiceVolume", settings.noSignalVoiceVolume.toDouble())
             .put("limitedServiceToneVolume", settings.limitedServiceToneVolume.toDouble())
+            .put("limitedServiceVoiceEnabled", settings.limitedServiceVoiceEnabled)
+            .put("limitedServiceVoiceVolume", settings.limitedServiceVoiceVolume.toDouble())
     }
 
     private fun decodeAudio(json: JSONObject?): AudioVolumeSettings {
@@ -238,16 +246,48 @@ object AppSettingsSnapshotCodec {
                 "cellChangeBellVolume",
                 AudioVolumeSettings.DEFAULT_VOLUME.toDouble()
             ).toFloat(),
+            cellChangeVoiceEnabled = json.optBoolean(
+                "cellChangeVoiceEnabled",
+                AudioVolumeSettings.DEFAULT_CELL_CHANGE_VOICE_ENABLED
+            ),
+            cellChangeVoiceVolume = json.optDouble(
+                "cellChangeVoiceVolume",
+                AudioVolumeSettings.DEFAULT_VOLUME.toDouble()
+            ).toFloat(),
             technologyChangeVolume = json.optDouble(
                 "technologyChangeVolume",
+                AudioVolumeSettings.DEFAULT_VOLUME.toDouble()
+            ).toFloat(),
+            technologyChangeVoiceEnabled = json.optBoolean(
+                "technologyChangeVoiceEnabled",
+                AudioVolumeSettings.DEFAULT_VOICE_ANNOUNCEMENT_ENABLED
+            ),
+            technologyChangeVoiceVolume = json.optDouble(
+                "technologyChangeVoiceVolume",
                 AudioVolumeSettings.DEFAULT_VOLUME.toDouble()
             ).toFloat(),
             noSignalToneVolume = json.optDouble(
                 "noSignalToneVolume",
                 AudioVolumeSettings.DEFAULT_VOLUME.toDouble()
             ).toFloat(),
+            noSignalVoiceEnabled = json.optBoolean(
+                "noSignalVoiceEnabled",
+                AudioVolumeSettings.DEFAULT_VOICE_ANNOUNCEMENT_ENABLED
+            ),
+            noSignalVoiceVolume = json.optDouble(
+                "noSignalVoiceVolume",
+                AudioVolumeSettings.DEFAULT_VOLUME.toDouble()
+            ).toFloat(),
             limitedServiceToneVolume = json.optDouble(
                 "limitedServiceToneVolume",
+                AudioVolumeSettings.DEFAULT_VOLUME.toDouble()
+            ).toFloat(),
+            limitedServiceVoiceEnabled = json.optBoolean(
+                "limitedServiceVoiceEnabled",
+                AudioVolumeSettings.DEFAULT_VOICE_ANNOUNCEMENT_ENABLED
+            ),
+            limitedServiceVoiceVolume = json.optDouble(
+                "limitedServiceVoiceVolume",
                 AudioVolumeSettings.DEFAULT_VOLUME.toDouble()
             ).toFloat()
         )

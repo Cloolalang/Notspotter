@@ -124,9 +124,9 @@ class GeigerCounterPlayer {
                         stopAlertTones()
                         if (stats.cellularAvailable) {
                             when {
-                                stats.isPassiveIdleMode -> delay(POLL_INTERVAL_MS)
                                 stats.shouldPlaySignalStrengthInterval(passiveSettings) ->
                                     handleSignalStrengthIntervalAudio(stats, volumes, passiveSettings, passiveSoundSpeed)
+                                stats.isPassiveIdleMode -> delay(POLL_INTERVAL_MS)
                                 stats.quality == ConnectionQuality.GOOD && !stats.hasExtremeLatency() ->
                                     handleGoodConnectionAudio(stats, thresholds, volumes, passiveSettings)
                                 else -> handleIntervalAudio(stats, thresholds, volumes, passiveSettings)
@@ -525,7 +525,7 @@ class GeigerCounterPlayer {
 
         for (i in 0 until onSampleCount) {
             val timeSec = i.toDouble() / sampleRate
-            val sample = sin(2.0 * PI * SIGNAL_STRENGTH_TONE_HZ * timeSec)
+            val sample = sin(2.0 * PI * NO_SIGNAL_TONE_HZ * timeSec)
             buffer[i] = (sample * Short.MAX_VALUE * FLATLINE_AMPLITUDE).toInt().toShort()
         }
 
@@ -541,7 +541,7 @@ class GeigerCounterPlayer {
 
         for (i in buffer.indices) {
             val timeSec = i.toDouble() / sampleRate
-            val sample = sin(2.0 * PI * SIGNAL_STRENGTH_TONE_HZ * timeSec)
+            val sample = sin(2.0 * PI * NO_SIGNAL_TONE_HZ * timeSec)
             buffer[i] = (sample * Short.MAX_VALUE * FLATLINE_AMPLITUDE).toInt().toShort()
         }
 
@@ -585,7 +585,7 @@ class GeigerCounterPlayer {
     fun previewNoSignalTone(volume: Float) {
         if (volume <= 0f) return
         playSineToneBurst(
-            frequencyHz = SIGNAL_STRENGTH_TONE_HZ,
+            frequencyHz = NO_SIGNAL_TONE_HZ,
             durationMs = FLATLINE_ON_MS,
             amplitude = FLATLINE_AMPLITUDE * volume
         )
@@ -766,6 +766,8 @@ class GeigerCounterPlayer {
         private const val CLICK_AMPLITUDE = 0.45f
         private const val WARNING_CLICK_AMPLITUDE = 0.48f
         private const val FLATLINE_AMPLITUDE = 0.35f
+        /** D♭4 — no-signal / flatline tone (was 600 Hz). */
+        private const val NO_SIGNAL_TONE_HZ = 554.0
         private const val FLATLINE_ON_MS = 250
         private const val NOISY_RSRQ_WHITE_NOISE_MIX = 0.38
         private const val SINE_BURST_FADE_MS = 8
