@@ -23,55 +23,75 @@ object SettingsCompatibility {
 
     fun coerceStoredTierClickIntervalMs(
         configuredMs: Int,
-        signalPulseDurationMs: Int
+        signalPulseDurationMs: Int,
+        maxIntervalMs: Int = PassiveSignalSettings.MAX_TIER_CLICK_INTERVAL_MS
     ): Int {
         return configuredMs.coerceIn(
             minTierClickIntervalUiMs(signalPulseDurationMs),
-            PassiveSignalSettings.MAX_TIER_CLICK_INTERVAL_MS
+            maxIntervalMs
         )
     }
 
     fun normalizePassiveSignalSettings(
         settings: PassiveSignalSettings,
-        signalPulseDurationMs: Int
+        signalPulseDurationMs: Int,
+        levelRangeBcdPulseDurationMs: Int = signalPulseDurationMs
     ): PassiveSignalSettings {
         val normalized = settings.normalized()
+        val levelRangeAbcdClickIntervalMs = coerceStoredTierClickIntervalMs(
+            normalized.levelRangeAbcdClickIntervalMs,
+            levelRangeBcdPulseDurationMs
+        )
         return normalized.copy(
             criticalTierClickIntervalMs = coerceStoredTierClickIntervalMs(
                 normalized.criticalTierClickIntervalMs,
                 signalPulseDurationMs
             ),
-            poorTierClickIntervalMs = coerceStoredTierClickIntervalMs(
-                normalized.poorTierClickIntervalMs,
-                signalPulseDurationMs
-            ),
-            fairTierClickIntervalMs = coerceStoredTierClickIntervalMs(
-                normalized.fairTierClickIntervalMs,
-                signalPulseDurationMs
-            ),
-            goodTierClickIntervalMs = coerceStoredTierClickIntervalMs(
-                normalized.goodTierClickIntervalMs,
-                signalPulseDurationMs
-            ),
-            mildTierClickIntervalMs = coerceStoredTierClickIntervalMs(
-                normalized.mildTierClickIntervalMs,
-                signalPulseDurationMs
-            ),
+            levelRangeAbcdClickIntervalMs = levelRangeAbcdClickIntervalMs,
+            mildTierClickIntervalMs = levelRangeAbcdClickIntervalMs,
+            goodTierClickIntervalMs = levelRangeAbcdClickIntervalMs,
+            fairTierClickIntervalMs = levelRangeAbcdClickIntervalMs,
+            poorTierClickIntervalMs = levelRangeAbcdClickIntervalMs,
             veryStrongTierClickIntervalMs = coerceStoredTierClickIntervalMs(
                 normalized.veryStrongTierClickIntervalMs,
                 signalPulseDurationMs
             ),
             g2StrongTierClickIntervalMs = coerceStoredTierClickIntervalMs(
                 normalized.g2StrongTierClickIntervalMs,
-                signalPulseDurationMs
+                normalized.g2StrongTierPulseDurationMs
             ),
             g2WeakTierClickIntervalMs = coerceStoredTierClickIntervalMs(
                 normalized.g2WeakTierClickIntervalMs,
-                signalPulseDurationMs
+                normalized.g2WeakTierPulseDurationMs
+            ),
+            g2NoSignalTierClickIntervalMs = coerceStoredTierClickIntervalMs(
+                normalized.g2NoSignalTierClickIntervalMs,
+                normalized.g2NoSignalTierPulseDurationMs
             ),
             deadzoneTierClickIntervalMs = coerceStoredTierClickIntervalMs(
                 normalized.deadzoneTierClickIntervalMs,
                 normalized.deadzoneTierPulseDurationMs
+            ),
+            noSignalTierClickIntervalMs = coerceStoredTierClickIntervalMs(
+                normalized.noSignalTierClickIntervalMs,
+                normalized.noSignalTierPulseDurationMs
+            ),
+            searching2gTierClickIntervalMs = coerceStoredTierClickIntervalMs(
+                normalized.searching2gTierClickIntervalMs,
+                normalized.searching2gTierPulseDurationMs
+            ),
+            limitedServiceTierClickIntervalMs = coerceStoredTierClickIntervalMs(
+                normalized.limitedServiceTierClickIntervalMs,
+                normalized.limitedServiceTierPulseDurationMs
+            ),
+            limitedAlt2gTierClickIntervalMs = coerceStoredTierClickIntervalMs(
+                normalized.limitedAlt2gTierClickIntervalMs,
+                normalized.limitedAlt2gTierPulseDurationMs
+            ),
+            rsrqTierClickIntervalMs = coerceStoredTierClickIntervalMs(
+                normalized.rsrqTierClickIntervalMs,
+                normalized.rsrqTierPulseDurationMs,
+                PassiveSignalSettings.MAX_RSRQ_TIER_CLICK_INTERVAL_MS
             )
         )
     }
@@ -79,20 +99,19 @@ object SettingsCompatibility {
     fun resolveTierClickIntervalMs(
         configuredMs: Long,
         signalPulseDurationMs: Int,
-        isPassiveOnlySession: Boolean
+        isPassiveOnlySession: Boolean,
+        maxConfiguredMs: Long = PassiveSignalSettings.MAX_TIER_CLICK_INTERVAL_MS.toLong()
     ): Long {
         val bounded = configuredMs.coerceIn(
             PassiveSignalSettings.MIN_TIER_CLICK_INTERVAL_MS.toLong(),
-            PassiveSignalSettings.MAX_TIER_CLICK_INTERVAL_MS.toLong()
+            maxConfiguredMs
         )
         val scaled = if (isPassiveOnlySession) {
             bounded
         } else {
             bounded * PASSIVE_CLICK_RATE_MULTIPLIER
         }
-        return scaled
-            .coerceAtLeast(minTierClickIntervalMs(signalPulseDurationMs))
-            .coerceAtLeast(MIN_PASSIVE_CLICK_INTERVAL_MS)
+        return scaled.coerceAtLeast(minTierClickIntervalMs(signalPulseDurationMs))
     }
 
     fun isTierIntervalMuchSlowerThanMeasurement(

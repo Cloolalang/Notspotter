@@ -9,7 +9,20 @@ import org.junit.Test
 class LimitedServiceOperatorTest {
 
     @Test
-    fun resolveLimitedServiceAlternativeOperatorName_returnsServingWhenDifferentFromHome() {
+    fun resolveCampedVisitedOperatorName_returnsServingWhenDifferentFromHomeWithoutLimitedService() {
+        val stats = ConnectivityStats(
+            homeNetworkOperatorName = "Vodafone",
+            servingNetworkOperatorName = "EE",
+            networkOperatorName = "EE",
+            homePlmn = "23415",
+            plmn = "23430"
+        )
+
+        assertEquals("EE", stats.resolveCampedVisitedOperatorName())
+    }
+
+    @Test
+    fun resolveLimitedServiceVisitedOperatorName_returnsServingWhenDifferentFromHome() {
         val stats = ConnectivityStats(
             isLimitedService = true,
             homeNetworkOperatorName = "Vodafone UK",
@@ -18,11 +31,11 @@ class LimitedServiceOperatorTest {
             plmn = "23430"
         )
 
-        assertEquals("EE", stats.resolveLimitedServiceAlternativeOperatorName())
+        assertEquals("EE", stats.resolveLimitedServiceVisitedOperatorName())
     }
 
     @Test
-    fun resolveLimitedServiceAlternativeOperatorName_returnsNullWhenSameOperator() {
+    fun resolveLimitedServiceVisitedOperatorName_returnsNullWhenSameOperator() {
         val stats = ConnectivityStats(
             isLimitedService = true,
             homeNetworkOperatorName = "Vodafone UK",
@@ -31,11 +44,11 @@ class LimitedServiceOperatorTest {
             plmn = "23415"
         )
 
-        assertNull(stats.resolveLimitedServiceAlternativeOperatorName())
+        assertNull(stats.resolveLimitedServiceVisitedOperatorName())
     }
 
     @Test
-    fun limitedServiceAlternativeOperatorChanged_detectsServingOperatorChange() {
+    fun limitedServiceVisitedOperatorChanged_detectsServingOperatorChange() {
         val previous = ConnectivityStats(
             isLimitedService = true,
             homeNetworkOperatorName = "Vodafone UK",
@@ -48,11 +61,11 @@ class LimitedServiceOperatorTest {
             plmn = "23410"
         )
 
-        assertTrue(next.limitedServiceAlternativeOperatorChanged(previous))
+        assertTrue(next.limitedServiceVisitedOperatorChanged(previous))
     }
 
     @Test
-    fun limitedServiceAlternativeOperatorChanged_ignoresInitialAlternativeAppearance() {
+    fun limitedServiceVisitedOperatorChanged_ignoresInitialVisitedAppearance() {
         val previous = ConnectivityStats(
             isLimitedService = true,
             homeNetworkOperatorName = "Vodafone UK",
@@ -60,6 +73,6 @@ class LimitedServiceOperatorTest {
         )
         val next = previous.copy(servingNetworkOperatorName = "EE", plmn = "23430")
 
-        assertFalse(next.limitedServiceAlternativeOperatorChanged(previous))
+        assertFalse(next.limitedServiceVisitedOperatorChanged(previous))
     }
 }

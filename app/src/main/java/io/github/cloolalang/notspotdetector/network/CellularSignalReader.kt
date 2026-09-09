@@ -22,7 +22,9 @@ import android.telephony.TelephonyManager
 import androidx.core.content.ContextCompat
 import io.github.cloolalang.notspotdetector.model.CellularRadioMetrics
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
+import io.github.cloolalang.notspotdetector.model.NetworkModePreference
 import io.github.cloolalang.notspotdetector.model.NetworkServiceMode
+import io.github.cloolalang.notspotdetector.model.readNetworkModePreference
 
 object CellularSignalReader {
 
@@ -61,7 +63,8 @@ object CellularSignalReader {
         val operatorInfo = readOperatorInfo(context, telephonyManager, subscriptionId)
         val plmn = operatorInfo.servingPlmn
         val networkReports2g = isServing2gNetwork(telephonyManager)
-        val restrictedTo2gNetwork = isRestrictedTo2gNetwork(telephonyManager)
+        val networkModePreference = readNetworkModePreference(telephonyManager)
+        val restrictedTo2gNetwork = networkModePreference == NetworkModePreference.FORCED_2G
         val networkServiceMode = readNetworkServiceMode(telephonyManager)
         val simSlotIndex = SimSubscriptionHelper.resolveSlotIndex(context, subscriptionId)
         val simDisplayName = SimSubscriptionHelper.resolveSubscriptionLabel(context, subscriptionId)
@@ -100,6 +103,7 @@ object CellularSignalReader {
             gsmBsic = servingCell.gsmBsic,
             cellIdentityPermissionGranted = cellIdentityPermissionGranted,
             isOn2g = isOn2g,
+            networkModePreference = networkModePreference,
             restrictedTo2gNetwork = restrictedTo2gNetwork,
             isLimitedService = isLimitedService,
             networkServiceMode = networkServiceMode,
@@ -266,10 +270,15 @@ object CellularSignalReader {
 
     fun hasCellIdentityPermission(context: Context): Boolean {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            return ContextCompat.checkSelfPermission(
+            val fineGranted = ContextCompat.checkSelfPermission(
                 context,
                 Manifest.permission.ACCESS_FINE_LOCATION
             ) == PackageManager.PERMISSION_GRANTED
+            val coarseGranted = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+            return fineGranted || coarseGranted
         }
         return hasPhoneStatePermission(context)
     }
@@ -372,23 +381,6 @@ object CellularSignalReader {
         val voiceNetworkType = telephonyManager.voiceNetworkType
         return voiceNetworkType in TWO_G_NETWORK_TYPES &&
             dataNetworkType == TelephonyManager.NETWORK_TYPE_UNKNOWN
-    }
-
-    @SuppressLint("MissingPermission")
-    private fun isRestrictedTo2gNetwork(telephonyManager: TelephonyManager): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return false
-        return runCatching {
-            val allowed = telephonyManager.getAllowedNetworkTypesForReason(
-                TelephonyManager.ALLOWED_NETWORK_TYPES_REASON_USER
-            )
-            if (allowed == 0L) return false
-            val twoGOnlyMask = (
-                TelephonyManager.NETWORK_TYPE_BITMASK_GSM or
-                    TelephonyManager.NETWORK_TYPE_BITMASK_GPRS or
-                    TelephonyManager.NETWORK_TYPE_BITMASK_EDGE
-                ).toLong()
-            (allowed and twoGOnlyMask.inv()) == 0L
-        }.getOrDefault(false)
     }
 
     @SuppressLint("MissingPermission")

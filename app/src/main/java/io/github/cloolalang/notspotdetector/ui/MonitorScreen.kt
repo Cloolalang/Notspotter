@@ -34,9 +34,12 @@ import io.github.cloolalang.notspotdetector.R
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
 import io.github.cloolalang.notspotdetector.model.ConnectivityStats
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
+import io.github.cloolalang.notspotdetector.model.NetworkModePreference
 import io.github.cloolalang.notspotdetector.model.NetworkServiceMode
+import io.github.cloolalang.notspotdetector.model.formatNetworkOperatorDisplay
 import io.github.cloolalang.notspotdetector.model.PassiveMockSettings
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
+import io.github.cloolalang.notspotdetector.model.SettingsCompatibility
 import io.github.cloolalang.notspotdetector.model.PingSettings
 import io.github.cloolalang.notspotdetector.model.RsrpSample
 import io.github.cloolalang.notspotdetector.model.RttSample
@@ -45,10 +48,14 @@ import io.github.cloolalang.notspotdetector.model.ProfileImportResult
 import io.github.cloolalang.notspotdetector.model.ProfileSaveResult
 import io.github.cloolalang.notspotdetector.model.SettingsProfileSummary
 import io.github.cloolalang.notspotdetector.model.SimSubscriptionOption
+import io.github.cloolalang.notspotdetector.model.TechnologyChangeTarget
 import io.github.cloolalang.notspotdetector.model.ThresholdSettings
 import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerChoice
 import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerOption
 import io.github.cloolalang.notspotdetector.model.SignalMeasurementTier
+import io.github.cloolalang.notspotdetector.model.RSRQ_POOR_TIER_NUMBER
+import io.github.cloolalang.notspotdetector.model.isRsrqPoor
+import io.github.cloolalang.notspotdetector.model.resolveLimitedServiceSignalOverlayRxss
 import io.github.cloolalang.notspotdetector.model.resolveSignalMeasurementTier
 
 @Composable
@@ -94,33 +101,44 @@ fun MonitorScreen(
     onPingClickVolumeChange: (Float) -> Unit,
     onLowSignalClickVolumeChange: (Float) -> Unit,
     onSignalPulseFrequencyChange: (Int) -> Unit,
+    onVeryStrongTierPulseFrequencyChange: (Int) -> Unit,
+    onG2StrongTierPulseFrequencyChange: (Int) -> Unit,
+    onG2WeakTierPulseFrequencyChange: (Int) -> Unit,
     onSignalPulseDurationChange: (Int) -> Unit,
     onCellChangeBellVolumeChange: (Float) -> Unit,
     onCellChangeVoiceEnabledChange: (Boolean) -> Unit,
     onCellChangeVoiceVolumeChange: (Float) -> Unit,
-    onTechnologyChangeVolumeChange: (Float) -> Unit,
-    onTechnologyChangeVoiceEnabledChange: (Boolean) -> Unit,
-    onTechnologyChangeVoiceVolumeChange: (Float) -> Unit,
+    onTechnologyChangeToneVolumeChange: (TechnologyChangeTarget, Float) -> Unit,
+    onTechnologyChangeVoiceEnabledChange: (TechnologyChangeTarget, Boolean) -> Unit,
+    onTechnologyChangeVoiceVolumeChange: (TechnologyChangeTarget, Float) -> Unit,
     onTier5AnnouncerEnabledChange: (Boolean) -> Unit,
     onTier5AnnouncerVolumeChange: (Float) -> Unit,
+    onNoSignalTierPulseFrequencyChange: (Int) -> Unit,
     onNoSignalToneVolumeChange: (Float) -> Unit,
     onNoSignalVibrationEnabledChange: (Boolean) -> Unit,
     onNoSignalVoiceEnabledChange: (Boolean) -> Unit,
     onNoSignalVoiceVolumeChange: (Float) -> Unit,
+    onLimitedServiceTierPulseFrequencyChange: (Int) -> Unit,
     onLimitedServiceToneVolumeChange: (Float) -> Unit,
     onLimitedServiceVoiceEnabledChange: (Boolean) -> Unit,
     onLimitedServiceVoiceVolumeChange: (Float) -> Unit,
     onPreviewPingClick: () -> Unit,
-    onPreviewLowSignalClick: () -> Unit,
+    onPreviewLowSignalClick: (frequencyHz: Int, pulseDurationMs: Int) -> Unit,
+    onPreviewSignalPulse: (volume: Float, frequencyHz: Int, pulseDurationMs: Int) -> Unit,
+    onLevelRangeBcdClickVolumeChange: (Float) -> Unit,
+    onLevelRangeBcdPulseFrequencyChange: (Int) -> Unit,
+    onLevelRangeBcdPulseDurationChange: (Int) -> Unit,
+    onPreviewLevelRangeBcdClick: (frequencyHz: Int, pulseDurationMs: Int) -> Unit,
     onPreviewCellChangeBell: () -> Unit,
     onPreviewCellChangeVoice: () -> Unit,
-    onPreviewTechnologyChange: () -> Unit,
-    onPreviewTechnologyChangeVoice: () -> Unit,
+    onPreviewTechnologyChangeTone: (TechnologyChangeTarget) -> Unit,
+    onPreviewTechnologyChangeVoice: (TechnologyChangeTarget) -> Unit,
     onPreviewTier5Announcer: () -> Unit,
     onPreviewNoSignalTone: () -> Unit,
     onPreviewNoSignalVoice: () -> Unit,
     onPreviewLimitedServiceTone: () -> Unit,
     onPreviewLimitedServiceVoice: () -> Unit,
+    onPreviewRsrqWhiteNoise: () -> Unit,
     onResetAudioVolumes: () -> Unit,
     onSaveSettingsProfile: (String) -> ProfileSaveResult,
     onLoadSettingsProfile: (String) -> Unit,
@@ -256,14 +274,61 @@ fun MonitorScreen(
             onSubscriptionChange = onSubscriptionChange
         )
 
+        MockNetworkStateCard(
+            mockSettings = passiveMockSettings,
+            onMockSettingsChange = onPassiveMockSettingsChange
+        )
+
         PassiveSignalSettingsCard(
             settings = passiveSignalSettings,
-            mockSettings = passiveMockSettings,
+            audioVolumes = audioVolumes,
+            previewEnabled = !isRunning,
             passiveMeasurementIntervalMs = monitoringSettings.passiveMeasurementIntervalMs,
             signalPulseDurationMs = audioVolumes.signalPulseDurationMs,
+            veryStrongTierPulseFrequencyHz = audioVolumes.veryStrongTierPulseFrequencyHz,
+            g2StrongTierPulseFrequencyHz = audioVolumes.g2StrongTierPulseFrequencyHz,
+            g2WeakTierPulseFrequencyHz = audioVolumes.g2WeakTierPulseFrequencyHz,
             onSettingsChange = onPassiveSignalSettingsChange,
-            onMockSettingsChange = onPassiveMockSettingsChange,
+            onVeryStrongTierPulseFrequencyChange = onVeryStrongTierPulseFrequencyChange,
+            onG2StrongTierPulseFrequencyChange = onG2StrongTierPulseFrequencyChange,
+            onG2WeakTierPulseFrequencyChange = onG2WeakTierPulseFrequencyChange,
             onPassiveMeasurementIntervalChange = onPassiveMeasurementIntervalChange,
+            onTechnologyChangeToneVolumeChange = onTechnologyChangeToneVolumeChange,
+            onTechnologyChangeVoiceEnabledChange = onTechnologyChangeVoiceEnabledChange,
+            onTechnologyChangeVoiceVolumeChange = onTechnologyChangeVoiceVolumeChange,
+            onTier5AnnouncerEnabledChange = onTier5AnnouncerEnabledChange,
+            onTier5AnnouncerVolumeChange = onTier5AnnouncerVolumeChange,
+            onNoSignalTierPulseFrequencyChange = onNoSignalTierPulseFrequencyChange,
+            onNoSignalToneVolumeChange = onNoSignalToneVolumeChange,
+            onNoSignalVibrationEnabledChange = onNoSignalVibrationEnabledChange,
+            onNoSignalVoiceEnabledChange = onNoSignalVoiceEnabledChange,
+            onNoSignalVoiceVolumeChange = onNoSignalVoiceVolumeChange,
+            onLimitedServiceTierPulseFrequencyChange = onLimitedServiceTierPulseFrequencyChange,
+            onLimitedServiceToneVolumeChange = onLimitedServiceToneVolumeChange,
+            onLimitedServiceVoiceEnabledChange = onLimitedServiceVoiceEnabledChange,
+            onLimitedServiceVoiceVolumeChange = onLimitedServiceVoiceVolumeChange,
+            onPreviewTechnologyChangeTone = onPreviewTechnologyChangeTone,
+            onPreviewTechnologyChangeVoice = onPreviewTechnologyChangeVoice,
+            onPreviewTier5Announcer = onPreviewTier5Announcer,
+            onPreviewNoSignalTone = onPreviewNoSignalTone,
+            onPreviewNoSignalVoice = onPreviewNoSignalVoice,
+            onPreviewLimitedServiceTone = onPreviewLimitedServiceTone,
+            onPreviewLimitedServiceVoice = onPreviewLimitedServiceVoice,
+            onLowSignalClickVolumeChange = onLowSignalClickVolumeChange,
+            onSignalPulseDurationChange = onSignalPulseDurationChange,
+            onPreviewLowSignalClick = onPreviewLowSignalClick,
+            onPreviewSignalPulse = onPreviewSignalPulse,
+            onLevelRangeBcdClickVolumeChange = onLevelRangeBcdClickVolumeChange,
+            onLevelRangeBcdPulseFrequencyChange = onLevelRangeBcdPulseFrequencyChange,
+            onLevelRangeBcdPulseDurationChange = onLevelRangeBcdPulseDurationChange,
+            onPreviewLevelRangeBcdClick = onPreviewLevelRangeBcdClick,
+            onPreviewRsrqWhiteNoise = onPreviewRsrqWhiteNoise,
+            onSignalPulseFrequencyChange = onSignalPulseFrequencyChange,
+            onCellChangeBellVolumeChange = onCellChangeBellVolumeChange,
+            onCellChangeVoiceEnabledChange = onCellChangeVoiceEnabledChange,
+            onCellChangeVoiceVolumeChange = onCellChangeVoiceVolumeChange,
+            onPreviewCellChangeBell = onPreviewCellChangeBell,
+            onPreviewCellChangeVoice = onPreviewCellChangeVoice,
             onReset = onResetPassiveSignalSettings
         )
 
@@ -282,6 +347,11 @@ fun MonitorScreen(
             audioVolumes = audioVolumes,
             voiceAnnouncerOptions = voiceAnnouncerOptions,
             previewEnabled = !isRunning,
+            signalPulsePreviewRepeatIntervalMs = SettingsCompatibility.resolveTierClickIntervalMs(
+                configuredMs = passiveSignalSettings.levelRangeAbcdClickIntervalMs.toLong(),
+                signalPulseDurationMs = audioVolumes.signalPulseDurationMs,
+                isPassiveOnlySession = true
+            ),
             onVoiceAnnouncerChoiceChange = onVoiceAnnouncerChoiceChange,
             onRefreshVoiceAnnouncerOptions = onRefreshVoiceAnnouncerOptions,
             onPreviewVoiceAnnouncer = onPreviewVoiceAnnouncer,
@@ -289,32 +359,8 @@ fun MonitorScreen(
             onLowSignalClickVolumeChange = onLowSignalClickVolumeChange,
             onSignalPulseFrequencyChange = onSignalPulseFrequencyChange,
             onSignalPulseDurationChange = onSignalPulseDurationChange,
-            onCellChangeBellVolumeChange = onCellChangeBellVolumeChange,
-            onCellChangeVoiceEnabledChange = onCellChangeVoiceEnabledChange,
-            onCellChangeVoiceVolumeChange = onCellChangeVoiceVolumeChange,
-            onTechnologyChangeVolumeChange = onTechnologyChangeVolumeChange,
-            onTechnologyChangeVoiceEnabledChange = onTechnologyChangeVoiceEnabledChange,
-            onTechnologyChangeVoiceVolumeChange = onTechnologyChangeVoiceVolumeChange,
-            onTier5AnnouncerEnabledChange = onTier5AnnouncerEnabledChange,
-            onTier5AnnouncerVolumeChange = onTier5AnnouncerVolumeChange,
-            onNoSignalToneVolumeChange = onNoSignalToneVolumeChange,
-            onNoSignalVibrationEnabledChange = onNoSignalVibrationEnabledChange,
-            onNoSignalVoiceEnabledChange = onNoSignalVoiceEnabledChange,
-            onNoSignalVoiceVolumeChange = onNoSignalVoiceVolumeChange,
-            onLimitedServiceToneVolumeChange = onLimitedServiceToneVolumeChange,
-            onLimitedServiceVoiceEnabledChange = onLimitedServiceVoiceEnabledChange,
-            onLimitedServiceVoiceVolumeChange = onLimitedServiceVoiceVolumeChange,
             onPreviewPingClick = onPreviewPingClick,
             onPreviewLowSignalClick = onPreviewLowSignalClick,
-            onPreviewCellChangeBell = onPreviewCellChangeBell,
-            onPreviewCellChangeVoice = onPreviewCellChangeVoice,
-            onPreviewTechnologyChange = onPreviewTechnologyChange,
-            onPreviewTechnologyChangeVoice = onPreviewTechnologyChangeVoice,
-            onPreviewTier5Announcer = onPreviewTier5Announcer,
-            onPreviewNoSignalTone = onPreviewNoSignalTone,
-            onPreviewNoSignalVoice = onPreviewNoSignalVoice,
-            onPreviewLimitedServiceTone = onPreviewLimitedServiceTone,
-            onPreviewLimitedServiceVoice = onPreviewLimitedServiceVoice,
             onReset = onResetAudioVolumes
         )
 
@@ -401,6 +447,10 @@ private fun MetricsCard(
                 value = formatNetworkOperator(stats)
             )
             MetricRow(
+                label = stringResource(R.string.metric_network_mode),
+                value = formatNetworkModePreference(stats)
+            )
+            MetricRow(
                 label = stringResource(R.string.metric_service_state),
                 value = formatServiceState(stats)
             )
@@ -464,7 +514,11 @@ private fun MetricsCard(
                 )
             }
             SignalTierMetricRow(
-                tier = stats.resolveSignalMeasurementTier(passiveSignalSettings)
+                tier = stats.resolveSignalMeasurementTier(passiveSignalSettings),
+                rsrqTierActive = stats.isRsrqPoor(passiveSignalSettings),
+                limitedServiceSignalOverlayRxss = stats.resolveLimitedServiceSignalOverlayRxss(
+                    passiveSignalSettings
+                )
             )
         }
     }
@@ -561,19 +615,30 @@ private fun formatServiceState(stats: ConnectivityStats): String {
 
 @Composable
 private fun formatNetworkOperator(stats: ConnectivityStats): String {
-    if (!stats.cellularAvailable) {
+    if (!stats.cellularAvailable && stats.formatNetworkOperatorDisplay() == null) {
         return stringResource(R.string.network_waiting)
     }
-    if (!stats.networkOperatorName.isNullOrBlank()) {
-        return stats.networkOperatorName
-    }
-    if (!stats.plmn.isNullOrBlank()) {
-        return stats.plmn
-    }
+    stats.formatNetworkOperatorDisplay()?.let { return it }
     if (!stats.signalPermissionGranted) {
         return stringResource(R.string.network_permission_required)
     }
     return stringResource(R.string.network_cellular)
+}
+
+@Composable
+private fun formatNetworkModePreference(stats: ConnectivityStats): String {
+    if (!stats.signalPermissionGranted) {
+        return stringResource(R.string.signal_permission_required)
+    }
+    return stringResource(
+        when (stats.networkModePreference) {
+            NetworkModePreference.ALL_TECHNOLOGIES -> R.string.network_mode_all_technologies
+            NetworkModePreference.FORCED_2G -> R.string.network_mode_forced_2g
+            NetworkModePreference.FORCED_LTE_NR -> R.string.network_mode_forced_lte_nr
+            NetworkModePreference.FORCED_NR_ONLY -> R.string.network_mode_forced_nr
+            NetworkModePreference.UNKNOWN -> R.string.network_mode_unknown
+        }
+    )
 }
 
 @Composable
@@ -606,32 +671,33 @@ private fun formatCellIdentityValue(
 }
 
 @Composable
-private fun SignalTierMetricRow(tier: SignalMeasurementTier) {
+private fun SignalTierMetricRow(
+    tier: SignalMeasurementTier,
+    rsrqTierActive: Boolean,
+    limitedServiceSignalOverlayRxss: Int? = null
+) {
     MetricRow(
         label = stringResource(R.string.metric_signal_tier),
-        value = signalMeasurementTierLabel(tier),
-        valueColor = signalMeasurementTierColor(tier)
+        value = signalMeasurementTierLabel(tier, rsrqTierActive, limitedServiceSignalOverlayRxss),
+        valueColor = signalMeasurementTierColor(tier, rsrqTierActive)
     )
 }
 
 @Composable
-private fun signalMeasurementTierLabel(tier: SignalMeasurementTier): String {
-    tier.displayNumber?.let { number ->
-        return stringResource(R.string.signal_tier_number, number)
+private fun signalMeasurementTierLabel(
+    tier: SignalMeasurementTier,
+    rsrqTierActive: Boolean,
+    limitedServiceSignalOverlayRxss: Int? = null
+): String = signalMeasurementDisplayLabel(tier, rsrqTierActive, limitedServiceSignalOverlayRxss)
+
+@Composable
+private fun signalMeasurementTierColor(
+    tier: SignalMeasurementTier,
+    rsrqTierActive: Boolean
+): Color {
+    if (rsrqTierActive && tier.rxssNumber == null) {
+        return SignalTierColors.forMeasurementTier(SignalMeasurementTier.RSRQ_POOR)
     }
-    return stringResource(
-        when (tier) {
-            SignalMeasurementTier.NO_SIGNAL -> R.string.signal_tier_no_signal
-            SignalMeasurementTier.LIMITED_SERVICE -> R.string.signal_tier_limited_service
-            SignalMeasurementTier.PERMISSION_REQUIRED -> R.string.signal_permission_required
-            SignalMeasurementTier.UNAVAILABLE -> R.string.signal_tier_unavailable
-            else -> R.string.signal_tier_unavailable
-        }
-    )
-}
-
-@Composable
-private fun signalMeasurementTierColor(tier: SignalMeasurementTier): Color {
     return SignalTierColors.forMeasurementTier(tier)
 }
 

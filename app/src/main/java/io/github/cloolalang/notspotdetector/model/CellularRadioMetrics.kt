@@ -11,6 +11,7 @@ data class CellularRadioMetrics(
     val gsmEarfcn: Int? = null,
     val gsmBsic: Int? = null,
     val isOn2g: Boolean = false,
+    val networkModePreference: NetworkModePreference = NetworkModePreference.UNKNOWN,
     val restrictedTo2gNetwork: Boolean = false,
     val isLimitedService: Boolean = false,
     val networkServiceMode: NetworkServiceMode = NetworkServiceMode.UNKNOWN,

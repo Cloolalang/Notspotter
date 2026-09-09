@@ -32,8 +32,11 @@ data class ConnectivityStats(
     val gsmEarfcn: Int? = null,
     val gsmBsic: Int? = null,
     val isOn2g: Boolean = false,
+    val networkModePreference: NetworkModePreference = NetworkModePreference.UNKNOWN,
     /** Phone network-mode preference allows 2G only (API 31+). */
     val restrictedTo2gNetwork: Boolean = false,
+    /** LTE/NR lost; phone may still camp on home 2G (all-tech mode, 2G allowed). */
+    val searching2gFallbackActive: Boolean = false,
     val isLimitedService: Boolean = false,
     val networkServiceMode: NetworkServiceMode = NetworkServiceMode.UNKNOWN,
     val hasLimitedServiceOnAnySim: Boolean = false,

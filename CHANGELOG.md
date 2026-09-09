@@ -5,6 +5,507 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Documentation** — [MOCK_NETWORK_SCENARIOS.md](MOCK_NETWORK_SCENARIOS.md) (agreed mock trigger states per scenario) and [SETTINGS_PROFILES.md](SETTINGS_PROFILES.md) (profile JSON capture scope, including full `passiveMock` block). Updated [RXSS_CATALOGUE.md](RXSS_CATALOGUE.md), [VOICE_ANNOUNCEMENTS.md](VOICE_ANNOUNCEMENTS.md), and [README.md](README.md) cross-links; RXSS **0**, **11**, **12**, **20**, **23** rows reflect current voice implementation.
+
+## [2.2.28] - 2026-09-09
+
+### Fixed
+
+- **Title bar operator** — The top **NotSpotter - {operator}** label always uses the **home SIM operator** (`homeNetworkOperatorName`), not the camped visited network. Visited operator remains on the metrics row (`Home · Visited`) and in voice announcements.
+
+## [2.2.27] - 2026-09-09
+
+### Fixed
+
+- **Dead zone voice clash** — Entering **RXSS 0** (mock no service / complete dead zone) no longer also speaks **“{operator}, 4 G, no signal”** (**VA-1**). **VA-3** dead-zone entry is the only immediate no-service voice while `isCompleteNoService` is true, including when `noSignalActive` debounces in on a later poll.
+
+## [2.2.26] - 2026-09-09
+
+### Fixed
+
+- **Visited limited-service signal restored** — Leaving **RXSS 20** (visited 4G no signal) or **RXSS 23** (visited 2G no signal) now speaks **“{operator} visited, {tech}, signal restored”** when RSRP recovers to a usable overlay. Recovery straight into weak signal (**12·6** / **13·8**) still uses **“signal low”** instead of **“signal restored”**, matching home **RXSS 10** behaviour.
+
+## [2.2.25] - 2026-09-09
+
+### Fixed
+
+- **Visited limited-service voice** — Signal-low and no-signal announcements on visited-operator limited service now use **“{operator} visited”** phrasing (e.g. “E E visited, 4 G, signal low” / “E E visited, 4 G, no signal”) instead of naming the visited network as home. **RXSS 20** and **23** play camp signal-pulse clicks and no-signal voice using the same controls as **RXSS 10** / **15**; **RXSS 13·8** weak 2G overlay triggers **VA-18** signal-low voice.
+
+## [2.2.24] - 2026-09-09
+
+### Fixed
+
+- **Mock visited 4G/2G RSRP slider** — Moving the mock RSRP control now refreshes stats immediately during passive mock monitoring, so **RXSS 12/13** overlays (**1–6**, **7–8**, **20**, **23**) update as you slide. Limited-service camps keep RSRP for overlay detection, signal-strength pulses play for concurrent overlays instead of being blocked by camp-tier audio, and no-signal overlays stop tier **12**/**13** camp clicks.
+
+## [2.2.23] - 2026-09-09
+
+### Fixed
+
+- **RXSS 12 / 13 signal overlays** — Visited-operator limited service now detects **no-signal overlays** (**RXSS 20** on 4G, **RXSS 23** on 2G) when RSRP/RX falls below the no-signal threshold, and **signal-level overlays** (**RXSS 1–6** on limited 4G, **RXSS 7–8** on limited visited 2G) when signal is measurable. The signal tier row shows composite labels (e.g. “RXSS 12 · 6”). **VA-14** is suppressed on **20**/**23**; **VA-8**/**VA-15** signal-low detection works on limited 4G with weak RSRP.
+
+## [2.2.22] - 2026-09-09
+
+### Fixed
+
+- **Visited 2G limited-service voice clash** — On RXSS **13** (limited visited 2G), the 30 s **2 G camped** repeat (**VA-16**, e.g. “E E, 2 G”) no longer runs alongside **VA-14** (“Vodafone home, E E visited, 2 G, limited service”). **VA-18** is likewise suppressed while **VA-14** applies.
+
+## [2.2.21] - 2026-09-09
+
+### Fixed
+
+- **Build** — Missing import for `resolveCampedVisitedOperatorName` in `MonitorState` (cell reselect visited-operator voice).
+
+## [2.2.20] - 2026-09-09
+
+### Changed
+
+- **Cell reselect on visited network** — Cell reselect voice (**VA-10**) now appends **visited** to the camped operator when on a visited PLMN (e.g. “E E **visited**, 4 G, cell reselect, …”), matching limited-service operator phrasing.
+
+## [2.2.19] - 2026-09-09
+
+### Changed
+
+- **Mock network operator names** — Mock home operator is now **Vodafone** and visited operator **EE** (replacing “Mock Home” / “Mock Visited”) so limited-service and other voice announcements match real operator phrasing during testing.
+
+## [2.2.18] - 2026-09-09
+
+### Changed
+
+- **Limited-service dual-operator voice** — When home and visited PLMNs differ, limited-service announcements (entry, operator change, and 30 s repeat) now speak **home first, then visited**, each with a role word: e.g. “Mock Home **home**, Mock Visited **visited**, 4 G, limited service”. Single-operator limited service is unchanged.
+
+## [2.2.17] - 2026-09-09
+
+### Fixed
+
+- **Visited-operator limited-service voice** — When camped on a visited network, limited-service announcements now speak the **visited operator first**, then home (e.g. “Mock Visited, Mock Home, 4 G, limited service”). Mock visited-operator scenario renamed from “Mock Alt” to **Mock Visited** so TTS no longer garbles duplicate “Mock …” prefixes.
+
+### Changed
+
+- **Limited-service operator order** — Dual-operator limited-service VA (entry and 30 s repeat) uses visited-then-home order when both PLMNs differ.
+
+## [2.2.16] - 2026-09-09
+
+### Changed
+
+- **2G cell-reselect voice** — On 2G, cell reselect announcements now say **channel** (digit by digit) instead of “ARFCN”, matching LTE/NR wording. BSIC is unchanged.
+
+## [2.2.15] - 2026-09-09
+
+### Changed
+
+- **Visited operator terminology** — “Alternative operator” is now **visited operator** across the UI, mock scenarios, RXSS labels, voice-announcement docs, and code (e.g. limited-service home + visited operator in spoken order). Spoken limited-service announcements are unchanged — they still name the home operator then the camped network when different.
+
+## [2.2.14] - 2026-09-09
+
+### Added
+
+- **Camp tier sound controls** — Not-spot camp tiers now expose full signal pulse controls inline: **RXSS 0** (dead zone), **RXSS 11** (searching 2G), **RXSS 12** (limited service), **RXSS 13** (alt 2G limited), and **RXSS 15** (home 2G no signal) each have volume, frequency, duration, interval, and voice/tone settings (shared where appropriate). RXSS 12/13 gain a dedicated **limited-service pulse frequency** setting.
+
+### Changed
+
+- **RXSS terminology** — User-facing labels drop obsolete “Level Range A–D” and mild/fair band names; tiers are shown as **RXSS** numbers with descriptive state names (e.g. “Highest RSRP band” for RXSS 2).
+
+### Fixed
+
+- **No-signal camp playback** — RXSS 0, 11, and 15 signal pulses now use **no-signal tone volume** and **no-signal pulse frequency** at playback, matching RXSS 10.
+
+## [2.2.13] - 2026-09-09
+
+### Fixed
+
+- **RXSS 6 signal pulse volume** — Signal low (RXSS 6) playback now uses the **signal pulse volume** slider (`lowSignalClickVolume`) explicitly, matching RXSS 1. Previously, tier resolution could fall back to Level Range B (FAIR) and play at the shared Level Ranges A–D volume instead. Test preview and pulse duration for RXSS 6 now use `criticalTierPulseDurationMs` from passive settings.
+
+## [2.2.12] - 2026-09-09
+
+### Changed
+
+- **Passive terminology** — RXSS / passive monitoring UI and docs now say **signal pulses** instead of “Geiger clicks”. **Geiger clicks** remains the term for active ping-test audio (RTT, jitter, packet loss).
+
+## [2.2.11] - 2026-09-09
+
+### Fixed
+
+- **RXSS wiring audit** — Limited service camp Geiger (**RXSS 12/13**) now uses `limitedServiceToneVolume` at playback (was incorrectly using global `lowSignalClickVolume`). Test previews for **RXSS 10/12/13** camp volume now play configured Geiger pulses (frequency, duration, interval) instead of legacy flatline/two-tone samples.
+
+## [2.2.10] - 2026-09-09
+
+### Fixed
+
+- **RXSS 1 pulse volume and duration** — Signal high (RXSS 1) Geiger playback now uses the RXSS 1 **signal pulse volume** and **pulse duration** controls (`lowSignalClickVolume`, `signalPulseDurationMs`) instead of incorrectly borrowing Level Range A (RXSS 2) B/C/D shared settings.
+
+## [2.2.9] - 2026-09-09
+
+### Fixed
+
+- **RXSS 5 periodic voice** — “Signal low” every 30 s (**VA-15**) now plays only in RXSS **6** (signal low / critical RSRP), not Level Range D (RXSS **5**). Immediate **VA-8** on dead zone→tier 5 is unchanged. Voice announcer controls removed from the RXSS 5 settings block (configure under RXSS **6**).
+
+## [2.2.8] - 2026-09-09
+
+### Fixed
+
+- **RXSS 10 volume** — Removed duplicate Camp Geiger volume control; **No signal tone** now drives both the entry alert tone and camp Geiger pulses for LTE/NR no signal (RXSS 10).
+
+## [2.2.7] - 2026-09-09
+
+### Fixed
+
+- **RXSS 10 pulse frequency** — LTE/NR no signal (RXSS 10) now has its own **RXSS 10 pulse frequency** slider in Passive Signal settings and uses `noSignalTierPulseFrequencyHz` at playback, independent of RXSS 6 (signal low). Existing installs migrate from the former shared RXSS 6 value.
+
+## [2.2.6] - 2026-09-09
+
+### Changed
+
+- **Voice announcement design in code** — New [`VoiceAnnouncement.kt`](app/src/main/java/io/github/cloolalang/notspotdetector/model/VoiceAnnouncement.kt) defines stable VA IDs, playback priorities, and immediate order; [`MonitoringUpdateEvents`](app/src/main/java/io/github/cloolalang/notspotdetector/model/MonitoringUpdateEvents.kt) uses it for same-poll sequencing. Confirmed immediate order: **VA-3** (p1) → **VA-1/2** (p2) → **VA-4** (p4) → **VA-8** (p5) → **VA-7** (p6) → **VA-6/9** (p8) → **VA-10** (p9, lowest immediate). Periodic priorities and **VA-11** remain provisional pending field testing.
+- **Voice phrase order** — Operator → tech → signal state → service state (when not implicit 4G/5G full service). Dead zone: “deadzone, no service, no SOS calls”; `signal restored` / `limited service` / `cell reselect` phrasing updated in [`SignalStateAnnouncement.kt`](app/src/main/java/io/github/cloolalang/notspotdetector/model/SignalStateAnnouncement.kt). Settings hint strings updated for Test previews.
+- **VA-5 retired** — No voice on leaving limited service; camp on **4G/5G** is implicit full service.
+
+## [2.2.5] - 2026-09-09
+
+### Changed
+
+- **Voice phrase order (initial)** — Documented operator → tech → signal state → service state in [VOICE_ANNOUNCEMENTS.md](VOICE_ANNOUNCEMENTS.md).
+- **Voice playback priority (partial)** — Documented priority columns; **VA-10** / **VA-14** / **VA-16** / **VA-18** no-signal RXSS guards.
+- **VA-5 retired (initial)** — Documented silent limited-service exit.
+
+### Fixed
+
+- **Cell reselect voice (VA-10)** — Suppressed while primary RXSS is any no-signal state (0, 10, 15, and catalogue placeholders 20–23, 26–27). Documented in [VOICE_ANNOUNCEMENTS.md](VOICE_ANNOUNCEMENTS.md).
+- **2G camped repeat (VA-16)** — Same no-signal RXSS guard; periodic “2 G” defers to VA-17 / VA-18 on 2G no-signal or weak camp.
+- **Limited service repeat (VA-14)** — Same no-signal RXSS guard, including limited-service camps with unusable RSRP (RXSS 20 / 23 overlays).
+- **2G weak repeat (VA-18)** — Same no-signal RXSS guard on the 2G weak periodic path.
+- **Voice announcement doc** — VA tables now include a **Suppressed when** column noting RXSS-specific and transition-based skips per announcement.
+
+## [2.2.4] - 2026-09-09
+
+### Fixed
+
+- **Dead zone recovery voice** — Leaving the dead zone (RXSS 0) for a camped LTE/NR state now announces “Signal restored” on the first recovery poll, instead of staying silent because no-signal debounce had not cleared yet. Dead zone → tier 5 still skips “Signal restored” and uses “signal low” immediately.
+
+## [2.2.3] - 2026-09-09
+
+### Fixed
+
+- **Threshold alert controls completeness** — Camp Geiger tiers (RXSS 0, 11, 15) now include pulse volume sliders with hold-to-repeat **Test**. RXSS 13 adds limited-service alert tone volume + **Test**. RXSS 14 white-noise overlay volume now has **Test** (hold-to-repeat when decoupled from signal tier).
+
+## [2.2.2] - 2026-09-09
+
+### Changed
+
+- **Signal thresholds section order** — RXSS blocks now appear in numerical order (0 through 15, then 28–30). Technology-change tiers (28–30) moved below camp and RSRQ tiers; dead zone (0) moved to the top.
+
+## [2.2.1] - 2026-09-09
+
+### Changed
+
+- **Signal thresholds section titles** — Each RXSS block now shows a short state name in the heading (e.g. “RXSS 10 · LTE/NR no signal”, “RXSS 7 · 2G good signal”) so you can tell what the tier represents without opening the catalogue.
+
+## [2.2.0] - 2026-09-09
+
+### Added
+
+- **RXSS 28–30 — Technology change by target** — Separate threshold sections for camp changes to 2G, 4G, and 5G/EN-DC, each with its own sweep tone and voice announcement controls. Voice now speaks only the new technology (e.g. “E E, 4 G”) without a “Technology change” prefix.
+- **RXSS 7 & 8 pulse volume + Test** — 2G good and 2G weak tiers now include a signal pulse volume slider with hold-to-repeat **Test**, matching other RSRP tiers.
+
+### Changed
+
+- **Technology change settings** — Per-target tone and voice volumes replace the single shared technology-change controls that were duplicated under RXSS 7 and Global alert sound.
+
+## [2.1.8] - 2026-09-09
+
+### Fixed
+
+- **RXSS 6 voice controls** — Signal-low voice announcement checkbox, volume slider, and **Test** button now appear in Signal thresholds under **RXSS 6**, below pulse frequency (replacing the “shared with RXSS 5” hint).
+
+## [2.1.7] - 2026-09-09
+
+### Fixed
+
+- **RXSS voice announcement controls** — Volume slider and **Test** button now stay visible even when the voice announcement checkbox is off, so you can adjust and preview before enabling (cell change, no signal, limited service, 2G technology change, and signal-low announcer).
+
+## [2.1.6] - 2026-09-09
+
+### Added
+
+- **RXSS 9 — Cell change** — Catalogue row and thresholds panel section for LTE/NR/2G cell reselect alerts (bell + optional voice). Controls moved from Global alert sound to **RXSS 9** under Signal thresholds.
+
+## [2.1.5] - 2026-09-09
+
+### Changed
+
+- **Level Ranges A–D shared sound** — The shared signal pulse block now controls volume, frequency, duration, and click interval for Level Ranges A through D (RXSS 2–5). Level Range A no longer has duplicate pulse controls.
+- **Signal pulse test button** — Hold the **Test** button to repeat pulses at the configured click interval. Preview now uses each tier’s current frequency and duration (including RXSS 1’s separate tone frequency).
+- **RXSS 6 RSRP threshold** — Signal low (RXSS 6) now always applies above −125 dBm through the Level Range D boundary. The separate no-signal RSRP slider has been removed.
+
+## [2.1.4] - 2026-09-09
+
+### Changed
+
+- **Threshold panel control order** — Every RXSS section now lists controls in a consistent order: sound on/off, RSRP/RSRQ range, pulse volume (+ test), duration, click interval, frequency, then voice announcer toggle and volume (+ test) where applicable.
+
+## [2.1.3] - 2026-09-09
+
+### Added
+
+- **Level Ranges B–D shared sound** — One **Standard sound** block in the thresholds panel controls signal pulse **volume**, **frequency**, and **duration** for Level Ranges B, C, and D (RXSS 3–5). Each range still has its own enable toggle and click interval.
+
+## [2.1.2] - 2026-09-09
+
+### Fixed
+
+- **Threshold panel tier titles** — Level Range A–D blocks now show **RXSS N · Level Range X** (e.g. **RXSS 3 · Level Range B**), matching the cellular metrics display, instead of the range letter alone.
+
+## [2.1.1] - 2026-09-09
+
+### Fixed
+
+- **RXSS 8 alert settings** — 2G weak now shows **Standard sound (Geiger clicks)** and **Signal-low voice announcer** controls directly under **RXSS 8** in the thresholds panel (previously only a cross-reference to RXSS 5).
+- **RXSS 1 alert settings** — Signal high now shows a labelled **Standard sound (Geiger clicks)** block with pulse frequency, shared pulse duration, click interval, and signal pulse volume directly under **RXSS 1** (previously scattered or only in global alert settings).
+
+## [2.1.0] - 2026-09-09
+
+### Changed
+
+- **Alert controls per RXSS** — Voice announcers, alert tones, and Geiger click settings for each implemented RXSS now live together under **Passive signal thresholds and alert settings**. Shared controls (e.g. no-signal voice for RXSS 0/10/11/15) appear once with cross-references; no duplicate sliders in **Global alert sound settings**, which keeps only announcer choice, ping clicks, shared signal-pulse volume, and cell-change alerts.
+
+## [2.0.3] - 2026-09-09
+
+### Changed
+
+- **2G weak (RXSS 8) voice** — While camped on home 2G with weak RX, 30-second voice reminders now speak **“signal low”** (Level Range D announcer) instead of the generic **“2 G”** camp reminder. RXSS 7 (2G good) still uses the **2 G** reminder. Enable **Level Range D announcer** under Alert sound volume.
+
+## [2.0.2] - 2026-09-09
+
+### Fixed
+
+- **RX Signal State in cellular metrics** — Level Ranges A–D (RXSS 2–5) now show the catalogue number in the monitor (e.g. **RXSS 2 · Level Range A**), consistent with every other implemented RXSS state.
+
+## [2.0.1] - 2026-09-09
+
+### Fixed
+
+- **RXSS 15 sound controls** — Home 2G no signal (RXSS 15) Geiger click settings now appear under **Not-spot camp tiers** in Passive signal ranges, alongside RXSS 10 and the other camp states. Previously they were only under 2G fallback tiers, where they were easy to miss.
+
+## [2.0.0] - 2026-09-09
+
+### Changed
+
+- **RX Signal State (RXSS) system** — Major release: the app now classifies implemented signal states using RXSS catalogue numbers (`Rxss` constants, `rxssNumber` on signal enums). Dead zone is **RXSS 0** (was tier 9). States **1–8** and **10–15** align with [RXSS_CATALOGUE.md](RXSS_CATALOGUE.md). Legacy `*_TIER_NUMBER` names and settings keys are kept for profile compatibility.
+
+## [1.35.3] - 2026-09-09
+
+### Changed
+
+- **RXSS classification** — Monitor and settings now use RX Signal State catalogue numbers throughout. Dead zone is **RXSS 0** (was tier 9). Implemented states **1–8** and **10–15** unchanged. New `Rxss` constants and `rxssNumber` on signal enums; legacy `*_TIER_NUMBER` names kept as aliases.
+
+## [1.35.2] - 2026-09-09
+
+### Changed
+
+- **Level Range A–D** — RXSS 2–5 labels renamed from “Band A–D” to **Level Range A** through **Level Range D** in the monitor, passive signal settings, and Level Range D announcer.
+
+## [1.35.1] - 2026-09-09
+
+### Changed
+
+- **RSRP bands A–D** — RXSS 2–5 (mild through poor) are now labelled **Band A** (highest RSRP) through **Band D** (lowest) on the monitor and in passive signal settings. RXSS 1, 6, and camp states keep numeric RXSS labels. The monitor row is renamed **RX Signal State**; Band D announcer replaces “Tier 5 announcer” in settings.
+
+## [1.35.0] - 2026-09-09
+
+### Added
+
+- **Tier 15 — home 2G no signal** — mock and live home 2G no-signal state now shows tier 15 instead of tier 10 (LTE/NR no signal). Tier 15 has its own Geiger click settings under 2G fallback tiers; voice behaviour on 2G no signal is unchanged.
+
+## [1.34.8] - 2026-09-09
+
+### Fixed
+
+- **Tier 10 → tier 6 recovery voice** — now plays an immediate one-off “signal low” (operator, technology, signal low) and continues on the regular 30 s tier 5 announcer schedule while tier 6. Still skips “Signal restored”.
+
+## [1.34.7] - 2026-09-09
+
+### Fixed
+
+- **Tier 10 → tier 6 recovery voice** — leaving LTE/NR no signal into tier 6 (critical) no longer speaks “Signal restored” or an immediate tier announcer. The regular tier 5 announcer schedule applies instead (first “signal low” after 5 s, then every 30 s while tier 6). Tier 5 announcer must be enabled.
+
+## [1.34.6] - 2026-09-09
+
+### Fixed
+
+- **Tier 10 → tier 5 recovery voice** — leaving LTE/NR no signal (tier 10) into tier 5 (poor) again announces “Signal restored”. Only tier 10 → tier 6 (critical) uses operator, technology, and “signal low”. Dead zone → tier 5 is unchanged.
+
+## [1.34.5] - 2026-09-09
+
+### Fixed
+
+- **Tier 10 → tier 5/6 recovery voice** — leaving LTE/NR no signal (tier 10) or dead zone into tier 5 or tier 6 now announces operator, technology, and “signal low” instead of “Signal restored”. Fair signal and above still use “Signal restored”.
+
+## [1.34.4] - 2026-09-09
+
+### Fixed
+
+- **Mock tier 6 → tier 10 voice** — lowering mock Home 4G RSRP into no signal now announces “no signal” immediately (mock updates confirm debounce in one step) and repeats on the 30 s schedule. Mock Home/Alt 4G no longer jumps to tier 11 (searching 2G) while still camped on LTE; tier 10 camp voice reminders work when tier 10 Geiger clicks are enabled.
+
+## [1.34.3] - 2026-09-09
+
+### Fixed
+
+- **Dead zone → signal low** — recovering from all-technologies no service directly into tier 5 (poor signal) no longer speaks “Signal restored” before the tier 5 announcer; you hear operator, technology, and “signal low” immediately instead.
+
+## [1.34.2] - 2026-09-09
+
+### Fixed
+
+- **Mock home 2G no signal voice** — entering no signal on 2G no longer speaks immediately on top of the technology-change alert; the first no-signal reminder plays 30 s after the technology announcement, then repeats every 30 s (same cadence as the 2G camped reminder when signal is present).
+
+## [1.34.1] - 2026-09-09
+
+### Fixed
+
+- **Voice alert order** — no-signal and signal-restored announcements now always play before limited/full-service alerts; limited and full-service alerts always play before technology-change and cell-reselect voices. Fixes overlapping or clashing speech when switching mock scenarios such as home 4G to alternative 4G.
+
+## [1.34.0] - 2026-09-09
+
+### Added
+
+- **2G fallback tiers 7 and 8** — each tier now has its own pulse frequency, pulse duration, and click interval controls (matching tier 1’s independent tone frequency, with per-tier duration like camp tiers). Playback and minimum-interval math use these tier-specific values instead of the global signal pulse settings.
+
+## [1.33.4] - 2026-09-09
+
+### Fixed
+
+- **Alert order** — when technology change and cell reselect occur together, technology change is announced first, then cell reselect.
+- **Duplicate mock 2G reminders** — concurrent stats updates could start two 30 s G2 reminder jobs; handling is now serialized and the periodic timer resets after an immediate technology/2G camp announcement so only one reminder plays per interval.
+
+## [1.33.3] - 2026-09-09
+
+### Fixed
+
+- **Cell reselect + technology voice together** — when both fire on a state change (e.g. mock Home 4G ↔ Home 2G), announcements now play back-to-back instead of the second voice cancelling the first. Cell reselect is no longer blocked by quiet-until-critical mode.
+- **Mock technology suppression** — stale “searching 2G” episode state no longer blocks technology-change voice on direct mock scenario switches.
+
+### Changed
+
+- **Mock alt-operator cells** — alternative operator 4G/2G scenarios use distinct channel/PCI (or ARFCN/BSIC) values so cell-reselect voice also fires on home ↔ alternative changes at the same RAT.
+
+## [1.33.2] - 2026-09-09
+
+### Fixed
+
+- **Mock scenario technology voice** — changing mock network state (e.g. Home 4G → Home 2G) now triggers technology-change alerts immediately; mock updates were updating stats without notifying the monitor service.
+
+### Changed
+
+- **Mock signal slider label** — renamed from “Mock RSRP” to “Mock RSRP/RX Lev”.
+
+## [1.33.1] - 2026-09-09
+
+### Fixed
+
+- **Technology change voice on mock 4G → 2G** — switching mock scenarios (and other in-service LTE/NR → 2G changes) now triggers the technology-change announcement immediately instead of waiting up to 30 s for the periodic 2G reminder. Quiet-until-critical mode no longer blocks technology-change voice. Real no-signal → 2G camp still uses the dedicated 2G camped announcement.
+
+## [1.33.0] - 2026-09-09
+
+### Added
+
+- **Tier 1 pulse frequency** — separate slider in the Tier 1 section (400–5000 Hz). No longer derived from the Alert sound signal pulse frequency; existing installs migrate from the old 125% coupling on first load.
+
+## [1.32.5] - 2026-09-09
+
+### Changed
+
+- **Tier 14 colour** — accent changed from purple to brown for better label readability in settings and on the monitor screen.
+
+## [1.32.4] - 2026-09-09
+
+### Changed
+
+- **Tier 14 RSRQ trigger** — fair/critical boundary slider now ranges from −20 dB to −13 dB (was −30 dB to −13 dB). Saved values below −20 dB are clamped on load.
+
+## [1.32.3] - 2026-09-09
+
+### Changed
+
+- **Tier 14 click interval** — decoupled white-noise repetition slider now caps at 5 s (was 20 s). Existing values above 5 s are clamped on load.
+
+## [1.32.2] - 2026-09-09
+
+### Changed
+
+- **Mock RSRP slider** — range extended down to −130 dBm so you can simulate values below the passive tier boundary floor (−126 dBm).
+
+## [1.32.1] - 2026-09-09
+
+### Fixed
+
+- **Tier 14 alongside RSRP tiers** — poor RSRQ no longer replaces the RSRP/camp signal tier in the metrics panel or tier-5 announcer logic. When both apply, the UI shows e.g. “Tier 5 · 14”. RSRP tier clicks and announcements continue while tier 14 audio runs in parallel.
+
+## [1.32.0] - 2026-09-09
+
+### Added
+
+- **Tier 14 — RSRQ poor** — poor RSRQ (below your fair boundary) is now its own signal tier with dedicated sound controls in passive signal settings. Toggle tier sound, white noise volume, and optional coupling to RSRP tier clicks. When coupled, white noise mixes into RSRP signal pulses during passive-only monitoring (replacing the old “noisy RSRQ clicks” checkbox). When decoupled, tier 14 plays independent white-noise pulses with their own repetition rate and pulse duration.
+
+### Changed
+
+- **RSRP tiers** — tier 6 (critical) is now driven by RSRP only; poor RSRQ no longer forces critical tier classification or click rate. RSRQ quality is handled by tier 14 instead.
+
+## [1.31.3] - 2026-09-09
+
+### Changed
+
+- **Tier 5 signal-low announcer** — first announcement waits 5 seconds after entering tier 5, then repeats every 30 seconds (was immediate plus every 15 seconds).
+
+## [1.31.2] - 2026-09-09
+
+### Fixed
+
+- **Mock panel signal sliders** — Mock RSRP and Mock RSRQ sliders are shown again whenever mock mode is enabled, for every scenario (matching the old passive-signal mock section). Use them to sweep tier boundaries on 4G/2G camp scenarios.
+
+## [1.31.1] - 2026-09-09
+
+### Fixed
+
+- **Tier click interval slider floor** — the minimum selectable interval now matches signal pulse duration + 25 ms (e.g. 40 ms with a 10 ms pulse) instead of snapping up to the next 50 ms or 100 ms step. Playback no longer forces a separate 125 ms floor when your configured interval is already long enough for the pulse.
+- **Compile fix** — exhaustive tier mapping for camp states (10–13) in signal measurement classification.
+
+## [1.31.0] - 2026-09-09
+
+### Added
+
+- **Not-spot camp tiers 10–13** — no signal (10), searching 2G (11), limited service (12), and alternative operator 2G limited (13) now use the same Geiger click controls as tiers 7–9 (sound toggle, pulse duration, click interval). When enabled, camp-tier clicks replace the legacy flatline or limited-service loop for that state. Voice announcements are unchanged.
+
+### Changed
+
+- **Signal tier display** — camp states show as Tier 10–13 in the metrics panel. Alternative operator 2G limited service is tier 13 (distinct from tier 12 limited service on 4G).
+
+## [1.30.0] - 2026-09-09
+
+### Added
+
+- **Mock network state panel** — new settings card (moved from passive signal thresholds) with scenarios: home 4G, home 2G, alternative operator 4G/2G limited service, no service (dead zone), and home operator searching 2G. Use with passive-only (mock signal) start to test tiers, voice, and tones without live radio.
+
+## [1.29.0] - 2026-09-09
+
+### Added
+
+- **Network mode in UI** — shows whether the phone is on all technologies, forced to 2G, or forced to 4G/5G without 2G (from the system network preference on Android 12+).
+- **Searching 2G signal tier** — after 4G/5G loss in all-tech mode, the signal tier shows “Searching 2G” while the phone may still camp on home 2G. “Searching 2 G” voice is suppressed when 2G is excluded by a forced LTE/NR network mode.
+- **Limited service network row** — when camped on an alternative operator, the network metric shows home and camped operators (e.g. “Vodafone UK · EE”).
+
+### Changed
+
+- **All technologies setting** — renamed from “Monitor 2G fallback” and enabled by default for new installs; clarifies that this is the normal all-RAT monitoring mode including 2G fallback, alt-operator limited service, and dead-zone detection.
+
+## [1.28.3] - 2026-09-09
+
+### Fixed
+
+- **EARFCN / PCI “Location needed”** — declare location permissions in the app manifest so Android can actually grant them. Accept coarse or fine location for cell identity reads.
+
 ## [1.28.2] - 2026-09-08
 
 ### Fixed

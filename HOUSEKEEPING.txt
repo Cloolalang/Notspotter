@@ -1,0 +1,164 @@
+Notspot Detector — Housekeeping & Code Cleanup Review
+Generated: 2026-09-08
+
+No changes were made when this list was created. Items are grouped by impact.
+
+
+================================================================================
+URGENT / PRACTICAL
+================================================================================
+
+1. Uncommitted work on disk
+   The screen-lock fix (1.23.3) was still local only when this list was written.
+   GitHub was at 1.23.2 (commit d414ed9). Modified but uncommitted files:
+   - MonitorState.kt
+   - CellularPingMonitor.kt
+   - ConnectivityMonitorService.kt
+   - MonitorViewModel.kt
+   - CHANGELOG.md
+   - app/build.gradle.kts
+
+2. Broken unit tests (2 of 77)
+   AppSettingsSnapshotCodecTest fails because org.json.JSONObject is not mocked on
+   the JVM. Profile round-trip tests do not pass locally; CI would fail if added.
+   Fix options:
+   - Add Robolectric (or Android unit-test JSON stub), or
+   - Move codec to kotlinx.serialization / a pure-Kotlin JSON layer testable on JVM
+
+3. No CI workflow
+   There is no .github/workflows setup. Unit tests are not run automatically on
+   push/PR.
+
+
+================================================================================
+DUPLICATION & DEAD CODE
+================================================================================
+
+4. ConnectivityStats built in three places
+   Nearly the same radio -> stats mapping exists in:
+   - CellularPassiveSignalMonitor
+   - CellularPingMonitor.emitStats
+   - MonitorState.applyIdleSignalMetrics
+   A shared factory like CellularRadioMetrics.toMonitoringStats(...) would reduce
+   drift when fields are added.
+
+5. Four copy-paste periodic announcement loops
+   ConnectivityMonitorService has nearly identical logic for no-signal, 2G,
+   limited service, and dead zone (start/stop job, 30s loop, condition check).
+   One small helper would cut ~80 lines and keep behaviour consistent.
+
+6. Duplicate duration sliders in UI
+   AudioVolumeSettingsCard.DurationSlider and
+   PassiveSignalSettingsCard.TierPulseDurationSlider are almost the same.
+   Could be one shared composable in e.g. ui/components/DurationSlider.kt.
+
+7. Unused code
+   - playWeakSignalClick() in GeigerCounterPlayer.kt — defined, never called
+   - signalPulseDurationMs param in DeadzoneTierSettings — unused (tier 9 uses
+     deadzoneTierPulseDurationMs)
+   - Deprecated const aliases in SignalStrengthAudio.kt — 7 @deprecated top-level
+     constants, no references
+   - QUIET_ALERT_RSRQ_OFFSET_DB, DEFAULT_RSRQ_GOOD_MIN_DB in
+     PassiveSignalSettings.kt — deprecated/unused
+
+8. Redundant API
+   MonitorState.updateSignalMetrics() is only a wrapper around
+   refreshSignalMetrics(). One public name would be enough.
+
+9. Duplicate settings bootstrap
+   All repositories are loaded in both MonitorViewModel.init and
+   ConnectivityMonitorService.onCreate. If the service starts before the
+   ViewModel, settings can be loaded twice. A single SettingsBootstrap (or
+   loading only in the service and exposing via MonitorState) would simplify
+   this.
+
+
+================================================================================
+LARGE FILES WORTH SPLITTING (OPTIONAL REFACTORS)
+================================================================================
+
+File                          ~Lines   Suggestion
+PassiveSignalSettingsCard.kt   886     Extract tier sections (RSRP, G2, dead zone)
+GeigerCounterPlayer.kt         761     Split alert tones from tier clicks
+CellularSignalReader.kt        700     Split operator/PLMN from signal parsing
+MonitorScreen.kt               631     Extract metric rows / histogram section
+MonitorState.kt                541     Extract episode/announcement state machine
+ConnectivityMonitorService.kt  567     Extract periodic voice scheduling
+
+Not required for correctness, but would help future changes.
+
+
+================================================================================
+ARCHITECTURE & CORRECTNESS NOTES
+================================================================================
+
+10. MonitorState synchronization is partial
+    Recent screen-lock fix added monitorLock around main update paths, but:
+    - shouldScheduleSearching2gAnnouncement(), format*Announcement() helpers read
+      episode flags without the lock
+    - NoSignalDebouncer itself is not thread-safe (only safe if all access goes
+      through the lock)
+    Worth either fully synchronizing announcement reads or moving episode state
+    into an internal class guarded by one lock.
+
+11. Foreground service type
+    Service uses foregroundServiceType="dataSync". This app does cellular
+    monitoring, audio, and telephony reads — not really data sync. On Android 14+,
+    mismatched FGS types can cause throttling or kills in background. Worth
+    reviewing specialUse (with declaration) or location given cell/telephony
+    access.
+
+12. Dual audio/voice instances
+    GeigerCounterPlayer + CellVoiceAnnouncer exist in both MonitorViewModel
+    (previews) and ConnectivityMonitorService (live monitoring). Previews are
+    fine, but shared audio-focus handling could avoid edge cases if both were
+    ever active.
+
+13. formatNoSignalChange(stats) return type
+    Overload is declared String? but delegates to a function returning String.
+    Minor type cleanup.
+
+
+================================================================================
+TEST COVERAGE GAPS
+================================================================================
+
+Well covered (model layer): tiers, announcements, debouncer, settings
+compatibility, limited service operators.
+
+Not covered:
+- ConnectivityMonitorService (periodic voice, wake lock, screen lock recovery)
+- CellularPingMonitor network retry / radio fallback
+- MonitorState episode transitions (dead zone, 2G search, limited service)
+- GeigerCounterPlayer audio paths
+- Instrumented tests — only the default ExampleInstrumentedTest stub
+
+
+================================================================================
+BUILD / RELEASE
+================================================================================
+
+14. Release optimization disabled
+    app/build.gradle.kts has optimization { enable = false } for release.
+    Fine for debugging; re-enable before Play Store release.
+
+15. Ping connect timeout
+    connectTimeoutMs = 5_000 x multiple pings per cycle can stall the ping loop
+    for a long time on a bad network (can look "stuck"). A lower timeout or
+    per-test cap might help.
+
+
+================================================================================
+SUGGESTED PRIORITY IF PURSUING CLEANUP
+================================================================================
+
+Priority  Task                                              Effort
+1         Commit/push 1.23.3 screen-lock fix                Small
+2         Fix AppSettingsSnapshotCodecTest + add CI           Medium
+3         Remove dead code (unused method, deprecated         Small
+          constants, unused param)
+4         Extract ConnectivityStats factory + periodic        Medium
+          announcement helper
+5         Shared DurationSlider composable                    Small
+6         Review FGS type for Android 14+                     Medium (needs testing)
+7         Split largest UI/audio files                        Larger

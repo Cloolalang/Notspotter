@@ -35,6 +35,40 @@ class OperatorTitleStyleTest {
     }
 
     @Test
+    fun resolveLabel_ignoresVisitedCampWhenHomeKnown() {
+        val stats = ConnectivityStats(
+            isLimitedService = true,
+            homeNetworkOperatorName = "Vodafone UK",
+            servingNetworkOperatorName = "EE",
+            networkOperatorName = "EE",
+            homePlmn = "23415",
+            plmn = "23430"
+        )
+        assertEquals("Vodafone", OperatorTitleStyle.resolveLabel(stats))
+        assertEquals(UkOperatorBrand.VODAFONE, OperatorTitleStyle.detectBrand(stats))
+    }
+
+    @Test
+    fun resolveLabel_doesNotFallBackToServingOperator() {
+        val stats = ConnectivityStats(
+            networkOperatorName = "EE",
+            servingNetworkOperatorName = "EE"
+        )
+        assertEquals(null, OperatorTitleStyle.resolveLabel(stats))
+    }
+
+    @Test
+    fun detectBrand_doesNotUseServingWhenHomeIsUnrecognizedBrand() {
+        val stats = ConnectivityStats(
+            homeNetworkOperatorName = "Three UK",
+            networkOperatorName = "EE",
+            servingNetworkOperatorName = "EE"
+        )
+        assertEquals(UkOperatorBrand.OTHER, OperatorTitleStyle.detectBrand(stats))
+        assertEquals("Three UK", OperatorTitleStyle.resolveLabel(stats))
+    }
+
+    @Test
     fun isLowOrNoSignalForTitle_usesTierFiveAndAbove() {
         assertTrue(SignalMeasurementTier.POOR.isLowOrNoSignalForTitle())
         assertTrue(SignalMeasurementTier.CRITICAL.isLowOrNoSignalForTitle())
@@ -42,6 +76,7 @@ class OperatorTitleStyleTest {
         assertTrue(SignalMeasurementTier.G2_WEAK.isLowOrNoSignalForTitle())
         assertTrue(SignalMeasurementTier.DEADZONE.isLowOrNoSignalForTitle())
         assertTrue(SignalMeasurementTier.NO_SIGNAL.isLowOrNoSignalForTitle())
+        assertTrue(SignalMeasurementTier.SEARCHING_2G.isLowOrNoSignalForTitle())
         assertFalse(SignalMeasurementTier.FAIR.isLowOrNoSignalForTitle())
         assertFalse(SignalMeasurementTier.GOOD.isLowOrNoSignalForTitle())
         assertFalse(SignalMeasurementTier.VERY_STRONG.isLowOrNoSignalForTitle())

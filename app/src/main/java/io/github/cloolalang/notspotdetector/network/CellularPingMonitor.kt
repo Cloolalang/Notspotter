@@ -334,6 +334,7 @@ class CellularPingMonitor(
             gsmEarfcn = metrics.gsmEarfcn,
             gsmBsic = metrics.gsmBsic,
             isOn2g = metrics.isOn2g,
+            networkModePreference = metrics.networkModePreference,
             restrictedTo2gNetwork = metrics.restrictedTo2gNetwork,
             isLimitedService = metrics.isLimitedService,
             networkServiceMode = metrics.networkServiceMode,

@@ -16,12 +16,50 @@ class VeryStrongSignalTest {
     }
 
     @Test
-    fun veryStrongPulseFrequencyIsTwentyFivePercentHigher() {
-        val volumes = AudioVolumeSettings(signalPulseFrequencyHz = 600)
-        assertEquals(750, volumes.veryStrongPulseFrequencyHz())
+    fun veryStrongTierUsesLowSignalVolumeAndGlobalPulseDuration() {
+        val volumes = AudioVolumeSettings(
+            lowSignalClickVolume = 0.55f,
+            signalPulseDurationMs = 320,
+            levelRangeBcdClickVolume = 0.9f,
+            levelRangeBcdPulseDurationMs = 180
+        ).normalized()
 
-        val low = AudioVolumeSettings(signalPulseFrequencyHz = 400)
-        assertEquals(500, low.veryStrongPulseFrequencyHz())
+        assertEquals(0.55f, volumes.veryStrongTierClickVolume())
+        assertEquals(320, volumes.veryStrongTierPulseDurationMs())
+        assertEquals(0.9f, volumes.clickVolumeForTier(SignalStrengthTier.MILD))
+        assertEquals(180, volumes.pulseDurationMsForTier(SignalStrengthTier.MILD))
+    }
+
+    @Test
+    fun veryStrongTierPulseFrequencyIsIndependentOfSignalPulseFrequency() {
+        val volumes = AudioVolumeSettings(
+            signalPulseFrequencyHz = 600,
+            veryStrongTierPulseFrequencyHz = 900
+        ).normalized()
+        assertEquals(600, volumes.signalPulseFrequencyHz)
+        assertEquals(900, volumes.veryStrongTierPulseFrequencyHz)
+    }
+
+    @Test
+    fun levelRangeBcdPulseSettingsAreIndependentOfGlobalSignalPulse() {
+        val volumes = AudioVolumeSettings(
+            signalPulseFrequencyHz = 600,
+            signalPulseDurationMs = 250,
+            lowSignalClickVolume = 0.5f,
+            levelRangeBcdPulseFrequencyHz = 700,
+            levelRangeBcdPulseDurationMs = 300,
+            levelRangeBcdClickVolume = 0.8f
+        ).normalized()
+        assertEquals(700, volumes.pulseFrequencyHzForTier(SignalStrengthTier.GOOD))
+        assertEquals(300, volumes.pulseDurationMsForTier(SignalStrengthTier.FAIR))
+        assertEquals(0.8f, volumes.clickVolumeForTier(SignalStrengthTier.POOR))
+        assertEquals(700, volumes.pulseFrequencyHzForTier(SignalStrengthTier.MILD))
+        assertEquals(0.8f, volumes.clickVolumeForTier(SignalStrengthTier.MILD))
+    }
+
+    @Test
+    fun veryStrongTierPulseFrequencyDefaultsTo750Hz() {
+        assertEquals(750, AudioVolumeSettings.DEFAULT_VERY_STRONG_TIER_PULSE_FREQUENCY_HZ)
     }
 
     @Test

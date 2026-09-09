@@ -1,23 +1,70 @@
 package io.github.cloolalang.notspotdetector.model
 
-/** Manual RSRP/RSRQ for passive-only monitoring (testing tiers without live signal). */
+import io.github.cloolalang.notspotdetector.network.CellularSignalReader
+
+/**
+ * Simulated network camp state for passive-only monitoring.
+ * Trigger states and VA testing: MOCK_NETWORK_SCENARIOS.md (repo root).
+ */
+enum class MockNetworkScenario {
+    HOME_4G,
+    HOME_2G,
+    ALT_OPERATOR_4G,
+    ALT_OPERATOR_2G,
+    NO_SERVICE,
+    SEARCHING_2G;
+
+    companion object {
+        val DEFAULT = HOME_4G
+
+        fun fromStoredName(name: String?): MockNetworkScenario {
+            if (name.isNullOrBlank()) return DEFAULT
+            return entries.find { it.name == name } ?: DEFAULT
+        }
+    }
+
+    fun usesLteNrSignalStrength(): Boolean = this == HOME_4G || this == ALT_OPERATOR_4G
+
+    fun usesG2SignalStrength(): Boolean = this == HOME_2G || this == ALT_OPERATOR_2G
+
+    /** Scenarios that feed mock RSRP/RSRQ (or 2G RX level) into simulated metrics. */
+    fun appliesMockSignalStrength(): Boolean =
+        usesLteNrSignalStrength() || usesG2SignalStrength()
+}
+
+/**
+ * Manual network state for passive-only monitoring (testing tiers and voice without live signal).
+ * Saved in settings profiles as `passiveMock` — see SETTINGS_PROFILES.md.
+ */
 data class PassiveMockSettings(
     val enabled: Boolean = DEFAULT_ENABLED,
+    val scenario: MockNetworkScenario = MockNetworkScenario.DEFAULT,
     val rsrpDbm: Int = DEFAULT_RSRP_DBM,
     val rsrqDb: Int = DEFAULT_RSRQ_DB
 ) {
     fun normalized(): PassiveMockSettings {
         return copy(
-            rsrpDbm = rsrpDbm.coerceIn(PassiveSignalSettings.MIN_RSRP_DBM, PassiveSignalSettings.MAX_RSRP_DBM),
+            rsrpDbm = rsrpDbm.coerceIn(MIN_MOCK_RSRP_DBM, PassiveSignalSettings.MAX_RSRP_DBM),
             rsrqDb = rsrqDb.coerceIn(PassiveSignalSettings.MIN_RSRQ_DB, PassiveSignalSettings.MAX_RSRQ_DB)
         )
     }
 
     fun toRadioMetrics(): CellularRadioMetrics {
-        return CellularRadioMetrics(
+        return when (scenario) {
+            MockNetworkScenario.HOME_4G -> home4gMetrics()
+            MockNetworkScenario.HOME_2G -> home2gMetrics()
+            MockNetworkScenario.ALT_OPERATOR_4G -> altOperator4gMetrics()
+            MockNetworkScenario.ALT_OPERATOR_2G -> altOperator2gMetrics()
+            MockNetworkScenario.NO_SERVICE -> noServiceMetrics()
+            MockNetworkScenario.SEARCHING_2G -> searching2gMetrics()
+        }
+    }
+
+    private fun home4gMetrics(): CellularRadioMetrics {
+        return baseMetrics(
             rsrpDbm = rsrpDbm,
             rsrqDb = rsrqDb,
-            radioAccessType = MOCK_RADIO_ACCESS_TYPE,
+            radioAccessType = CellularSignalReader.RADIO_4G,
             lteEarfcn = MOCK_LTE_EARFCN,
             ltePci = MOCK_LTE_PCI,
             isOn2g = false,
@@ -27,11 +74,165 @@ data class PassiveMockSettings(
             isCompleteNoService = false,
             hasHomeGsmSignal = false,
             hasLteNrSignal = true,
-            networkOperatorName = MOCK_NETWORK_OPERATOR,
-            homeNetworkOperatorName = MOCK_NETWORK_OPERATOR,
-            servingNetworkOperatorName = MOCK_NETWORK_OPERATOR,
-            plmn = MOCK_PLMN,
-            homePlmn = MOCK_PLMN,
+            networkOperatorName = MOCK_HOME_OPERATOR,
+            homeNetworkOperatorName = MOCK_HOME_OPERATOR,
+            servingNetworkOperatorName = MOCK_HOME_OPERATOR,
+            plmn = MOCK_HOME_PLMN,
+            homePlmn = MOCK_HOME_PLMN
+        )
+    }
+
+    private fun home2gMetrics(): CellularRadioMetrics {
+        return baseMetrics(
+            rsrpDbm = rsrpDbm,
+            rsrqDb = null,
+            radioAccessType = CellularSignalReader.RADIO_2G,
+            gsmEarfcn = MOCK_GSM_EARFCN,
+            gsmBsic = MOCK_GSM_BSIC,
+            isOn2g = true,
+            isLimitedService = false,
+            networkServiceMode = NetworkServiceMode.IN_SERVICE,
+            hasLimitedServiceOnAnySim = false,
+            isCompleteNoService = false,
+            hasHomeGsmSignal = true,
+            hasLteNrSignal = false,
+            networkOperatorName = MOCK_HOME_OPERATOR,
+            homeNetworkOperatorName = MOCK_HOME_OPERATOR,
+            servingNetworkOperatorName = MOCK_HOME_OPERATOR,
+            plmn = MOCK_HOME_PLMN,
+            homePlmn = MOCK_HOME_PLMN
+        )
+    }
+
+    private fun altOperator4gMetrics(): CellularRadioMetrics {
+        return baseMetrics(
+            rsrpDbm = rsrpDbm,
+            rsrqDb = rsrqDb,
+            radioAccessType = CellularSignalReader.RADIO_4G,
+            lteEarfcn = MOCK_ALT_LTE_EARFCN,
+            ltePci = MOCK_ALT_LTE_PCI,
+            isOn2g = false,
+            isLimitedService = true,
+            networkServiceMode = NetworkServiceMode.LIMITED_SERVICE,
+            hasLimitedServiceOnAnySim = true,
+            isCompleteNoService = false,
+            hasHomeGsmSignal = false,
+            hasLteNrSignal = true,
+            networkOperatorName = MOCK_VISITED_OPERATOR,
+            homeNetworkOperatorName = MOCK_HOME_OPERATOR,
+            servingNetworkOperatorName = MOCK_VISITED_OPERATOR,
+            plmn = MOCK_VISITED_PLMN,
+            homePlmn = MOCK_HOME_PLMN
+        )
+    }
+
+    private fun altOperator2gMetrics(): CellularRadioMetrics {
+        return baseMetrics(
+            rsrpDbm = rsrpDbm,
+            rsrqDb = null,
+            radioAccessType = CellularSignalReader.RADIO_2G,
+            gsmEarfcn = MOCK_ALT_GSM_EARFCN,
+            gsmBsic = MOCK_ALT_GSM_BSIC,
+            isOn2g = true,
+            isLimitedService = true,
+            networkServiceMode = NetworkServiceMode.LIMITED_SERVICE,
+            hasLimitedServiceOnAnySim = true,
+            isCompleteNoService = false,
+            hasHomeGsmSignal = false,
+            hasLteNrSignal = false,
+            networkOperatorName = MOCK_VISITED_OPERATOR,
+            homeNetworkOperatorName = MOCK_HOME_OPERATOR,
+            servingNetworkOperatorName = MOCK_VISITED_OPERATOR,
+            plmn = MOCK_VISITED_PLMN,
+            homePlmn = MOCK_HOME_PLMN
+        )
+    }
+
+    private fun noServiceMetrics(): CellularRadioMetrics {
+        return baseMetrics(
+            rsrpDbm = null,
+            rsrqDb = null,
+            radioAccessType = null,
+            isOn2g = false,
+            isLimitedService = false,
+            networkServiceMode = NetworkServiceMode.OUT_OF_SERVICE,
+            hasLimitedServiceOnAnySim = false,
+            isCompleteNoService = true,
+            hasHomeGsmSignal = false,
+            hasLteNrSignal = false,
+            networkOperatorName = MOCK_HOME_OPERATOR,
+            homeNetworkOperatorName = MOCK_HOME_OPERATOR,
+            servingNetworkOperatorName = null,
+            plmn = null,
+            homePlmn = MOCK_HOME_PLMN
+        )
+    }
+
+    private fun searching2gMetrics(): CellularRadioMetrics {
+        return baseMetrics(
+            rsrpDbm = null,
+            rsrqDb = null,
+            radioAccessType = null,
+            isOn2g = false,
+            isLimitedService = false,
+            networkServiceMode = NetworkServiceMode.UNKNOWN,
+            hasLimitedServiceOnAnySim = false,
+            isCompleteNoService = false,
+            hasHomeGsmSignal = false,
+            hasLteNrSignal = false,
+            networkModePreference = NetworkModePreference.ALL_TECHNOLOGIES,
+            networkOperatorName = MOCK_HOME_OPERATOR,
+            homeNetworkOperatorName = MOCK_HOME_OPERATOR,
+            servingNetworkOperatorName = MOCK_HOME_OPERATOR,
+            plmn = MOCK_HOME_PLMN,
+            homePlmn = MOCK_HOME_PLMN
+        )
+    }
+
+    private fun baseMetrics(
+        rsrpDbm: Int?,
+        rsrqDb: Int?,
+        radioAccessType: String?,
+        lteEarfcn: Int? = null,
+        ltePci: Int? = null,
+        gsmEarfcn: Int? = null,
+        gsmBsic: Int? = null,
+        isOn2g: Boolean,
+        isLimitedService: Boolean,
+        networkServiceMode: NetworkServiceMode,
+        hasLimitedServiceOnAnySim: Boolean,
+        isCompleteNoService: Boolean,
+        hasHomeGsmSignal: Boolean,
+        hasLteNrSignal: Boolean,
+        networkModePreference: NetworkModePreference = NetworkModePreference.ALL_TECHNOLOGIES,
+        networkOperatorName: String?,
+        homeNetworkOperatorName: String?,
+        servingNetworkOperatorName: String?,
+        plmn: String?,
+        homePlmn: String?
+    ): CellularRadioMetrics {
+        return CellularRadioMetrics(
+            rsrpDbm = rsrpDbm,
+            rsrqDb = rsrqDb,
+            radioAccessType = radioAccessType,
+            lteEarfcn = lteEarfcn,
+            ltePci = ltePci,
+            gsmEarfcn = gsmEarfcn,
+            gsmBsic = gsmBsic,
+            isOn2g = isOn2g,
+            networkModePreference = networkModePreference,
+            restrictedTo2gNetwork = networkModePreference == NetworkModePreference.FORCED_2G,
+            isLimitedService = isLimitedService,
+            networkServiceMode = networkServiceMode,
+            hasLimitedServiceOnAnySim = hasLimitedServiceOnAnySim,
+            isCompleteNoService = isCompleteNoService,
+            hasHomeGsmSignal = hasHomeGsmSignal,
+            hasLteNrSignal = hasLteNrSignal,
+            networkOperatorName = networkOperatorName,
+            homeNetworkOperatorName = homeNetworkOperatorName,
+            servingNetworkOperatorName = servingNetworkOperatorName,
+            plmn = plmn,
+            homePlmn = homePlmn,
             permissionGranted = true,
             cellIdentityPermissionGranted = true
         )
@@ -39,13 +240,28 @@ data class PassiveMockSettings(
 
     companion object {
         const val DEFAULT_ENABLED = false
+        /** Mock RSRP slider floor — below tier-setting minimum so very weak values can be simulated. */
+        const val MIN_MOCK_RSRP_DBM = -130
         const val DEFAULT_RSRP_DBM = -95
         const val DEFAULT_RSRQ_DB = -12
-        const val MOCK_RADIO_ACCESS_TYPE = "LTE (mock)"
+        /** Home SIM operator — real UK name for easier voice-announcement testing. */
+        const val MOCK_HOME_OPERATOR = "Vodafone"
+        /** Camped visited-operator PLMN during limited-service mock scenarios. */
+        const val MOCK_VISITED_OPERATOR = "EE"
+        /** @deprecated Use [MOCK_VISITED_OPERATOR]. */
+        const val MOCK_ALT_OPERATOR = MOCK_VISITED_OPERATOR
+        const val MOCK_HOME_PLMN = "23415"
+        const val MOCK_VISITED_PLMN = "23430"
+        /** @deprecated Use [MOCK_VISITED_PLMN]. */
+        const val MOCK_ALT_PLMN = MOCK_VISITED_PLMN
         const val MOCK_LTE_EARFCN = 1_800
         const val MOCK_LTE_PCI = 42
-        const val MOCK_NETWORK_OPERATOR = "Mock network"
-        const val MOCK_PLMN = "001-01"
+        const val MOCK_ALT_LTE_EARFCN = 1_850
+        const val MOCK_ALT_LTE_PCI = 87
+        const val MOCK_GSM_EARFCN = 62
+        const val MOCK_GSM_BSIC = 7
+        const val MOCK_ALT_GSM_EARFCN = 71
+        const val MOCK_ALT_GSM_BSIC = 12
     }
 }
 
@@ -57,7 +273,11 @@ fun PassiveMockSettings.toConnectivityStats(
 ): ConnectivityStats {
     val normalized = normalized()
     val radio = normalized.toRadioMetrics()
-    val hasSignal = radio.hasUsableSignalForMonitoring(monitor2gFallback, passiveSettings)
+    val hasSignal = when (normalized.scenario) {
+        MockNetworkScenario.NO_SERVICE -> false
+        MockNetworkScenario.SEARCHING_2G -> false
+        else -> radio.hasUsableSignalForMonitoring(monitor2gFallback, passiveSettings)
+    }
     return ConnectivityStats(
         isMonitoring = true,
         isPassiveIdleMode = passiveIdleMode,
@@ -73,14 +293,12 @@ fun PassiveMockSettings.toConnectivityStats(
         gsmEarfcn = radio.gsmEarfcn,
         gsmBsic = radio.gsmBsic,
         isOn2g = radio.isOn2g,
+        networkModePreference = radio.networkModePreference,
+        restrictedTo2gNetwork = radio.restrictedTo2gNetwork,
         isLimitedService = radio.isLimitedService,
-        networkServiceMode = if (hasSignal) {
-            NetworkServiceMode.IN_SERVICE
-        } else {
-            NetworkServiceMode.OUT_OF_SERVICE
-        },
+        networkServiceMode = radio.networkServiceMode,
         hasLimitedServiceOnAnySim = radio.hasLimitedServiceOnAnySim,
-        isCompleteNoService = !hasSignal,
+        isCompleteNoService = radio.isCompleteNoService,
         hasHomeGsmSignal = radio.hasHomeGsmSignal,
         hasLteNrSignal = radio.hasLteNrSignal,
         monitor2gFallbackEnabled = monitor2gFallback,

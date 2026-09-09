@@ -119,7 +119,13 @@ private fun ConnectivityStats.signalOnlySeverity(
         SignalStrengthTier.CRITICAL -> 0.95f
         SignalStrengthTier.G2_STRONG -> 0.25f
         SignalStrengthTier.G2_WEAK -> 0.8f
+        SignalStrengthTier.G2_NO_SIGNAL -> 0.85f
         SignalStrengthTier.DEADZONE -> 1f
+        SignalStrengthTier.NO_SIGNAL -> 0.85f
+        SignalStrengthTier.SEARCHING_2G -> 0.88f
+        SignalStrengthTier.LIMITED_SERVICE -> 0.7f
+        SignalStrengthTier.LIMITED_ALT_2G -> 0.75f
+        SignalStrengthTier.RSRQ_POOR -> 0.65f
     }
 }
 

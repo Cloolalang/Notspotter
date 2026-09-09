@@ -21,8 +21,8 @@ import io.github.cloolalang.notspotdetector.model.ProfileExportOutcome
 import io.github.cloolalang.notspotdetector.model.ProfileImportResult
 import io.github.cloolalang.notspotdetector.model.ProfileSaveResult
 import io.github.cloolalang.notspotdetector.model.SettingsCompatibility
+import io.github.cloolalang.notspotdetector.model.TechnologyChangeTarget
 import io.github.cloolalang.notspotdetector.model.SettingsProfileSummary
-import io.github.cloolalang.notspotdetector.model.toConnectivityStats
 import io.github.cloolalang.notspotdetector.model.PingSettings
 import io.github.cloolalang.notspotdetector.model.SimSubscriptionOption
 import io.github.cloolalang.notspotdetector.model.ThresholdSettings
@@ -77,7 +77,7 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         MonitorState.setAudioVolumes(audioVolumeRepository.load())
         MonitorState.setPassiveSignalSettings(passiveSignalSettingsRepository.load())
         MonitorState.setPassiveMockSettings(passiveMockSettingsRepository.load())
-        reconcilePassiveTierClickIntervals(MonitorState.audioVolumes.value.signalPulseDurationMs)
+        reconcilePassiveTierClickIntervals(MonitorState.audioVolumes.value)
         cellVoiceAnnouncer.setVoiceSelectionProvider {
             VoiceAnnouncerSelection.fromSettings(MonitorState.audioVolumes.value)
         }
@@ -253,10 +253,40 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         updateAudioVolumes(audioVolumes.value.copy(signalPulseFrequencyHz = value))
     }
 
+    fun updateNoSignalTierPulseFrequencyHz(value: Int) {
+        updateAudioVolumes(audioVolumes.value.copy(noSignalTierPulseFrequencyHz = value))
+    }
+
+    fun updateLevelRangeBcdPulseFrequencyHz(value: Int) {
+        updateAudioVolumes(audioVolumes.value.copy(levelRangeBcdPulseFrequencyHz = value))
+    }
+
+    fun updateLevelRangeBcdClickVolume(value: Float) {
+        updateAudioVolumes(audioVolumes.value.copy(levelRangeBcdClickVolume = value))
+    }
+
+    fun updateVeryStrongTierPulseFrequencyHz(value: Int) {
+        updateAudioVolumes(audioVolumes.value.copy(veryStrongTierPulseFrequencyHz = value))
+    }
+
+    fun updateG2StrongTierPulseFrequencyHz(value: Int) {
+        updateAudioVolumes(audioVolumes.value.copy(g2StrongTierPulseFrequencyHz = value))
+    }
+
+    fun updateG2WeakTierPulseFrequencyHz(value: Int) {
+        updateAudioVolumes(audioVolumes.value.copy(g2WeakTierPulseFrequencyHz = value))
+    }
+
     fun updateSignalPulseDurationMs(value: Int) {
         val normalizedAudio = audioVolumes.value.copy(signalPulseDurationMs = value).normalized()
         updateAudioVolumes(normalizedAudio)
-        reconcilePassiveTierClickIntervals(normalizedAudio.signalPulseDurationMs)
+        reconcilePassiveTierClickIntervals(normalizedAudio)
+    }
+
+    fun updateLevelRangeBcdPulseDurationMs(value: Int) {
+        val normalizedAudio = audioVolumes.value.copy(levelRangeBcdPulseDurationMs = value).normalized()
+        updateAudioVolumes(normalizedAudio)
+        reconcilePassiveTierClickIntervals(normalizedAudio)
     }
 
     fun updateCellChangeBellVolume(value: Float) {
@@ -271,16 +301,16 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         updateAudioVolumes(audioVolumes.value.copy(cellChangeVoiceVolume = value))
     }
 
-    fun updateTechnologyChangeVolume(value: Float) {
-        updateAudioVolumes(audioVolumes.value.copy(technologyChangeVolume = value))
+    fun updateTechnologyChangeToneVolume(target: TechnologyChangeTarget, value: Float) {
+        updateAudioVolumes(audioVolumes.value.withTechnologyChangeToneVolume(target, value))
     }
 
-    fun updateTechnologyChangeVoiceEnabled(enabled: Boolean) {
-        updateAudioVolumes(audioVolumes.value.copy(technologyChangeVoiceEnabled = enabled))
+    fun updateTechnologyChangeVoiceEnabled(target: TechnologyChangeTarget, enabled: Boolean) {
+        updateAudioVolumes(audioVolumes.value.withTechnologyChangeVoiceEnabled(target, enabled))
     }
 
-    fun updateTechnologyChangeVoiceVolume(value: Float) {
-        updateAudioVolumes(audioVolumes.value.copy(technologyChangeVoiceVolume = value))
+    fun updateTechnologyChangeVoiceVolume(target: TechnologyChangeTarget, value: Float) {
+        updateAudioVolumes(audioVolumes.value.withTechnologyChangeVoiceVolume(target, value))
     }
 
     fun updateTier5AnnouncerEnabled(enabled: Boolean) {
@@ -339,6 +369,10 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         updateAudioVolumes(audioVolumes.value.copy(noSignalVoiceVolume = value))
     }
 
+    fun updateLimitedServiceTierPulseFrequencyHz(value: Int) {
+        updateAudioVolumes(audioVolumes.value.copy(limitedServiceTierPulseFrequencyHz = value))
+    }
+
     fun updateLimitedServiceToneVolume(value: Float) {
         updateAudioVolumes(audioVolumes.value.copy(limitedServiceToneVolume = value))
     }
@@ -361,13 +395,26 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         alertSoundPreview.previewPingClick(volumes.pingClickVolume)
     }
 
-    fun previewLowSignalClickSound() {
+    fun previewLowSignalClickSound(frequencyHz: Int, pulseDurationMs: Int) {
+        previewSignalPulseSound(
+            volume = audioVolumes.value.normalized().lowSignalClickVolume,
+            frequencyHz = frequencyHz,
+            pulseDurationMs = pulseDurationMs
+        )
+    }
+
+    fun previewSignalPulseSound(volume: Float, frequencyHz: Int, pulseDurationMs: Int) {
+        if (isRunning.value) return
+        alertSoundPreview.previewLowSignalClick(volume, pulseDurationMs, frequencyHz)
+    }
+
+    fun previewLevelRangeBcdClickSound(frequencyHz: Int, pulseDurationMs: Int) {
         if (isRunning.value) return
         val volumes = audioVolumes.value.normalized()
         alertSoundPreview.previewLowSignalClick(
-            volumes.lowSignalClickVolume,
-            volumes.signalPulseDurationMs,
-            volumes.signalPulseFrequencyHz
+            volumes.levelRangeBcdClickVolume,
+            pulseDurationMs,
+            frequencyHz
         )
     }
 
@@ -388,20 +435,21 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         )
     }
 
-    fun previewTechnologyChangeSound() {
+    fun previewTechnologyChangeSound(target: TechnologyChangeTarget) {
         if (isRunning.value) return
-        alertSoundPreview.playTechnologyChangeTone(audioVolumes.value.normalized().technologyChangeVolume)
+        val alertVolumes = audioVolumes.value.normalized().technologyChangeAlertVolumes(target)
+        alertSoundPreview.playTechnologyChangeTone(alertVolumes.toneVolume)
     }
 
-    fun previewTechnologyChangeVoiceSound() {
+    fun previewTechnologyChangeVoiceSound(target: TechnologyChangeTarget) {
         if (isRunning.value) return
         val volumes = audioVolumes.value.normalized()
-        if (!volumes.technologyChangeVoiceEnabled) return
+        val alertVolumes = volumes.technologyChangeAlertVolumes(target)
         previewAlertWithVoice(
-            onPlayTone = { alertSoundPreview.playTechnologyChangeTone(volumes.technologyChangeVolume) },
+            onPlayTone = { alertSoundPreview.playTechnologyChangeTone(alertVolumes.toneVolume) },
             toneDurationMs = GeigerCounterPlayer.TECHNOLOGY_CHANGE_TONE_DURATION_MS,
-            announcement = SignalStateAnnouncement.previewTechnologyChange(readCurrentOperatorName()),
-            voiceVolume = volumes.technologyChangeVoiceVolume
+            announcement = SignalStateAnnouncement.previewTechnologyChange(readCurrentOperatorName(), target),
+            voiceVolume = alertVolumes.voiceVolume
         )
     }
 
@@ -448,6 +496,17 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
             toneDurationMs = GeigerCounterPlayer.NO_SIGNAL_ALERT_TONE_DURATION_MS,
             announcement = SignalStateAnnouncement.previewNoSignal(readCurrentOperatorName()),
             voiceVolume = volumes.noSignalVoiceVolume
+        )
+    }
+
+    fun previewRsrqWhiteNoiseSound() {
+        if (isRunning.value) return
+        val volumes = audioVolumes.value.normalized()
+        val passive = passiveSignalSettings.value
+        alertSoundPreview.previewRsrqWhiteNoise(
+            clickVolume = volumes.lowSignalClickVolume,
+            whiteNoiseMix = passive.rsrqTierWhiteNoiseVolume,
+            pulseDurationMs = passive.rsrqTierPulseDurationMs
         )
     }
 
@@ -556,7 +615,8 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
     fun updatePassiveSignalSettings(settings: PassiveSignalSettings) {
         val normalized = SettingsCompatibility.normalizePassiveSignalSettings(
             settings,
-            MonitorState.audioVolumes.value.signalPulseDurationMs
+            MonitorState.audioVolumes.value.signalPulseDurationMs,
+            MonitorState.audioVolumes.value.levelRangeBcdPulseDurationMs
         )
         passiveSignalSettingsRepository.save(normalized)
         MonitorState.setPassiveSignalSettings(normalized)
@@ -570,7 +630,6 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         val normalized = settings.normalized()
         passiveMockSettingsRepository.save(normalized)
         MonitorState.setPassiveMockSettings(normalized)
-        applyMockSignalIfActive()
     }
 
     fun refreshCellularSignal() {
@@ -589,20 +648,7 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private fun applyMockSignalIfActive(): Boolean {
-        val mock = MonitorState.passiveMockSettings.value
-        val currentStats = MonitorState.stats.value
-        if (!mock.enabled || !MonitorState.isRunning.value || !currentStats.isPassiveOnlySession) {
-            return false
-        }
-        MonitorState.updateStats(
-            mock.toConnectivityStats(
-                monitor2gFallback = MonitorState.monitoringSettings.value.monitor2gFallback,
-                passiveSettings = MonitorState.passiveSignalSettings.value,
-                passiveIdleMode = currentStats.isPassiveIdleMode,
-                passiveOnlySession = true
-            )
-        )
-        return true
+        return MonitorState.pushMockStatsIfActive()
     }
 
     private fun updateThresholds(settings: ThresholdSettings) {
@@ -629,10 +675,11 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         MonitorState.setAudioVolumes(normalized)
     }
 
-    private fun reconcilePassiveTierClickIntervals(signalPulseDurationMs: Int) {
+    private fun reconcilePassiveTierClickIntervals(audioVolumes: AudioVolumeSettings) {
         val reconciled = SettingsCompatibility.normalizePassiveSignalSettings(
             MonitorState.passiveSignalSettings.value,
-            signalPulseDurationMs
+            audioVolumes.signalPulseDurationMs,
+            audioVolumes.levelRangeBcdPulseDurationMs
         )
         if (reconciled != MonitorState.passiveSignalSettings.value) {
             passiveSignalSettingsRepository.save(reconciled)

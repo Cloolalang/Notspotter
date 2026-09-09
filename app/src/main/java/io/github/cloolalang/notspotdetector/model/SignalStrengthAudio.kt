@@ -1,35 +1,57 @@
 package io.github.cloolalang.notspotdetector.model
 
 enum class SignalStrengthTier {
-    /** Strongest RSRP band below very strong — tier 2. */
+    /** RXSS 2 — Level Range A (highest RSRP band below very strong). */
     MILD,
-    /** Between fair and mild — tier 3. */
+    /** RXSS 3 — Level Range B. */
     GOOD,
-    /** Mid RSRP band — tier 4. */
+    /** RXSS 4 — Level Range C. */
     FAIR,
-    /** Weak RSRP band — tier 5. */
+    /** RXSS 5 — Level Range D. */
     POOR,
-    /** Weakest usable RSRP or critical RSRQ — tier 6. */
+    /** RXSS 6 — Signal low (weakest usable RSRP band). */
     CRITICAL,
-    /** 2G fallback only — RX level above fixed threshold — tier 7. */
+    /** RXSS 7 — 2G good signal. */
     G2_STRONG,
-    /** 2G fallback only — RX level at or below fixed threshold — tier 8. */
+    /** RXSS 8 — 2G weak. */
     G2_WEAK,
-    /** Complete dead zone — no signal on any technology — tier 9. */
-    DEADZONE;
+    /** RXSS 15 — Home 2G no signal (debounced). */
+    G2_NO_SIGNAL,
+    /** RXSS 0 — Dead zone. */
+    DEADZONE,
+    /** RXSS 10 — 4G/5G no signal (debounced). */
+    NO_SIGNAL,
+    /** RXSS 11 — Searching for home 2G. */
+    SEARCHING_2G,
+    /** RXSS 12 — Limited service alt 4G. */
+    LIMITED_SERVICE,
+    /** RXSS 13 — Limited alt 2G. */
+    LIMITED_ALT_2G,
+    /** RXSS 14 — RSRQ poor (overlay). */
+    RSRQ_POOR;
 
-    /** UI tier number: 2 (mild) through 6 (critical); 7–9 are special tiers. Tier 1 is very strong RSRP. */
-    val displayNumber: Int
+    /** RX Signal State catalogue number — see [RXSS_CATALOGUE.md]. */
+    val rxssNumber: Int
         get() = when (this) {
-            MILD -> 2
-            GOOD -> 3
-            FAIR -> 4
-            POOR -> 5
-            CRITICAL -> 6
-            G2_STRONG -> G2_STRONG_TIER_NUMBER
-            G2_WEAK -> G2_WEAK_TIER_NUMBER
-            DEADZONE -> DEADZONE_TIER_NUMBER
+            MILD -> Rxss.LEVEL_RANGE_A
+            GOOD -> Rxss.LEVEL_RANGE_B
+            FAIR -> Rxss.LEVEL_RANGE_C
+            POOR -> Rxss.LEVEL_RANGE_D
+            CRITICAL -> Rxss.SIGNAL_LOW
+            G2_STRONG -> Rxss.G2_GOOD
+            G2_WEAK -> Rxss.G2_WEAK
+            G2_NO_SIGNAL -> Rxss.HOME_2G_NO_SIGNAL
+            DEADZONE -> Rxss.DEADZONE
+            NO_SIGNAL -> Rxss.LTE_NR_NO_SIGNAL
+            SEARCHING_2G -> Rxss.SEARCH_HOME_2G
+            LIMITED_SERVICE -> Rxss.LIMITED_ALT_4G
+            LIMITED_ALT_2G -> Rxss.LIMITED_ALT_2G
+            RSRQ_POOR -> Rxss.RSRQ_POOR
         }
+
+    /** @deprecated Renamed to [rxssNumber] — same value. */
+    val displayNumber: Int
+        get() = rxssNumber
 
     val intervalMs: Long
         get() = when (this) {
@@ -40,7 +62,27 @@ enum class SignalStrengthTier {
             CRITICAL -> 500L
             G2_STRONG -> 2_000L
             G2_WEAK -> 500L
+            G2_NO_SIGNAL -> 600L
             DEADZONE -> 250L
+            NO_SIGNAL -> 600L
+            SEARCHING_2G -> 600L
+            LIMITED_SERVICE -> 900L
+            LIMITED_ALT_2G -> 600L
+            RSRQ_POOR -> 800L
+        }
+
+    val isCampStateTier: Boolean
+        get() = when (this) {
+            G2_STRONG,
+            G2_WEAK,
+            G2_NO_SIGNAL,
+            DEADZONE,
+            NO_SIGNAL,
+            SEARCHING_2G,
+            LIMITED_SERVICE,
+            LIMITED_ALT_2G,
+            RSRQ_POOR -> true
+            else -> false
         }
 
     val pulseDurationRatio: Float
@@ -51,7 +93,7 @@ enum class SignalStrengthTier {
     }
 }
 
-/** Passive signal tier for the latest RSRP/RSRQ measurement (UI and diagnostics). */
+/** Classified RX Signal State for the latest RSRP/RSRQ measurement (UI and diagnostics). */
 enum class SignalMeasurementTier {
     VERY_STRONG,
     MILD,
@@ -61,39 +103,286 @@ enum class SignalMeasurementTier {
     CRITICAL,
     G2_STRONG,
     G2_WEAK,
+    G2_NO_SIGNAL,
     DEADZONE,
     NO_SIGNAL,
+    SEARCHING_2G,
     LIMITED_SERVICE,
+    LIMITED_ALT_2G,
+    /** RXSS **20** — limited visited 4G/5G camp, no usable RSRP. */
+    LIMITED_4G_NO_SIGNAL,
+    /** RXSS **23** — limited visited 2G camp, no usable RX. */
+    LIMITED_ALT_2G_NO_SIGNAL,
+    RSRQ_POOR,
     PERMISSION_REQUIRED,
     UNAVAILABLE;
 
-    /** UI tier number 1 (best) through 9 (dead zone), or null for non-tier states. */
-    val displayNumber: Int?
+    /** RX Signal State catalogue number, or null for non-RXSS states. */
+    val rxssNumber: Int?
         get() = when (this) {
-            VERY_STRONG -> VERY_STRONG_TIER_NUMBER
-            MILD -> SignalStrengthTier.MILD.displayNumber
-            GOOD -> SignalStrengthTier.GOOD.displayNumber
-            FAIR -> SignalStrengthTier.FAIR.displayNumber
-            POOR -> SignalStrengthTier.POOR.displayNumber
-            CRITICAL -> SignalStrengthTier.CRITICAL.displayNumber
-            G2_STRONG -> G2_STRONG_TIER_NUMBER
-            G2_WEAK -> G2_WEAK_TIER_NUMBER
-            DEADZONE -> DEADZONE_TIER_NUMBER
+            VERY_STRONG -> Rxss.SIGNAL_HIGH
+            MILD -> SignalStrengthTier.MILD.rxssNumber
+            GOOD -> SignalStrengthTier.GOOD.rxssNumber
+            FAIR -> SignalStrengthTier.FAIR.rxssNumber
+            POOR -> SignalStrengthTier.POOR.rxssNumber
+            CRITICAL -> SignalStrengthTier.CRITICAL.rxssNumber
+            G2_STRONG -> Rxss.G2_GOOD
+            G2_WEAK -> Rxss.G2_WEAK
+            G2_NO_SIGNAL -> Rxss.HOME_2G_NO_SIGNAL
+            DEADZONE -> Rxss.DEADZONE
+            NO_SIGNAL -> Rxss.LTE_NR_NO_SIGNAL
+            SEARCHING_2G -> Rxss.SEARCH_HOME_2G
+            LIMITED_SERVICE -> Rxss.LIMITED_ALT_4G
+            LIMITED_ALT_2G -> Rxss.LIMITED_ALT_2G
+            LIMITED_4G_NO_SIGNAL -> Rxss.LIMITED_4G_NO_SIGNAL
+            LIMITED_ALT_2G_NO_SIGNAL -> Rxss.LIMITED_ALT_2G_NO_SIGNAL
+            RSRQ_POOR -> Rxss.RSRQ_POOR
             else -> null
         }
+
+    /** @deprecated Renamed to [rxssNumber] — same value. */
+    val displayNumber: Int?
+        get() = rxssNumber
+
+    fun toStrengthTier(): SignalStrengthTier? = when (this) {
+        G2_NO_SIGNAL -> SignalStrengthTier.G2_NO_SIGNAL
+        DEADZONE -> SignalStrengthTier.DEADZONE
+        NO_SIGNAL -> SignalStrengthTier.NO_SIGNAL
+        SEARCHING_2G -> SignalStrengthTier.SEARCHING_2G
+        LIMITED_SERVICE -> SignalStrengthTier.LIMITED_SERVICE
+        LIMITED_ALT_2G -> SignalStrengthTier.LIMITED_ALT_2G
+        RSRQ_POOR -> SignalStrengthTier.RSRQ_POOR
+        else -> null
+    }
+
+    /** True when this measurement maps to an RXSS row with Signal = No (catalogue). */
+    fun isNoSignalRxss(): Boolean {
+        val number = rxssNumber ?: return false
+        return number in Rxss.NO_SIGNAL_RXSS_NUMBERS
+    }
 }
 
-/** RSRP tier 1 — above [PassiveSignalSettings.veryStrongRsrpMinDbm]. */
-const val VERY_STRONG_TIER_NUMBER = 1
+/**
+ * Limited-service camp with no usable signal (RXSS **20** / **23** and related placeholders),
+ * before those rows are classified directly in [resolveSignalMeasurementTier].
+ */
+fun ConnectivityStats.isLimitedServiceNoSignalCamp(
+    settings: PassiveSignalSettings = PassiveSignalSettings()
+): Boolean {
+    if (!isLimitedService) return false
+    if (isLimitedServiceAlt2g()) {
+        if (!hasHomeGsmSignal && rsrpDbm == null) return true
+        return isRsrpTooWeakForService(settings)
+    }
+    if (usesG2SignalTiers()) return false
+    return isRsrpTooWeakForService(settings) || rsrpDbm == null
+}
 
-/** 2G fallback tier 7 — RX level at or above [PassiveSignalSettings.G2_TIER_RX_LEVEL_SPLIT_DBM]. */
-const val G2_STRONG_TIER_NUMBER = 7
+/**
+ * Concurrent RXSS 1–6 (limited 4G) or 7 or 8 (limited visited 2G) while camped on 12 or 13.
+ * Null when the no-signal overlay (20 or 23) applies.
+ */
+/** True when limited service has a concurrent RXSS 1–6 or 7–8 overlay (not 20/23). */
+fun ConnectivityStats.shouldPlayLimitedServiceSignalOverlay(
+    settings: PassiveSignalSettings = PassiveSignalSettings()
+): Boolean {
+    if (!isMonitoring || !isLimitedService) return false
+    return resolveLimitedServiceSignalOverlayRxss(settings) != null
+}
 
-/** 2G fallback tier 8 — RX level below [PassiveSignalSettings.G2_TIER_RX_LEVEL_SPLIT_DBM]. */
-const val G2_WEAK_TIER_NUMBER = 8
+fun ConnectivityStats.resolveLimitedServiceSignalOverlayRxss(
+    settings: PassiveSignalSettings = PassiveSignalSettings()
+): Int? {
+    if (!isLimitedService || isLimitedServiceNoSignalCamp(settings)) return null
+    if (isLimitedServiceAlt2g()) {
+        return when (settings.resolveG2SignalStrengthTier(rsrpDbm)) {
+            SignalStrengthTier.G2_STRONG -> Rxss.G2_GOOD
+            SignalStrengthTier.G2_WEAK -> Rxss.G2_WEAK
+            else -> null
+        }
+    }
+    if (usesG2SignalTiers()) return null
+    val rsrp = rsrpDbm ?: return null
+    if (isRsrpTooWeakForService(settings)) return null
+    if (settings.isVeryStrongRsrp(rsrp)) return Rxss.SIGNAL_HIGH
+    return settings.resolveSignalStrengthTier(rsrp)?.rxssNumber
+}
 
-/** Dead zone tier 9 — out of service on all technologies with no SOS on any SIM. */
-const val DEADZONE_TIER_NUMBER = 9
+/** Primary RXSS is a catalogue no-signal row (Signal = No). */
+fun ConnectivityStats.isInNoSignalRxss(
+    settings: PassiveSignalSettings = PassiveSignalSettings()
+): Boolean {
+    if (isLimitedServiceNoSignalCamp(settings)) return true
+    return resolveSignalMeasurementTier(settings).isNoSignalRxss()
+}
+
+/** Whether **VA-10** cell-reselect voice may fire on this poll. */
+fun ConnectivityStats.shouldAllowCellReselectVoice(
+    settings: PassiveSignalSettings = PassiveSignalSettings()
+): Boolean {
+    if (!isMonitoring) return false
+    return !isInNoSignalRxss(settings)
+}
+
+/** Whether **VA-16** “2 G” periodic camp voice may fire on this poll. */
+fun ConnectivityStats.shouldAllowG2CampedPeriodicVoice(
+    settings: PassiveSignalSettings = PassiveSignalSettings()
+): Boolean {
+    if (!isMonitoring || !usesG2SignalTiers()) return false
+    if (isLimitedServiceAlt2g()) return false
+    if (shouldAllowLimitedServicePeriodicVoice(settings)) return false
+    if (shouldPlayG2NoSignalVoiceAnnouncements(settings)) return false
+    if (isG2WeakSignal(settings)) return false
+    return !isInNoSignalRxss(settings)
+}
+
+/** Whether **VA-14** limited-service periodic voice may fire on this poll. */
+fun ConnectivityStats.shouldAllowLimitedServicePeriodicVoice(
+    settings: PassiveSignalSettings = PassiveSignalSettings()
+): Boolean {
+    if (!isMonitoring || isPassiveIdleMode) return false
+    if (!isLimitedService) return false
+    if (shouldPlayLimitedServiceSignalOverlay(settings)) return false
+    return !isInNoSignalRxss(settings)
+}
+
+/** Whether **VA-18** 2G weak “signal low” periodic voice may fire on this poll. */
+fun ConnectivityStats.shouldAllowG2WeakPeriodicVoice(
+    settings: PassiveSignalSettings = PassiveSignalSettings()
+): Boolean {
+    if (!isMonitoring) return false
+    if (isLimitedServiceAlt2g()) {
+        return isG2WeakSignal(settings)
+    }
+    if (!usesG2SignalTiers()) return false
+    if (shouldAllowLimitedServicePeriodicVoice(settings)) return false
+    if (!isG2WeakSignal(settings)) return false
+    return !isInNoSignalRxss(settings)
+}
+
+/** RXSS **6** on limited 4G overlay, or RXSS **8** on limited visited 2G overlay. */
+fun ConnectivityStats.isSignalLowVoiceCamp(
+    settings: PassiveSignalSettings = PassiveSignalSettings()
+): Boolean {
+    if (isLimitedServiceAlt2g()) return isG2WeakSignal(settings)
+    return isTier6CriticalSignal(settings)
+}
+
+/**
+ * RX Signal State catalogue numbers — see [RXSS_CATALOGUE.md].
+ * Implemented in the app: **0**, **1–9**, **10–15**, **14** (overlay), **20** / **23** (limited no-signal overlays), **28–30** (technology change).
+ */
+object Rxss {
+    const val DEADZONE = 0
+    const val SIGNAL_HIGH = 1
+    const val LEVEL_RANGE_A = 2
+    const val LEVEL_RANGE_B = 3
+    const val LEVEL_RANGE_C = 4
+    const val LEVEL_RANGE_D = 5
+    const val SIGNAL_LOW = 6
+    const val G2_GOOD = 7
+    const val G2_WEAK = 8
+    /** Momentary event — LTE/NR/2G cell reselect (PCI, EARFCN, or BSIC change). */
+    const val CELL_CHANGE = 9
+    /** Momentary event — camped on 2G after RAT change. */
+    const val TECH_CHANGE_TO_2G = 28
+    /** Momentary event — camped on LTE after RAT change. */
+    const val TECH_CHANGE_TO_4G = 29
+    /** Momentary event — camped on NR or EN-DC after RAT change. */
+    const val TECH_CHANGE_TO_5G_ENDC = 30
+    const val LTE_NR_NO_SIGNAL = 10
+    const val SEARCH_HOME_2G = 11
+    const val LIMITED_ALT_4G = 12
+    const val LIMITED_ALT_2G = 13
+    const val RSRQ_POOR = 14
+    const val HOME_2G_NO_SIGNAL = 15
+
+    /** Placeholder — not yet classified in live detection. */
+    const val LIMITED_HOME_4G = 19
+    const val LIMITED_4G_NO_SIGNAL = 20
+    const val LIMITED_HOME_2G_NO_SIGNAL = 21
+    const val LIMITED_HOME_2G = 22
+    const val LIMITED_ALT_2G_NO_SIGNAL = 23
+    const val SEARCH_HOME_4G_FROM_LOSS = 24
+    const val SEARCH_ALT_4G_FROM_LOSS = 25
+    const val LIMITED_ALT_4G_NO_SIGNAL_SUSPENDED = 26
+    const val LIMITED_ALT_2G_NO_SIGNAL_SUSPENDED = 27
+
+    /** RXSS rows whose Signal column is **No** in [RXSS_CATALOGUE.md] — no VA-10 cell reselect voice. */
+    val NO_SIGNAL_RXSS_NUMBERS = setOf(
+        DEADZONE,
+        LTE_NR_NO_SIGNAL,
+        HOME_2G_NO_SIGNAL,
+        LIMITED_4G_NO_SIGNAL,
+        LIMITED_HOME_2G_NO_SIGNAL,
+        LIMITED_ALT_2G_NO_SIGNAL,
+        LIMITED_ALT_4G_NO_SIGNAL_SUSPENDED,
+        LIMITED_ALT_2G_NO_SIGNAL_SUSPENDED
+    )
+}
+
+/** @deprecated Use [Rxss.SIGNAL_HIGH]. */
+const val VERY_STRONG_TIER_NUMBER = Rxss.SIGNAL_HIGH
+
+/** @deprecated Use [Rxss.G2_GOOD]. */
+const val G2_STRONG_TIER_NUMBER = Rxss.G2_GOOD
+
+/** @deprecated Use [Rxss.G2_WEAK]. */
+const val G2_WEAK_TIER_NUMBER = Rxss.G2_WEAK
+
+/** @deprecated Use [Rxss.CELL_CHANGE]. */
+const val CELL_CHANGE_RXSS_NUMBER = Rxss.CELL_CHANGE
+
+/** @deprecated Use [Rxss.DEADZONE]. */
+const val DEADZONE_TIER_NUMBER = Rxss.DEADZONE
+
+/** @deprecated Use [Rxss.DEADZONE]. */
+const val DEADZONE_RXSS_CATALOGUE_NUMBER = Rxss.DEADZONE
+
+/** @deprecated Use [Rxss.LTE_NR_NO_SIGNAL]. */
+const val NO_SIGNAL_TIER_NUMBER = Rxss.LTE_NR_NO_SIGNAL
+
+/** @deprecated Use [Rxss.SEARCH_HOME_2G]. */
+const val SEARCHING_2G_TIER_NUMBER = Rxss.SEARCH_HOME_2G
+
+/** @deprecated Use [Rxss.LIMITED_ALT_4G]. */
+const val LIMITED_SERVICE_TIER_NUMBER = Rxss.LIMITED_ALT_4G
+
+/** @deprecated Use [Rxss.LIMITED_ALT_2G]. */
+const val LIMITED_ALT_2G_TIER_NUMBER = Rxss.LIMITED_ALT_2G
+
+/** @deprecated Use [Rxss.RSRQ_POOR]. */
+const val RSRQ_POOR_TIER_NUMBER = Rxss.RSRQ_POOR
+
+/** @deprecated Use [Rxss.HOME_2G_NO_SIGNAL]. */
+const val G2_NO_SIGNAL_TIER_NUMBER = Rxss.HOME_2G_NO_SIGNAL
+
+/** @deprecated Use [Rxss.LIMITED_HOME_4G]. Not yet implemented. */
+const val LIMITED_HOME_4G_TIER_NUMBER = Rxss.LIMITED_HOME_4G
+
+/** @deprecated Use [Rxss.LIMITED_4G_NO_SIGNAL]. Placeholder only. */
+const val LIMITED_4G_NO_SIGNAL_TIER_NUMBER = Rxss.LIMITED_4G_NO_SIGNAL
+
+/** @deprecated Use [Rxss.LIMITED_HOME_2G_NO_SIGNAL]. Placeholder only. */
+const val LIMITED_HOME_2G_NO_SIGNAL_TIER_NUMBER = Rxss.LIMITED_HOME_2G_NO_SIGNAL
+
+/** @deprecated Use [Rxss.LIMITED_HOME_2G]. Placeholder only. */
+const val LIMITED_HOME_2G_TIER_NUMBER = Rxss.LIMITED_HOME_2G
+
+/** @deprecated Use [Rxss.LIMITED_ALT_2G_NO_SIGNAL]. Placeholder only. */
+const val LIMITED_ALT_2G_NO_SIGNAL_TIER_NUMBER = Rxss.LIMITED_ALT_2G_NO_SIGNAL
+
+/** @deprecated Use [Rxss.SEARCH_HOME_4G_FROM_LOSS]. Placeholder only. */
+const val SEARCH_HOME_4G_FROM_LOSS_TIER_NUMBER = Rxss.SEARCH_HOME_4G_FROM_LOSS
+
+/** @deprecated Use [Rxss.SEARCH_ALT_4G_FROM_LOSS]. Placeholder only. */
+const val SEARCH_ALT_4G_FROM_LOSS_TIER_NUMBER = Rxss.SEARCH_ALT_4G_FROM_LOSS
+
+/** @deprecated Use [Rxss.LIMITED_ALT_4G_NO_SIGNAL_SUSPENDED]. Placeholder only. */
+const val LIMITED_ALT_4G_NO_SIGNAL_SUSPENDED_TIER_NUMBER = Rxss.LIMITED_ALT_4G_NO_SIGNAL_SUSPENDED
+
+/** @deprecated Use [Rxss.LIMITED_ALT_2G_NO_SIGNAL_SUSPENDED]. Placeholder only. */
+const val LIMITED_ALT_2G_NO_SIGNAL_SUSPENDED_TIER_NUMBER = Rxss.LIMITED_ALT_2G_NO_SIGNAL_SUSPENDED
 
 const val DEFAULT_SIGNAL_PULSE_DURATION_MS = AudioVolumeSettings.DEFAULT_SIGNAL_PULSE_DURATION_MS
 const val MIN_SIGNAL_PULSE_DURATION_MS = AudioVolumeSettings.MIN_SIGNAL_PULSE_DURATION_MS
@@ -135,10 +424,10 @@ fun CellularRadioMetrics.hasUsableSignalForMonitoring(
     monitor2gFallback: Boolean,
     settings: PassiveSignalSettings = PassiveSignalSettings()
 ): Boolean {
+    if (isLimitedService) return true
     if (rsrpDbm != null && settings.isRsrpTooWeakForService(rsrpDbm)) return false
 
     return when {
-        isLimitedService -> true
         isOn2g && !monitor2gFallback -> true
         isOn2g && monitor2gFallback -> radioAccessType != null || rsrpDbm != null
         else -> radioAccessType != null || rsrpDbm != null || rsrqDb != null
@@ -153,7 +442,7 @@ fun ConnectivityStats.resolveSignalStrengthTier(
     if (usesG2SignalTiers()) {
         return settings.resolveG2SignalStrengthTier(rsrpDbm)
     }
-    return settings.resolveSignalStrengthTier(rsrpDbm, rsrqDb)
+    return settings.resolveSignalStrengthTier(rsrpDbm)
 }
 
 fun ConnectivityStats.usesG2SignalTiers(): Boolean {
@@ -185,17 +474,40 @@ fun ConnectivityStats.resolveG2SignalStrengthTier(
 }
 
 /**
- * Classifies the latest cellular measurement into a passive signal tier for display.
+ * Classifies the latest cellular measurement into an RXSS for display.
  * Uses the same RSRP/RSRQ boundaries as alert clicks, without alert-play gating.
  */
 fun ConnectivityStats.resolveSignalMeasurementTier(
     settings: PassiveSignalSettings = PassiveSignalSettings()
 ): SignalMeasurementTier {
     if (!signalPermissionGranted) return SignalMeasurementTier.PERMISSION_REQUIRED
-    if (isLimitedService) return SignalMeasurementTier.LIMITED_SERVICE
+    if (isLimitedService) {
+        if (isLimitedServiceNoSignalCamp(settings)) {
+            return if (isLimitedServiceAlt2g()) {
+                SignalMeasurementTier.LIMITED_ALT_2G_NO_SIGNAL
+            } else {
+                SignalMeasurementTier.LIMITED_4G_NO_SIGNAL
+            }
+        }
+        return if (isLimitedServiceAlt2g()) {
+            SignalMeasurementTier.LIMITED_ALT_2G
+        } else {
+            SignalMeasurementTier.LIMITED_SERVICE
+        }
+    }
     if (isMonitoring && isCompleteNoService) return SignalMeasurementTier.DEADZONE
+    if (isMonitoring && searching2gFallbackActive) return SignalMeasurementTier.SEARCHING_2G
+    if (isMonitoring && noSignalActive && usesG2SignalTiers()) {
+        return SignalMeasurementTier.G2_NO_SIGNAL
+    }
     if (isMonitoring && noSignalActive) return SignalMeasurementTier.NO_SIGNAL
-    if (isRsrpTooWeakForService(settings)) return SignalMeasurementTier.NO_SIGNAL
+    if (isRsrpTooWeakForService(settings)) {
+        return if (usesG2SignalTiers()) {
+            SignalMeasurementTier.G2_NO_SIGNAL
+        } else {
+            SignalMeasurementTier.NO_SIGNAL
+        }
+    }
     if (!cellularAvailable && rsrpDbm == null && rsrqDb == null) {
         return SignalMeasurementTier.UNAVAILABLE
     }
@@ -204,7 +516,7 @@ fun ConnectivityStats.resolveSignalMeasurementTier(
         return when (settings.resolveG2SignalStrengthTier(rsrpDbm)) {
             SignalStrengthTier.G2_STRONG -> SignalMeasurementTier.G2_STRONG
             SignalStrengthTier.G2_WEAK -> SignalMeasurementTier.G2_WEAK
-            null -> SignalMeasurementTier.NO_SIGNAL
+            null -> SignalMeasurementTier.G2_NO_SIGNAL
             else -> SignalMeasurementTier.UNAVAILABLE
         }
     }
@@ -222,29 +534,79 @@ fun ConnectivityStats.resolveSignalMeasurementTier(
         SignalStrengthTier.CRITICAL -> SignalMeasurementTier.CRITICAL
         SignalStrengthTier.G2_STRONG -> SignalMeasurementTier.G2_STRONG
         SignalStrengthTier.G2_WEAK -> SignalMeasurementTier.G2_WEAK
+        SignalStrengthTier.G2_NO_SIGNAL -> SignalMeasurementTier.G2_NO_SIGNAL
         SignalStrengthTier.DEADZONE -> SignalMeasurementTier.DEADZONE
+        SignalStrengthTier.NO_SIGNAL -> SignalMeasurementTier.NO_SIGNAL
+        SignalStrengthTier.SEARCHING_2G -> SignalMeasurementTier.SEARCHING_2G
+        SignalStrengthTier.LIMITED_SERVICE -> SignalMeasurementTier.LIMITED_SERVICE
+        SignalStrengthTier.LIMITED_ALT_2G -> SignalMeasurementTier.LIMITED_ALT_2G
+        SignalStrengthTier.RSRQ_POOR -> SignalMeasurementTier.RSRQ_POOR
         null -> SignalMeasurementTier.UNAVAILABLE
     }
 }
 
-/** True when the latest measurement maps to passive signal tier 5 (poor RSRP band). */
+/** True when the latest measurement maps to RXSS 5 (Level Range D / poor RSRP band). */
 fun ConnectivityStats.isTier5PoorSignal(
     settings: PassiveSignalSettings = PassiveSignalSettings()
 ): Boolean {
-    return resolveSignalMeasurementTier(settings) == SignalMeasurementTier.POOR
+    if (!signalPermissionGranted) return false
+    if (isLimitedService) {
+        if (isLimitedServiceAlt2g() || isLimitedServiceNoSignalCamp(settings)) return false
+        return settings.resolveSignalStrengthTier(rsrpDbm) == SignalStrengthTier.POOR
+    }
+    if (usesG2SignalTiers()) return false
+    return settings.resolveSignalStrengthTier(rsrpDbm) == SignalStrengthTier.POOR
 }
 
-/** Tier used for passive click interval when noisy RSRQ clicks may suppress RSRQ-driven rate increases. */
+/** True when the latest measurement maps to RXSS 6 (signal low / critical RSRP band). */
+fun ConnectivityStats.isTier6CriticalSignal(
+    settings: PassiveSignalSettings = PassiveSignalSettings()
+): Boolean {
+    if (!signalPermissionGranted) return false
+    if (isLimitedService) {
+        if (isLimitedServiceAlt2g() || isLimitedServiceNoSignalCamp(settings)) return false
+        return settings.resolveSignalStrengthTier(rsrpDbm) == SignalStrengthTier.CRITICAL
+    }
+    if (usesG2SignalTiers()) return false
+    return settings.resolveSignalStrengthTier(rsrpDbm) == SignalStrengthTier.CRITICAL
+}
+
+/** True when camped on home 2G with weak RX (RXSS 8), above the no-signal threshold. */
+fun ConnectivityStats.isG2WeakSignal(
+    settings: PassiveSignalSettings = PassiveSignalSettings()
+): Boolean {
+    if (!signalPermissionGranted || !usesG2SignalTiers()) return false
+    if (isLimitedService && !isLimitedServiceAlt2g()) return false
+    if (isLimitedServiceNoSignalCamp(settings)) return false
+    if (noSignalActive || isRsrpTooWeakForService(settings)) return false
+    return settings.resolveG2SignalStrengthTier(rsrpDbm) == SignalStrengthTier.G2_WEAK
+}
+
+/** RXSS 6 — periodic “signal low” reminders (**VA-15**). RXSS 5 (Level Range D) is signal pulses only. */
+fun ConnectivityStats.shouldPlayTier5StylePeriodicVoice(
+    settings: PassiveSignalSettings = PassiveSignalSettings()
+): Boolean {
+    return isSignalLowVoiceCamp(settings)
+}
+
+/** RXSS used for passive RSRP click interval (RSRQ overlay is RXSS 14, separate). */
 fun ConnectivityStats.resolvePassiveClickRateTier(
     settings: PassiveSignalSettings = PassiveSignalSettings()
 ): SignalStrengthTier? {
     if (!signalPermissionGranted) return null
     if (isRsrpTooWeakForService(settings)) return null
+    if (isLimitedService && !isLimitedServiceNoSignalCamp(settings)) {
+        if (isLimitedServiceAlt2g()) {
+            return settings.resolveG2SignalStrengthTier(rsrpDbm)
+        }
+        if (!usesG2SignalTiers()) {
+            return settings.resolveSignalStrengthTier(rsrpDbm)
+        }
+    }
     if (usesG2SignalTiers()) {
         return settings.resolveG2SignalStrengthTier(rsrpDbm)
     }
-    val ignoreRsrqForRate = isPassiveOnlySession && settings.shouldUseNoisyRsrqPassiveClick(rsrqDb)
-    return settings.resolveSignalStrengthTier(rsrpDbm, rsrqDb, ignoreRsrqForRate = ignoreRsrqForRate)
+    return settings.resolveSignalStrengthTier(rsrpDbm)
 }
 
 fun ConnectivityStats.shouldPlayWeakSignalTier(
@@ -255,7 +617,6 @@ fun ConnectivityStats.shouldPlayWeakSignalTier(
         return resolveG2SignalStrengthTier(settings) != null
     }
     if (shouldPlayVeryStrongSignalIndicator(settings)) return false
-    if (rsrqDb != null && rsrqDb < settings.criticalRsrqDb) return true
     val rsrp = rsrpDbm ?: return false
     return rsrp <= settings.veryStrongRsrpMinDbm
 }
@@ -271,7 +632,7 @@ fun ConnectivityStats.computeSignalStrengthClickIntervalMs(
         settings.veryStrongTierClickIntervalMs.toLong()
     } else {
         resolvePassiveClickRateTier(settings)?.let { settings.clickIntervalMsForTier(it) }
-            ?: settings.fairTierClickIntervalMs.toLong()
+            ?: settings.levelRangeAbcdClickIntervalMs.toLong()
     }
     return SettingsCompatibility.resolveTierClickIntervalMs(
         configuredMs = configuredMs,
@@ -306,7 +667,8 @@ fun ConnectivityStats.shouldPlayVeryStrongSignalIndicator(
     settings: PassiveSignalSettings = PassiveSignalSettings()
 ): Boolean {
     if (usesG2SignalTiers()) return false
-    if (!isMonitoring || !cellularAvailable || shouldPlayFlatline(settings)) return false
+    if (!isMonitoring || shouldPlayFlatline(settings)) return false
+    if (!cellularAvailable && !shouldPlayLimitedServiceSignalOverlay(settings)) return false
     if (shouldPlayLimitedServiceTone()) return false
     if (shouldPlay2gLimitedServicePulse()) return false
     if (!signalPermissionGranted) return false

@@ -35,7 +35,68 @@ fun ConnectivityStats.shouldPlayFlatline(
     settings: PassiveSignalSettings = PassiveSignalSettings()
 ): Boolean {
     if (!isMonitoring) return false
+    if (!noSignalActive) return false
+    if (shouldPlayNoSignalCampTier(settings)) return false
+    if (shouldPlayG2NoSignalCampTier(settings)) return false
+    if (shouldPlaySearching2gCampTier(settings)) return false
+    return true
+}
+
+/** No-signal flatline while camped on 2G with 2G monitoring enabled — legacy flatline tone path. */
+fun ConnectivityStats.isG2FlatlineActive(
+    settings: PassiveSignalSettings = PassiveSignalSettings()
+): Boolean {
+    return usesG2SignalTiers() && shouldPlayFlatline(settings)
+}
+
+/**
+ * Home 2G no signal (RXSS 15) voice — entry, exit, and 30 s repeats.
+ * Uses [noSignalActive] on the 2G fallback path; independent of camp-tier click sound toggles.
+ */
+fun ConnectivityStats.shouldPlayG2NoSignalVoiceAnnouncements(
+    settings: PassiveSignalSettings = PassiveSignalSettings()
+): Boolean {
+    if (!isMonitoring || isPassiveIdleMode) return false
+    if (!usesG2SignalTiers()) return false
+    if (searching2gFallbackActive || isCompleteNoService || isLimitedService) return false
     return noSignalActive
+}
+
+/**
+ * Skip “Signal restored” when recovery should use the tier 5 announcer (“signal low”) instead:
+ * - dead zone → tier 5 (poor)
+ * - tier 10 (LTE/NR no signal camp) → tier 6 (critical) only — tier 10 → tier 5 keeps “Signal restored”.
+ */
+fun shouldSuppressSignalRestoredForWeakSignalRecovery(
+    previous: ConnectivityStats,
+    next: ConnectivityStats,
+    previousNoSignalActive: Boolean,
+    nextNoSignalActive: Boolean,
+    settings: PassiveSignalSettings = PassiveSignalSettings()
+): Boolean {
+    if (previous.isCompleteNoService && !next.isCompleteNoService && next.isTier5PoorSignal(settings)) {
+        return true
+    }
+    if (!previousNoSignalActive || nextNoSignalActive || next.usesG2SignalTiers()) return false
+    return !previous.isCompleteNoService && next.isTier6CriticalSignal(settings)
+}
+
+/** RXSS **20** / **23** — visited limited-service no-signal voice (entry + 30 s repeats). */
+fun ConnectivityStats.shouldPlayLimitedVisitedNoSignalVoiceAnnouncements(
+    settings: PassiveSignalSettings = PassiveSignalSettings()
+): Boolean {
+    if (!isMonitoring || isPassiveIdleMode) return false
+    return isLimitedService && isLimitedServiceNoSignalCamp(settings)
+}
+
+/** No-signal voice reminders (immediate entry + 30 s repeats), including tier 10 camp state. */
+fun ConnectivityStats.shouldPlayNoSignalVoiceAnnouncements(
+    settings: PassiveSignalSettings = PassiveSignalSettings()
+): Boolean {
+    if (!isMonitoring || isPassiveIdleMode) return false
+    if (shouldPlayLimitedVisitedNoSignalVoiceAnnouncements(settings)) return true
+    if (usesG2SignalTiers() || isCompleteNoService) return false
+    return shouldPlayFlatline(settings) || shouldPlayNoSignalCampTier(settings)
 }
 
 /** Steady no-signal tone when out of service on all technologies and no SOS on any SIM. */
@@ -53,16 +114,25 @@ fun ConnectivityStats.shouldPlayContinuousFlatline(
 fun ConnectivityStats.shouldPlayLimitedServiceTone(): Boolean {
     if (!isMonitoring) return false
     if (!isLimitedService) return false
+    if (shouldPlayLimitedServiceCampTier()) return false
+    if (shouldPlayLimitedAlt2gCampTier()) return false
     if (shouldPlay2gLimitedServicePulse()) return false
+    if (shouldPlayLimitedServiceSignalOverlay()) return false
+    if (isLimitedServiceNoSignalCamp()) return false
     return true
 }
 
 /**
- * 300 ms on / 300 ms off while 2G monitoring is enabled, in limited service, with no home GSM signal.
+ * 300 ms on / 300 ms off while 2G monitoring is enabled, in limited service, with no home GSM signal
+ * and no measurable LTE/NR camp (transitional limited-service state before alt 2G).
  */
 fun ConnectivityStats.shouldPlay2gLimitedServicePulse(): Boolean {
     if (!isMonitoring) return false
     if (!isLimitedService || !monitor2gFallbackEnabled) return false
+    if (shouldPlayLimitedAlt2gCampTier()) return false
+    if (shouldPlayLimitedServiceSignalOverlay()) return false
+    if (isLimitedServiceNoSignalCamp()) return false
+    if (isOn2g || hasLteNrSignal) return false
     return !hasHomeGsmSignal
 }
 
@@ -72,7 +142,11 @@ fun ConnectivityStats.shouldPlay2gLimitedServicePulse(): Boolean {
 fun ConnectivityStats.shouldPlaySignalStrengthInterval(
     settings: PassiveSignalSettings = PassiveSignalSettings()
 ): Boolean {
-    if (!isMonitoring || !cellularAvailable) return false
+    if (!isMonitoring) return false
+    if (shouldPlayLimitedServiceSignalOverlay(settings)) {
+        return signalPermissionGranted && shouldPlayCurrentTierSignalPulse(settings)
+    }
+    if (!cellularAvailable) return false
     if (shouldPlayFlatline(settings)) return false
     if (shouldPlayLimitedServiceTone() || shouldPlay2gLimitedServicePulse()) return false
     if (!signalPermissionGranted) return false

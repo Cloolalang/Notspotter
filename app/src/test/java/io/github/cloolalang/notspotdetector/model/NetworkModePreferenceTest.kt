@@ -1,0 +1,92 @@
+package io.github.cloolalang.notspotdetector.model
+
+import android.telephony.TelephonyManager
+import io.github.cloolalang.notspotdetector.network.CellularSignalReader
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class NetworkModePreferenceTest {
+
+    private val twoGMask = (
+        TelephonyManager.NETWORK_TYPE_BITMASK_GSM or
+            TelephonyManager.NETWORK_TYPE_BITMASK_GPRS or
+            TelephonyManager.NETWORK_TYPE_BITMASK_EDGE
+        ).toLong()
+    private val lteMask = (
+        TelephonyManager.NETWORK_TYPE_BITMASK_LTE or
+            TelephonyManager.NETWORK_TYPE_BITMASK_LTE_CA
+        ).toLong()
+    private val nrMask = TelephonyManager.NETWORK_TYPE_BITMASK_NR.toLong()
+
+    @Test
+    fun parseNetworkMode_zeroAllowed_isAllTechnologies() {
+        assertEquals(NetworkModePreference.ALL_TECHNOLOGIES, parseNetworkModeFromAllowedBitmask(0L))
+    }
+
+    @Test
+    fun parseNetworkMode_twoGOnly_isForced2g() {
+        assertEquals(NetworkModePreference.FORCED_2G, parseNetworkModeFromAllowedBitmask(twoGMask))
+    }
+
+    @Test
+    fun parseNetworkMode_lteOnly_isForcedLteNr() {
+        assertEquals(NetworkModePreference.FORCED_LTE_NR, parseNetworkModeFromAllowedBitmask(lteMask))
+    }
+
+    @Test
+    fun parseNetworkMode_nrOnly_isForcedNrOnly() {
+        assertEquals(NetworkModePreference.FORCED_NR_ONLY, parseNetworkModeFromAllowedBitmask(nrMask))
+    }
+
+    @Test
+    fun parseNetworkMode_lteAndNrWithout2g_isForcedLteNr() {
+        assertEquals(
+            NetworkModePreference.FORCED_LTE_NR,
+            parseNetworkModeFromAllowedBitmask(lteMask or nrMask)
+        )
+    }
+
+    @Test
+    fun parseNetworkMode_allBits_isAllTechnologies() {
+        assertEquals(
+            NetworkModePreference.ALL_TECHNOLOGIES,
+            parseNetworkModeFromAllowedBitmask(twoGMask or lteMask or nrMask)
+        )
+    }
+
+    @Test
+    fun forcedLteNr_doesNotAllow2gFallbackScan() {
+        assertFalse(NetworkModePreference.FORCED_LTE_NR.allows2gFallbackScan())
+        assertFalse(NetworkModePreference.FORCED_NR_ONLY.allows2gFallbackScan())
+        assertTrue(NetworkModePreference.ALL_TECHNOLOGIES.allows2gFallbackScan())
+        assertTrue(NetworkModePreference.FORCED_2G.allows2gFallbackScan())
+    }
+
+    @Test
+    fun computeSearching2gFallbackActive_requiresLteEpisodeAnd2gAllowed() {
+        val base = ConnectivityStats(
+            isMonitoring = true,
+            noSignalActive = true,
+            monitor2gFallbackEnabled = true,
+            networkModePreference = NetworkModePreference.ALL_TECHNOLOGIES
+        )
+
+        assertTrue(
+            computeSearching2gFallbackActive(base, CellularSignalReader.RADIO_4G)
+        )
+        assertFalse(
+            computeSearching2gFallbackActive(
+                base.copy(networkModePreference = NetworkModePreference.FORCED_LTE_NR),
+                CellularSignalReader.RADIO_4G
+            )
+        )
+        assertFalse(
+            computeSearching2gFallbackActive(base, CellularSignalReader.RADIO_2G)
+        )
+        assertFalse(
+            computeSearching2gFallbackActive(base.copy(isLimitedService = true), CellularSignalReader.RADIO_4G)
+        )
+    }
+}

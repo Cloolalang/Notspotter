@@ -10,12 +10,25 @@ object SignalStateAnnouncement {
         CellularSignalReader.RADIO_5G_ENDC
     )
 
+    /** Spoken phrase order: operator → tech → signal state → service state (when not implicit 4G/5G full service). */
+    internal const val PHRASE_SIGNAL_LOW = "signal low"
+    internal const val PHRASE_NO_SIGNAL = "no signal"
+    internal const val PHRASE_SIGNAL_RESTORED = "signal restored"
+    internal const val PHRASE_LIMITED_SERVICE = "limited service"
+    internal const val PHRASE_HOME_OPERATOR_ROLE = "home"
+    internal const val PHRASE_VISITED_OPERATOR_ROLE = "visited"
+    internal const val PHRASE_DEADZONE = "deadzone, no service, no SOS calls"
+    internal const val PHRASE_SEARCHING_2G = "searching 2 G"
+
     fun isLteNrRadioAccessType(radioAccessType: String?): Boolean {
         return radioAccessType != null && radioAccessType in LTE_NR_RADIO_TYPES
     }
 
-    fun previewTechnologyChange(networkOperatorName: String?): String {
-        return formatTechnologyChange(CellularSignalReader.RADIO_4G, networkOperatorName)
+    fun previewTechnologyChange(
+        networkOperatorName: String?,
+        target: TechnologyChangeTarget = TechnologyChangeTarget.TO_4G
+    ): String {
+        return formatTechnologyChange(target.radioAccessType, networkOperatorName)
     }
 
     fun previewTier5SignalLow(networkOperatorName: String?): String {
@@ -29,41 +42,76 @@ object SignalStateAnnouncement {
     fun previewLimitedService(networkOperatorName: String?): String {
         return formatLimitedServiceAnnouncement(
             homeOperatorName = networkOperatorName,
-            alternativeOperatorName = "E E",
+            visitedOperatorName = "E E",
             radioAccessType = CellularSignalReader.RADIO_4G
         )
     }
 
+    /** Operator + tech only (implicit 4G/5G full service — no service-state phrase). */
     fun formatTechnologyChange(radioAccessType: String, networkOperatorName: String?): String {
-        val tech = formatTechnologyForSpeech(radioAccessType)
-        return prefixNetworkOperator("Technology change, $tech", networkOperatorName)
+        return joinAnnouncementParts(
+            operatorNames = listOf(networkOperatorName),
+            radioAccessType = radioAccessType
+        )
     }
 
     fun formatTier5SignalLowAnnouncement(
         networkOperatorName: String?,
         radioAccessType: String?
     ): String {
-        val parts = buildList {
-            NetworkOperatorSpeech.formatForSpeech(networkOperatorName)?.let(::add)
-            radioAccessType?.takeIf { it.isNotBlank() }?.let {
-                add(formatTechnologyForSpeech(it))
-            }
-            add("signal low")
-        }
-        return parts.joinToString(", ")
+        return formatCampedSignalStateAnnouncement(
+            operatorSpeech = networkOperatorName?.let(NetworkOperatorSpeech::formatForSpeech),
+            radioAccessType = radioAccessType,
+            signalState = PHRASE_SIGNAL_LOW
+        )
+    }
+
+    fun formatTier5SignalLowAnnouncement(
+        stats: ConnectivityStats,
+        lastKnownRadioAccessType: String? = null
+    ): String {
+        return formatCampedSignalStateAnnouncement(
+            stats = stats,
+            lastKnownRadioAccessType = lastKnownRadioAccessType,
+            signalState = PHRASE_SIGNAL_LOW
+        )
     }
 
     fun formatNoSignalAnnouncement(
         networkOperatorName: String?,
         radioAccessType: String?
     ): String {
-        val parts = buildList {
-            NetworkOperatorSpeech.formatForSpeech(networkOperatorName)?.let(::add)
-            radioAccessType?.takeIf { it.isNotBlank() }?.let {
-                add(formatTechnologyForSpeech(it))
-            }
-            add("no signal")
+        return formatCampedSignalStateAnnouncement(
+            operatorSpeech = networkOperatorName?.let(NetworkOperatorSpeech::formatForSpeech),
+            radioAccessType = radioAccessType,
+            signalState = PHRASE_NO_SIGNAL
+        )
+    }
+
+    /** Operator → tech → signal state; camped visited PLMN uses `{operator} visited`. */
+    internal fun formatCampedSignalStateAnnouncement(
+        stats: ConnectivityStats,
+        lastKnownRadioAccessType: String? = null,
+        signalState: String
+    ): String {
+        return formatCampedSignalStateAnnouncement(
+            operatorSpeech = stats.formatCampedOperatorForSpeech(),
+            radioAccessType = stats.resolveNoSignalAnnouncementRadioAccessType(lastKnownRadioAccessType),
+            signalState = signalState
+        )
+    }
+
+    internal fun formatCampedSignalStateAnnouncement(
+        operatorSpeech: String?,
+        radioAccessType: String?,
+        signalState: String
+    ): String {
+        val parts = mutableListOf<String>()
+        operatorSpeech?.takeIf { it.isNotBlank() }?.let(parts::add)
+        radioAccessType?.takeIf { it.isNotBlank() }?.let {
+            parts.add(formatTechnologyForSpeech(it))
         }
+        parts.add(signalState)
         return parts.joinToString(", ")
     }
 
@@ -82,9 +130,11 @@ object SignalStateAnnouncement {
         networkOperatorName: String?,
         radioAccessType: String?
     ): String {
-        val tech = radioAccessType?.takeIf { it.isNotBlank() }?.let { formatTechnologyForSpeech(it) }
-        val message = if (tech != null) "Signal restored, $tech" else "Signal restored"
-        return prefixNetworkOperator(message, networkOperatorName)
+        return joinAnnouncementParts(
+            operatorNames = listOf(networkOperatorName),
+            radioAccessType = radioAccessType,
+            signalState = PHRASE_SIGNAL_RESTORED
+        )
     }
 
     fun formatNoSignalChange(stats: ConnectivityStats, lastKnownRadioAccessType: String? = null): String? {
@@ -96,59 +146,51 @@ object SignalStateAnnouncement {
     }
 
     fun formatNoSignalAnnouncement(stats: ConnectivityStats, lastKnownRadioAccessType: String? = null): String {
-        return formatNoSignalAnnouncement(
-            networkOperatorName = stats.networkOperatorName,
-            radioAccessType = stats.resolveNoSignalAnnouncementRadioAccessType(lastKnownRadioAccessType)
+        return formatCampedSignalStateAnnouncement(
+            stats = stats,
+            lastKnownRadioAccessType = lastKnownRadioAccessType,
+            signalState = PHRASE_NO_SIGNAL
         )
     }
 
-    fun formatLimitedServiceChange(
-        active: Boolean,
+    fun formatSignalRestoredAnnouncement(
         stats: ConnectivityStats,
         lastKnownRadioAccessType: String? = null
     ): String {
-        val radioAccessType = stats.resolveNoSignalAnnouncementRadioAccessType(lastKnownRadioAccessType)
-        if (active) {
-            return formatLimitedServiceAnnouncement(stats, lastKnownRadioAccessType)
-        }
-        return formatFullServiceAnnouncement(
-            homeOperatorName = stats.homeNetworkOperatorName ?: stats.networkOperatorName,
-            radioAccessType = radioAccessType
+        return formatCampedSignalStateAnnouncement(
+            stats = stats,
+            lastKnownRadioAccessType = lastKnownRadioAccessType,
+            signalState = PHRASE_SIGNAL_RESTORED
         )
     }
 
     fun formatLimitedServiceChange(
-        active: Boolean,
-        networkOperatorName: String?,
-        radioAccessType: String? = null
+        stats: ConnectivityStats,
+        lastKnownRadioAccessType: String? = null
     ): String {
-        if (active) {
-            return formatLimitedServiceAnnouncement(
-                homeOperatorName = networkOperatorName,
-                alternativeOperatorName = null,
-                radioAccessType = radioAccessType
-            )
-        }
-        return formatFullServiceAnnouncement(networkOperatorName, radioAccessType)
-    }
-
-    fun formatFullServiceAnnouncement(
-        homeOperatorName: String?,
-        radioAccessType: String?
-    ): String {
-        val tech = radioAccessType?.takeIf { it.isNotBlank() }?.let { formatTechnologyForSpeech(it) }
-        val message = if (tech != null) "Full service, $tech" else "Full service"
-        return prefixNetworkOperator(message, homeOperatorName)
+        return formatLimitedServiceAnnouncement(stats, lastKnownRadioAccessType)
     }
 
     fun formatLimitedServiceAnnouncement(
         homeOperatorName: String?,
-        alternativeOperatorName: String?,
+        visitedOperatorName: String?,
         radioAccessType: String?
     ): String {
-        val parts = buildLimitedServiceOperatorParts(homeOperatorName, alternativeOperatorName)
-        val tech = radioAccessType?.takeIf { it.isNotBlank() }?.let { formatTechnologyForSpeech(it) }
-        parts.add(if (tech != null) "Limited service, $tech" else "Limited service")
+        val parts = mutableListOf<String>()
+        if (visitedOperatorName != null) {
+            NetworkOperatorSpeech.formatForSpeech(homeOperatorName)?.let {
+                parts.add("$it $PHRASE_HOME_OPERATOR_ROLE")
+            }
+            NetworkOperatorSpeech.formatForSpeech(visitedOperatorName)?.let {
+                parts.add("$it $PHRASE_VISITED_OPERATOR_ROLE")
+            }
+        } else {
+            NetworkOperatorSpeech.formatForSpeech(homeOperatorName)?.let(parts::add)
+        }
+        radioAccessType?.takeIf { it.isNotBlank() }?.let {
+            parts.add(formatTechnologyForSpeech(it))
+        }
+        parts.add(PHRASE_LIMITED_SERVICE)
         return parts.joinToString(", ")
     }
 
@@ -158,7 +200,7 @@ object SignalStateAnnouncement {
     ): String {
         return formatLimitedServiceAnnouncement(
             homeOperatorName = networkOperatorName,
-            alternativeOperatorName = null,
+            visitedOperatorName = null,
             radioAccessType = radioAccessType
         )
     }
@@ -169,18 +211,17 @@ object SignalStateAnnouncement {
     ): String {
         return formatLimitedServiceAnnouncement(
             homeOperatorName = stats.homeNetworkOperatorName ?: stats.networkOperatorName,
-            alternativeOperatorName = stats.resolveLimitedServiceAlternativeOperatorName(),
+            visitedOperatorName = stats.resolveLimitedServiceVisitedOperatorName(),
             radioAccessType = stats.resolveNoSignalAnnouncementRadioAccessType(lastKnownRadioAccessType)
         )
     }
 
-    /** Spoken when the phone camps on 2G after losing LTE/NR signal. */
+    /** Spoken when the phone camps on 2G after losing LTE/NR signal (operator + tech; 2G is not implicit full service). */
     fun formatG2CampedAnnouncement(networkOperatorName: String?): String {
-        val parts = buildList {
-            NetworkOperatorSpeech.formatForSpeech(networkOperatorName)?.let(::add)
-            add(formatTechnologyForSpeech(CellularSignalReader.RADIO_2G))
-        }
-        return parts.joinToString(", ")
+        return joinAnnouncementParts(
+            operatorNames = listOf(networkOperatorName),
+            radioAccessType = CellularSignalReader.RADIO_2G
+        )
     }
 
     /** Spoken after LTE/NR no signal while the phone is still scanning for 2G. */
@@ -188,19 +229,19 @@ object SignalStateAnnouncement {
         networkOperatorName: String?,
         lastKnownLteNrRadioAccessType: String?
     ): String {
-        val parts = buildList {
-            NetworkOperatorSpeech.formatForSpeech(networkOperatorName)?.let(::add)
-            lastKnownLteNrRadioAccessType?.takeIf { it.isNotBlank() }?.let {
-                add(formatTechnologyForSpeech(it))
-            }
-            add("no signal")
-            add("searching 2 G")
-        }
-        return parts.joinToString(", ")
+        return joinAnnouncementParts(
+            operatorNames = listOf(networkOperatorName),
+            radioAccessType = lastKnownLteNrRadioAccessType,
+            signalState = PHRASE_NO_SIGNAL,
+            serviceState = PHRASE_SEARCHING_2G
+        )
     }
 
     fun formatDeadzoneAnnouncement(networkOperatorName: String?): String {
-        return prefixNetworkOperator("all technologies dead zone, scanning", networkOperatorName)
+        return joinAnnouncementParts(
+            operatorNames = listOf(networkOperatorName),
+            serviceState = PHRASE_DEADZONE
+        )
     }
 
     fun formatTechnologyForSpeech(radioAccessType: String): String {
@@ -218,22 +259,30 @@ object SignalStateAnnouncement {
         }
     }
 
-    private fun prefixNetworkOperator(message: String, networkOperatorName: String?): String {
-        val name = NetworkOperatorSpeech.formatForSpeech(networkOperatorName) ?: return message
-        return "$name, $message"
-    }
-
-    private fun buildLimitedServiceOperatorParts(
-        homeOperatorName: String?,
-        alternativeOperatorName: String?
-    ): MutableList<String> {
+    /**
+     * Builds `{operator}[, {alt}]`, `{tech}`, optional signal state, optional service state.
+     * Tech is omitted for dead zone (no camped RAT). 4G/5G full service has no service-state phrase.
+     */
+    internal fun joinAnnouncementParts(
+        operatorNames: List<String?>,
+        radioAccessType: String? = null,
+        signalState: String? = null,
+        serviceState: String? = null
+    ): String {
         val parts = mutableListOf<String>()
-        NetworkOperatorSpeech.formatForSpeech(homeOperatorName)?.let(parts::add)
-        val alternative = NetworkOperatorSpeech.formatForSpeech(alternativeOperatorName)
-        if (alternative != null && parts.none { it.equals(alternative, ignoreCase = true) }) {
-            parts.add(alternative)
+        operatorNames.forEach { name ->
+            NetworkOperatorSpeech.formatForSpeech(name)?.let { spoken ->
+                if (parts.none { it.equals(spoken, ignoreCase = true) }) {
+                    parts.add(spoken)
+                }
+            }
         }
-        return parts
+        radioAccessType?.takeIf { it.isNotBlank() }?.let {
+            parts.add(formatTechnologyForSpeech(it))
+        }
+        signalState?.takeIf { it.isNotBlank() }?.let(parts::add)
+        serviceState?.takeIf { it.isNotBlank() }?.let(parts::add)
+        return parts.joinToString(", ")
     }
 }
 

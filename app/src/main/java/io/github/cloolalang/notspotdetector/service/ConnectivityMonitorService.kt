@@ -23,12 +23,21 @@ import io.github.cloolalang.notspotdetector.data.MonitoringSettingsRepository
 import io.github.cloolalang.notspotdetector.data.PingSettingsRepository
 import io.github.cloolalang.notspotdetector.data.ThresholdSettingsRepository
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
+import io.github.cloolalang.notspotdetector.model.MonitoringAnnouncementKind
+import io.github.cloolalang.notspotdetector.model.MonitoringUpdateEvents
 import io.github.cloolalang.notspotdetector.model.SignalStateAnnouncement
+import io.github.cloolalang.notspotdetector.model.TechnologyChangeTarget
 import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerSelection
 import io.github.cloolalang.notspotdetector.model.shouldPlayFlatline
+import io.github.cloolalang.notspotdetector.model.isG2WeakSignal
+import io.github.cloolalang.notspotdetector.model.shouldPlayG2NoSignalVoiceAnnouncements
+import io.github.cloolalang.notspotdetector.model.shouldPlayNoSignalVoiceAnnouncements
 import io.github.cloolalang.notspotdetector.model.shouldPlayPassiveSignalAndQualityAlerts
 import io.github.cloolalang.notspotdetector.model.usesG2SignalTiers
-import io.github.cloolalang.notspotdetector.model.isTier5PoorSignal
+import io.github.cloolalang.notspotdetector.model.shouldAllowG2CampedPeriodicVoice
+import io.github.cloolalang.notspotdetector.model.shouldAllowG2WeakPeriodicVoice
+import io.github.cloolalang.notspotdetector.model.shouldAllowLimitedServicePeriodicVoice
+import io.github.cloolalang.notspotdetector.model.shouldPlayTier5StylePeriodicVoice
 import io.github.cloolalang.notspotdetector.network.CellularPassiveSignalMonitor
 import io.github.cloolalang.notspotdetector.network.CellularPingMonitor
 import kotlinx.coroutines.CoroutineScope
@@ -39,6 +48,8 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 class ConnectivityMonitorService : Service() {
 
@@ -59,6 +70,8 @@ class ConnectivityMonitorService : Service() {
     private var deadzonePeriodicAnnouncementJob: Job? = null
     private var tier5PeriodicAnnouncementJob: Job? = null
     private var searching2gAnnouncementJob: Job? = null
+    private val monitoringAlertMutex = Mutex()
+    private val monitoringEventsHandlerMutex = Mutex()
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -95,6 +108,17 @@ class ConnectivityMonitorService : Service() {
         }
     }
 
+    private fun registerMonitoringEventsListener() {
+        MonitorState.setMonitoringEventsListener { events ->
+            if (!isMonitoringActive) return@setMonitoringEventsListener
+            serviceScope.launch {
+                monitoringEventsHandlerMutex.withLock {
+                    handleMonitoringEvents(events)
+                }
+            }
+        }
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_STOP -> {
@@ -111,6 +135,7 @@ class ConnectivityMonitorService : Service() {
         isPassiveOnlyStart = intent?.getBooleanExtra(EXTRA_PASSIVE_ONLY, false) ?: false
         isMonitoringActive = true
         isPassiveIdleMode = false
+        registerMonitoringEventsListener()
         MonitorState.setRunning(true)
         acquireWakeLock()
 
@@ -184,58 +209,68 @@ class ConnectivityMonitorService : Service() {
 
     private fun handleStatsUpdate(stats: io.github.cloolalang.notspotdetector.model.ConnectivityStats) {
         renewWakeLockIfNeeded()
-        val events = MonitorState.updateStats(stats)
+        MonitorState.updateStats(stats)
+    }
+
+    private suspend fun handleMonitoringEvents(events: MonitoringUpdateEvents) {
+        monitoringAlertMutex.withLock {
+            playMonitoringEventsSequential(events)
+        }
         val passiveSettings = MonitorState.passiveSignalSettings.value
         val monitoringSettings = MonitorState.monitoringSettings.value
         val playQualityAlerts = MonitorState.stats.value.shouldPlayPassiveSignalAndQualityAlerts(
             monitoringSettings,
             passiveSettings
         )
-        if (events.cellIdentityChanged && playQualityAlerts) {
-            playCellChangeAlert(events.cellChangeAnnouncement)
-        }
         val stats = MonitorState.stats.value
-        if (events.radioTechnologyChanged && (
-                playQualityAlerts ||
-                    (
-                        isPassiveOnlyStart &&
-                            stats.noSignalActive &&
-                            monitoringSettings.monitor2gFallback
-                        )
-                )
-        ) {
-            playTechnologyChangeAlert(events.technologyChangeAnnouncement)
-        }
-        if (events.limitedServiceStateChanged) {
-            playLimitedServiceAlert(events.limitedServiceStateAnnouncement)
-        }
-        if (events.limitedServiceOperatorChanged) {
-            playLimitedServiceAlert(events.limitedServiceOperatorChangeAnnouncement)
-        }
-        if (events.noSignalStateChanged) {
-            playNoSignalAlert(events.noSignalStateAnnouncement)
-        }
-        if (events.g2FallbackAnnounced) {
-            playG2FallbackAlert(events.g2FallbackAnnouncement)
-        }
-        if (events.deadzoneAnnounced) {
-            playDeadzoneAlert(events.deadzoneAnnouncement)
-        }
-        if (events.tier5Announced && playQualityAlerts) {
-            playTier5VoiceAlert(events.tier5Announcement)
-        }
         if (events.searching2gStateEntered) {
             scheduleSearching2gAnnouncement()
-        } else if (!stats.noSignalActive || stats.isOn2g || stats.isCompleteNoService) {
+        } else if (!stats.searching2gFallbackActive || stats.isOn2g || stats.isCompleteNoService) {
             searching2gAnnouncementJob?.cancel()
             searching2gAnnouncementJob = null
         }
-        updateNoSignalPeriodicAnnouncements()
-        updateG2ModePeriodicAnnouncements()
+        updateNoSignalPeriodicAnnouncements(
+            forceRestart = events.noSignalStateChanged ||
+                events.limitedVisitedNoSignalStateChanged
+        )
+        updateG2ModePeriodicAnnouncements(
+            forceRestart = events.radioTechnologyChanged ||
+                events.g2FallbackAnnounced ||
+                events.g2PeriodicReset ||
+                (events.noSignalStateChanged && stats.usesG2SignalTiers())
+        )
         updateLimitedServicePeriodicAnnouncements()
         updateDeadzonePeriodicAnnouncements()
-        updateTier5PeriodicAnnouncements()
+        updateTier5PeriodicAnnouncements(
+            forceRestart = events.tier5Announced && playQualityAlerts,
+            skipInitialDelay = events.tier5Immediate
+        )
         updateNotification(MonitorState.stats.value.statusLabel(this))
+    }
+
+    private suspend fun playMonitoringEventsSequential(events: MonitoringUpdateEvents) {
+        for (announcement in events.immediateAnnouncements()) {
+            when (announcement.kind) {
+                MonitoringAnnouncementKind.NO_SIGNAL_STATE ->
+                    playNoSignalAlertAwait(announcement.message)
+                MonitoringAnnouncementKind.DEADZONE ->
+                    playDeadzoneAlertAwait(announcement.message)
+                MonitoringAnnouncementKind.LIMITED_SERVICE_STATE,
+                MonitoringAnnouncementKind.LIMITED_SERVICE_OPERATOR ->
+                    playLimitedServiceAlertAwait(announcement.message)
+                MonitoringAnnouncementKind.G2_FALLBACK ->
+                    playG2FallbackAlertAwait(announcement.message)
+                MonitoringAnnouncementKind.TIER5 ->
+                    playTier5VoiceAlertAwait(announcement.message)
+                MonitoringAnnouncementKind.TECHNOLOGY_CHANGE ->
+                    playTechnologyChangeAlertAwait(
+                        announcement.message,
+                        announcement.targetRadioAccessType
+                    )
+                MonitoringAnnouncementKind.CELL_IDENTITY ->
+                    playCellChangeAlertAwait(announcement.message)
+            }
+        }
     }
 
     private fun scheduleSearching2gAnnouncement() {
@@ -249,14 +284,10 @@ class ConnectivityMonitorService : Service() {
         }
     }
 
-    private fun updateNoSignalPeriodicAnnouncements() {
+    private fun updateNoSignalPeriodicAnnouncements(forceRestart: Boolean = false) {
         val stats = MonitorState.stats.value
         val passiveSettings = MonitorState.passiveSignalSettings.value
-        val shouldAnnounce = stats.isMonitoring &&
-            !stats.isPassiveIdleMode &&
-            stats.shouldPlayFlatline(passiveSettings) &&
-            !stats.usesG2SignalTiers() &&
-            !stats.isCompleteNoService
+        val shouldAnnounce = stats.shouldPlayNoSignalVoiceAnnouncements(passiveSettings)
 
         if (!shouldAnnounce) {
             noSignalPeriodicAnnouncementJob?.cancel()
@@ -264,6 +295,10 @@ class ConnectivityMonitorService : Service() {
             return
         }
 
+        if (forceRestart) {
+            noSignalPeriodicAnnouncementJob?.cancel()
+            noSignalPeriodicAnnouncementJob = null
+        }
         if (noSignalPeriodicAnnouncementJob?.isActive == true) return
 
         noSignalPeriodicAnnouncementJob = serviceScope.launch {
@@ -271,12 +306,7 @@ class ConnectivityMonitorService : Service() {
                 delay(PERIODIC_ANNOUNCEMENT_MS)
                 val current = MonitorState.stats.value
                 val settings = MonitorState.passiveSignalSettings.value
-                if (!current.isMonitoring ||
-                    current.isPassiveIdleMode ||
-                    !current.shouldPlayFlatline(settings) ||
-                    current.usesG2SignalTiers() ||
-                    current.isCompleteNoService
-                ) {
+                if (!current.shouldPlayNoSignalVoiceAnnouncements(settings)) {
                     break
                 }
                 playNoSignalAlert(MonitorState.formatNoSignalAnnouncement(current))
@@ -284,12 +314,17 @@ class ConnectivityMonitorService : Service() {
         }
     }
 
-    private fun updateG2ModePeriodicAnnouncements() {
+    private fun updateG2ModePeriodicAnnouncements(forceRestart: Boolean = false) {
         val stats = MonitorState.stats.value
         val passiveSettings = MonitorState.passiveSignalSettings.value
         val shouldAnnounce = stats.isMonitoring &&
             !stats.isPassiveIdleMode &&
-            stats.usesG2SignalTiers()
+            stats.usesG2SignalTiers() &&
+            (
+                stats.shouldPlayG2NoSignalVoiceAnnouncements(passiveSettings) ||
+                    stats.shouldAllowG2WeakPeriodicVoice(passiveSettings) ||
+                    stats.shouldAllowG2CampedPeriodicVoice(passiveSettings)
+                )
 
         if (!shouldAnnounce) {
             g2ModePeriodicAnnouncementJob?.cancel()
@@ -297,11 +332,19 @@ class ConnectivityMonitorService : Service() {
             return
         }
 
+        if (forceRestart) {
+            g2ModePeriodicAnnouncementJob?.cancel()
+            g2ModePeriodicAnnouncementJob = null
+        }
         if (g2ModePeriodicAnnouncementJob?.isActive == true) return
 
         g2ModePeriodicAnnouncementJob = serviceScope.launch {
+            var playImmediately = forceRestart
             while (isActive) {
-                delay(PERIODIC_ANNOUNCEMENT_MS)
+                if (!playImmediately) {
+                    delay(PERIODIC_ANNOUNCEMENT_MS)
+                }
+                playImmediately = false
                 val current = MonitorState.stats.value
                 val settings = MonitorState.passiveSignalSettings.value
                 if (!current.isMonitoring ||
@@ -310,22 +353,33 @@ class ConnectivityMonitorService : Service() {
                 ) {
                     break
                 }
-                if (current.shouldPlayFlatline(settings)) {
-                    playNoSignalAlert(MonitorState.formatNoSignalAnnouncement(current))
-                } else {
-                    playG2FallbackAlert(
-                        SignalStateAnnouncement.formatG2CampedAnnouncement(current.networkOperatorName)
-                    )
+                monitoringAlertMutex.withLock {
+                    playG2ModePeriodicAnnouncement(current, settings)
                 }
             }
         }
     }
 
+    private suspend fun playG2ModePeriodicAnnouncement(
+        stats: io.github.cloolalang.notspotdetector.model.ConnectivityStats,
+        passiveSettings: io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
+    ) {
+        when {
+            stats.shouldPlayG2NoSignalVoiceAnnouncements(passiveSettings) ->
+                playNoSignalAlertAwait(MonitorState.formatNoSignalAnnouncement(stats))
+            stats.shouldAllowG2WeakPeriodicVoice(passiveSettings) ->
+                playTier5VoiceAlertAwait(MonitorState.formatTier5Announcement(stats))
+            stats.shouldAllowG2CampedPeriodicVoice(passiveSettings) ->
+                playG2FallbackAlertAwait(
+                    SignalStateAnnouncement.formatG2CampedAnnouncement(stats.networkOperatorName)
+                )
+        }
+    }
+
     private fun updateLimitedServicePeriodicAnnouncements() {
         val stats = MonitorState.stats.value
-        val shouldAnnounce = stats.isMonitoring &&
-            !stats.isPassiveIdleMode &&
-            stats.isLimitedService
+        val passiveSettings = MonitorState.passiveSignalSettings.value
+        val shouldAnnounce = stats.shouldAllowLimitedServicePeriodicVoice(passiveSettings)
 
         if (!shouldAnnounce) {
             limitedServicePeriodicAnnouncementJob?.cancel()
@@ -339,13 +393,11 @@ class ConnectivityMonitorService : Service() {
             while (isActive) {
                 delay(PERIODIC_ANNOUNCEMENT_MS)
                 val current = MonitorState.stats.value
-                if (!current.isMonitoring ||
-                    current.isPassiveIdleMode ||
-                    !current.isLimitedService
-                ) {
+                val settings = MonitorState.passiveSignalSettings.value
+                if (!current.shouldAllowLimitedServicePeriodicVoice(settings)) {
                     break
                 }
-                playLimitedServiceAlert(MonitorState.formatLimitedServiceAnnouncement(current))
+                playPeriodicLimitedServiceAlert(MonitorState.formatLimitedServiceAnnouncement(current))
             }
         }
     }
@@ -374,19 +426,22 @@ class ConnectivityMonitorService : Service() {
                 ) {
                     break
                 }
-                playDeadzoneAlert(MonitorState.formatDeadzoneAnnouncement(current))
+                playPeriodicDeadzoneAlert(MonitorState.formatDeadzoneAnnouncement(current))
             }
         }
     }
 
-    private fun updateTier5PeriodicAnnouncements() {
+    private fun updateTier5PeriodicAnnouncements(
+        forceRestart: Boolean = false,
+        skipInitialDelay: Boolean = false
+    ) {
         val stats = MonitorState.stats.value
         val passiveSettings = MonitorState.passiveSignalSettings.value
         val volumes = MonitorState.audioVolumes.value.normalized()
         val shouldAnnounce = stats.isMonitoring &&
             !stats.isPassiveIdleMode &&
             volumes.tier5AnnouncerEnabled &&
-            stats.isTier5PoorSignal(passiveSettings)
+            stats.shouldPlayTier5StylePeriodicVoice(passiveSettings)
 
         if (!shouldAnnounce) {
             tier5PeriodicAnnouncementJob?.cancel()
@@ -394,27 +449,35 @@ class ConnectivityMonitorService : Service() {
             return
         }
 
-        if (tier5PeriodicAnnouncementJob?.isActive == true) return
+        if (!forceRestart && tier5PeriodicAnnouncementJob?.isActive == true) return
 
+        tier5PeriodicAnnouncementJob?.cancel()
         tier5PeriodicAnnouncementJob = serviceScope.launch {
+            delay(
+                if (skipInitialDelay) {
+                    PERIODIC_ANNOUNCEMENT_MS
+                } else {
+                    TIER5_INITIAL_ANNOUNCEMENT_DELAY_MS
+                }
+            )
             while (isActive) {
-                delay(TIER5_PERIODIC_ANNOUNCEMENT_MS)
                 val current = MonitorState.stats.value
                 val settings = MonitorState.passiveSignalSettings.value
                 val audio = MonitorState.audioVolumes.value.normalized()
                 if (!current.isMonitoring ||
                     current.isPassiveIdleMode ||
                     !audio.tier5AnnouncerEnabled ||
-                    !current.isTier5PoorSignal(settings)
+                    !current.shouldPlayTier5StylePeriodicVoice(settings)
                 ) {
                     break
                 }
                 playTier5VoiceAlert(MonitorState.formatTier5Announcement(current))
+                delay(PERIODIC_ANNOUNCEMENT_MS)
             }
         }
     }
 
-    private fun playAlertWithVoice(
+    private suspend fun playAlertWithVoiceAwait(
         onPlayTone: () -> Unit,
         toneDurationMs: Int,
         announcement: String?,
@@ -422,16 +485,15 @@ class ConnectivityMonitorService : Service() {
         voiceVolume: Float
     ) {
         onPlayTone()
-        if (!voiceEnabled || announcement.isNullOrBlank() || voiceVolume <= 0f) return
-        serviceScope.launch {
-            delay(AudioVolumeSettings.voiceDelayAfterAlertTone(toneDurationMs))
-            cellVoiceAnnouncer.speak(announcement, voiceVolume)
+        delay(AudioVolumeSettings.voiceDelayAfterAlertTone(toneDurationMs))
+        if (voiceEnabled && !announcement.isNullOrBlank() && voiceVolume > 0f) {
+            cellVoiceAnnouncer.speakAwait(announcement, voiceVolume)
         }
     }
 
-    private fun playCellChangeAlert(announcement: String?) {
+    private suspend fun playCellChangeAlertAwait(announcement: String?) {
         val volumes = MonitorState.audioVolumes.value.normalized()
-        playAlertWithVoice(
+        playAlertWithVoiceAwait(
             onPlayTone = ::playCellChangeBell,
             toneDurationMs = GeigerCounterPlayer.CELL_CHANGE_BELL_DURATION_MS,
             announcement = announcement,
@@ -440,23 +502,29 @@ class ConnectivityMonitorService : Service() {
         )
     }
 
-    private fun playTechnologyChangeAlert(announcement: String?) {
-        val volumes = MonitorState.audioVolumes.value.normalized()
-        playAlertWithVoice(
-            onPlayTone = ::playTechnologyChangeTone,
+    private suspend fun playTechnologyChangeAlertAwait(
+        announcement: String?,
+        targetRadioAccessType: String?
+    ) {
+        val alertVolumes = MonitorState.audioVolumes.value
+            .normalized()
+            .technologyChangeAlertVolumes(targetRadioAccessType)
+            ?: return
+        playAlertWithVoiceAwait(
+            onPlayTone = { geigerPlayer.playTechnologyChangeTone(alertVolumes.toneVolume) },
             toneDurationMs = GeigerCounterPlayer.TECHNOLOGY_CHANGE_TONE_DURATION_MS,
             announcement = announcement,
-            voiceEnabled = volumes.technologyChangeVoiceEnabled,
-            voiceVolume = volumes.technologyChangeVoiceVolume
+            voiceEnabled = alertVolumes.voiceEnabled,
+            voiceVolume = alertVolumes.voiceVolume
         )
     }
 
-    private fun playNoSignalAlert(announcement: String?) {
+    private suspend fun playNoSignalAlertAwait(announcement: String?) {
         val volumes = MonitorState.audioVolumes.value.normalized()
         if (volumes.noSignalVibrationEnabled) {
             AlertVibrator.buzzNoSignal(this)
         }
-        playAlertWithVoice(
+        playAlertWithVoiceAwait(
             onPlayTone = {
                 geigerPlayer.previewNoSignalTone(volumes.noSignalToneVolume)
             },
@@ -467,9 +535,29 @@ class ConnectivityMonitorService : Service() {
         )
     }
 
-    private fun playLimitedServiceAlert(announcement: String?) {
+    private fun playNoSignalAlert(announcement: String?) {
+        playPeriodicAlert { playNoSignalAlertAwait(announcement) }
+    }
+
+    private fun playPeriodicLimitedServiceAlert(announcement: String?) {
+        playPeriodicAlert { playLimitedServiceAlertAwait(announcement) }
+    }
+
+    private fun playPeriodicDeadzoneAlert(announcement: String?) {
+        playPeriodicAlert { playDeadzoneAlertAwait(announcement) }
+    }
+
+    private fun playPeriodicAlert(block: suspend () -> Unit) {
+        serviceScope.launch {
+            monitoringAlertMutex.withLock {
+                block()
+            }
+        }
+    }
+
+    private suspend fun playLimitedServiceAlertAwait(announcement: String?) {
         val volumes = MonitorState.audioVolumes.value.normalized()
-        playAlertWithVoice(
+        playAlertWithVoiceAwait(
             onPlayTone = {
                 geigerPlayer.previewLimitedServiceTone(volumes.limitedServiceToneVolume)
             },
@@ -480,20 +568,22 @@ class ConnectivityMonitorService : Service() {
         )
     }
 
-    private fun playG2FallbackAlert(announcement: String?) {
-        val volumes = MonitorState.audioVolumes.value.normalized()
-        playAlertWithVoice(
-            onPlayTone = ::playTechnologyChangeTone,
+    private suspend fun playG2FallbackAlertAwait(announcement: String?) {
+        val alertVolumes = MonitorState.audioVolumes.value
+            .normalized()
+            .technologyChangeAlertVolumes(TechnologyChangeTarget.TO_2G)
+        playAlertWithVoiceAwait(
+            onPlayTone = { geigerPlayer.playTechnologyChangeTone(alertVolumes.toneVolume) },
             toneDurationMs = GeigerCounterPlayer.TECHNOLOGY_CHANGE_TONE_DURATION_MS,
             announcement = announcement,
-            voiceEnabled = volumes.technologyChangeVoiceEnabled,
-            voiceVolume = volumes.technologyChangeVoiceVolume
+            voiceEnabled = alertVolumes.voiceEnabled,
+            voiceVolume = alertVolumes.voiceVolume
         )
     }
 
-    private fun playDeadzoneAlert(announcement: String?) {
+    private suspend fun playDeadzoneAlertAwait(announcement: String?) {
         val volumes = MonitorState.audioVolumes.value.normalized()
-        playAlertWithVoice(
+        playAlertWithVoiceAwait(
             onPlayTone = {
                 geigerPlayer.previewNoSignalTone(volumes.noSignalToneVolume)
             },
@@ -504,14 +594,16 @@ class ConnectivityMonitorService : Service() {
         )
     }
 
-    private fun playTier5VoiceAlert(announcement: String?) {
+    private suspend fun playTier5VoiceAlertAwait(announcement: String?) {
         val volumes = MonitorState.audioVolumes.value.normalized()
         if (!volumes.tier5AnnouncerEnabled || announcement.isNullOrBlank() || volumes.tier5AnnouncerVolume <= 0f) {
             return
         }
-        serviceScope.launch {
-            cellVoiceAnnouncer.speak(announcement, volumes.tier5AnnouncerVolume)
-        }
+        cellVoiceAnnouncer.speakAwait(announcement, volumes.tier5AnnouncerVolume)
+    }
+
+    private fun playTier5VoiceAlert(announcement: String?) {
+        playPeriodicAlert { playTier5VoiceAlertAwait(announcement) }
     }
 
     private fun playCellChangeBell() {
@@ -520,11 +612,6 @@ class ConnectivityMonitorService : Service() {
         )
     }
 
-    private fun playTechnologyChangeTone() {
-        geigerPlayer.playTechnologyChangeTone(
-            MonitorState.audioVolumes.value.normalized().technologyChangeVolume
-        )
-    }
 
     private fun scheduleActivePingTimeout() {
         activePingTimeoutJob?.cancel()
@@ -578,6 +665,7 @@ class ConnectivityMonitorService : Service() {
         passiveSignalMonitor.stop()
         geigerPlayer.stop()
         cellVoiceAnnouncer.shutdown()
+        MonitorState.setMonitoringEventsListener(null)
         releaseWakeLock()
         MonitorState.setRunning(false)
         stopForeground(STOP_FOREGROUND_REMOVE)
@@ -655,7 +743,7 @@ class ConnectivityMonitorService : Service() {
         private const val NOTIFICATION_ID = 1001
         private const val ACTIVE_PING_DURATION_MS = 10 * 60 * 1000L
         private const val PERIODIC_ANNOUNCEMENT_MS = 30_000L
-        private const val TIER5_PERIODIC_ANNOUNCEMENT_MS = 15_000L
+        private const val TIER5_INITIAL_ANNOUNCEMENT_DELAY_MS = 5_000L
         private const val SEARCHING_2G_ANNOUNCEMENT_DELAY_MS = 5_000L
         private const val WAKE_LOCK_TIMEOUT_MS = 10 * 60 * 1000L
 

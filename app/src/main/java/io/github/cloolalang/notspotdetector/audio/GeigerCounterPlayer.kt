@@ -12,14 +12,24 @@ import io.github.cloolalang.notspotdetector.model.computeSignalStrengthClickInte
 import io.github.cloolalang.notspotdetector.model.resolveG2SignalStrengthTier
 import io.github.cloolalang.notspotdetector.model.resolvePassiveClickRateTier
 import io.github.cloolalang.notspotdetector.model.resolveSignalStrengthTier
+import io.github.cloolalang.notspotdetector.model.resolveSignalStrengthTier
 import io.github.cloolalang.notspotdetector.model.SignalStrengthTier
 import io.github.cloolalang.notspotdetector.model.usesG2SignalTiers
+import io.github.cloolalang.notspotdetector.model.computeCampTierClickIntervalMs
+import io.github.cloolalang.notspotdetector.model.pulseDurationMsForTier
 import io.github.cloolalang.notspotdetector.model.shouldPlay2gLimitedServicePulse
-import io.github.cloolalang.notspotdetector.model.computeDeadzoneClickIntervalMs
 import io.github.cloolalang.notspotdetector.model.shouldPlayContinuousFlatline
 import io.github.cloolalang.notspotdetector.model.shouldPlayDeadzoneTier
 import io.github.cloolalang.notspotdetector.model.shouldPlayFlatline
+import io.github.cloolalang.notspotdetector.model.shouldPlayLimited4gNoSignalCampTier
+import io.github.cloolalang.notspotdetector.model.shouldPlayLimitedAlt2gCampTier
+import io.github.cloolalang.notspotdetector.model.shouldPlayLimitedAlt2gNoSignalCampTier
+import io.github.cloolalang.notspotdetector.model.shouldPlayLimitedServiceCampTier
+import io.github.cloolalang.notspotdetector.model.shouldPlayLimitedServiceSignalOverlay
 import io.github.cloolalang.notspotdetector.model.shouldPlayLimitedServiceTone
+import io.github.cloolalang.notspotdetector.model.shouldPlayG2NoSignalCampTier
+import io.github.cloolalang.notspotdetector.model.shouldPlayNoSignalCampTier
+import io.github.cloolalang.notspotdetector.model.shouldPlaySearching2gCampTier
 import io.github.cloolalang.notspotdetector.model.shouldPlayCurrentTierSignalPulse
 import io.github.cloolalang.notspotdetector.model.shouldPlaySignalStrengthInterval
 import io.github.cloolalang.notspotdetector.model.shouldPlayVeryStrongSignalIndicator
@@ -29,7 +39,9 @@ import io.github.cloolalang.notspotdetector.model.hasExtremeLatency
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
 import io.github.cloolalang.notspotdetector.model.isTierSoundEnabled
-import io.github.cloolalang.notspotdetector.model.shouldUseNoisyRsrqPassiveClick
+import io.github.cloolalang.notspotdetector.model.computeRsrqTierClickIntervalMs
+import io.github.cloolalang.notspotdetector.model.rsrqTierWhiteNoiseMix
+import io.github.cloolalang.notspotdetector.model.shouldPlayDecoupledRsrqTier
 import io.github.cloolalang.notspotdetector.model.shouldPlayPassiveSignalAndQualityAlerts
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -43,6 +55,7 @@ import kotlin.random.Random
 
 class GeigerCounterPlayer {
     private var audioJob: Job? = null
+    private var rsrqTierJob: Job? = null
     private var flatlineTrack: AudioTrack? = null
     private var flatlineTrackVolume = -1f
     private var flatlineTrackContinuous = false
@@ -70,6 +83,27 @@ class GeigerCounterPlayer {
         this.monitoringSettingsProvider = monitoringSettingsProvider
         this.passiveSignalSettingsProvider = passiveSignalSettingsProvider
         lastHandledPingTimestampMs = 0L
+        rsrqTierJob = scope.launch {
+            while (isActive) {
+                val stats = statsProvider()
+                val passiveSettings = passiveSignalSettingsProvider()
+                val volumes = audioVolumesProvider().normalized()
+                if (shouldPlayPassiveSignalAndQualityAlerts(stats, passiveSettings) &&
+                    stats.shouldPlayDecoupledRsrqTier(passiveSettings)
+                ) {
+                    val amplitude = FLATLINE_AMPLITUDE *
+                        volumes.lowSignalClickVolume *
+                        passiveSettings.rsrqTierWhiteNoiseVolume
+                    playWhiteNoiseBurst(
+                        durationMs = passiveSettings.rsrqTierPulseDurationMs,
+                        amplitude = amplitude
+                    )
+                    delay(stats.computeRsrqTierClickIntervalMs(passiveSettings))
+                } else {
+                    delay(POLL_INTERVAL_MS)
+                }
+            }
+        }
         audioJob = scope.launch {
             while (isActive) {
                 val stats = statsProvider()
@@ -81,6 +115,91 @@ class GeigerCounterPlayer {
                     !stats.isMonitoring -> {
                         stopAlertTones()
                         delay(500)
+                    }
+                    stats.shouldPlayDeadzoneTier(passiveSettings) -> {
+                        stopLimitedService()
+                        stopFlatline()
+                        handleCampTierAudio(
+                            stats,
+                            volumes,
+                            passiveSettings,
+                            SignalStrengthTier.DEADZONE
+                        )
+                    }
+                    stats.shouldPlayLimited4gNoSignalCampTier(passiveSettings) -> {
+                        stopLimitedService()
+                        stopFlatline()
+                        handleCampTierAudio(
+                            stats,
+                            volumes,
+                            passiveSettings,
+                            SignalStrengthTier.NO_SIGNAL
+                        )
+                    }
+                    stats.shouldPlayLimitedAlt2gNoSignalCampTier(passiveSettings) -> {
+                        stopLimitedService()
+                        stopFlatline()
+                        handleCampTierAudio(
+                            stats,
+                            volumes,
+                            passiveSettings,
+                            SignalStrengthTier.G2_NO_SIGNAL
+                        )
+                    }
+                    stats.shouldPlayLimitedServiceSignalOverlay(passiveSettings) -> {
+                        stopLimitedService()
+                        stopFlatline()
+                        handleSignalStrengthIntervalAudio(stats, volumes, passiveSettings)
+                    }
+                    stats.shouldPlayLimitedAlt2gCampTier(passiveSettings) -> {
+                        stopLimitedService()
+                        stopFlatline()
+                        handleCampTierAudio(
+                            stats,
+                            volumes,
+                            passiveSettings,
+                            SignalStrengthTier.LIMITED_ALT_2G
+                        )
+                    }
+                    stats.shouldPlayLimitedServiceCampTier(passiveSettings) -> {
+                        stopLimitedService()
+                        stopFlatline()
+                        handleCampTierAudio(
+                            stats,
+                            volumes,
+                            passiveSettings,
+                            SignalStrengthTier.LIMITED_SERVICE
+                        )
+                    }
+                    stats.shouldPlaySearching2gCampTier(passiveSettings) -> {
+                        stopLimitedService()
+                        stopFlatline()
+                        handleCampTierAudio(
+                            stats,
+                            volumes,
+                            passiveSettings,
+                            SignalStrengthTier.SEARCHING_2G
+                        )
+                    }
+                    stats.shouldPlayG2NoSignalCampTier(passiveSettings) -> {
+                        stopLimitedService()
+                        stopFlatline()
+                        handleCampTierAudio(
+                            stats,
+                            volumes,
+                            passiveSettings,
+                            SignalStrengthTier.G2_NO_SIGNAL
+                        )
+                    }
+                    stats.shouldPlayNoSignalCampTier(passiveSettings) -> {
+                        stopLimitedService()
+                        stopFlatline()
+                        handleCampTierAudio(
+                            stats,
+                            volumes,
+                            passiveSettings,
+                            SignalStrengthTier.NO_SIGNAL
+                        )
                     }
                     stats.shouldPlay2gLimitedServicePulse() -> {
                         stopFlatline()
@@ -107,11 +226,6 @@ class GeigerCounterPlayer {
                             stopLimitedService()
                         }
                         delay(200)
-                    }
-                    stats.shouldPlayDeadzoneTier(passiveSettings) -> {
-                        stopLimitedService()
-                        stopFlatline()
-                        handleDeadzoneTierAudio(stats, volumes, passiveSettings)
                     }
                     stats.shouldPlayFlatline(passiveSettings) -> {
                         stopLimitedService()
@@ -145,6 +259,8 @@ class GeigerCounterPlayer {
     fun stop() {
         audioJob?.cancel()
         audioJob = null
+        rsrqTierJob?.cancel()
+        rsrqTierJob = null
         lastHandledPingTimestampMs = 0L
         stopAlertTones()
     }
@@ -169,51 +285,74 @@ class GeigerCounterPlayer {
         volumes: AudioVolumeSettings,
         passiveSettings: PassiveSignalSettings
     ) {
+        val isVeryStrong = !stats.usesG2SignalTiers() &&
+            stats.shouldPlayVeryStrongSignalIndicator(passiveSettings)
+        val resolvedWeakTier = if (!stats.usesG2SignalTiers() && !isVeryStrong) {
+            stats.resolvePassiveClickRateTier(passiveSettings)
+                ?: stats.resolveSignalStrengthTier(passiveSettings)
+        } else {
+            null
+        }
+        val tier = when {
+            stats.usesG2SignalTiers() ->
+                stats.resolveG2SignalStrengthTier(passiveSettings) ?: SignalStrengthTier.G2_WEAK
+            isVeryStrong -> SignalStrengthTier.MILD
+            else -> resolvedWeakTier ?: run {
+                delay(POLL_INTERVAL_MS)
+                return
+            }
+        }
+        val pulseDurationMs = pulseDurationMsForLteRsrpPlayback(
+            stats = stats,
+            passiveSettings = passiveSettings,
+            volumes = volumes,
+            isVeryStrong = isVeryStrong,
+            resolvedWeakTier = resolvedWeakTier,
+            playbackTier = tier
+        )
         val interval = stats.computeSignalStrengthClickIntervalMs(
             passiveSettings,
-            volumes.signalPulseDurationMs
+            pulseDurationMs
         )
         if (shouldPlayPassiveSignalAndQualityAlerts(stats, passiveSettings) &&
             stats.shouldPlayCurrentTierSignalPulse(passiveSettings)
         ) {
-            val tier = when {
-                stats.usesG2SignalTiers() ->
-                    stats.resolveG2SignalStrengthTier(passiveSettings) ?: SignalStrengthTier.G2_WEAK
-                stats.shouldPlayVeryStrongSignalIndicator(passiveSettings) -> SignalStrengthTier.MILD
-                else -> stats.resolvePassiveClickRateTier(passiveSettings) ?: SignalStrengthTier.FAIR
+            val pulseFrequencyHz = when {
+                isVeryStrong -> volumes.veryStrongTierPulseFrequencyHz.toDouble()
+                else -> volumes.pulseFrequencyHzForTier(tier).toDouble()
             }
-            val isVeryStrong = stats.shouldPlayVeryStrongSignalIndicator(passiveSettings)
-            val pulseFrequencyHz = if (isVeryStrong) {
-                volumes.veryStrongPulseFrequencyHz().toDouble()
-            } else {
-                volumes.signalPulseFrequencyHz.toDouble()
-            }
-            val mixWhiteNoise = stats.isPassiveOnlySession &&
-                passiveSettings.shouldUseNoisyRsrqPassiveClick(stats.rsrqDb)
+            val noiseMix = passiveSettings.rsrqTierWhiteNoiseMix(
+                rsrqDb = stats.rsrqDb,
+                isPassiveOnlySession = stats.isPassiveOnlySession
+            )
             playTieredWeakSignalClick(
                 volumes = volumes,
                 tier = tier,
                 frequencyHz = pulseFrequencyHz,
-                mixWhiteNoise = mixWhiteNoise
+                noiseMix = noiseMix,
+                pulseDurationMs = pulseDurationMs,
+                clickVolume = clickVolumeForLteRsrpPlayback(volumes, isVeryStrong, resolvedWeakTier)
             )
         }
         delay(interval)
     }
 
-    private suspend fun handleDeadzoneTierAudio(
+    private suspend fun handleCampTierAudio(
         stats: ConnectivityStats,
         volumes: AudioVolumeSettings,
-        passiveSettings: PassiveSignalSettings
+        passiveSettings: PassiveSignalSettings,
+        tier: SignalStrengthTier
     ) {
-        val pulseDurationMs = passiveSettings.deadzoneTierPulseDurationMs
-        val interval = stats.computeDeadzoneClickIntervalMs(
+        val pulseDurationMs = passiveSettings.pulseDurationMsForTier(tier)
+        val interval = stats.computeCampTierClickIntervalMs(
             passiveSettings,
+            tier,
             pulseDurationMs
         )
         if (shouldPlayPassiveSignalAndQualityAlerts(stats, passiveSettings)) {
             playTieredWeakSignalClick(
                 volumes = volumes,
-                tier = SignalStrengthTier.DEADZONE,
+                tier = tier,
                 pulseDurationMs = pulseDurationMs
             )
         }
@@ -256,23 +395,46 @@ class GeigerCounterPlayer {
         }
 
         if (stats.shouldPlayWeakSignalWarning(passiveSettings)) {
-            val tier = if (stats.usesG2SignalTiers()) {
-                stats.resolveG2SignalStrengthTier(passiveSettings) ?: SignalStrengthTier.G2_WEAK
+            val isVeryStrong = !stats.usesG2SignalTiers() &&
+                stats.shouldPlayVeryStrongSignalIndicator(passiveSettings)
+            val resolvedWeakTier = if (!stats.usesG2SignalTiers() && !isVeryStrong) {
+                stats.resolvePassiveClickRateTier(passiveSettings)
+                    ?: stats.resolveSignalStrengthTier(passiveSettings)
             } else {
-                stats.resolveSignalStrengthTier(passiveSettings) ?: SignalStrengthTier.FAIR
+                null
             }
+            val tier = when {
+                stats.usesG2SignalTiers() ->
+                    stats.resolveG2SignalStrengthTier(passiveSettings) ?: SignalStrengthTier.G2_WEAK
+                isVeryStrong -> SignalStrengthTier.MILD
+                else -> resolvedWeakTier ?: run {
+                    delay(interval)
+                    return
+                }
+            }
+            val pulseDurationMs = pulseDurationMsForLteRsrpPlayback(
+                stats = stats,
+                passiveSettings = passiveSettings,
+                volumes = volumes,
+                isVeryStrong = isVeryStrong,
+                resolvedWeakTier = resolvedWeakTier,
+                playbackTier = tier
+            )
             if (shouldPlayPassiveSignalAndQualityAlerts(stats, passiveSettings) &&
                 passiveSettings.isTierSoundEnabled(tier)
             ) {
                 playTieredWeakSignalClick(
                     volumes = volumes,
-                    tier = tier
+                    tier = tier,
+                    frequencyHz = volumes.pulseFrequencyHzForTier(tier).toDouble(),
+                    pulseDurationMs = pulseDurationMs,
+                    clickVolume = clickVolumeForLteRsrpPlayback(volumes, isVeryStrong, resolvedWeakTier)
                 )
             }
             delay(
                 stats.computeSignalStrengthClickIntervalMs(
                     passiveSettings,
-                    volumes.signalPulseDurationMs
+                    pulseDurationMs
                 )
             )
         } else {
@@ -299,44 +461,97 @@ class GeigerCounterPlayer {
         )
     }
 
+    private fun clickVolumeForLteRsrpPlayback(
+        volumes: AudioVolumeSettings,
+        isVeryStrong: Boolean,
+        resolvedWeakTier: SignalStrengthTier?
+    ): Float? {
+        if (isVeryStrong) return volumes.veryStrongTierClickVolume()
+        if (resolvedWeakTier == SignalStrengthTier.CRITICAL) {
+            return volumes.criticalTierClickVolume()
+        }
+        return null
+    }
+
+    private fun pulseDurationMsForLteRsrpPlayback(
+        stats: ConnectivityStats,
+        passiveSettings: PassiveSignalSettings,
+        volumes: AudioVolumeSettings,
+        isVeryStrong: Boolean,
+        resolvedWeakTier: SignalStrengthTier?,
+        playbackTier: SignalStrengthTier
+    ): Int {
+        return when {
+            stats.usesG2SignalTiers() -> passiveSettings.pulseDurationMsForTier(playbackTier)
+            isVeryStrong -> passiveSettings.veryStrongTierPulseDurationMs
+            resolvedWeakTier != null -> passiveSettings.pulseDurationMsForTier(resolvedWeakTier)
+            else -> volumes.pulseDurationMsForTier(playbackTier)
+        }
+    }
+
     private fun playTieredWeakSignalClick(
         volumes: AudioVolumeSettings,
         tier: SignalStrengthTier,
-        frequencyHz: Double = volumes.signalPulseFrequencyHz.toDouble(),
-        mixWhiteNoise: Boolean = false,
-        pulseDurationMs: Int? = null
+        frequencyHz: Double = volumes.pulseFrequencyHzForTier(tier).toDouble(),
+        noiseMix: Double = 0.0,
+        pulseDurationMs: Int? = null,
+        clickVolume: Float? = null
     ) {
-        if (volumes.lowSignalClickVolume <= 0f) return
+        val resolvedVolume = clickVolume ?: volumes.clickVolumeForTier(tier)
+        if (resolvedVolume <= 0f) return
+        val resolvedDurationMs = pulseDurationMs
+            ?: tier.pulseDurationMs(volumes.pulseDurationMsForTier(tier))
         playSineToneBurst(
             frequencyHz = frequencyHz,
-            durationMs = pulseDurationMs ?: tier.pulseDurationMs(volumes.signalPulseDurationMs),
-            amplitude = FLATLINE_AMPLITUDE * volumes.lowSignalClickVolume,
-            mixWhiteNoise = mixWhiteNoise
+            durationMs = resolvedDurationMs,
+            amplitude = FLATLINE_AMPLITUDE * resolvedVolume,
+            noiseMix = noiseMix
         )
     }
 
+    private fun playWhiteNoiseBurst(durationMs: Int, amplitude: Float) {
+        if (amplitude <= 0f || durationMs <= 0) return
+
+        val sampleCount = sampleRate * durationMs / 1_000
+        if (sampleCount <= 0) return
+        val buffer = ShortArray(sampleCount)
+        val fadeSamples = (sampleRate * SINE_BURST_FADE_MS / 1_000).coerceAtMost(sampleCount / 4)
+
+        for (i in buffer.indices) {
+            val noise = Random.nextDouble(-1.0, 1.0)
+            val envelope = when {
+                fadeSamples <= 0 -> 1.0
+                i < fadeSamples -> i.toDouble() / fadeSamples
+                i >= sampleCount - fadeSamples -> (sampleCount - i).toDouble() / fadeSamples
+                else -> 1.0
+            }
+            buffer[i] = (noise * envelope * Short.MAX_VALUE * amplitude).toInt().toShort()
+        }
+        playStaticBuffer(buffer)
+    }
+
     /**
-     * Sustained sine burst for RSRP/RSRQ tier alerts (no click decay).
+     * Sustained sine burst for RSRP tier alerts (no click decay).
      */
     private fun playSineToneBurst(
         frequencyHz: Double,
         durationMs: Int,
         amplitude: Float,
-        mixWhiteNoise: Boolean = false
+        noiseMix: Double = 0.0
     ) {
         if (amplitude <= 0f) return
 
         val sampleCount = sampleRate * durationMs / 1_000
         val buffer = ShortArray(sampleCount)
         val fadeSamples = (sampleRate * SINE_BURST_FADE_MS / 1_000).coerceAtMost(sampleCount / 4)
-        val noiseMix = if (mixWhiteNoise) NOISY_RSRQ_WHITE_NOISE_MIX else 0.0
-        val toneMix = 1.0 - noiseMix
+        val clampedNoiseMix = noiseMix.coerceIn(0.0, 1.0)
+        val toneMix = 1.0 - clampedNoiseMix
 
         for (i in buffer.indices) {
             val timeSec = i.toDouble() / sampleRate
             val sine = sin(2.0 * PI * frequencyHz * timeSec)
-            val noise = if (mixWhiteNoise) Random.nextDouble(-1.0, 1.0) else 0.0
-            val sample = sine * toneMix + noise * noiseMix
+            val noise = if (clampedNoiseMix > 0.0) Random.nextDouble(-1.0, 1.0) else 0.0
+            val sample = sine * toneMix + noise * clampedNoiseMix
             val envelope = when {
                 fadeSamples <= 0 -> 1.0
                 i < fadeSamples -> i.toDouble() / fadeSamples
@@ -346,10 +561,15 @@ class GeigerCounterPlayer {
             buffer[i] = (sample * envelope * Short.MAX_VALUE * amplitude).toInt().toShort()
         }
 
+        playStaticBuffer(buffer)
+    }
+
+    private fun playStaticBuffer(buffer: ShortArray) {
+        if (buffer.isEmpty()) return
         val audioTrack = buildAudioTrack(buffer.size * 2, AudioTrack.MODE_STATIC)
         audioTrack.write(buffer, 0, buffer.size)
         audioTrack.play()
-        audioTrack.setNotificationMarkerPosition(sampleCount)
+        audioTrack.setNotificationMarkerPosition(buffer.size)
         audioTrack.setPlaybackPositionUpdateListener(object : AudioTrack.OnPlaybackPositionUpdateListener {
             override fun onMarkerReached(track: AudioTrack?) {
                 track?.release()
@@ -626,6 +846,17 @@ class GeigerCounterPlayer {
         )
     }
 
+    fun previewRsrqWhiteNoise(clickVolume: Float, whiteNoiseMix: Float, pulseDurationMs: Int) {
+        if (clickVolume <= 0f || whiteNoiseMix <= 0f) return
+        playWhiteNoiseBurst(
+            durationMs = pulseDurationMs.coerceIn(
+                AudioVolumeSettings.MIN_SIGNAL_PULSE_DURATION_MS,
+                AudioVolumeSettings.MAX_SIGNAL_PULSE_DURATION_MS
+            ),
+            amplitude = FLATLINE_AMPLITUDE * clickVolume * whiteNoiseMix
+        )
+    }
+
     fun previewLimitedServiceTone(volume: Float) {
         if (volume <= 0f) return
         val amplitude = LIMITED_SERVICE_AMPLITUDE * volume
@@ -810,7 +1041,6 @@ class GeigerCounterPlayer {
         /** D♭4 — no-signal / flatline tone (was 600 Hz). */
         private const val NO_SIGNAL_TONE_HZ = 554.0
         private const val FLATLINE_ON_MS = 250
-        private const val NOISY_RSRQ_WHITE_NOISE_MIX = 0.38
         private const val SINE_BURST_FADE_MS = 8
         private const val FLATLINE_OFF_MS = 1_000
         private const val FLATLINE_CONTINUOUS_LOOP_MS = 250

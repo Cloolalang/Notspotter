@@ -87,6 +87,7 @@ class CellularPassiveSignalMonitor(
                 gsmEarfcn = radio.gsmEarfcn,
                 gsmBsic = radio.gsmBsic,
                 isOn2g = radio.isOn2g,
+                networkModePreference = radio.networkModePreference,
                 restrictedTo2gNetwork = radio.restrictedTo2gNetwork,
                 isLimitedService = radio.isLimitedService,
                 networkServiceMode = radio.networkServiceMode,

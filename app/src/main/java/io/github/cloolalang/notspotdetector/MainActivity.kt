@@ -131,14 +131,7 @@ class MainActivity : ComponentActivity() {
             ) {
                 add(Manifest.permission.READ_PHONE_STATE)
             }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
-                ContextCompat.checkSelfPermission(
-                    this@MainActivity,
-                    Manifest.permission.ACCESS_FINE_LOCATION
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                add(Manifest.permission.ACCESS_FINE_LOCATION)
-            }
+            addAll(missingCellIdentityPermissions())
         }
         if (permissions.isNotEmpty()) {
             signalPermissionsLauncher.launch(permissions.toTypedArray())
@@ -147,7 +140,33 @@ class MainActivity : ComponentActivity() {
 
     private fun requestCellIdentityPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+            val missing = missingCellIdentityPermissions()
+            if (missing.isEmpty()) return
+            if (missing.size == 1) {
+                locationPermissionLauncher.launch(missing.first())
+            } else {
+                signalPermissionsLauncher.launch(missing.toTypedArray())
+            }
+        }
+    }
+
+    private fun missingCellIdentityPermissions(): List<String> {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return emptyList()
+        return buildList {
+            if (ContextCompat.checkSelfPermission(
+                    this@MainActivity,
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                add(Manifest.permission.ACCESS_FINE_LOCATION)
+            }
+            if (ContextCompat.checkSelfPermission(
+                    this@MainActivity,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                add(Manifest.permission.ACCESS_COARSE_LOCATION)
+            }
         }
     }
 }

@@ -14,26 +14,18 @@ object OperatorTitleStyle {
         return detectBrandFromNormalized(normalized) ?: UkOperatorBrand.OTHER
     }
 
+    /** Home SIM operator only — never camped / visited serving name (title bar). */
+    fun resolveHomeOperatorName(stats: ConnectivityStats): String? {
+        return stats.homeNetworkOperatorName?.trim()?.takeIf { it.isNotBlank() }
+    }
+
     fun detectBrand(stats: ConnectivityStats): UkOperatorBrand {
-        val candidates = listOfNotNull(
-            stats.homeNetworkOperatorName,
-            stats.networkOperatorName,
-            stats.servingNetworkOperatorName
-        )
-        for (candidate in candidates) {
-            val brand = detectBrand(candidate)
-            if (brand != UkOperatorBrand.OTHER) {
-                return brand
-            }
-        }
-        return UkOperatorBrand.OTHER
+        return detectBrand(resolveHomeOperatorName(stats))
     }
 
     fun resolveLabel(stats: ConnectivityStats): String? {
-        val raw = stats.homeNetworkOperatorName
-            ?: stats.networkOperatorName
-            ?: stats.servingNetworkOperatorName
-        val brand = detectBrand(stats)
+        val raw = resolveHomeOperatorName(stats) ?: return null
+        val brand = detectBrand(raw)
         return shortLabel(brand, raw)
     }
 
@@ -70,18 +62,23 @@ object OperatorTitleStyle {
     }
 }
 
-const val LOW_SIGNAL_TITLE_TIER_MIN = 5
-
 fun SignalMeasurementTier.isLowOrNoSignalForTitle(): Boolean {
-    val tierNumber = displayNumber
-    if (tierNumber != null && tierNumber >= LOW_SIGNAL_TITLE_TIER_MIN) {
-        return true
+    return when (this) {
+        SignalMeasurementTier.POOR,
+        SignalMeasurementTier.CRITICAL,
+        SignalMeasurementTier.G2_STRONG,
+        SignalMeasurementTier.G2_WEAK,
+        SignalMeasurementTier.G2_NO_SIGNAL,
+        SignalMeasurementTier.DEADZONE,
+        SignalMeasurementTier.NO_SIGNAL,
+        SignalMeasurementTier.SEARCHING_2G -> true
+        else -> false
     }
-    return this == SignalMeasurementTier.NO_SIGNAL
 }
 
 fun ConnectivityStats.isLowOrNoSignalForTitle(
     settings: PassiveSignalSettings = PassiveSignalSettings()
 ): Boolean {
-    return resolveSignalMeasurementTier(settings).isLowOrNoSignalForTitle()
+    return resolveSignalMeasurementTier(settings).isLowOrNoSignalForTitle() ||
+        isRsrqPoor(settings)
 }

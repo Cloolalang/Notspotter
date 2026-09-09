@@ -21,8 +21,11 @@ object TierSliderSupport {
     }
 
     /** Picks a coarse enough step size to keep tier click sliders responsive. */
-    fun tierClickSliderStepSizeMs(minUiMs: Int): Int {
-        val maxMs = PassiveSignalSettings.MAX_TIER_CLICK_INTERVAL_MS
+    fun tierClickSliderStepSizeMs(
+        minUiMs: Int,
+        maxIntervalMs: Int = PassiveSignalSettings.MAX_TIER_CLICK_INTERVAL_MS
+    ): Int {
+        val maxMs = maxIntervalMs
         val span = maxMs - minUiMs
         if (span <= 0) return PassiveSignalSettings.TIER_CLICK_INTERVAL_STEP_MS
 
@@ -38,8 +41,36 @@ object TierSliderSupport {
         }.coerceAtLeast(PassiveSignalSettings.TIER_CLICK_INTERVAL_STEP_MS)
     }
 
-    fun tierClickSliderIndex(intervalMs: Int, minUiMs: Int, uiStepSize: Int): Int {
-        return ((intervalMs.coerceAtLeast(minUiMs) + uiStepSize / 2) / uiStepSize)
+    /** Highest slider index; index 0 always maps to [minUiMs]. */
+    fun tierClickSliderMaxIndex(
+        minUiMs: Int,
+        uiStepSize: Int,
+        maxIntervalMs: Int = PassiveSignalSettings.MAX_TIER_CLICK_INTERVAL_MS
+    ): Int {
+        val maxMs = maxIntervalMs
+        if (minUiMs >= maxMs) return 0
+        return (maxMs - minUiMs) / uiStepSize
+    }
+
+    fun tierClickSliderMsFromIndex(
+        index: Int,
+        minUiMs: Int,
+        uiStepSize: Int,
+        maxIntervalMs: Int = PassiveSignalSettings.MAX_TIER_CLICK_INTERVAL_MS
+    ): Int {
+        return (minUiMs + index.coerceAtLeast(0) * uiStepSize)
+            .coerceAtMost(maxIntervalMs)
+    }
+
+    fun tierClickSliderIndexFromMs(
+        intervalMs: Int,
+        minUiMs: Int,
+        uiStepSize: Int,
+        maxIntervalMs: Int = PassiveSignalSettings.MAX_TIER_CLICK_INTERVAL_MS
+    ): Int {
+        val clamped = intervalMs.coerceIn(minUiMs, maxIntervalMs)
+        val maxIndex = tierClickSliderMaxIndex(minUiMs, uiStepSize, maxIntervalMs)
+        return ((clamped - minUiMs + uiStepSize / 2) / uiStepSize).coerceIn(0, maxIndex)
     }
 
     fun isValidIntRange(valueRange: IntRange): Boolean {

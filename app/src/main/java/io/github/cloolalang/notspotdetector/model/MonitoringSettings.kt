@@ -20,7 +20,7 @@ data class MonitoringSettings(
     }
 
     companion object {
-        const val DEFAULT_MONITOR_2G_FALLBACK = false
+        const val DEFAULT_MONITOR_2G_FALLBACK = true
         const val DEFAULT_SUBSCRIPTION_ID = SubscriptionManager.INVALID_SUBSCRIPTION_ID
         const val DEFAULT_PASSIVE_QUIET_UNTIL_CRITICAL = false
         const val DEFAULT_PASSIVE_MEASUREMENT_INTERVAL_MS = 5_000L

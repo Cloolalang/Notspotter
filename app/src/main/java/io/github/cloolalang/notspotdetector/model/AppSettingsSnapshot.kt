@@ -1,7 +1,14 @@
 package io.github.cloolalang.notspotdetector.model
 
 /**
- * Full app settings bundle stored in a named profile.
+ * Full user-configurable settings bundle stored in a named profile.
+ *
+ * Captured on save: [ThresholdSettings], [PingSettings], [MonitoringSettings],
+ * [PassiveSignalSettings], [PassiveMockSettings] (enabled, scenario, rsrpDbm, rsrqDb),
+ * and [AudioVolumeSettings].
+ *
+ * Not captured: monitoring session state, live [ConnectivityStats], or permissions.
+ * See [SETTINGS_PROFILES.md] and [AppSettingsSnapshotCodec].
  */
 data class AppSettingsSnapshot(
     val thresholds: ThresholdSettings = ThresholdSettings(),
@@ -19,7 +26,8 @@ data class AppSettingsSnapshot(
             monitoringSettings = monitoringSettings.normalized(),
             passiveSignalSettings = SettingsCompatibility.normalizePassiveSignalSettings(
                 passiveSignalSettings.normalized(),
-                normalizedAudio.signalPulseDurationMs
+                normalizedAudio.signalPulseDurationMs,
+                normalizedAudio.levelRangeBcdPulseDurationMs
             ),
             passiveMockSettings = passiveMockSettings.normalized(),
             audioVolumes = normalizedAudio

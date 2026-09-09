@@ -16,6 +16,7 @@ fun CellIdentitySnapshot.coalesceWith(previous: CellIdentitySnapshot): CellIdent
 }
 
 fun ConnectivityStats.shouldClearCellIdentity(): Boolean {
+    if (isLimitedService) return false
     if (isMonitoring && noSignalActive) return true
     if (isOn2g && !monitor2gFallbackEnabled) return true
     if (isCompleteNoService) return true

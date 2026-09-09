@@ -19,9 +19,25 @@ class PassiveSignalSettingsRepository(context: Context) {
                 PassiveSignalSettings.DEFAULT_VERY_STRONG_RSRP_MIN_DBM
             ),
             rsrqFairMinDb = prefs.getInt(KEY_RSRQ_FAIR_MIN, PassiveSignalSettings.DEFAULT_RSRQ_FAIR_MIN_DB),
-            noisyRsrqPassiveClicks = prefs.getBoolean(
-                KEY_NOISY_RSRQ_PASSIVE_CLICKS,
-                PassiveSignalSettings.DEFAULT_NOISY_RSRQ_PASSIVE_CLICKS
+            rsrqTierSoundEnabled = prefs.getBoolean(
+                KEY_RSRQ_TIER_SOUND,
+                prefs.getBoolean(KEY_NOISY_RSRQ_PASSIVE_CLICKS, PassiveSignalSettings.DEFAULT_RSRQ_TIER_SOUND_ENABLED)
+            ),
+            rsrqTierCoupledToSignalTier = prefs.getBoolean(
+                KEY_RSRQ_TIER_COUPLED,
+                PassiveSignalSettings.DEFAULT_RSRQ_TIER_COUPLED_TO_SIGNAL_TIER
+            ),
+            rsrqTierWhiteNoiseVolume = prefs.getFloat(
+                KEY_RSRQ_TIER_WHITE_NOISE_VOLUME,
+                PassiveSignalSettings.DEFAULT_RSRQ_TIER_WHITE_NOISE_VOLUME
+            ),
+            rsrqTierClickIntervalMs = prefs.getInt(
+                KEY_RSRQ_TIER_CLICK_MS,
+                PassiveSignalSettings.DEFAULT_RSRQ_TIER_CLICK_INTERVAL_MS
+            ),
+            rsrqTierPulseDurationMs = prefs.getInt(
+                KEY_RSRQ_TIER_PULSE_MS,
+                PassiveSignalSettings.DEFAULT_RSRQ_TIER_PULSE_DURATION_MS
             ),
             quietAlertRsrqDb = prefs.getInt(KEY_QUIET_ALERT_RSRQ, PassiveSignalSettings.DEFAULT_QUIET_ALERT_RSRQ_DB),
             quietAlertRsrpMaxDbm = prefs.getInt(
@@ -32,6 +48,7 @@ class PassiveSignalSettingsRepository(context: Context) {
                 KEY_CRITICAL_TIER_CLICK_MS,
                 PassiveSignalSettings.DEFAULT_CRITICAL_TIER_CLICK_INTERVAL_MS
             ),
+            levelRangeAbcdClickIntervalMs = decodeLevelRangeAbcdClickIntervalMs(prefs),
             poorTierClickIntervalMs = prefs.getInt(
                 KEY_POOR_TIER_CLICK_MS,
                 PassiveSignalSettings.DEFAULT_POOR_TIER_CLICK_INTERVAL_MS
@@ -80,9 +97,17 @@ class PassiveSignalSettingsRepository(context: Context) {
                 KEY_G2_STRONG_TIER_CLICK_MS,
                 PassiveSignalSettings.DEFAULT_G2_STRONG_TIER_CLICK_INTERVAL_MS
             ),
+            g2StrongTierPulseDurationMs = prefs.getInt(
+                KEY_G2_STRONG_TIER_PULSE_MS,
+                PassiveSignalSettings.DEFAULT_G2_STRONG_TIER_PULSE_DURATION_MS
+            ),
             g2WeakTierClickIntervalMs = prefs.getInt(
                 KEY_G2_WEAK_TIER_CLICK_MS,
                 PassiveSignalSettings.DEFAULT_G2_WEAK_TIER_CLICK_INTERVAL_MS
+            ),
+            g2WeakTierPulseDurationMs = prefs.getInt(
+                KEY_G2_WEAK_TIER_PULSE_MS,
+                PassiveSignalSettings.DEFAULT_G2_WEAK_TIER_PULSE_DURATION_MS
             ),
             g2StrongTierSoundEnabled = prefs.getBoolean(
                 KEY_G2_STRONG_TIER_SOUND,
@@ -91,6 +116,18 @@ class PassiveSignalSettingsRepository(context: Context) {
             g2WeakTierSoundEnabled = prefs.getBoolean(
                 KEY_G2_WEAK_TIER_SOUND,
                 PassiveSignalSettings.DEFAULT_TIER_SOUND_ENABLED
+            ),
+            g2NoSignalTierClickIntervalMs = prefs.getInt(
+                KEY_G2_NO_SIGNAL_TIER_CLICK_MS,
+                PassiveSignalSettings.DEFAULT_G2_NO_SIGNAL_TIER_CLICK_INTERVAL_MS
+            ),
+            g2NoSignalTierSoundEnabled = prefs.getBoolean(
+                KEY_G2_NO_SIGNAL_TIER_SOUND,
+                PassiveSignalSettings.DEFAULT_TIER_SOUND_ENABLED
+            ),
+            g2NoSignalTierPulseDurationMs = prefs.getInt(
+                KEY_G2_NO_SIGNAL_TIER_PULSE_MS,
+                PassiveSignalSettings.DEFAULT_G2_NO_SIGNAL_TIER_PULSE_DURATION_MS
             ),
             deadzoneTierClickIntervalMs = prefs.getInt(
                 KEY_DEADZONE_TIER_CLICK_MS,
@@ -103,6 +140,54 @@ class PassiveSignalSettingsRepository(context: Context) {
             deadzoneTierPulseDurationMs = prefs.getInt(
                 KEY_DEADZONE_TIER_PULSE_MS,
                 PassiveSignalSettings.DEFAULT_DEADZONE_TIER_PULSE_DURATION_MS
+            ),
+            noSignalTierClickIntervalMs = prefs.getInt(
+                KEY_NO_SIGNAL_TIER_CLICK_MS,
+                PassiveSignalSettings.DEFAULT_NO_SIGNAL_TIER_CLICK_INTERVAL_MS
+            ),
+            noSignalTierSoundEnabled = prefs.getBoolean(
+                KEY_NO_SIGNAL_TIER_SOUND,
+                PassiveSignalSettings.DEFAULT_TIER_SOUND_ENABLED
+            ),
+            noSignalTierPulseDurationMs = prefs.getInt(
+                KEY_NO_SIGNAL_TIER_PULSE_MS,
+                PassiveSignalSettings.DEFAULT_NO_SIGNAL_TIER_PULSE_DURATION_MS
+            ),
+            searching2gTierClickIntervalMs = prefs.getInt(
+                KEY_SEARCHING_2G_TIER_CLICK_MS,
+                PassiveSignalSettings.DEFAULT_SEARCHING_2G_TIER_CLICK_INTERVAL_MS
+            ),
+            searching2gTierSoundEnabled = prefs.getBoolean(
+                KEY_SEARCHING_2G_TIER_SOUND,
+                PassiveSignalSettings.DEFAULT_TIER_SOUND_ENABLED
+            ),
+            searching2gTierPulseDurationMs = prefs.getInt(
+                KEY_SEARCHING_2G_TIER_PULSE_MS,
+                PassiveSignalSettings.DEFAULT_SEARCHING_2G_TIER_PULSE_DURATION_MS
+            ),
+            limitedServiceTierClickIntervalMs = prefs.getInt(
+                KEY_LIMITED_SERVICE_TIER_CLICK_MS,
+                PassiveSignalSettings.DEFAULT_LIMITED_SERVICE_TIER_CLICK_INTERVAL_MS
+            ),
+            limitedServiceTierSoundEnabled = prefs.getBoolean(
+                KEY_LIMITED_SERVICE_TIER_SOUND,
+                PassiveSignalSettings.DEFAULT_TIER_SOUND_ENABLED
+            ),
+            limitedServiceTierPulseDurationMs = prefs.getInt(
+                KEY_LIMITED_SERVICE_TIER_PULSE_MS,
+                PassiveSignalSettings.DEFAULT_LIMITED_SERVICE_TIER_PULSE_DURATION_MS
+            ),
+            limitedAlt2gTierClickIntervalMs = prefs.getInt(
+                KEY_LIMITED_ALT_2G_TIER_CLICK_MS,
+                PassiveSignalSettings.DEFAULT_LIMITED_ALT_2G_TIER_CLICK_INTERVAL_MS
+            ),
+            limitedAlt2gTierSoundEnabled = prefs.getBoolean(
+                KEY_LIMITED_ALT_2G_TIER_SOUND,
+                PassiveSignalSettings.DEFAULT_TIER_SOUND_ENABLED
+            ),
+            limitedAlt2gTierPulseDurationMs = prefs.getInt(
+                KEY_LIMITED_ALT_2G_TIER_PULSE_MS,
+                PassiveSignalSettings.DEFAULT_LIMITED_ALT_2G_TIER_PULSE_DURATION_MS
             )
         ).normalized()
     }
@@ -117,10 +202,15 @@ class PassiveSignalSettingsRepository(context: Context) {
             .putInt(KEY_MILD_RSRP_MIN, normalized.mildRsrpMinDbm)
             .putInt(KEY_VERY_STRONG_RSRP_MIN, normalized.veryStrongRsrpMinDbm)
             .putInt(KEY_RSRQ_FAIR_MIN, normalized.rsrqFairMinDb)
-            .putBoolean(KEY_NOISY_RSRQ_PASSIVE_CLICKS, normalized.noisyRsrqPassiveClicks)
+            .putBoolean(KEY_RSRQ_TIER_SOUND, normalized.rsrqTierSoundEnabled)
+            .putBoolean(KEY_RSRQ_TIER_COUPLED, normalized.rsrqTierCoupledToSignalTier)
+            .putFloat(KEY_RSRQ_TIER_WHITE_NOISE_VOLUME, normalized.rsrqTierWhiteNoiseVolume)
+            .putInt(KEY_RSRQ_TIER_CLICK_MS, normalized.rsrqTierClickIntervalMs)
+            .putInt(KEY_RSRQ_TIER_PULSE_MS, normalized.rsrqTierPulseDurationMs)
             .putInt(KEY_QUIET_ALERT_RSRQ, normalized.quietAlertRsrqDb)
             .putInt(KEY_QUIET_ALERT_RSRP_MAX, normalized.quietAlertRsrpMaxDbm)
             .putInt(KEY_CRITICAL_TIER_CLICK_MS, normalized.criticalTierClickIntervalMs)
+            .putInt(KEY_LEVEL_RANGE_ABCD_CLICK_MS, normalized.levelRangeAbcdClickIntervalMs)
             .putInt(KEY_POOR_TIER_CLICK_MS, normalized.poorTierClickIntervalMs)
             .putInt(KEY_FAIR_TIER_CLICK_MS, normalized.fairTierClickIntervalMs)
             .putInt(KEY_GOOD_TIER_CLICK_MS, normalized.goodTierClickIntervalMs)
@@ -133,13 +223,45 @@ class PassiveSignalSettingsRepository(context: Context) {
             .putBoolean(KEY_POOR_TIER_SOUND, normalized.poorTierSoundEnabled)
             .putBoolean(KEY_CRITICAL_TIER_SOUND, normalized.criticalTierSoundEnabled)
             .putInt(KEY_G2_STRONG_TIER_CLICK_MS, normalized.g2StrongTierClickIntervalMs)
+            .putInt(KEY_G2_STRONG_TIER_PULSE_MS, normalized.g2StrongTierPulseDurationMs)
             .putInt(KEY_G2_WEAK_TIER_CLICK_MS, normalized.g2WeakTierClickIntervalMs)
+            .putInt(KEY_G2_WEAK_TIER_PULSE_MS, normalized.g2WeakTierPulseDurationMs)
             .putBoolean(KEY_G2_STRONG_TIER_SOUND, normalized.g2StrongTierSoundEnabled)
             .putBoolean(KEY_G2_WEAK_TIER_SOUND, normalized.g2WeakTierSoundEnabled)
+            .putInt(KEY_G2_NO_SIGNAL_TIER_CLICK_MS, normalized.g2NoSignalTierClickIntervalMs)
+            .putBoolean(KEY_G2_NO_SIGNAL_TIER_SOUND, normalized.g2NoSignalTierSoundEnabled)
+            .putInt(KEY_G2_NO_SIGNAL_TIER_PULSE_MS, normalized.g2NoSignalTierPulseDurationMs)
             .putInt(KEY_DEADZONE_TIER_CLICK_MS, normalized.deadzoneTierClickIntervalMs)
             .putBoolean(KEY_DEADZONE_TIER_SOUND, normalized.deadzoneTierSoundEnabled)
             .putInt(KEY_DEADZONE_TIER_PULSE_MS, normalized.deadzoneTierPulseDurationMs)
+            .putInt(KEY_NO_SIGNAL_TIER_CLICK_MS, normalized.noSignalTierClickIntervalMs)
+            .putBoolean(KEY_NO_SIGNAL_TIER_SOUND, normalized.noSignalTierSoundEnabled)
+            .putInt(KEY_NO_SIGNAL_TIER_PULSE_MS, normalized.noSignalTierPulseDurationMs)
+            .putInt(KEY_SEARCHING_2G_TIER_CLICK_MS, normalized.searching2gTierClickIntervalMs)
+            .putBoolean(KEY_SEARCHING_2G_TIER_SOUND, normalized.searching2gTierSoundEnabled)
+            .putInt(KEY_SEARCHING_2G_TIER_PULSE_MS, normalized.searching2gTierPulseDurationMs)
+            .putInt(KEY_LIMITED_SERVICE_TIER_CLICK_MS, normalized.limitedServiceTierClickIntervalMs)
+            .putBoolean(KEY_LIMITED_SERVICE_TIER_SOUND, normalized.limitedServiceTierSoundEnabled)
+            .putInt(KEY_LIMITED_SERVICE_TIER_PULSE_MS, normalized.limitedServiceTierPulseDurationMs)
+            .putInt(KEY_LIMITED_ALT_2G_TIER_CLICK_MS, normalized.limitedAlt2gTierClickIntervalMs)
+            .putBoolean(KEY_LIMITED_ALT_2G_TIER_SOUND, normalized.limitedAlt2gTierSoundEnabled)
+            .putInt(KEY_LIMITED_ALT_2G_TIER_PULSE_MS, normalized.limitedAlt2gTierPulseDurationMs)
             .apply()
+    }
+
+    private fun decodeLevelRangeAbcdClickIntervalMs(
+        prefs: android.content.SharedPreferences
+    ): Int {
+        if (prefs.contains(KEY_LEVEL_RANGE_ABCD_CLICK_MS)) {
+            return prefs.getInt(
+                KEY_LEVEL_RANGE_ABCD_CLICK_MS,
+                PassiveSignalSettings.DEFAULT_LEVEL_RANGE_ABCD_CLICK_INTERVAL_MS
+            )
+        }
+        return prefs.getInt(
+            KEY_GOOD_TIER_CLICK_MS,
+            PassiveSignalSettings.DEFAULT_LEVEL_RANGE_ABCD_CLICK_INTERVAL_MS
+        )
     }
 
     companion object {
@@ -152,9 +274,15 @@ class PassiveSignalSettingsRepository(context: Context) {
         private const val KEY_VERY_STRONG_RSRP_MIN = "very_strong_rsrp_min_dbm"
         private const val KEY_RSRQ_FAIR_MIN = "rsrq_fair_min_db"
         private const val KEY_NOISY_RSRQ_PASSIVE_CLICKS = "noisy_rsrq_passive_clicks"
+        private const val KEY_RSRQ_TIER_SOUND = "rsrq_tier_sound_enabled"
+        private const val KEY_RSRQ_TIER_COUPLED = "rsrq_tier_coupled_to_signal_tier"
+        private const val KEY_RSRQ_TIER_WHITE_NOISE_VOLUME = "rsrq_tier_white_noise_volume"
+        private const val KEY_RSRQ_TIER_CLICK_MS = "rsrq_tier_click_ms"
+        private const val KEY_RSRQ_TIER_PULSE_MS = "rsrq_tier_pulse_ms"
         private const val KEY_QUIET_ALERT_RSRQ = "quiet_alert_rsrq_db"
         private const val KEY_QUIET_ALERT_RSRP_MAX = "quiet_alert_rsrp_max_dbm"
         private const val KEY_CRITICAL_TIER_CLICK_MS = "critical_tier_click_ms"
+        private const val KEY_LEVEL_RANGE_ABCD_CLICK_MS = "level_range_abcd_click_interval_ms"
         private const val KEY_POOR_TIER_CLICK_MS = "poor_tier_click_ms"
         private const val KEY_FAIR_TIER_CLICK_MS = "fair_tier_click_ms"
         private const val KEY_GOOD_TIER_CLICK_MS = "good_tier_click_ms"
@@ -167,11 +295,28 @@ class PassiveSignalSettingsRepository(context: Context) {
         private const val KEY_POOR_TIER_SOUND = "poor_tier_sound_enabled"
         private const val KEY_CRITICAL_TIER_SOUND = "critical_tier_sound_enabled"
         private const val KEY_G2_STRONG_TIER_CLICK_MS = "g2_strong_tier_click_ms"
+        private const val KEY_G2_STRONG_TIER_PULSE_MS = "g2_strong_tier_pulse_ms"
         private const val KEY_G2_WEAK_TIER_CLICK_MS = "g2_weak_tier_click_ms"
+        private const val KEY_G2_WEAK_TIER_PULSE_MS = "g2_weak_tier_pulse_ms"
         private const val KEY_G2_STRONG_TIER_SOUND = "g2_strong_tier_sound_enabled"
         private const val KEY_G2_WEAK_TIER_SOUND = "g2_weak_tier_sound_enabled"
+        private const val KEY_G2_NO_SIGNAL_TIER_CLICK_MS = "g2_no_signal_tier_click_ms"
+        private const val KEY_G2_NO_SIGNAL_TIER_SOUND = "g2_no_signal_tier_sound_enabled"
+        private const val KEY_G2_NO_SIGNAL_TIER_PULSE_MS = "g2_no_signal_tier_pulse_ms"
         private const val KEY_DEADZONE_TIER_CLICK_MS = "deadzone_tier_click_ms"
         private const val KEY_DEADZONE_TIER_SOUND = "deadzone_tier_sound_enabled"
         private const val KEY_DEADZONE_TIER_PULSE_MS = "deadzone_tier_pulse_ms"
+        private const val KEY_NO_SIGNAL_TIER_CLICK_MS = "no_signal_tier_click_ms"
+        private const val KEY_NO_SIGNAL_TIER_SOUND = "no_signal_tier_sound_enabled"
+        private const val KEY_NO_SIGNAL_TIER_PULSE_MS = "no_signal_tier_pulse_ms"
+        private const val KEY_SEARCHING_2G_TIER_CLICK_MS = "searching_2g_tier_click_ms"
+        private const val KEY_SEARCHING_2G_TIER_SOUND = "searching_2g_tier_sound_enabled"
+        private const val KEY_SEARCHING_2G_TIER_PULSE_MS = "searching_2g_tier_pulse_ms"
+        private const val KEY_LIMITED_SERVICE_TIER_CLICK_MS = "limited_service_tier_click_ms"
+        private const val KEY_LIMITED_SERVICE_TIER_SOUND = "limited_service_tier_sound_enabled"
+        private const val KEY_LIMITED_SERVICE_TIER_PULSE_MS = "limited_service_tier_pulse_ms"
+        private const val KEY_LIMITED_ALT_2G_TIER_CLICK_MS = "limited_alt_2g_tier_click_ms"
+        private const val KEY_LIMITED_ALT_2G_TIER_SOUND = "limited_alt_2g_tier_sound_enabled"
+        private const val KEY_LIMITED_ALT_2G_TIER_PULSE_MS = "limited_alt_2g_tier_pulse_ms"
     }
 }

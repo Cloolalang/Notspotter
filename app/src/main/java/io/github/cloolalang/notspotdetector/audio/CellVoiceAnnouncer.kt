@@ -5,12 +5,15 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
 import android.speech.tts.Voice
 import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerChoice
 import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerOption
 import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerSelection
 import java.util.ArrayDeque
 import java.util.Locale
+import kotlin.coroutines.resume
+import kotlinx.coroutines.suspendCancellableCoroutine
 
 class CellVoiceAnnouncer(context: Context) : TextToSpeech.OnInitListener {
 
@@ -82,7 +85,53 @@ class CellVoiceAnnouncer(context: Context) : TextToSpeech.OnInitListener {
     ) {
         if (volume <= 0f || text.isBlank()) return
         mainHandler.post {
-            speakOnMainThread(text, volume, selection)
+            speakOnMainThread(
+                text = text,
+                volume = volume,
+                selection = selection,
+                queueMode = TextToSpeech.QUEUE_FLUSH
+            )
+        }
+    }
+
+    suspend fun speakAwait(
+        text: String,
+        volume: Float,
+        selection: VoiceAnnouncerSelection? = null
+    ) {
+        if (volume <= 0f || text.isBlank()) return
+        suspendCancellableCoroutine { continuation ->
+            mainHandler.post {
+                if (!ready) {
+                    pending.addLast(PendingSpeech(text, volume, selection))
+                    continuation.resume(Unit)
+                    return@post
+                }
+                val utteranceId = "voice_${System.nanoTime()}"
+                tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                    override fun onStart(utteranceId: String?) = Unit
+
+                    override fun onDone(id: String?) {
+                        if (id != utteranceId) return
+                        tts?.setOnUtteranceProgressListener(null)
+                        continuation.resume(Unit)
+                    }
+
+                    @Deprecated("Deprecated in Java")
+                    override fun onError(id: String?) {
+                        if (id != utteranceId) return
+                        tts?.setOnUtteranceProgressListener(null)
+                        continuation.resume(Unit)
+                    }
+                })
+                speakOnMainThread(
+                    text = text,
+                    volume = volume,
+                    selection = selection,
+                    queueMode = TextToSpeech.QUEUE_ADD,
+                    utteranceId = utteranceId
+                )
+            }
         }
     }
 
@@ -107,7 +156,9 @@ class CellVoiceAnnouncer(context: Context) : TextToSpeech.OnInitListener {
     private fun speakOnMainThread(
         text: String,
         volume: Float,
-        selection: VoiceAnnouncerSelection?
+        selection: VoiceAnnouncerSelection?,
+        queueMode: Int = TextToSpeech.QUEUE_FLUSH,
+        utteranceId: String = "voice_${System.nanoTime()}"
     ) {
         if (!ready) {
             pending.addLast(PendingSpeech(text, volume, selection))
@@ -120,9 +171,9 @@ class CellVoiceAnnouncer(context: Context) : TextToSpeech.OnInitListener {
         }
         tts?.speak(
             text,
-            TextToSpeech.QUEUE_FLUSH,
+            queueMode,
             params,
-            "cell_reselect_${System.nanoTime()}"
+            utteranceId
         )
     }
 

@@ -26,7 +26,7 @@ class SignalStateAnnouncementTest {
             CellularSignalReader.RADIO_4G,
             "EE"
         )
-        assertEquals("E E, Technology change, 4 G", announcement)
+        assertEquals("E E, 4 G", announcement)
     }
 
     @Test
@@ -48,7 +48,7 @@ class SignalStateAnnouncementTest {
             )
         )
         assertEquals(
-            "E E, Signal restored, 4 G",
+            "E E, 4 G, signal restored",
             SignalStateAnnouncement.formatNoSignalChange(
                 active = false,
                 networkOperatorName = "EE",
@@ -56,7 +56,7 @@ class SignalStateAnnouncementTest {
             )
         )
         assertEquals(
-            "Signal restored, 2 G",
+            "2 G, signal restored",
             SignalStateAnnouncement.formatNoSignalChange(
                 active = false,
                 networkOperatorName = null,
@@ -111,43 +111,23 @@ class SignalStateAnnouncementTest {
     }
 
     @Test
-    fun formatLimitedServiceChange_announcesEnterAndExitWithTechnology() {
-        assertEquals(
-            "Limited service, 4 G",
-            SignalStateAnnouncement.formatLimitedServiceChange(
-                active = true,
-                networkOperatorName = null,
-                radioAccessType = CellularSignalReader.RADIO_4G
-            )
+    fun formatLimitedServiceChange_announcesLimitedServiceEntryOnly() {
+        val stats = ConnectivityStats(
+            isLimitedService = true,
+            networkOperatorName = "Vodafone UK",
+            homeNetworkOperatorName = "Vodafone UK",
+            servingNetworkOperatorName = "Vodafone UK",
+            radioAccessType = CellularSignalReader.RADIO_2G,
+            signalPermissionGranted = true
         )
         assertEquals(
-            "Vodafone UK, Limited service, 2 G",
-            SignalStateAnnouncement.formatLimitedServiceChange(
-                active = true,
-                networkOperatorName = "Vodafone UK",
-                radioAccessType = CellularSignalReader.RADIO_2G
-            )
-        )
-        assertEquals(
-            "E E, Full service, 4 G",
-            SignalStateAnnouncement.formatLimitedServiceChange(
-                active = false,
-                networkOperatorName = "EE",
-                radioAccessType = CellularSignalReader.RADIO_4G
-            )
-        )
-        assertEquals(
-            "Full service, 2 G",
-            SignalStateAnnouncement.formatLimitedServiceChange(
-                active = false,
-                networkOperatorName = null,
-                radioAccessType = CellularSignalReader.RADIO_2G
-            )
+            "Vodafone UK, 2 G, limited service",
+            SignalStateAnnouncement.formatLimitedServiceChange(stats)
         )
     }
 
     @Test
-    fun formatLimitedServiceAnnouncement_includesHomeAndAlternativeOperators() {
+    fun formatLimitedServiceAnnouncement_includesHomeAndVisitedOperators() {
         val stats = ConnectivityStats(
             isLimitedService = true,
             homeNetworkOperatorName = "Vodafone UK",
@@ -158,7 +138,37 @@ class SignalStateAnnouncementTest {
         )
 
         assertEquals(
-            "Vodafone UK, E E, Limited service, 4 G",
+            "Vodafone UK home, E E visited, 4 G, limited service",
+            SignalStateAnnouncement.formatLimitedServiceAnnouncement(stats)
+        )
+    }
+
+    @Test
+    fun formatLimitedServiceAnnouncement_mockVisited4gNamesHomeThenVisitedWithRoles() {
+        val stats = PassiveMockSettings(scenario = MockNetworkScenario.ALT_OPERATOR_4G).toConnectivityStats(
+            monitor2gFallback = true,
+            passiveSettings = PassiveSignalSettings(),
+            passiveIdleMode = false,
+            passiveOnlySession = true
+        )
+
+        assertEquals(
+            "Vodafone home, E E visited, 4 G, limited service",
+            SignalStateAnnouncement.formatLimitedServiceAnnouncement(stats)
+        )
+    }
+
+    @Test
+    fun formatLimitedServiceAnnouncement_mockVisited2gNamesHomeThenVisitedWithRoles() {
+        val stats = PassiveMockSettings(scenario = MockNetworkScenario.ALT_OPERATOR_2G).toConnectivityStats(
+            monitor2gFallback = true,
+            passiveSettings = PassiveSignalSettings(),
+            passiveIdleMode = false,
+            passiveOnlySession = true
+        )
+
+        assertEquals(
+            "Vodafone home, E E visited, 2 G, limited service",
             SignalStateAnnouncement.formatLimitedServiceAnnouncement(stats)
         )
     }
@@ -175,7 +185,7 @@ class SignalStateAnnouncementTest {
         )
 
         assertEquals(
-            "Vodafone UK, Limited service, 2 G",
+            "Vodafone UK, 2 G, limited service",
             SignalStateAnnouncement.formatLimitedServiceAnnouncement(stats)
         )
     }
@@ -206,11 +216,11 @@ class SignalStateAnnouncementTest {
     @Test
     fun formatDeadzoneAnnouncement_includesOperatorWhenKnown() {
         assertEquals(
-            "Vodafone UK, all technologies dead zone, scanning",
+            "Vodafone UK, deadzone, no service, no SOS calls",
             SignalStateAnnouncement.formatDeadzoneAnnouncement("Vodafone UK")
         )
         assertEquals(
-            "all technologies dead zone, scanning",
+            "deadzone, no service, no SOS calls",
             SignalStateAnnouncement.formatDeadzoneAnnouncement(null)
         )
     }
@@ -221,5 +231,113 @@ class SignalStateAnnouncementTest {
         assertTrue(SignalStateAnnouncement.isLteNrRadioAccessType(CellularSignalReader.RADIO_5G))
         assertFalse(SignalStateAnnouncement.isLteNrRadioAccessType(CellularSignalReader.RADIO_2G))
         assertFalse(SignalStateAnnouncement.isLteNrRadioAccessType(null))
+    }
+
+    @Test
+    fun formatTier5SignalLow_visitedLimited4gUsesVisitedOperatorPhrase() {
+        val stats = PassiveMockSettings(
+            scenario = MockNetworkScenario.ALT_OPERATOR_4G,
+            rsrpDbm = -122
+        ).toConnectivityStats(
+            monitor2gFallback = true,
+            passiveSettings = PassiveSignalSettings(),
+            passiveIdleMode = false,
+            passiveOnlySession = true
+        )
+
+        assertEquals(
+            "E E visited, 4 G, signal low",
+            SignalStateAnnouncement.formatTier5SignalLowAnnouncement(stats)
+        )
+    }
+
+    @Test
+    fun formatNoSignalAnnouncement_visitedLimited4gUsesVisitedOperatorPhrase() {
+        val stats = PassiveMockSettings(
+            scenario = MockNetworkScenario.ALT_OPERATOR_4G,
+            rsrpDbm = -130
+        ).toConnectivityStats(
+            monitor2gFallback = true,
+            passiveSettings = PassiveSignalSettings(),
+            passiveIdleMode = false,
+            passiveOnlySession = true
+        )
+
+        assertEquals(
+            "E E visited, 4 G, no signal",
+            SignalStateAnnouncement.formatNoSignalAnnouncement(stats)
+        )
+    }
+
+    @Test
+    fun formatTier5SignalLow_visitedLimited2gUsesVisitedOperatorPhrase() {
+        val stats = PassiveMockSettings(
+            scenario = MockNetworkScenario.ALT_OPERATOR_2G,
+            rsrpDbm = -110
+        ).toConnectivityStats(
+            monitor2gFallback = true,
+            passiveSettings = PassiveSignalSettings(),
+            passiveIdleMode = false,
+            passiveOnlySession = true
+        )
+
+        assertEquals(
+            "E E visited, 2 G, signal low",
+            SignalStateAnnouncement.formatTier5SignalLowAnnouncement(stats)
+        )
+    }
+
+    @Test
+    fun formatSignalRestoredAnnouncement_visitedLimited4gUsesVisitedOperatorPhrase() {
+        val stats = PassiveMockSettings(
+            scenario = MockNetworkScenario.ALT_OPERATOR_4G,
+            rsrpDbm = -75
+        ).toConnectivityStats(
+            monitor2gFallback = true,
+            passiveSettings = PassiveSignalSettings(),
+            passiveIdleMode = false,
+            passiveOnlySession = true
+        )
+
+        assertEquals(
+            "E E visited, 4 G, signal restored",
+            SignalStateAnnouncement.formatSignalRestoredAnnouncement(stats)
+        )
+    }
+
+    @Test
+    fun formatSignalRestoredAnnouncement_visitedLimited2gUsesVisitedOperatorPhrase() {
+        val stats = PassiveMockSettings(
+            scenario = MockNetworkScenario.ALT_OPERATOR_2G,
+            rsrpDbm = -95
+        ).toConnectivityStats(
+            monitor2gFallback = true,
+            passiveSettings = PassiveSignalSettings(),
+            passiveIdleMode = false,
+            passiveOnlySession = true
+        )
+
+        assertEquals(
+            "E E visited, 2 G, signal restored",
+            SignalStateAnnouncement.formatSignalRestoredAnnouncement(stats)
+        )
+    }
+
+    @Test
+    fun formatNoSignalAnnouncement_visitedLimited2gUsesVisitedOperatorPhrase() {
+        val stats = PassiveMockSettings(
+            scenario = MockNetworkScenario.ALT_OPERATOR_2G,
+            rsrpDbm = -130
+        ).toConnectivityStats(
+            monitor2gFallback = true,
+            passiveSettings = PassiveSignalSettings(),
+            passiveIdleMode = false,
+            passiveOnlySession = true
+        )
+
+        assertEquals(
+            "E E visited, 2 G, no signal",
+            SignalStateAnnouncement.formatNoSignalAnnouncement(stats)
+        )
     }
 }
