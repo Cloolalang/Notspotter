@@ -41,7 +41,7 @@ Implemented in [`SignalStateAnnouncement.joinAnnouncementParts()`](app/src/main/
 **Global VA panel** — the "VA — Voice announcement preferences" card (bottom of Settings) has two app-wide toggles that strip parts 1 and 2 above from **every** announcement type listed here, independent of any per-tier voice enable/volume setting:
 
 - `speakOperatorNameEnabled` (default **on**) — when off, the operator name is never spoken.
-- `speakTechnologyEnabled` (default **on**) — when off, the technology (2 G/4 G/5 G/5 G E N D C) is never spoken, including in the RXSS 9 band-nickname alternative phrasing.
+- `speakTechnologyEnabled` (default **on**) — when off, the technology (2 G/4 G/5 G/5 G E N D C) is never spoken, including in the RXSS 9 band-nickname alternative phrasing. **Exception: VA-9 "Technology change"** always speaks the tech regardless of this toggle, since announcing the new technology is the entire purpose of that alert — only `speakOperatorNameEnabled` applies to it.
 
 Tones, bells, clicks, and vibration are unaffected by either toggle.
 

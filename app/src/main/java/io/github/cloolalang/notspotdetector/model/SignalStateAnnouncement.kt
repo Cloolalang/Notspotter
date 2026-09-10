@@ -81,7 +81,12 @@ object SignalStateAnnouncement {
         )
     }
 
-    /** Operator + tech only (implicit 4G/5G full service — no service-state phrase). */
+    /**
+     * Operator + tech only (implicit 4G/5G full service — no service-state phrase). VA-9 —
+     * announcing the technology itself is the entire point of this alert, so [speakTechnologyEnabled]
+     * is intentionally **not** honored here (unlike every other announcement type); only the global
+     * "speak operator name" toggle applies.
+     */
     fun formatTechnologyChange(
         radioAccessType: String,
         networkOperatorName: String?,
@@ -92,7 +97,7 @@ object SignalStateAnnouncement {
             operatorNames = listOf(networkOperatorName),
             radioAccessType = radioAccessType,
             speakOperatorNameEnabled = speakOperatorNameEnabled,
-            speakTechnologyEnabled = speakTechnologyEnabled
+            speakTechnologyEnabled = true
         )
     }
 

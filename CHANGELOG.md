@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Documentation** — [MOCK_NETWORK_SCENARIOS.md](MOCK_NETWORK_SCENARIOS.md) (agreed mock trigger states per scenario) and [SETTINGS_PROFILES.md](SETTINGS_PROFILES.md) (profile JSON capture scope, including full `passiveMock` block). Updated [RXSS_CATALOGUE.md](RXSS_CATALOGUE.md), [VOICE_ANNOUNCEMENTS.md](VOICE_ANNOUNCEMENTS.md), and [README.md](README.md) cross-links; RXSS **0**, **11**, **12**, **20**, **23** rows reflect current voice implementation.
 
+## [2.10.1] - 2026-09-10
+
+### Fixed
+
+- **"Speak technology" toggle no longer suppresses the technology-change announcement itself** — With the new global VA panel's "Speak technology" toggle off, VA-9 ("Technology change", e.g. "E E, 4 G" on entering LTE) was being reduced to just the operator name, defeating the purpose of that specific alert. The toggle now only suppresses the technology label on every *other* announcement type (no-signal, limited service, signal low, dead zone, searching 2G, cell reselect, 2G camped); the technology-change announcement always speaks the tech.
+
 ## [2.10.0] - 2026-09-10
 
 ### Added
