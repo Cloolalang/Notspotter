@@ -253,6 +253,9 @@ object AppSettingsSnapshotCodec {
             .put("limitedAlt2gTierClickIntervalMs", settings.limitedAlt2gTierClickIntervalMs)
             .put("limitedAlt2gTierSoundEnabled", settings.limitedAlt2gTierSoundEnabled)
             .put("limitedAlt2gTierPulseDurationMs", settings.limitedAlt2gTierPulseDurationMs)
+            .put("wifiCallingTierClickIntervalMs", settings.wifiCallingTierClickIntervalMs)
+            .put("wifiCallingTierSoundEnabled", settings.wifiCallingTierSoundEnabled)
+            .put("wifiCallingTierPulseDurationMs", settings.wifiCallingTierPulseDurationMs)
     }
 
     private fun decodePassiveSignal(json: JSONObject?, audioVolumes: AudioVolumeSettings): PassiveSignalSettings {
@@ -465,6 +468,18 @@ object AppSettingsSnapshotCodec {
             limitedAlt2gTierPulseDurationMs = json.optInt(
                 "limitedAlt2gTierPulseDurationMs",
                 PassiveSignalSettings.DEFAULT_LIMITED_ALT_2G_TIER_PULSE_DURATION_MS
+            ),
+            wifiCallingTierClickIntervalMs = json.optInt(
+                "wifiCallingTierClickIntervalMs",
+                PassiveSignalSettings.DEFAULT_WIFI_CALLING_TIER_CLICK_INTERVAL_MS
+            ),
+            wifiCallingTierSoundEnabled = json.optBoolean(
+                "wifiCallingTierSoundEnabled",
+                PassiveSignalSettings.DEFAULT_TIER_SOUND_ENABLED
+            ),
+            wifiCallingTierPulseDurationMs = json.optInt(
+                "wifiCallingTierPulseDurationMs",
+                PassiveSignalSettings.DEFAULT_WIFI_CALLING_TIER_PULSE_DURATION_MS
             )
         )
     }

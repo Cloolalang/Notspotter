@@ -28,7 +28,9 @@ enum class SignalStrengthTier {
     /** RXSS 13 — Limited alt 2G. */
     LIMITED_ALT_2G,
     /** RXSS 14 — RSRQ poor (overlay). */
-    RSRQ_POOR;
+    RSRQ_POOR,
+    /** RXSS 31 — WiFi calling, no cellular signal. */
+    WIFI_CALLING;
 
     /** RX Signal State catalogue number — see [RXSS_CATALOGUE.md]. */
     val rxssNumber: Int
@@ -47,6 +49,7 @@ enum class SignalStrengthTier {
             LIMITED_SERVICE -> Rxss.LIMITED_ALT_4G
             LIMITED_ALT_2G -> Rxss.LIMITED_ALT_2G
             RSRQ_POOR -> Rxss.RSRQ_POOR
+            WIFI_CALLING -> Rxss.WIFI_CALLING_NO_SIGNAL
         }
 
     /** @deprecated Renamed to [rxssNumber] — same value. */
@@ -69,6 +72,7 @@ enum class SignalStrengthTier {
             LIMITED_SERVICE -> 900L
             LIMITED_ALT_2G -> 600L
             RSRQ_POOR -> 800L
+            WIFI_CALLING -> 600L
         }
 
     val isCampStateTier: Boolean
@@ -81,7 +85,8 @@ enum class SignalStrengthTier {
             SEARCHING_2G,
             LIMITED_SERVICE,
             LIMITED_ALT_2G,
-            RSRQ_POOR -> true
+            RSRQ_POOR,
+            WIFI_CALLING -> true
             else -> false
         }
 
@@ -155,8 +160,7 @@ enum class SignalMeasurementTier {
         LIMITED_SERVICE -> SignalStrengthTier.LIMITED_SERVICE
         LIMITED_ALT_2G -> SignalStrengthTier.LIMITED_ALT_2G
         RSRQ_POOR -> SignalStrengthTier.RSRQ_POOR
-        // Reuses the RXSS 10 no-signal camp-tier sound/voice settings — see RXSS_CATALOGUE.md RXSS 31.
-        WIFI_CALLING -> SignalStrengthTier.NO_SIGNAL
+        WIFI_CALLING -> SignalStrengthTier.WIFI_CALLING
         else -> null
     }
 
@@ -589,6 +593,7 @@ fun ConnectivityStats.resolveSignalMeasurementTier(
         SignalStrengthTier.LIMITED_SERVICE -> SignalMeasurementTier.LIMITED_SERVICE
         SignalStrengthTier.LIMITED_ALT_2G -> SignalMeasurementTier.LIMITED_ALT_2G
         SignalStrengthTier.RSRQ_POOR -> SignalMeasurementTier.RSRQ_POOR
+        SignalStrengthTier.WIFI_CALLING -> SignalMeasurementTier.WIFI_CALLING
         null -> SignalMeasurementTier.UNAVAILABLE
     }
 }

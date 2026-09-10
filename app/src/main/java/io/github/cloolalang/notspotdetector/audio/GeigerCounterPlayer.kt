@@ -34,6 +34,7 @@ import io.github.cloolalang.notspotdetector.model.shouldPlayCurrentTierSignalPul
 import io.github.cloolalang.notspotdetector.model.shouldPlaySignalStrengthInterval
 import io.github.cloolalang.notspotdetector.model.shouldPlayVeryStrongSignalIndicator
 import io.github.cloolalang.notspotdetector.model.shouldPlayWeakSignalWarning
+import io.github.cloolalang.notspotdetector.model.shouldPlayWifiCallingNoSignalCampTier
 import io.github.cloolalang.notspotdetector.model.shouldSuppressGeigerClicks
 import io.github.cloolalang.notspotdetector.model.hasExtremeLatency
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
@@ -199,6 +200,16 @@ class GeigerCounterPlayer {
                             volumes,
                             passiveSettings,
                             SignalStrengthTier.NO_SIGNAL
+                        )
+                    }
+                    stats.shouldPlayWifiCallingNoSignalCampTier(passiveSettings) -> {
+                        stopLimitedService()
+                        stopFlatline()
+                        handleCampTierAudio(
+                            stats,
+                            volumes,
+                            passiveSettings,
+                            SignalStrengthTier.WIFI_CALLING
                         )
                     }
                     stats.shouldPlay2gLimitedServicePulse() -> {

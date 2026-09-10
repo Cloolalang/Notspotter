@@ -73,12 +73,13 @@
     <string name="passive_signal_level_range_bcd_section_hint">Volume and frequency shared by RXSS 2–5. Each tier below keeps its own enable toggle, RSRP boundary, pulse duration, and click interval.</string>
     <string name="passive_signal_level_range_bcd_volume">Signal pulse volume</string>
     <string name="passive_signal_level_range_bcd_frequency">Signal pulse frequency</string>
-    <string name="passive_signal_rxss0_voice_shared_hint">Tone and voice settings are shared with LTE/NR no signal (RXSS 10), searching 2G (RXSS 11), and home 2G no signal (RXSS 15).</string>
-    <string name="passive_signal_rxss10_voice_shared_hint">Tone and voice settings are shared with dead zone (RXSS 0), searching 2G (RXSS 11), home 2G no signal (RXSS 15), and visited 4G no signal overlay (RXSS 20).</string>
-    <string name="passive_signal_rxss11_voice_shared_hint">Tone and voice settings are shared with LTE/NR no signal (RXSS 10), dead zone (RXSS 0), and home 2G no signal (RXSS 15).</string>
+    <string name="passive_signal_rxss0_voice_shared_hint">Tone and voice settings are shared with LTE/NR no signal (RXSS 10), searching 2G (RXSS 11), home 2G no signal (RXSS 15), and WiFi calling no signal (RXSS 31).</string>
+    <string name="passive_signal_rxss10_voice_shared_hint">Tone and voice settings are shared with dead zone (RXSS 0), searching 2G (RXSS 11), home 2G no signal (RXSS 15), visited 4G no signal overlay (RXSS 20), and WiFi calling no signal (RXSS 31).</string>
+    <string name="passive_signal_rxss11_voice_shared_hint">Tone and voice settings are shared with LTE/NR no signal (RXSS 10), dead zone (RXSS 0), home 2G no signal (RXSS 15), and WiFi calling no signal (RXSS 31).</string>
     <string name="passive_signal_rxss12_voice_shared_hint">Tone and voice settings are shared with visited operator 2G limited service (RXSS 13). No-signal overlay RXSS 20 uses LTE/NR no signal (RXSS 10) tone and voice.</string>
     <string name="passive_signal_rxss13_voice_shared_hint">Tone and voice settings are shared with visited operator limited service (RXSS 12). No-signal overlay RXSS 23 uses home 2G no signal (RXSS 15) tone and voice.</string>
-    <string name="passive_signal_rxss15_voice_shared_hint">Tone and voice settings are shared with LTE/NR no signal (RXSS 10), dead zone (RXSS 0), searching 2G (RXSS 11), and visited 2G no signal overlay (RXSS 23).</string>
+    <string name="passive_signal_rxss15_voice_shared_hint">Tone and voice settings are shared with LTE/NR no signal (RXSS 10), dead zone (RXSS 0), searching 2G (RXSS 11), visited 2G no signal overlay (RXSS 23), and WiFi calling no signal (RXSS 31).</string>
+    <string name="passive_signal_rxss31_voice_shared_hint">Tone and voice settings are shared with LTE/NR no signal (RXSS 10), dead zone (RXSS 0), searching 2G (RXSS 11), and home 2G no signal (RXSS 15).</string>
     <string name="passive_measurement_interval_label">Measurement cycle</string>
     <string name="passive_measurement_interval_value">%1$d s</string>
     <string name="passive_measurement_interval_hint">How often RSRP, RSRQ, and cell identity are refreshed during passive monitoring (1–10 s).</string>
@@ -160,7 +161,7 @@
     <string name="passive_signal_camp_tiers_section">Not-spot camp tiers</string>
     <string name="passive_signal_camp_tiers_section_hint">Camp states during not-spot hunting (RXSS 10, 15, 11, 12, 13). Each block has signal pulses and, where applicable, voice and alert tone controls below.</string>
     <string name="passive_signal_no_signal_tier_threshold">LTE/NR no signal (debounced) — not yet searching or dead zone</string>
-    <string name="passive_signal_no_signal_tier_wifi_calling_hint">Also controls RXSS 31 (WiFi calling, no cellular signal) — it reuses this tier\'s click, tone, and voice settings.</string>
+    <string name="passive_signal_wifi_calling_tier_threshold">In service via WiFi calling (VoWiFi), no cellular RAT camped, no RSRP/RSRQ (debounced)</string>
     <string name="passive_signal_searching_2g_tier_threshold">Scanning for home 2G after LTE/NR loss (all-tech mode)</string>
     <string name="passive_signal_limited_service_tier_threshold">Limited service on home or visited operator 4G</string>
     <string name="passive_signal_limited_alt_2g_tier_threshold">Limited service on visited operator 2G</string>

@@ -93,7 +93,11 @@ data class PassiveSignalSettings(
     /** Tier 13 — limited service on visited operator 2G. */
     val limitedAlt2gTierClickIntervalMs: Int = DEFAULT_LIMITED_ALT_2G_TIER_CLICK_INTERVAL_MS,
     val limitedAlt2gTierSoundEnabled: Boolean = DEFAULT_TIER_SOUND_ENABLED,
-    val limitedAlt2gTierPulseDurationMs: Int = DEFAULT_LIMITED_ALT_2G_TIER_PULSE_DURATION_MS
+    val limitedAlt2gTierPulseDurationMs: Int = DEFAULT_LIMITED_ALT_2G_TIER_PULSE_DURATION_MS,
+    /** RXSS 31 — WiFi calling, no cellular signal. Tone/frequency share the tier 10 no-signal group. */
+    val wifiCallingTierClickIntervalMs: Int = DEFAULT_WIFI_CALLING_TIER_CLICK_INTERVAL_MS,
+    val wifiCallingTierSoundEnabled: Boolean = DEFAULT_TIER_SOUND_ENABLED,
+    val wifiCallingTierPulseDurationMs: Int = DEFAULT_WIFI_CALLING_TIER_PULSE_DURATION_MS
 ) {
     /** RSRQ below this value maps to tier 14 and poor reception. */
     val criticalRsrqDb: Int
@@ -166,7 +170,9 @@ data class PassiveSignalSettings(
             noSignalTierPulseDurationMs = noSignalTierPulseDurationMs.coerceCampTierPulseDuration(),
             searching2gTierPulseDurationMs = searching2gTierPulseDurationMs.coerceCampTierPulseDuration(),
             limitedServiceTierPulseDurationMs = limitedServiceTierPulseDurationMs.coerceCampTierPulseDuration(),
-            limitedAlt2gTierPulseDurationMs = limitedAlt2gTierPulseDurationMs.coerceCampTierPulseDuration()
+            limitedAlt2gTierPulseDurationMs = limitedAlt2gTierPulseDurationMs.coerceCampTierPulseDuration(),
+            wifiCallingTierClickIntervalMs = wifiCallingTierClickIntervalMs.coerceTierClickInterval(),
+            wifiCallingTierPulseDurationMs = wifiCallingTierPulseDurationMs.coerceCampTierPulseDuration()
         )
     }
 
@@ -248,6 +254,8 @@ data class PassiveSignalSettings(
         const val DEFAULT_SEARCHING_2G_TIER_PULSE_DURATION_MS = AudioVolumeSettings.DEFAULT_SIGNAL_PULSE_DURATION_MS
         const val DEFAULT_LIMITED_SERVICE_TIER_PULSE_DURATION_MS = AudioVolumeSettings.DEFAULT_SIGNAL_PULSE_DURATION_MS
         const val DEFAULT_LIMITED_ALT_2G_TIER_PULSE_DURATION_MS = 300
+        const val DEFAULT_WIFI_CALLING_TIER_CLICK_INTERVAL_MS = 600
+        const val DEFAULT_WIFI_CALLING_TIER_PULSE_DURATION_MS = AudioVolumeSettings.DEFAULT_SIGNAL_PULSE_DURATION_MS
     }
 }
 
@@ -294,6 +302,7 @@ fun PassiveSignalSettings.isTierSoundEnabled(tier: SignalStrengthTier): Boolean 
         SignalStrengthTier.LIMITED_SERVICE -> limitedServiceTierSoundEnabled
         SignalStrengthTier.LIMITED_ALT_2G -> limitedAlt2gTierSoundEnabled
         SignalStrengthTier.RSRQ_POOR -> rsrqTierSoundEnabled
+        SignalStrengthTier.WIFI_CALLING -> wifiCallingTierSoundEnabled
     }
 }
 
@@ -313,6 +322,7 @@ fun PassiveSignalSettings.pulseDurationMsForTier(tier: SignalStrengthTier): Int 
         SignalStrengthTier.LIMITED_SERVICE -> limitedServiceTierPulseDurationMs
         SignalStrengthTier.LIMITED_ALT_2G -> limitedAlt2gTierPulseDurationMs
         SignalStrengthTier.RSRQ_POOR -> rsrqTierPulseDurationMs
+        SignalStrengthTier.WIFI_CALLING -> wifiCallingTierPulseDurationMs
     }
 }
 
@@ -346,6 +356,7 @@ fun PassiveSignalSettings.clickIntervalMsForTier(tier: SignalStrengthTier): Long
         SignalStrengthTier.LIMITED_SERVICE -> limitedServiceTierClickIntervalMs
         SignalStrengthTier.LIMITED_ALT_2G -> limitedAlt2gTierClickIntervalMs
         SignalStrengthTier.RSRQ_POOR -> rsrqTierClickIntervalMs
+        SignalStrengthTier.WIFI_CALLING -> wifiCallingTierClickIntervalMs
     }.toLong()
 }
 

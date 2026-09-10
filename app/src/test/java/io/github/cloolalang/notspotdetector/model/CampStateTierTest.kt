@@ -85,6 +85,35 @@ class CampStateTierTest {
     }
 
     @Test
+    fun wifiCallingNoSignal_usesDedicatedCampTierNotTier10() {
+        val stats = ConnectivityStats(
+            isMonitoring = true,
+            isWifiCallingActive = true,
+            noSignalActive = true,
+            signalPermissionGranted = true
+        )
+        assertFalse(stats.shouldPlayNoSignalCampTier(settings))
+        assertTrue(stats.shouldPlayWifiCallingNoSignalCampTier(settings))
+        assertFalse(stats.shouldPlayFlatline(settings))
+        assertTrue(stats.shouldPlayNoSignalVoiceAnnouncements(settings))
+        assertEquals(Rxss.WIFI_CALLING_NO_SIGNAL, stats.resolveSignalMeasurementTier(settings).displayNumber)
+    }
+
+    @Test
+    fun wifiCallingNoSignal_soundDisabledFallsBackToFlatlineButKeepsVoice() {
+        val stats = ConnectivityStats(
+            isMonitoring = true,
+            isWifiCallingActive = true,
+            noSignalActive = true,
+            signalPermissionGranted = true
+        )
+        val disabled = settings.copy(wifiCallingTierSoundEnabled = false)
+        assertFalse(stats.shouldPlayWifiCallingNoSignalCampTier(disabled))
+        assertTrue(stats.shouldPlayFlatline(disabled))
+        assertTrue(stats.shouldPlayNoSignalVoiceAnnouncements(disabled))
+    }
+
+    @Test
     fun clickVolumeForTier_usesLimitedServiceToneVolumeForCampTiers() {
         val volumes = AudioVolumeSettings(
             lowSignalClickVolume = 0.3f,

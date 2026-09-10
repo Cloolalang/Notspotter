@@ -15,7 +15,18 @@ fun ConnectivityStats.shouldPlayNoSignalCampTier(
         !searching2gFallbackActive &&
         !isCompleteNoService &&
         !isLimitedService &&
+        !isWifiCallingActive &&
         settings.noSignalTierSoundEnabled
+}
+
+/** RXSS **31** — WiFi calling, no cellular signal. Independent sound settings from RXSS 10. */
+fun ConnectivityStats.shouldPlayWifiCallingNoSignalCampTier(
+    settings: PassiveSignalSettings = PassiveSignalSettings()
+): Boolean {
+    return isMonitoring &&
+        noSignalActive &&
+        isWifiCallingActive &&
+        settings.wifiCallingTierSoundEnabled
 }
 
 fun ConnectivityStats.shouldPlayG2NoSignalCampTier(
@@ -102,5 +113,6 @@ fun ConnectivityStats.isActiveCampStateTier(
         shouldPlayLimitedServiceCampTier(settings) ||
         shouldPlaySearching2gCampTier(settings) ||
         shouldPlayG2NoSignalCampTier(settings) ||
-        shouldPlayNoSignalCampTier(settings)
+        shouldPlayNoSignalCampTier(settings) ||
+        shouldPlayWifiCallingNoSignalCampTier(settings)
 }

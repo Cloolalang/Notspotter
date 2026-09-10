@@ -126,6 +126,7 @@ private fun ConnectivityStats.signalOnlySeverity(
         SignalStrengthTier.LIMITED_SERVICE -> 0.7f
         SignalStrengthTier.LIMITED_ALT_2G -> 0.75f
         SignalStrengthTier.RSRQ_POOR -> 0.65f
+        SignalStrengthTier.WIFI_CALLING -> 0.85f
     }
 }
 

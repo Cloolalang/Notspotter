@@ -39,6 +39,7 @@ fun ConnectivityStats.shouldPlayFlatline(
     if (shouldPlayNoSignalCampTier(settings)) return false
     if (shouldPlayG2NoSignalCampTier(settings)) return false
     if (shouldPlaySearching2gCampTier(settings)) return false
+    if (shouldPlayWifiCallingNoSignalCampTier(settings)) return false
     return true
 }
 
@@ -96,7 +97,9 @@ fun ConnectivityStats.shouldPlayNoSignalVoiceAnnouncements(
     if (!isMonitoring || isPassiveIdleMode) return false
     if (shouldPlayLimitedVisitedNoSignalVoiceAnnouncements(settings)) return true
     if (usesG2SignalTiers() || isCompleteNoService) return false
-    return shouldPlayFlatline(settings) || shouldPlayNoSignalCampTier(settings)
+    return shouldPlayFlatline(settings) ||
+        shouldPlayNoSignalCampTier(settings) ||
+        shouldPlayWifiCallingNoSignalCampTier(settings)
 }
 
 /** Steady no-signal tone when out of service on all technologies and no SOS on any SIM. */

@@ -29,6 +29,7 @@ import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
 import io.github.cloolalang.notspotdetector.model.CellReselectBandNamingStyle
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
+import io.github.cloolalang.notspotdetector.model.Rxss
 import io.github.cloolalang.notspotdetector.model.SettingsCompatibility
 import io.github.cloolalang.notspotdetector.model.CELL_CHANGE_RXSS_NUMBER
 import io.github.cloolalang.notspotdetector.model.TechnologyChangeTarget
@@ -1553,6 +1554,20 @@ private fun CampStateTierSettings(
             onPreviewNoSignalVoice = onPreviewNoSignalVoice,
             onPreviewSignalPulse = onPreviewSignalPulse
         )
+        WifiCallingCampTierBlock(
+            settings = settings,
+            audioVolumes = audioVolumes,
+            previewEnabled = previewEnabled,
+            passiveMeasurementIntervalMs = passiveMeasurementIntervalMs,
+            onSettingsChange = onSettingsChange,
+            onNoSignalTierPulseFrequencyChange = onNoSignalTierPulseFrequencyChange,
+            onNoSignalToneVolumeChange = onNoSignalToneVolumeChange,
+            onNoSignalVibrationEnabledChange = onNoSignalVibrationEnabledChange,
+            onNoSignalVoiceEnabledChange = onNoSignalVoiceEnabledChange,
+            onNoSignalVoiceVolumeChange = onNoSignalVoiceVolumeChange,
+            onPreviewNoSignalVoice = onPreviewNoSignalVoice,
+            onPreviewSignalPulse = onPreviewSignalPulse
+        )
         G2NoSignalCampTierBlock(
             settings = settings,
             audioVolumes = audioVolumes,
@@ -1647,11 +1662,6 @@ private fun NoSignalCampTierBlock(
                     style = MaterialTheme.typography.bodySmall,
                     color = accentColor
                 )
-                Text(
-                    text = stringResource(R.string.passive_signal_no_signal_tier_wifi_calling_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = accentColor
-                )
             },
             volumeControls = {
                 CampSignalPulseVolumeControl(
@@ -1704,6 +1714,99 @@ private fun NoSignalCampTierBlock(
                 )
                 RxssSharedAlertHint(
                     text = stringResource(R.string.passive_signal_rxss10_voice_shared_hint),
+                    accentColor = accentColor
+                )
+            }
+        )
+    }
+}
+
+@Composable
+private fun WifiCallingCampTierBlock(
+    settings: PassiveSignalSettings,
+    audioVolumes: AudioVolumeSettings,
+    previewEnabled: Boolean,
+    passiveMeasurementIntervalMs: Long,
+    onSettingsChange: (PassiveSignalSettings) -> Unit,
+    onNoSignalTierPulseFrequencyChange: (Int) -> Unit,
+    onNoSignalToneVolumeChange: (Float) -> Unit,
+    onNoSignalVibrationEnabledChange: (Boolean) -> Unit,
+    onNoSignalVoiceEnabledChange: (Boolean) -> Unit,
+    onNoSignalVoiceVolumeChange: (Float) -> Unit,
+    onPreviewNoSignalVoice: () -> Unit,
+    onPreviewSignalPulse: (volume: Float, frequencyHz: Int, pulseDurationMs: Int) -> Unit
+) {
+    val tierNumber = Rxss.WIFI_CALLING_NO_SIGNAL
+    val accentColor = SignalTierColors.forTierNumber(tierNumber)
+    TierSettingSection(tierNumber = tierNumber, accentColor = accentColor) {
+        RxssSectionControlsOrdered(
+            accentColor = accentColor,
+            showSignalPulseSubsection = true,
+            soundToggle = {
+                TierSoundEnabledOption(
+                    tierNumber = tierNumber,
+                    enabled = settings.wifiCallingTierSoundEnabled,
+                    onEnabledChange = { onSettingsChange(settings.copy(wifiCallingTierSoundEnabled = it)) }
+                )
+            },
+            rangeControls = {
+                Text(
+                    text = stringResource(R.string.passive_signal_wifi_calling_tier_threshold),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = accentColor
+                )
+            },
+            volumeControls = {
+                CampSignalPulseVolumeControl(
+                    label = stringResource(R.string.audio_volume_no_signal),
+                    volume = audioVolumes.noSignalToneVolume,
+                    onVolumeChange = onNoSignalToneVolumeChange,
+                    previewEnabled = previewEnabled,
+                    accentColor = accentColor,
+                    pulseDurationMs = settings.wifiCallingTierPulseDurationMs,
+                    clickIntervalMs = settings.wifiCallingTierClickIntervalMs,
+                    frequencyHz = audioVolumes.noSignalTierPulseFrequencyHz,
+                    onPreviewSignalPulse = onPreviewSignalPulse
+                )
+            },
+            durationControls = {
+                TierPulseDurationSlider(
+                    label = stringResource(R.string.passive_signal_tier_pulse_duration, tierNumber),
+                    durationMs = settings.wifiCallingTierPulseDurationMs,
+                    accentColor = accentColor,
+                    onDurationChange = { onSettingsChange(settings.copy(wifiCallingTierPulseDurationMs = it)) }
+                )
+            },
+            intervalControls = {
+                TierClickSpeedSlider(
+                    label = stringResource(R.string.passive_signal_tier_click_interval, tierNumber),
+                    intervalMs = settings.wifiCallingTierClickIntervalMs,
+                    signalPulseDurationMs = settings.wifiCallingTierPulseDurationMs,
+                    passiveMeasurementIntervalMs = passiveMeasurementIntervalMs,
+                    accentColor = accentColor,
+                    onIntervalChange = { onSettingsChange(settings.copy(wifiCallingTierClickIntervalMs = it)) }
+                )
+            },
+            frequencyControls = {
+                TierPulseFrequencySlider(
+                    label = stringResource(R.string.passive_signal_tier_pulse_frequency, tierNumber),
+                    frequencyHz = audioVolumes.noSignalTierPulseFrequencyHz,
+                    accentColor = accentColor,
+                    onFrequencyChange = onNoSignalTierPulseFrequencyChange
+                )
+            },
+            voiceControls = {
+                NoSignalVoiceAnnouncementControls(
+                    audioVolumes = audioVolumes,
+                    previewEnabled = previewEnabled,
+                    accentColor = accentColor,
+                    onNoSignalVibrationEnabledChange = onNoSignalVibrationEnabledChange,
+                    onNoSignalVoiceEnabledChange = onNoSignalVoiceEnabledChange,
+                    onNoSignalVoiceVolumeChange = onNoSignalVoiceVolumeChange,
+                    onPreviewNoSignalVoice = onPreviewNoSignalVoice
+                )
+                RxssSharedAlertHint(
+                    text = stringResource(R.string.passive_signal_rxss31_voice_shared_hint),
                     accentColor = accentColor
                 )
             }

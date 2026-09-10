@@ -164,7 +164,10 @@ class AppSettingsSnapshotCodecCompletenessTest {
                 limitedServiceTierPulseDurationMs = 260,
                 limitedAlt2gTierClickIntervalMs = 610,
                 limitedAlt2gTierSoundEnabled = false,
-                limitedAlt2gTierPulseDurationMs = 270
+                limitedAlt2gTierPulseDurationMs = 270,
+                wifiCallingTierClickIntervalMs = 590,
+                wifiCallingTierSoundEnabled = false,
+                wifiCallingTierPulseDurationMs = 280
             ),
             passiveMockSettings = PassiveMockSettings(
                 enabled = true,
@@ -303,7 +306,10 @@ class AppSettingsSnapshotCodecCompletenessTest {
             "limitedServiceTierPulseDurationMs",
             "limitedAlt2gTierClickIntervalMs",
             "limitedAlt2gTierSoundEnabled",
-            "limitedAlt2gTierPulseDurationMs"
+            "limitedAlt2gTierPulseDurationMs",
+            "wifiCallingTierClickIntervalMs",
+            "wifiCallingTierSoundEnabled",
+            "wifiCallingTierPulseDurationMs"
         )
 
         private val AUDIO_KEYS = setOf(

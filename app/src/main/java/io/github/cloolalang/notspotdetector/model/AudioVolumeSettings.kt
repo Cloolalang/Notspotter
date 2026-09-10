@@ -79,7 +79,8 @@ data class AudioVolumeSettings(
             SignalStrengthTier.NO_SIGNAL,
             SignalStrengthTier.G2_NO_SIGNAL,
             SignalStrengthTier.DEADZONE,
-            SignalStrengthTier.SEARCHING_2G -> noSignalTierPulseFrequencyHz
+            SignalStrengthTier.SEARCHING_2G,
+            SignalStrengthTier.WIFI_CALLING -> noSignalTierPulseFrequencyHz
             SignalStrengthTier.LIMITED_SERVICE,
             SignalStrengthTier.LIMITED_ALT_2G -> limitedServiceTierPulseFrequencyHz
             SignalStrengthTier.CRITICAL -> signalPulseFrequencyHz
@@ -102,7 +103,8 @@ data class AudioVolumeSettings(
             SignalStrengthTier.NO_SIGNAL,
             SignalStrengthTier.G2_NO_SIGNAL,
             SignalStrengthTier.DEADZONE,
-            SignalStrengthTier.SEARCHING_2G -> noSignalToneVolume
+            SignalStrengthTier.SEARCHING_2G,
+            SignalStrengthTier.WIFI_CALLING -> noSignalToneVolume
             SignalStrengthTier.LIMITED_SERVICE,
             SignalStrengthTier.LIMITED_ALT_2G -> limitedServiceToneVolume
             else -> lowSignalClickVolume
