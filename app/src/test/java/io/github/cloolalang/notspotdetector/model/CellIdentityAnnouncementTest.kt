@@ -128,7 +128,56 @@ class CellIdentityAnnouncementTest {
             bandNamingStyle = CellReselectBandNamingStyle.MHZ_NICKNAME
         )
 
-        assertEquals("4 G, band, L eight hundred", announcement)
+        assertEquals("4 G, band, eight hundred", announcement)
+    }
+
+    @Test
+    fun format_speakBandEnabledWithMhzNicknameStyle_speaksL2600AsTwentySixHundred() {
+        val previous = CellIdentitySnapshot(lteEarfcn = 1_800, ltePci = 42)
+        // 3000 is within band 7's downlink EARFCN range (2750..3449), mhzNickname "L2600".
+        val next = CellIdentitySnapshot(lteEarfcn = 3_000, ltePci = 123)
+
+        val announcement = CellIdentityAnnouncement.format(
+            previous,
+            next,
+            CellularSignalReader.RADIO_4G,
+            speakBandEnabled = true,
+            bandNamingStyle = CellReselectBandNamingStyle.MHZ_NICKNAME
+        )
+
+        assertEquals("4 G, band, twenty six hundred", announcement)
+    }
+
+    @Test
+    fun format_speakOperatorNameDisabled_omitsOperator() {
+        val previous = CellIdentitySnapshot(lteEarfcn = 1_800, ltePci = 42)
+        val next = CellIdentitySnapshot(lteEarfcn = 6_400, ltePci = 123)
+
+        val announcement = CellIdentityAnnouncement.format(
+            previous,
+            next,
+            CellularSignalReader.RADIO_4G,
+            networkOperatorName = "EE",
+            speakOperatorNameEnabled = false
+        )
+
+        assertEquals("4 G, cell reselect, channel 6 4 0 0, PCI 1 2 3", announcement)
+    }
+
+    @Test
+    fun format_speakTechnologyDisabled_omitsTechnology() {
+        val previous = CellIdentitySnapshot(lteEarfcn = 1_800, ltePci = 42)
+        val next = CellIdentitySnapshot(lteEarfcn = 6_400, ltePci = 123)
+
+        val announcement = CellIdentityAnnouncement.format(
+            previous,
+            next,
+            CellularSignalReader.RADIO_4G,
+            networkOperatorName = "EE",
+            speakTechnologyEnabled = false
+        )
+
+        assertEquals("E E, cell reselect, channel 6 4 0 0, PCI 1 2 3", announcement)
     }
 
     @Test

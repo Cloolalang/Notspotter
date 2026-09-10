@@ -301,6 +301,12 @@
     <string name="audio_volume_cell_change_bell">Cell change bell</string>
     <string name="audio_master_voice_announcements">Voice announcements</string>
     <string name="audio_master_voice_announcements_hint">Master switch for all spoken voice announcements. Turning this off mutes every voice announcement without changing your individual voice settings below; tones, bells, clicks, and vibration are unaffected.</string>
+    <string name="voice_announcement_preferences_title">VA — Voice announcement preferences</string>
+    <string name="voice_announcement_preferences_summary">Global options that apply to every spoken voice announcement app-wide (cell reselect, technology change, no-signal, limited service, signal low, dead zone, searching 2 G, and 2 G camped).</string>
+    <string name="voice_announcement_speak_operator_name">Speak operator name</string>
+    <string name="voice_announcement_speak_operator_name_hint">When off, the operator name (e.g. “E E”) is omitted from every voice announcement.</string>
+    <string name="voice_announcement_speak_technology">Speak technology (2 G/4 G/5 G)</string>
+    <string name="voice_announcement_speak_technology_hint">When off, the technology (e.g. “4 G”, “5 G E N D C”) is omitted from every voice announcement.</string>
     <string name="audio_cell_change_voice_enabled">Voice announcement on cell change</string>
     <string name="audio_cell_change_voice_enabled_hint">After the cell change bell, speaks operator, technology, then cell reselect with channel and PCI (e.g. “E E, 4 G, cell reselect, channel 6 4 0 0, PCI 1 2 3”).</string>
     <string name="audio_volume_cell_change_voice">Cell change voice announcement</string>
@@ -309,7 +315,7 @@
     <string name="audio_cell_change_band_naming_number">Band number</string>
     <string name="audio_cell_change_band_naming_number_hint">Speaks the E-UTRA band number as a whole number, e.g. “band, twenty” for band 20.</string>
     <string name="audio_cell_change_band_naming_mhz">Band MHz name</string>
-    <string name="audio_cell_change_band_naming_mhz_hint">Speaks the band’s common MHz nickname as a whole number, e.g. “band, L eight hundred” for band 20 (L800).</string>
+    <string name="audio_cell_change_band_naming_mhz_hint">Speaks the band’s common MHz nickname as a whole number, e.g. “band, eight hundred” for band 20 (L800) or “band, twenty-six hundred” for band 7 (L2600).</string>
     <string name="audio_volume_technology_change">Technology change sweep</string>
     <string name="audio_technology_change_voice_enabled">Voice announcement on technology change</string>
     <string name="audio_technology_change_voice_enabled_hint">After the sweep tone, speaks the network name and new radio technology (e.g. “E E, Technology change, 4 G”). Only when 2G, 4G, or 5G changes.</string>

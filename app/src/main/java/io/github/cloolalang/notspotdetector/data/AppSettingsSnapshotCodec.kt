@@ -542,6 +542,8 @@ object AppSettingsSnapshotCodec {
             .put("limitedServiceToneVolume", settings.limitedServiceToneVolume.toDouble())
             .put("limitedServiceVoiceEnabled", settings.limitedServiceVoiceEnabled)
             .put("limitedServiceVoiceVolume", settings.limitedServiceVoiceVolume.toDouble())
+            .put("speakOperatorNameEnabled", settings.speakOperatorNameEnabled)
+            .put("speakTechnologyEnabled", settings.speakTechnologyEnabled)
     }
 
     private fun decodeVeryStrongTierPulseFrequencyHz(json: JSONObject): Int {
@@ -732,7 +734,15 @@ object AppSettingsSnapshotCodec {
             limitedServiceVoiceVolume = json.optDouble(
                 "limitedServiceVoiceVolume",
                 AudioVolumeSettings.DEFAULT_VOLUME.toDouble()
-            ).toFloat()
+            ).toFloat(),
+            speakOperatorNameEnabled = json.optBoolean(
+                "speakOperatorNameEnabled",
+                AudioVolumeSettings.DEFAULT_SPEAK_OPERATOR_NAME_ENABLED
+            ),
+            speakTechnologyEnabled = json.optBoolean(
+                "speakTechnologyEnabled",
+                AudioVolumeSettings.DEFAULT_SPEAK_TECHNOLOGY_ENABLED
+            )
         )
     }
 

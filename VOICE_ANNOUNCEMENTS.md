@@ -38,6 +38,13 @@ Stable IDs used throughout this document. `{operator}` / `{tech}` are spoken ope
 
 Implemented in [`SignalStateAnnouncement.joinAnnouncementParts()`](app/src/main/java/io/github/cloolalang/notspotdetector/model/SignalStateAnnouncement.kt) and [`CellIdentityAnnouncement`](app/src/main/java/io/github/cloolalang/notspotdetector/model/CellIdentityAnnouncement.kt).
 
+**Global VA panel** — the "VA — Voice announcement preferences" card (bottom of Settings) has two app-wide toggles that strip parts 1 and 2 above from **every** announcement type listed here, independent of any per-tier voice enable/volume setting:
+
+- `speakOperatorNameEnabled` (default **on**) — when off, the operator name is never spoken.
+- `speakTechnologyEnabled` (default **on**) — when off, the technology (2 G/4 G/5 G/5 G E N D C) is never spoken, including in the RXSS 9 band-nickname alternative phrasing.
+
+Tones, bells, clicks, and vibration are unaffected by either toggle.
+
 ### Operator role words (home / visited)
 
 When the home PLMN and camped PLMN differ (`resolveCampedVisitedOperatorName()` in [`LimitedServiceOperator.kt`](app/src/main/java/io/github/cloolalang/notspotdetector/model/LimitedServiceOperator.kt)):
@@ -70,7 +77,7 @@ Mock scenarios use real UK operator labels so spoken output matches field testin
 - **VA-10:** “E E visited, 4 G, cell reselect, channel …, PCI …”  
 - **VA-10** on mock visited 2G: “E E visited, 2 G, cell reselect, channel …, BSIC …”  
 - **VA-10** with `cellChangeSpeakBandEnabled` (`BAND_NUMBER`): “E E visited, 4 G, band, twenty” (EARFCN 6300 → band 20)  
-- **VA-10** with `cellChangeSpeakBandEnabled` (`MHZ_NICKNAME`): “E E visited, 4 G, band, L eight hundred”  
+- **VA-10** with `cellChangeSpeakBandEnabled` (`MHZ_NICKNAME`): “E E visited, 4 G, band, eight hundred”  
 - **VA-18** (overlay 8 on 13): “E E visited, 2 G, signal low”  
 - **VA-3** (mock **NO_SERVICE**): “Vodafone, deadzone, no service, no SOS calls” — **not** “Vodafone, 4 G, no signal”  
 - **VA-11** (mock **SEARCHING_2G**): “Vodafone, 4 G, no signal, searching 2 G” (~5 s)
@@ -100,7 +107,7 @@ Mock scenario **WiFi calling (no cellular)** in the Mock network state panel dri
 | **VA-7** | **6** | 2G camped after LTE/NR loss | `{operator}, 2 G` | G2 fallback | First poll on **2G** after LTE/NR no-signal episode; `monitor2gFallback` enabled; G2-fallback baseline ready. | — |
 | **VA-8** | **5** | Signal low (immediate) | `{operator}, {tech}, signal low` | 5 / 6 | `tier5Immediate`: dead zone→tier 5, or tier 10→tier 6 recovery; `tier5AnnouncerEnabled`. | — |
 | **VA-9** | **8** | Technology change | `{operator}, {tech}` | 28–30 | Camped `radioAccessType` changes after radio baseline. | LTE/NR→**2G** after no-signal (RXSS **10** exit path — **VA-7** instead). |
-| **VA-10** | **9** | Cell reselect (lowest immediate) | Home camp: `{operator}, {tech}, cell reselect, channel …, PCI …` · visited camp: `{operator} visited, {tech}, cell reselect, …` (2G: `channel …, BSIC …`; EN-DC: `LTE channel …, PCI …, NR channel …, PCI …`). Alternative (`cellChangeSpeakBandEnabled`): replaces `cell reselect, channel …, PCI …` with `band, …` — the E-UTRA band from the LTE channel (EARFCN), spoken as whole-number words — the band number (`cellChangeBandNamingStyle = BAND_NUMBER`, e.g. “band, twenty”) or MHz nickname (`MHZ_NICKNAME`, e.g. “band, L eight hundred”); falls back to the normal phrasing with no LTE channel (2G-only reselect) | 9 | LTE/NR PCI or channel change, or 2G BSIC/channel change, after cell-identity baseline. Visited suffix when `resolveCampedVisitedOperatorName()` is non-null. | Any [no-signal RXSS](#no-signal-rxss-voice-rules): **0**, **10**, **15**, **20**, **21**, **23**, **26**, **27**. |
+| **VA-10** | **9** | Cell reselect (lowest immediate) | Home camp: `{operator}, {tech}, cell reselect, channel …, PCI …` · visited camp: `{operator} visited, {tech}, cell reselect, …` (2G: `channel …, BSIC …`; EN-DC: `LTE channel …, PCI …, NR channel …, PCI …`). Alternative (`cellChangeSpeakBandEnabled`): replaces `cell reselect, channel …, PCI …` with `band, …` — the E-UTRA band from the LTE channel (EARFCN), spoken as whole-number words — the band number (`cellChangeBandNamingStyle = BAND_NUMBER`, e.g. “band, twenty”) or MHz nickname (`MHZ_NICKNAME`, e.g. “band, eight hundred”); falls back to the normal phrasing with no LTE channel (2G-only reselect) | 9 | LTE/NR PCI or channel change, or 2G BSIC/channel change, after cell-identity baseline. Visited suffix when `resolveCampedVisitedOperatorName()` is non-null. | Any [no-signal RXSS](#no-signal-rxss-voice-rules): **0**, **10**, **15**, **20**, **21**, **23**, **26**, **27**. |
 
 ### Delayed immediate
 

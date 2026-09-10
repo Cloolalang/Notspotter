@@ -110,6 +110,8 @@ fun MonitorScreen(
     onG2WeakTierPulseFrequencyChange: (Int) -> Unit,
     onSignalPulseDurationChange: (Int) -> Unit,
     onMasterVoiceAnnouncementsEnabledChange: (Boolean) -> Unit,
+    onSpeakOperatorNameEnabledChange: (Boolean) -> Unit = {},
+    onSpeakTechnologyEnabledChange: (Boolean) -> Unit = {},
     onCellChangeBellVolumeChange: (Float) -> Unit,
     onCellChangeVoiceEnabledChange: (Boolean) -> Unit,
     onCellChangeVoiceVolumeChange: (Float) -> Unit,
@@ -374,6 +376,13 @@ fun MonitorScreen(
             onPreviewPingClick = onPreviewPingClick,
             onPreviewLowSignalClick = onPreviewLowSignalClick,
             onReset = onResetAudioVolumes
+        )
+
+        VoiceAnnouncementPreferencesCard(
+            speakOperatorNameEnabled = audioVolumes.speakOperatorNameEnabled,
+            speakTechnologyEnabled = audioVolumes.speakTechnologyEnabled,
+            onSpeakOperatorNameEnabledChange = onSpeakOperatorNameEnabledChange,
+            onSpeakTechnologyEnabledChange = onSpeakTechnologyEnabledChange
         )
 
         if (!stats.cellularAvailable && isRunning) {

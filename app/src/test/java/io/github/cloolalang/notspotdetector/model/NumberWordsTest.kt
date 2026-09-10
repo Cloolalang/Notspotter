@@ -32,4 +32,23 @@ class NumberWordsTest {
         assertEquals("five thousand two hundred", NumberWords.toWords(5_200))
         assertEquals("two thousand", NumberWords.toWords(2_000))
     }
+
+    @Test
+    fun toHundredsWords_underOneThousand_matchesToWords() {
+        assertEquals("eight hundred", NumberWords.toHundredsWords(800))
+        assertEquals("four hundred fifty", NumberWords.toHundredsWords(450))
+    }
+
+    @Test
+    fun toHundredsWords_roundThousands_speaksInformalHundreds() {
+        assertEquals("twenty six hundred", NumberWords.toHundredsWords(2_600))
+        assertEquals("eighteen hundred", NumberWords.toHundredsWords(1_800))
+        assertEquals("fifty two hundred", NumberWords.toHundredsWords(5_200))
+        assertEquals("nineteen hundred", NumberWords.toHundredsWords(1_900))
+    }
+
+    @Test
+    fun toHundredsWords_withRemainder_appendsRemainderWords() {
+        assertEquals("twenty six hundred fifty", NumberWords.toHundredsWords(2_650))
+    }
 }

@@ -12,14 +12,18 @@ object CellIdentityAnnouncement {
     fun previewText(
         networkOperatorName: String?,
         speakBandEnabled: Boolean = false,
-        bandNamingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.DEFAULT
+        bandNamingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.DEFAULT,
+        speakOperatorNameEnabled: Boolean = true,
+        speakTechnologyEnabled: Boolean = true
     ): String {
         val bandPhrase = if (speakBandEnabled) formatBandPhrase(PREVIEW_LTE_EARFCN, bandNamingStyle) else null
         return formatAnnouncementBody(
             networkOperatorName = networkOperatorName,
             radioAccessType = CellularSignalReader.RADIO_4G,
             identityBody = bandPhrase ?: PREVIEW_IDENTITY,
-            includeCellReselectPrefix = bandPhrase == null
+            includeCellReselectPrefix = bandPhrase == null,
+            speakOperatorNameEnabled = speakOperatorNameEnabled,
+            speakTechnologyEnabled = speakTechnologyEnabled
         )
     }
 
@@ -30,7 +34,9 @@ object CellIdentityAnnouncement {
         networkOperatorName: String? = null,
         campedOnVisitedOperator: Boolean = false,
         speakBandEnabled: Boolean = false,
-        bandNamingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.DEFAULT
+        bandNamingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.DEFAULT,
+        speakOperatorNameEnabled: Boolean = true,
+        speakTechnologyEnabled: Boolean = true
     ): String {
         if (previous == next) return ""
 
@@ -41,7 +47,9 @@ object CellIdentityAnnouncement {
                 radioAccessType = radioAccessType,
                 identityBody = bandPhrase,
                 campedOnVisitedOperator = campedOnVisitedOperator,
-                includeCellReselectPrefix = false
+                includeCellReselectPrefix = false,
+                speakOperatorNameEnabled = speakOperatorNameEnabled,
+                speakTechnologyEnabled = speakTechnologyEnabled
             )
         }
 
@@ -70,18 +78,21 @@ object CellIdentityAnnouncement {
             networkOperatorName = networkOperatorName,
             radioAccessType = radioAccessType,
             identityBody = identityParts.joinToString(", "),
-            campedOnVisitedOperator = campedOnVisitedOperator
+            campedOnVisitedOperator = campedOnVisitedOperator,
+            speakOperatorNameEnabled = speakOperatorNameEnabled,
+            speakTechnologyEnabled = speakTechnologyEnabled
         )
     }
 
     /**
      * RXSS 9 alternative phrasing — "band, &lt;number in words&gt;" (option A, e.g. "band, twenty")
-     * or "band, L &lt;MHz in words&gt;" (option B, e.g. "band, L eight hundred"), derived from the
-     * LTE EARFCN. Numbers are spoken as whole words (not digit-by-digit) so they read naturally, and
-     * a comma after "band" forces a short TTS pause — without it, "band" run straight into a number
-     * can be clipped/mumbled by some TTS engines (e.g. sounding like "bunt"). Returns null when
-     * there is no LTE EARFCN to map (2G-only or NR-only reselect), so callers fall back to the
-     * normal channel/PCI phrasing.
+     * or "band, &lt;MHz nickname in words, no "L" prefix&gt;" (option B, e.g. "band, eight hundred"
+     * for L800, "band, twenty-six hundred" for L2600), derived from the LTE EARFCN. Numbers are
+     * spoken as whole words (not digit-by-digit) so they read naturally, and a comma after "band"
+     * forces a short TTS pause — without it, "band" run straight into a number can be
+     * clipped/mumbled by some TTS engines (e.g. sounding like "bunt"). Returns null when there is
+     * no LTE EARFCN to map (2G-only or NR-only reselect), so callers fall back to the normal
+     * channel/PCI phrasing.
      */
     private fun formatBandPhrase(lteEarfcn: Int?, namingStyle: CellReselectBandNamingStyle): String? {
         val earfcn = lteEarfcn ?: return null
@@ -93,12 +104,15 @@ object CellIdentityAnnouncement {
         return "band, $spokenBand"
     }
 
-    /** Splits a nickname like "L800" into "L eight hundred" for natural TTS. */
+    /**
+     * Converts a nickname like "L800" or "L2600" into natural spoken hundreds — "eight hundred" or
+     * "twenty-six hundred" — dropping the leading "L" (it reads better without it, e.g. "band,
+     * eight hundred" rather than "band, L eight hundred").
+     */
     private fun formatMhzNicknameForSpeech(nickname: String): String {
         val letterPart = nickname.takeWhile { it.isLetter() }
         val digitPart = nickname.drop(letterPart.length)
-        val digitsWords = digitPart.toIntOrNull()?.let { NumberWords.toWords(it) } ?: digitPart
-        return if (letterPart.isNotEmpty()) "$letterPart $digitsWords" else digitsWords
+        return digitPart.toIntOrNull()?.let { NumberWords.toHundredsWords(it) } ?: digitPart
     }
 
     private fun formatAnnouncementBody(
@@ -106,7 +120,9 @@ object CellIdentityAnnouncement {
         radioAccessType: String?,
         identityBody: String,
         campedOnVisitedOperator: Boolean = false,
-        includeCellReselectPrefix: Boolean = true
+        includeCellReselectPrefix: Boolean = true,
+        speakOperatorNameEnabled: Boolean = true,
+        speakTechnologyEnabled: Boolean = true
     ): String {
         val operatorSpoken = NetworkOperatorSpeech.formatForSpeech(networkOperatorName)?.let { spoken ->
             if (campedOnVisitedOperator) {
@@ -123,7 +139,9 @@ object CellIdentityAnnouncement {
         return SignalStateAnnouncement.joinAnnouncementParts(
             operatorNames = listOf(operatorSpoken),
             radioAccessType = radioAccessType,
-            serviceState = detail
+            serviceState = detail,
+            speakOperatorNameEnabled = speakOperatorNameEnabled,
+            speakTechnologyEnabled = speakTechnologyEnabled
         )
     }
 

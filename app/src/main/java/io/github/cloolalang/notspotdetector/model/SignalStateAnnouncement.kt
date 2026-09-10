@@ -29,72 +29,123 @@ object SignalStateAnnouncement {
 
     fun previewTechnologyChange(
         networkOperatorName: String?,
-        target: TechnologyChangeTarget = TechnologyChangeTarget.TO_4G
+        target: TechnologyChangeTarget = TechnologyChangeTarget.TO_4G,
+        speakOperatorNameEnabled: Boolean = true,
+        speakTechnologyEnabled: Boolean = true
     ): String {
-        return formatTechnologyChange(target.radioAccessType, networkOperatorName)
+        return formatTechnologyChange(
+            target.radioAccessType,
+            networkOperatorName,
+            speakOperatorNameEnabled,
+            speakTechnologyEnabled
+        )
     }
 
-    fun previewTier5SignalLow(networkOperatorName: String?): String {
-        return formatTier5SignalLowAnnouncement(networkOperatorName, CellularSignalReader.RADIO_4G)
+    fun previewTier5SignalLow(
+        networkOperatorName: String?,
+        speakOperatorNameEnabled: Boolean = true,
+        speakTechnologyEnabled: Boolean = true
+    ): String {
+        return formatTier5SignalLowAnnouncement(
+            networkOperatorName,
+            CellularSignalReader.RADIO_4G,
+            speakOperatorNameEnabled,
+            speakTechnologyEnabled
+        )
     }
 
-    fun previewNoSignal(networkOperatorName: String?): String {
-        return formatNoSignalAnnouncement(networkOperatorName, CellularSignalReader.RADIO_4G)
+    fun previewNoSignal(
+        networkOperatorName: String?,
+        speakOperatorNameEnabled: Boolean = true,
+        speakTechnologyEnabled: Boolean = true
+    ): String {
+        return formatNoSignalAnnouncement(
+            networkOperatorName,
+            CellularSignalReader.RADIO_4G,
+            speakOperatorNameEnabled = speakOperatorNameEnabled,
+            speakTechnologyEnabled = speakTechnologyEnabled
+        )
     }
 
-    fun previewLimitedService(networkOperatorName: String?): String {
+    fun previewLimitedService(
+        networkOperatorName: String?,
+        speakOperatorNameEnabled: Boolean = true,
+        speakTechnologyEnabled: Boolean = true
+    ): String {
         return formatLimitedServiceAnnouncement(
             homeOperatorName = networkOperatorName,
             visitedOperatorName = "E E",
-            radioAccessType = CellularSignalReader.RADIO_4G
+            radioAccessType = CellularSignalReader.RADIO_4G,
+            speakOperatorNameEnabled = speakOperatorNameEnabled,
+            speakTechnologyEnabled = speakTechnologyEnabled
         )
     }
 
     /** Operator + tech only (implicit 4G/5G full service — no service-state phrase). */
-    fun formatTechnologyChange(radioAccessType: String, networkOperatorName: String?): String {
+    fun formatTechnologyChange(
+        radioAccessType: String,
+        networkOperatorName: String?,
+        speakOperatorNameEnabled: Boolean = true,
+        speakTechnologyEnabled: Boolean = true
+    ): String {
         return joinAnnouncementParts(
             operatorNames = listOf(networkOperatorName),
-            radioAccessType = radioAccessType
+            radioAccessType = radioAccessType,
+            speakOperatorNameEnabled = speakOperatorNameEnabled,
+            speakTechnologyEnabled = speakTechnologyEnabled
         )
     }
 
     fun formatTier5SignalLowAnnouncement(
         networkOperatorName: String?,
-        radioAccessType: String?
+        radioAccessType: String?,
+        speakOperatorNameEnabled: Boolean = true,
+        speakTechnologyEnabled: Boolean = true
     ): String {
         return formatCampedSignalStateAnnouncement(
             operatorSpeech = networkOperatorName?.let(NetworkOperatorSpeech::formatForSpeech),
             radioAccessType = radioAccessType,
-            signalState = PHRASE_SIGNAL_LOW
+            signalState = PHRASE_SIGNAL_LOW,
+            speakOperatorNameEnabled = speakOperatorNameEnabled,
+            speakTechnologyEnabled = speakTechnologyEnabled
         )
     }
 
     fun formatTier5SignalLowAnnouncement(
         stats: ConnectivityStats,
-        lastKnownRadioAccessType: String? = null
+        lastKnownRadioAccessType: String? = null,
+        speakOperatorNameEnabled: Boolean = true,
+        speakTechnologyEnabled: Boolean = true
     ): String {
         return formatCampedSignalStateAnnouncement(
             stats = stats,
             lastKnownRadioAccessType = lastKnownRadioAccessType,
-            signalState = PHRASE_SIGNAL_LOW
+            signalState = PHRASE_SIGNAL_LOW,
+            speakOperatorNameEnabled = speakOperatorNameEnabled,
+            speakTechnologyEnabled = speakTechnologyEnabled
         )
     }
 
     fun formatNoSignalAnnouncement(
         networkOperatorName: String?,
         radioAccessType: String?,
-        isWifiCallingActive: Boolean = false
+        isWifiCallingActive: Boolean = false,
+        speakOperatorNameEnabled: Boolean = true,
+        speakTechnologyEnabled: Boolean = true
     ): String {
         if (isWifiCallingActive) {
             return joinAnnouncementParts(
                 operatorNames = listOf(networkOperatorName),
-                serviceState = PHRASE_WIFI_CALLING_NO_SIGNAL
+                serviceState = PHRASE_WIFI_CALLING_NO_SIGNAL,
+                speakOperatorNameEnabled = speakOperatorNameEnabled
             )
         }
         return formatCampedSignalStateAnnouncement(
             operatorSpeech = networkOperatorName?.let(NetworkOperatorSpeech::formatForSpeech),
             radioAccessType = radioAccessType,
-            signalState = PHRASE_NO_SIGNAL
+            signalState = PHRASE_NO_SIGNAL,
+            speakOperatorNameEnabled = speakOperatorNameEnabled,
+            speakTechnologyEnabled = speakTechnologyEnabled
         )
     }
 
@@ -102,24 +153,34 @@ object SignalStateAnnouncement {
     internal fun formatCampedSignalStateAnnouncement(
         stats: ConnectivityStats,
         lastKnownRadioAccessType: String? = null,
-        signalState: String
+        signalState: String,
+        speakOperatorNameEnabled: Boolean = true,
+        speakTechnologyEnabled: Boolean = true
     ): String {
         return formatCampedSignalStateAnnouncement(
             operatorSpeech = stats.formatCampedOperatorForSpeech(),
             radioAccessType = stats.resolveNoSignalAnnouncementRadioAccessType(lastKnownRadioAccessType),
-            signalState = signalState
+            signalState = signalState,
+            speakOperatorNameEnabled = speakOperatorNameEnabled,
+            speakTechnologyEnabled = speakTechnologyEnabled
         )
     }
 
     internal fun formatCampedSignalStateAnnouncement(
         operatorSpeech: String?,
         radioAccessType: String?,
-        signalState: String
+        signalState: String,
+        speakOperatorNameEnabled: Boolean = true,
+        speakTechnologyEnabled: Boolean = true
     ): String {
         val parts = mutableListOf<String>()
-        operatorSpeech?.takeIf { it.isNotBlank() }?.let(parts::add)
-        radioAccessType?.takeIf { it.isNotBlank() }?.let {
-            parts.add(formatTechnologyForSpeech(it))
+        if (speakOperatorNameEnabled) {
+            operatorSpeech?.takeIf { it.isNotBlank() }?.let(parts::add)
+        }
+        if (speakTechnologyEnabled) {
+            radioAccessType?.takeIf { it.isNotBlank() }?.let {
+                parts.add(formatTechnologyForSpeech(it))
+            }
         }
         parts.add(signalState)
         return parts.joinToString(", ")
@@ -129,99 +190,153 @@ object SignalStateAnnouncement {
         active: Boolean,
         networkOperatorName: String?,
         radioAccessType: String? = null,
-        isWifiCallingActive: Boolean = false
+        isWifiCallingActive: Boolean = false,
+        speakOperatorNameEnabled: Boolean = true,
+        speakTechnologyEnabled: Boolean = true
     ): String {
         if (active) {
-            return formatNoSignalAnnouncement(networkOperatorName, radioAccessType, isWifiCallingActive)
+            return formatNoSignalAnnouncement(
+                networkOperatorName,
+                radioAccessType,
+                isWifiCallingActive,
+                speakOperatorNameEnabled,
+                speakTechnologyEnabled
+            )
         }
-        return formatSignalRestoredAnnouncement(networkOperatorName, radioAccessType, isWifiCallingActive)
+        return formatSignalRestoredAnnouncement(
+            networkOperatorName,
+            radioAccessType,
+            isWifiCallingActive,
+            speakOperatorNameEnabled,
+            speakTechnologyEnabled
+        )
     }
 
     fun formatSignalRestoredAnnouncement(
         networkOperatorName: String?,
         radioAccessType: String?,
-        isWifiCallingActive: Boolean = false
+        isWifiCallingActive: Boolean = false,
+        speakOperatorNameEnabled: Boolean = true,
+        speakTechnologyEnabled: Boolean = true
     ): String {
         if (isWifiCallingActive) {
             return joinAnnouncementParts(
                 operatorNames = listOf(networkOperatorName),
-                serviceState = PHRASE_CELLULAR_SIGNAL_RESTORED
+                serviceState = PHRASE_CELLULAR_SIGNAL_RESTORED,
+                speakOperatorNameEnabled = speakOperatorNameEnabled
             )
         }
         return joinAnnouncementParts(
             operatorNames = listOf(networkOperatorName),
             radioAccessType = radioAccessType,
-            signalState = PHRASE_SIGNAL_RESTORED
+            signalState = PHRASE_SIGNAL_RESTORED,
+            speakOperatorNameEnabled = speakOperatorNameEnabled,
+            speakTechnologyEnabled = speakTechnologyEnabled
         )
     }
 
-    fun formatNoSignalChange(stats: ConnectivityStats, lastKnownRadioAccessType: String? = null): String? {
+    fun formatNoSignalChange(
+        stats: ConnectivityStats,
+        lastKnownRadioAccessType: String? = null,
+        speakOperatorNameEnabled: Boolean = true,
+        speakTechnologyEnabled: Boolean = true
+    ): String? {
         return formatNoSignalChange(
             active = stats.noSignalActive,
             networkOperatorName = stats.networkOperatorName,
             radioAccessType = stats.resolveNoSignalAnnouncementRadioAccessType(lastKnownRadioAccessType),
-            isWifiCallingActive = stats.isWifiCallingActive
+            isWifiCallingActive = stats.isWifiCallingActive,
+            speakOperatorNameEnabled = speakOperatorNameEnabled,
+            speakTechnologyEnabled = speakTechnologyEnabled
         )
     }
 
-    fun formatNoSignalAnnouncement(stats: ConnectivityStats, lastKnownRadioAccessType: String? = null): String {
+    fun formatNoSignalAnnouncement(
+        stats: ConnectivityStats,
+        lastKnownRadioAccessType: String? = null,
+        speakOperatorNameEnabled: Boolean = true,
+        speakTechnologyEnabled: Boolean = true
+    ): String {
         if (stats.isWifiCallingActive) {
             return formatNoSignalAnnouncement(
                 networkOperatorName = stats.networkOperatorName,
                 radioAccessType = null,
-                isWifiCallingActive = true
+                isWifiCallingActive = true,
+                speakOperatorNameEnabled = speakOperatorNameEnabled,
+                speakTechnologyEnabled = speakTechnologyEnabled
             )
         }
         return formatCampedSignalStateAnnouncement(
             stats = stats,
             lastKnownRadioAccessType = lastKnownRadioAccessType,
-            signalState = PHRASE_NO_SIGNAL
+            signalState = PHRASE_NO_SIGNAL,
+            speakOperatorNameEnabled = speakOperatorNameEnabled,
+            speakTechnologyEnabled = speakTechnologyEnabled
         )
     }
 
     fun formatSignalRestoredAnnouncement(
         stats: ConnectivityStats,
-        lastKnownRadioAccessType: String? = null
+        lastKnownRadioAccessType: String? = null,
+        speakOperatorNameEnabled: Boolean = true,
+        speakTechnologyEnabled: Boolean = true
     ): String {
         if (stats.isWifiCallingActive) {
             return formatSignalRestoredAnnouncement(
                 networkOperatorName = stats.networkOperatorName,
                 radioAccessType = null,
-                isWifiCallingActive = true
+                isWifiCallingActive = true,
+                speakOperatorNameEnabled = speakOperatorNameEnabled,
+                speakTechnologyEnabled = speakTechnologyEnabled
             )
         }
         return formatCampedSignalStateAnnouncement(
             stats = stats,
             lastKnownRadioAccessType = lastKnownRadioAccessType,
-            signalState = PHRASE_SIGNAL_RESTORED
+            signalState = PHRASE_SIGNAL_RESTORED,
+            speakOperatorNameEnabled = speakOperatorNameEnabled,
+            speakTechnologyEnabled = speakTechnologyEnabled
         )
     }
 
     fun formatLimitedServiceChange(
         stats: ConnectivityStats,
-        lastKnownRadioAccessType: String? = null
+        lastKnownRadioAccessType: String? = null,
+        speakOperatorNameEnabled: Boolean = true,
+        speakTechnologyEnabled: Boolean = true
     ): String {
-        return formatLimitedServiceAnnouncement(stats, lastKnownRadioAccessType)
+        return formatLimitedServiceAnnouncement(
+            stats,
+            lastKnownRadioAccessType,
+            speakOperatorNameEnabled,
+            speakTechnologyEnabled
+        )
     }
 
     fun formatLimitedServiceAnnouncement(
         homeOperatorName: String?,
         visitedOperatorName: String?,
-        radioAccessType: String?
+        radioAccessType: String?,
+        speakOperatorNameEnabled: Boolean = true,
+        speakTechnologyEnabled: Boolean = true
     ): String {
         val parts = mutableListOf<String>()
-        if (visitedOperatorName != null) {
-            NetworkOperatorSpeech.formatForSpeech(homeOperatorName)?.let {
-                parts.add("$it $PHRASE_HOME_OPERATOR_ROLE")
+        if (speakOperatorNameEnabled) {
+            if (visitedOperatorName != null) {
+                NetworkOperatorSpeech.formatForSpeech(homeOperatorName)?.let {
+                    parts.add("$it $PHRASE_HOME_OPERATOR_ROLE")
+                }
+                NetworkOperatorSpeech.formatForSpeech(visitedOperatorName)?.let {
+                    parts.add("$it $PHRASE_VISITED_OPERATOR_ROLE")
+                }
+            } else {
+                NetworkOperatorSpeech.formatForSpeech(homeOperatorName)?.let(parts::add)
             }
-            NetworkOperatorSpeech.formatForSpeech(visitedOperatorName)?.let {
-                parts.add("$it $PHRASE_VISITED_OPERATOR_ROLE")
-            }
-        } else {
-            NetworkOperatorSpeech.formatForSpeech(homeOperatorName)?.let(parts::add)
         }
-        radioAccessType?.takeIf { it.isNotBlank() }?.let {
-            parts.add(formatTechnologyForSpeech(it))
+        if (speakTechnologyEnabled) {
+            radioAccessType?.takeIf { it.isNotBlank() }?.let {
+                parts.add(formatTechnologyForSpeech(it))
+            }
         }
         parts.add(PHRASE_LIMITED_SERVICE)
         return parts.joinToString(", ")
@@ -229,51 +344,73 @@ object SignalStateAnnouncement {
 
     fun formatLimitedServiceAnnouncement(
         networkOperatorName: String?,
-        radioAccessType: String?
+        radioAccessType: String?,
+        speakOperatorNameEnabled: Boolean = true,
+        speakTechnologyEnabled: Boolean = true
     ): String {
         return formatLimitedServiceAnnouncement(
             homeOperatorName = networkOperatorName,
             visitedOperatorName = null,
-            radioAccessType = radioAccessType
+            radioAccessType = radioAccessType,
+            speakOperatorNameEnabled = speakOperatorNameEnabled,
+            speakTechnologyEnabled = speakTechnologyEnabled
         )
     }
 
     fun formatLimitedServiceAnnouncement(
         stats: ConnectivityStats,
-        lastKnownRadioAccessType: String? = null
+        lastKnownRadioAccessType: String? = null,
+        speakOperatorNameEnabled: Boolean = true,
+        speakTechnologyEnabled: Boolean = true
     ): String {
         return formatLimitedServiceAnnouncement(
             homeOperatorName = stats.homeNetworkOperatorName ?: stats.networkOperatorName,
             visitedOperatorName = stats.resolveLimitedServiceVisitedOperatorName(),
-            radioAccessType = stats.resolveNoSignalAnnouncementRadioAccessType(lastKnownRadioAccessType)
+            radioAccessType = stats.resolveNoSignalAnnouncementRadioAccessType(lastKnownRadioAccessType),
+            speakOperatorNameEnabled = speakOperatorNameEnabled,
+            speakTechnologyEnabled = speakTechnologyEnabled
         )
     }
 
     /** Spoken when the phone camps on 2G after losing LTE/NR signal (operator + tech; 2G is not implicit full service). */
-    fun formatG2CampedAnnouncement(networkOperatorName: String?): String {
+    fun formatG2CampedAnnouncement(
+        networkOperatorName: String?,
+        speakOperatorNameEnabled: Boolean = true,
+        speakTechnologyEnabled: Boolean = true
+    ): String {
         return joinAnnouncementParts(
             operatorNames = listOf(networkOperatorName),
-            radioAccessType = CellularSignalReader.RADIO_2G
+            radioAccessType = CellularSignalReader.RADIO_2G,
+            speakOperatorNameEnabled = speakOperatorNameEnabled,
+            speakTechnologyEnabled = speakTechnologyEnabled
         )
     }
 
     /** Spoken after LTE/NR no signal while the phone is still scanning for 2G. */
     fun formatSearching2gAnnouncement(
         networkOperatorName: String?,
-        lastKnownLteNrRadioAccessType: String?
+        lastKnownLteNrRadioAccessType: String?,
+        speakOperatorNameEnabled: Boolean = true,
+        speakTechnologyEnabled: Boolean = true
     ): String {
         return joinAnnouncementParts(
             operatorNames = listOf(networkOperatorName),
             radioAccessType = lastKnownLteNrRadioAccessType,
             signalState = PHRASE_NO_SIGNAL,
-            serviceState = PHRASE_SEARCHING_2G
+            serviceState = PHRASE_SEARCHING_2G,
+            speakOperatorNameEnabled = speakOperatorNameEnabled,
+            speakTechnologyEnabled = speakTechnologyEnabled
         )
     }
 
-    fun formatDeadzoneAnnouncement(networkOperatorName: String?): String {
+    fun formatDeadzoneAnnouncement(
+        networkOperatorName: String?,
+        speakOperatorNameEnabled: Boolean = true
+    ): String {
         return joinAnnouncementParts(
             operatorNames = listOf(networkOperatorName),
-            serviceState = PHRASE_DEADZONE
+            serviceState = PHRASE_DEADZONE,
+            speakOperatorNameEnabled = speakOperatorNameEnabled
         )
     }
 
@@ -300,18 +437,24 @@ object SignalStateAnnouncement {
         operatorNames: List<String?>,
         radioAccessType: String? = null,
         signalState: String? = null,
-        serviceState: String? = null
+        serviceState: String? = null,
+        speakOperatorNameEnabled: Boolean = true,
+        speakTechnologyEnabled: Boolean = true
     ): String {
         val parts = mutableListOf<String>()
-        operatorNames.forEach { name ->
-            NetworkOperatorSpeech.formatForSpeech(name)?.let { spoken ->
-                if (parts.none { it.equals(spoken, ignoreCase = true) }) {
-                    parts.add(spoken)
+        if (speakOperatorNameEnabled) {
+            operatorNames.forEach { name ->
+                NetworkOperatorSpeech.formatForSpeech(name)?.let { spoken ->
+                    if (parts.none { it.equals(spoken, ignoreCase = true) }) {
+                        parts.add(spoken)
+                    }
                 }
             }
         }
-        radioAccessType?.takeIf { it.isNotBlank() }?.let {
-            parts.add(formatTechnologyForSpeech(it))
+        if (speakTechnologyEnabled) {
+            radioAccessType?.takeIf { it.isNotBlank() }?.let {
+                parts.add(formatTechnologyForSpeech(it))
+            }
         }
         signalState?.takeIf { it.isNotBlank() }?.let(parts::add)
         serviceState?.takeIf { it.isNotBlank() }?.let(parts::add)

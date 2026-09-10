@@ -294,6 +294,14 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         updateAudioVolumes(audioVolumes.value.copy(masterVoiceAnnouncementsEnabled = enabled))
     }
 
+    fun updateSpeakOperatorNameEnabled(enabled: Boolean) {
+        updateAudioVolumes(audioVolumes.value.copy(speakOperatorNameEnabled = enabled))
+    }
+
+    fun updateSpeakTechnologyEnabled(enabled: Boolean) {
+        updateAudioVolumes(audioVolumes.value.copy(speakTechnologyEnabled = enabled))
+    }
+
     fun updateCellChangeBellVolume(value: Float) {
         updateAudioVolumes(audioVolumes.value.copy(cellChangeBellVolume = value))
     }
@@ -446,7 +454,9 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
             announcement = CellIdentityAnnouncement.previewText(
                 readCurrentOperatorName(),
                 speakBandEnabled = volumes.cellChangeSpeakBandEnabled,
-                bandNamingStyle = volumes.cellChangeBandNamingStyle
+                bandNamingStyle = volumes.cellChangeBandNamingStyle,
+                speakOperatorNameEnabled = volumes.speakOperatorNameEnabled,
+                speakTechnologyEnabled = volumes.speakTechnologyEnabled
             ),
             voiceVolume = volumes.cellChangeVoiceVolume
         )
@@ -465,7 +475,12 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         previewAlertWithVoice(
             onPlayTone = { alertSoundPreview.playTechnologyChangeTone(alertVolumes.toneVolume) },
             toneDurationMs = GeigerCounterPlayer.TECHNOLOGY_CHANGE_TONE_DURATION_MS,
-            announcement = SignalStateAnnouncement.previewTechnologyChange(readCurrentOperatorName(), target),
+            announcement = SignalStateAnnouncement.previewTechnologyChange(
+                readCurrentOperatorName(),
+                target,
+                volumes.speakOperatorNameEnabled,
+                volumes.speakTechnologyEnabled
+            ),
             voiceVolume = alertVolumes.voiceVolume
         )
     }
@@ -474,7 +489,11 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         if (isRunning.value) return
         val volumes = audioVolumes.value.normalized()
         if (volumes.tier5AnnouncerVolume <= 0f) return
-        val announcement = SignalStateAnnouncement.previewTier5SignalLow(readCurrentOperatorName())
+        val announcement = SignalStateAnnouncement.previewTier5SignalLow(
+            readCurrentOperatorName(),
+            volumes.speakOperatorNameEnabled,
+            volumes.speakTechnologyEnabled
+        )
         if (announcement.isBlank()) return
         viewModelScope.launch {
             cellVoiceAnnouncer.speak(announcement, volumes.tier5AnnouncerVolume)
@@ -511,7 +530,11 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         previewAlertWithVoice(
             onPlayTone = { alertSoundPreview.previewNoSignalTone(volumes.noSignalToneVolume) },
             toneDurationMs = GeigerCounterPlayer.NO_SIGNAL_ALERT_TONE_DURATION_MS,
-            announcement = SignalStateAnnouncement.previewNoSignal(readCurrentOperatorName()),
+            announcement = SignalStateAnnouncement.previewNoSignal(
+                readCurrentOperatorName(),
+                volumes.speakOperatorNameEnabled,
+                volumes.speakTechnologyEnabled
+            ),
             voiceVolume = volumes.noSignalVoiceVolume
         )
     }
@@ -539,7 +562,11 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         previewAlertWithVoice(
             onPlayTone = { alertSoundPreview.previewLimitedServiceTone(volumes.limitedServiceToneVolume) },
             toneDurationMs = GeigerCounterPlayer.LIMITED_SERVICE_ALERT_TONE_DURATION_MS,
-            announcement = SignalStateAnnouncement.previewLimitedService(readCurrentOperatorName()),
+            announcement = SignalStateAnnouncement.previewLimitedService(
+                readCurrentOperatorName(),
+                volumes.speakOperatorNameEnabled,
+                volumes.speakTechnologyEnabled
+            ),
             voiceVolume = volumes.limitedServiceVoiceVolume
         )
     }

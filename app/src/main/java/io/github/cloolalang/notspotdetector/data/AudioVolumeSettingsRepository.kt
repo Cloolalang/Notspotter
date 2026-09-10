@@ -193,6 +193,14 @@ class AudioVolumeSettingsRepository(context: Context) {
             limitedServiceVoiceVolume = prefs.getFloat(
                 KEY_LIMITED_SERVICE_VOICE,
                 AudioVolumeSettings.DEFAULT_VOLUME
+            ),
+            speakOperatorNameEnabled = prefs.getBoolean(
+                KEY_SPEAK_OPERATOR_NAME_ENABLED,
+                AudioVolumeSettings.DEFAULT_SPEAK_OPERATOR_NAME_ENABLED
+            ),
+            speakTechnologyEnabled = prefs.getBoolean(
+                KEY_SPEAK_TECHNOLOGY_ENABLED,
+                AudioVolumeSettings.DEFAULT_SPEAK_TECHNOLOGY_ENABLED
             )
         ).normalized()
     }
@@ -238,6 +246,8 @@ class AudioVolumeSettingsRepository(context: Context) {
             .putFloat(KEY_LIMITED_SERVICE_TONE, normalized.limitedServiceToneVolume)
             .putBoolean(KEY_LIMITED_SERVICE_VOICE_ENABLED, normalized.limitedServiceVoiceEnabled)
             .putFloat(KEY_LIMITED_SERVICE_VOICE, normalized.limitedServiceVoiceVolume)
+            .putBoolean(KEY_SPEAK_OPERATOR_NAME_ENABLED, normalized.speakOperatorNameEnabled)
+            .putBoolean(KEY_SPEAK_TECHNOLOGY_ENABLED, normalized.speakTechnologyEnabled)
             .apply()
     }
 
@@ -284,5 +294,7 @@ class AudioVolumeSettingsRepository(context: Context) {
         private const val KEY_LIMITED_SERVICE_TONE = "limited_service_tone_volume"
         private const val KEY_LIMITED_SERVICE_VOICE_ENABLED = "limited_service_voice_enabled"
         private const val KEY_LIMITED_SERVICE_VOICE = "limited_service_voice_volume"
+        private const val KEY_SPEAK_OPERATOR_NAME_ENABLED = "speak_operator_name_enabled"
+        private const val KEY_SPEAK_TECHNOLOGY_ENABLED = "speak_technology_enabled"
     }
 }

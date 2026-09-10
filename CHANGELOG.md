@@ -11,6 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Documentation** — [MOCK_NETWORK_SCENARIOS.md](MOCK_NETWORK_SCENARIOS.md) (agreed mock trigger states per scenario) and [SETTINGS_PROFILES.md](SETTINGS_PROFILES.md) (profile JSON capture scope, including full `passiveMock` block). Updated [RXSS_CATALOGUE.md](RXSS_CATALOGUE.md), [VOICE_ANNOUNCEMENTS.md](VOICE_ANNOUNCEMENTS.md), and [README.md](README.md) cross-links; RXSS **0**, **11**, **12**, **20**, **23** rows reflect current voice implementation.
 
+## [2.10.0] - 2026-09-10
+
+### Added
+
+- **New "VA — Voice announcement preferences" panel** — a new card at the bottom of Settings with two global toggles that apply to *every* spoken voice announcement app-wide (cell reselect, technology change, no-signal, limited service, signal low, dead zone, searching 2G, and 2G camped): **Speak operator name** and **Speak technology (2G/4G/5G)**. Turning either off omits that part from all announcements without touching per-tier voice enable/volume settings, tones, bells, clicks, or vibration. Captured in settings profiles (`speakOperatorNameEnabled`, `speakTechnologyEnabled`).
+
+### Changed
+
+- **RXSS 9 band-nickname pronunciation** — The alternative cell-reselect phrasing (`cellChangeBandNamingStyle = MHZ_NICKNAME`) now drops the leading "L" and speaks round-hundred MHz nicknames the way network jargon naturally reads them: band 20 (L800) is now "band, eight hundred" (was "band, L eight hundred"), and band 7 (L2600) is now "band, twenty-six hundred" (was literally "band, L two thousand six hundred").
+
 ## [2.9.0] - 2026-09-10
 
 ### Added

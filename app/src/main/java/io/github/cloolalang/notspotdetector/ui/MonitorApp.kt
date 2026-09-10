@@ -109,6 +109,8 @@ fun MonitorApp(
             onG2WeakTierPulseFrequencyChange = viewModel::updateG2WeakTierPulseFrequencyHz,
             onSignalPulseDurationChange = viewModel::updateSignalPulseDurationMs,
             onMasterVoiceAnnouncementsEnabledChange = viewModel::updateMasterVoiceAnnouncementsEnabled,
+            onSpeakOperatorNameEnabledChange = viewModel::updateSpeakOperatorNameEnabled,
+            onSpeakTechnologyEnabledChange = viewModel::updateSpeakTechnologyEnabled,
             onCellChangeBellVolumeChange = viewModel::updateCellChangeBellVolume,
             onCellChangeVoiceEnabledChange = viewModel::updateCellChangeVoiceEnabled,
             onCellChangeVoiceVolumeChange = viewModel::updateCellChangeVoiceVolume,

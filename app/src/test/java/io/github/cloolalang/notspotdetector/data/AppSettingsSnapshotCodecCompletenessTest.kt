@@ -213,7 +213,9 @@ class AppSettingsSnapshotCodecCompletenessTest {
                 noSignalVoiceVolume = 0.51f,
                 limitedServiceToneVolume = 0.52f,
                 limitedServiceVoiceEnabled = true,
-                limitedServiceVoiceVolume = 0.53f
+                limitedServiceVoiceVolume = 0.53f,
+                speakOperatorNameEnabled = false,
+                speakTechnologyEnabled = false
             )
         )
     }
@@ -350,7 +352,9 @@ class AppSettingsSnapshotCodecCompletenessTest {
             "noSignalVoiceVolume",
             "limitedServiceToneVolume",
             "limitedServiceVoiceEnabled",
-            "limitedServiceVoiceVolume"
+            "limitedServiceVoiceVolume",
+            "speakOperatorNameEnabled",
+            "speakTechnologyEnabled"
         )
     }
 }

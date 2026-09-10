@@ -404,10 +404,16 @@ class ConnectivityMonitorService : Service() {
                 playNoSignalAlertAwait(MonitorState.formatNoSignalAnnouncement(stats))
             stats.shouldAllowG2WeakPeriodicVoice(passiveSettings) ->
                 playTier5VoiceAlertAwait(MonitorState.formatTier5Announcement(stats))
-            stats.shouldAllowG2CampedPeriodicVoice(passiveSettings) ->
+            stats.shouldAllowG2CampedPeriodicVoice(passiveSettings) -> {
+                val volumes = MonitorState.audioVolumes.value
                 playG2FallbackAlertAwait(
-                    SignalStateAnnouncement.formatG2CampedAnnouncement(stats.networkOperatorName)
+                    SignalStateAnnouncement.formatG2CampedAnnouncement(
+                        stats.networkOperatorName,
+                        volumes.speakOperatorNameEnabled,
+                        volumes.speakTechnologyEnabled
+                    )
                 )
+            }
         }
     }
 

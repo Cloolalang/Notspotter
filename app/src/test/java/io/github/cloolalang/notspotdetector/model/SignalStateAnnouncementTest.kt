@@ -266,6 +266,74 @@ class SignalStateAnnouncementTest {
     }
 
     @Test
+    fun speakOperatorNameDisabled_omitsOperatorAcrossAnnouncementTypes() {
+        assertEquals(
+            "4 G",
+            SignalStateAnnouncement.formatTechnologyChange(
+                CellularSignalReader.RADIO_4G,
+                "EE",
+                speakOperatorNameEnabled = false
+            )
+        )
+        assertEquals(
+            "4 G, no signal",
+            SignalStateAnnouncement.formatNoSignalAnnouncement(
+                "EE",
+                CellularSignalReader.RADIO_4G,
+                speakOperatorNameEnabled = false
+            )
+        )
+        assertEquals(
+            "2 G, limited service",
+            SignalStateAnnouncement.formatLimitedServiceAnnouncement(
+                "EE",
+                CellularSignalReader.RADIO_2G,
+                speakOperatorNameEnabled = false
+            )
+        )
+        assertEquals(
+            "2 G",
+            SignalStateAnnouncement.formatG2CampedAnnouncement("EE", speakOperatorNameEnabled = false)
+        )
+        assertEquals(
+            "deadzone, no service, no SOS calls",
+            SignalStateAnnouncement.formatDeadzoneAnnouncement("EE", speakOperatorNameEnabled = false)
+        )
+    }
+
+    @Test
+    fun speakTechnologyDisabled_omitsTechnologyAcrossAnnouncementTypes() {
+        assertEquals(
+            "E E",
+            SignalStateAnnouncement.formatTechnologyChange(
+                CellularSignalReader.RADIO_4G,
+                "EE",
+                speakTechnologyEnabled = false
+            )
+        )
+        assertEquals(
+            "E E, no signal",
+            SignalStateAnnouncement.formatNoSignalAnnouncement(
+                "EE",
+                CellularSignalReader.RADIO_4G,
+                speakTechnologyEnabled = false
+            )
+        )
+        assertEquals(
+            "E E, limited service",
+            SignalStateAnnouncement.formatLimitedServiceAnnouncement(
+                "EE",
+                CellularSignalReader.RADIO_2G,
+                speakTechnologyEnabled = false
+            )
+        )
+        assertEquals(
+            "E E",
+            SignalStateAnnouncement.formatG2CampedAnnouncement("EE", speakTechnologyEnabled = false)
+        )
+    }
+
+    @Test
     fun isLteNrRadioAccessType_recognizesLteAndNr() {
         assertTrue(SignalStateAnnouncement.isLteNrRadioAccessType(CellularSignalReader.RADIO_4G))
         assertTrue(SignalStateAnnouncement.isLteNrRadioAccessType(CellularSignalReader.RADIO_5G))

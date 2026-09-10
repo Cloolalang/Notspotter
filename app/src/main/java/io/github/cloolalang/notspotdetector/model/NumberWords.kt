@@ -23,6 +23,21 @@ object NumberWords {
         return buildWords(value).trim()
     }
 
+    /**
+     * Speaks round multiples of 100 the way network/radio jargon informally reads them, e.g.
+     * 800 -> "eight hundred", 1900 -> "nineteen hundred", 2600 -> "twenty six hundred" — instead of
+     * [toWords]'s literal "two thousand six hundred". Values under 1000 fall back to [toWords]
+     * (already "hundred"-style, e.g. 450 -> "four hundred fifty").
+     */
+    fun toHundredsWords(value: Int): String {
+        if (value < 0) return "minus ${toHundredsWords(-value)}"
+        if (value < 1_000) return toWords(value)
+        val hundreds = value / 100
+        val remainder = value % 100
+        val hundredsWords = "${toWords(hundreds)} hundred"
+        return if (remainder != 0) "$hundredsWords ${toWords(remainder)}" else hundredsWords
+    }
+
     private fun buildWords(n: Int): String {
         return when {
             n < 20 -> ONES[n]

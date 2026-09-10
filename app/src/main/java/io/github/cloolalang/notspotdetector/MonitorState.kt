@@ -103,41 +103,59 @@ object MonitorState {
     }
 
     fun formatNoSignalAnnouncement(stats: ConnectivityStats = _stats.value): String {
+        val volumes = _audioVolumes.value
         return SignalStateAnnouncement.formatNoSignalAnnouncement(
             stats,
-            lastKnownRadioAccessType
+            lastKnownRadioAccessType,
+            volumes.speakOperatorNameEnabled,
+            volumes.speakTechnologyEnabled
         )
     }
 
     fun formatSignalRestoredAnnouncement(stats: ConnectivityStats = _stats.value): String {
+        val volumes = _audioVolumes.value
         return SignalStateAnnouncement.formatSignalRestoredAnnouncement(
             stats,
-            lastKnownRadioAccessType
+            lastKnownRadioAccessType,
+            volumes.speakOperatorNameEnabled,
+            volumes.speakTechnologyEnabled
         )
     }
 
     fun formatDeadzoneAnnouncement(stats: ConnectivityStats = _stats.value): String {
-        return SignalStateAnnouncement.formatDeadzoneAnnouncement(stats.networkOperatorName)
+        return SignalStateAnnouncement.formatDeadzoneAnnouncement(
+            stats.networkOperatorName,
+            _audioVolumes.value.speakOperatorNameEnabled
+        )
     }
 
     fun formatTier5Announcement(stats: ConnectivityStats = _stats.value): String {
+        val volumes = _audioVolumes.value
         return SignalStateAnnouncement.formatTier5SignalLowAnnouncement(
             stats,
-            lastKnownRadioAccessType
+            lastKnownRadioAccessType,
+            volumes.speakOperatorNameEnabled,
+            volumes.speakTechnologyEnabled
         )
     }
 
     fun formatLimitedServiceAnnouncement(stats: ConnectivityStats = _stats.value): String {
+        val volumes = _audioVolumes.value
         return SignalStateAnnouncement.formatLimitedServiceAnnouncement(
             stats,
-            lastKnownRadioAccessType
+            lastKnownRadioAccessType,
+            volumes.speakOperatorNameEnabled,
+            volumes.speakTechnologyEnabled
         )
     }
 
     fun formatSearching2gAnnouncement(): String {
+        val volumes = _audioVolumes.value
         return SignalStateAnnouncement.formatSearching2gAnnouncement(
             _stats.value.networkOperatorName,
-            lteRatBeforeNoSignalEpisode
+            lteRatBeforeNoSignalEpisode,
+            volumes.speakOperatorNameEnabled,
+            volumes.speakTechnologyEnabled
         )
     }
 
@@ -520,7 +538,13 @@ object MonitorState {
             return null
         }
 
-        return SignalStateAnnouncement.formatTechnologyChange(nextType, networkOperatorName)
+        val volumes = _audioVolumes.value
+        return SignalStateAnnouncement.formatTechnologyChange(
+            nextType,
+            networkOperatorName,
+            volumes.speakOperatorNameEnabled,
+            volumes.speakTechnologyEnabled
+        )
     }
 
     private fun consumeTier5StateChange(
@@ -624,11 +648,14 @@ object MonitorState {
                 // RXSS 15 — defer entry voice to the 2G periodic timer (same as no-signal repeats).
                 return null
             }
+            val volumes = _audioVolumes.value
             return SignalStateAnnouncement.formatNoSignalChange(
                 active = true,
                 networkOperatorName = networkOperatorName,
                 radioAccessType = next.resolveNoSignalAnnouncementRadioAccessType(lastKnownRadioAccessType),
-                isWifiCallingActive = next.isWifiCallingActive
+                isWifiCallingActive = next.isWifiCallingActive,
+                speakOperatorNameEnabled = volumes.speakOperatorNameEnabled,
+                speakTechnologyEnabled = volumes.speakTechnologyEnabled
             )
         }
 
@@ -647,11 +674,14 @@ object MonitorState {
         if (suppressSignalRestored) {
             return null
         }
+        val volumes = _audioVolumes.value
         return SignalStateAnnouncement.formatNoSignalChange(
             active = false,
             networkOperatorName = networkOperatorName,
             radioAccessType = next.resolveNoSignalAnnouncementRadioAccessType(lastKnownRadioAccessType),
-            isWifiCallingActive = next.isWifiCallingActive
+            isWifiCallingActive = next.isWifiCallingActive,
+            speakOperatorNameEnabled = volumes.speakOperatorNameEnabled,
+            speakTechnologyEnabled = volumes.speakTechnologyEnabled
         )
     }
 
@@ -669,9 +699,12 @@ object MonitorState {
         if (suppressSignalRestored) {
             return null
         }
+        val volumes = _audioVolumes.value
         return SignalStateAnnouncement.formatSignalRestoredAnnouncement(
             networkOperatorName = networkOperatorName,
-            radioAccessType = next.resolveNoSignalAnnouncementRadioAccessType(lastKnownRadioAccessType)
+            radioAccessType = next.resolveNoSignalAnnouncementRadioAccessType(lastKnownRadioAccessType),
+            speakOperatorNameEnabled = volumes.speakOperatorNameEnabled,
+            speakTechnologyEnabled = volumes.speakTechnologyEnabled
         )
     }
 
@@ -703,7 +736,12 @@ object MonitorState {
         if (!fromLteNr) return null
 
         endNoSignalEpisode()
-        return SignalStateAnnouncement.formatG2CampedAnnouncement(networkOperatorName)
+        val volumes = _audioVolumes.value
+        return SignalStateAnnouncement.formatG2CampedAnnouncement(
+            networkOperatorName,
+            volumes.speakOperatorNameEnabled,
+            volumes.speakTechnologyEnabled
+        )
     }
 
     private fun consumeDeadzoneChange(
@@ -718,7 +756,10 @@ object MonitorState {
 
         deadzoneAnnouncedThisEpisode = true
         searching2gAnnounced = true
-        return SignalStateAnnouncement.formatDeadzoneAnnouncement(networkOperatorName)
+        return SignalStateAnnouncement.formatDeadzoneAnnouncement(
+            networkOperatorName,
+            _audioVolumes.value.speakOperatorNameEnabled
+        )
     }
 
     private fun consumeLimitedServiceStateChange(
@@ -791,7 +832,9 @@ object MonitorState {
             networkOperatorName = networkOperatorName,
             campedOnVisitedOperator = stats.resolveCampedVisitedOperatorName() != null,
             speakBandEnabled = volumes.cellChangeSpeakBandEnabled,
-            bandNamingStyle = volumes.cellChangeBandNamingStyle
+            bandNamingStyle = volumes.cellChangeBandNamingStyle,
+            speakOperatorNameEnabled = volumes.speakOperatorNameEnabled,
+            speakTechnologyEnabled = volumes.speakTechnologyEnabled
         )
     }
 

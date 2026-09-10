@@ -68,7 +68,18 @@ data class AudioVolumeSettings(
     val noSignalVoiceVolume: Float = DEFAULT_VOLUME,
     val limitedServiceToneVolume: Float = DEFAULT_VOLUME,
     val limitedServiceVoiceEnabled: Boolean = DEFAULT_VOICE_ANNOUNCEMENT_ENABLED,
-    val limitedServiceVoiceVolume: Float = DEFAULT_VOLUME
+    val limitedServiceVoiceVolume: Float = DEFAULT_VOLUME,
+    /**
+     * Global VA panel — when false, the operator name (e.g. "E E") is omitted from every spoken
+     * voice announcement app-wide (cell reselect, technology change, no-signal, limited service,
+     * tier 5, deadzone, searching 2G, 2G camped). Does not affect tones/clicks/vibration.
+     */
+    val speakOperatorNameEnabled: Boolean = DEFAULT_SPEAK_OPERATOR_NAME_ENABLED,
+    /**
+     * Global VA panel — when false, the technology (e.g. "4 G", "5 G E N D C") is omitted from
+     * every spoken voice announcement app-wide. Does not affect tones/clicks/vibration.
+     */
+    val speakTechnologyEnabled: Boolean = DEFAULT_SPEAK_TECHNOLOGY_ENABLED
 ) {
     fun pulseFrequencyHzForTier(tier: SignalStrengthTier): Int {
         return when (tier) {
@@ -235,6 +246,8 @@ data class AudioVolumeSettings(
         const val DEFAULT_CELL_CHANGE_SPEAK_BAND_ENABLED = false
         const val DEFAULT_VOICE_ANNOUNCEMENT_ENABLED = false
         const val DEFAULT_NO_SIGNAL_VIBRATION_ENABLED = false
+        const val DEFAULT_SPEAK_OPERATOR_NAME_ENABLED = true
+        const val DEFAULT_SPEAK_TECHNOLOGY_ENABLED = true
         val DEFAULT_VOICE_ANNOUNCER_CHOICE = VoiceAnnouncerChoice.SYSTEM_DEFAULT
 
         const val DEFAULT_SIGNAL_PULSE_DURATION_MS = 250
