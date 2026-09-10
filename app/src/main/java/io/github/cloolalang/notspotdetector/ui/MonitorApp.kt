@@ -38,6 +38,7 @@ fun MonitorApp(
     val settingsProfiles by viewModel.settingsProfiles.collectAsStateWithLifecycle()
     val rttHistory by viewModel.rttHistory.collectAsStateWithLifecycle()
     val rsrpHistory by viewModel.rsrpHistory.collectAsStateWithLifecycle()
+    val carrierConfigSnapshot by viewModel.carrierConfigSnapshot.collectAsStateWithLifecycle()
 
     var phoneStatePermissionGranted by remember {
         mutableStateOf(viewModel.phoneStatePermissionGranted)
@@ -47,6 +48,7 @@ fun MonitorApp(
         phoneStatePermissionGranted = viewModel.phoneStatePermissionGranted
         viewModel.reloadSettingsProfiles()
         viewModel.refreshCellularSignal()
+        viewModel.refreshCarrierConfigSnapshot()
     }
 
     fun ensureBackgroundMonitoringEnabled() {
@@ -154,6 +156,8 @@ fun MonitorApp(
             onShareSettingsProfile = onShareSettingsProfile,
             onExportSettingsProfileToDownloads = viewModel::exportSettingsProfileToDownloads,
             onRequestCellIdentityPermission = onRequestCellIdentityPermission,
+            carrierConfigSnapshot = carrierConfigSnapshot,
+            onRefreshCarrierConfig = viewModel::refreshCarrierConfigSnapshot,
             appVersion = BuildConfig.VERSION_NAME,
             modifier = Modifier.padding(innerPadding)
         )

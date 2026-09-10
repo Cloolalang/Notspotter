@@ -14,6 +14,7 @@ import io.github.cloolalang.notspotdetector.data.SettingsProfilesRepository
 import io.github.cloolalang.notspotdetector.data.ThresholdSettingsRepository
 import io.github.cloolalang.notspotdetector.model.AppSettingsSnapshot
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
+import io.github.cloolalang.notspotdetector.model.CarrierConfigSnapshot
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.PassiveMockSettings
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
@@ -32,6 +33,7 @@ import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerOption
 import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerSelection
 import io.github.cloolalang.notspotdetector.R
 import java.io.File
+import io.github.cloolalang.notspotdetector.network.CarrierConfigReader
 import io.github.cloolalang.notspotdetector.network.CellularSignalReader
 import io.github.cloolalang.notspotdetector.network.SimSubscriptionHelper
 import io.github.cloolalang.notspotdetector.audio.CellVoiceAnnouncer
@@ -71,6 +73,9 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
     private val _simSubscriptions = MutableStateFlow<List<SimSubscriptionOption>>(emptyList())
     val simSubscriptions: StateFlow<List<SimSubscriptionOption>> = _simSubscriptions.asStateFlow()
 
+    private val _carrierConfigSnapshot = MutableStateFlow(CarrierConfigSnapshot())
+    val carrierConfigSnapshot: StateFlow<CarrierConfigSnapshot> = _carrierConfigSnapshot.asStateFlow()
+
     init {
         MonitorState.setThresholds(thresholdRepository.load())
         MonitorState.setPingSettings(pingSettingsRepository.load())
@@ -91,6 +96,7 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         cellVoiceAnnouncer.setOnReadyListener { refreshVoiceAnnouncerOptions() }
         refreshSimSubscriptions()
         refreshCellularSignal()
+        refreshCarrierConfigSnapshot()
     }
 
     val stats = MonitorState.stats.stateIn(
@@ -692,6 +698,22 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
 
     private fun applyMockSignalIfActive(): Boolean {
         return MonitorState.pushMockStatsIfActive()
+    }
+
+    /**
+     * Research/diagnostics only — refreshes the curated [CarrierConfigSnapshot] of
+     * `CarrierConfigManager` keys that affect actual UE behavior (VoLTE, WiFi calling, VoNR,
+     * NR/5G availability, network selection, emergency). Does not affect monitoring or any
+     * announcement/signal logic.
+     */
+    fun refreshCarrierConfigSnapshot() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val snapshot = CarrierConfigReader.read(
+                getApplication(),
+                MonitorState.monitoringSettings.value.subscriptionId
+            )
+            _carrierConfigSnapshot.value = snapshot
+        }
     }
 
     private fun updateThresholds(settings: ThresholdSettings) {

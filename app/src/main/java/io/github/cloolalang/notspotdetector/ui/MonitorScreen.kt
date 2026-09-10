@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.sp
 import io.github.cloolalang.notspotdetector.network.CellularSignalReader
 import io.github.cloolalang.notspotdetector.R
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
+import io.github.cloolalang.notspotdetector.model.CarrierConfigSnapshot
 import io.github.cloolalang.notspotdetector.model.CellReselectBandNamingStyle
 import io.github.cloolalang.notspotdetector.model.ConnectivityStats
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
@@ -156,6 +157,8 @@ fun MonitorScreen(
     onExportSettingsProfileToDownloads: (String) -> ProfileExportOutcome,
     onRequestCellIdentityPermission: () -> Unit,
     appVersion: String,
+    carrierConfigSnapshot: CarrierConfigSnapshot = CarrierConfigSnapshot(),
+    onRefreshCarrierConfig: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -383,6 +386,12 @@ fun MonitorScreen(
             speakTechnologyEnabled = audioVolumes.speakTechnologyEnabled,
             onSpeakOperatorNameEnabledChange = onSpeakOperatorNameEnabledChange,
             onSpeakTechnologyEnabledChange = onSpeakTechnologyEnabledChange
+        )
+
+        CarrierConfigCard(
+            snapshot = carrierConfigSnapshot,
+            phoneStatePermissionGranted = phoneStatePermissionGranted,
+            onRefresh = onRefreshCarrierConfig
         )
 
         if (!stats.cellularAvailable && isRunning) {

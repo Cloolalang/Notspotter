@@ -307,6 +307,13 @@
     <string name="voice_announcement_speak_operator_name_hint">When off, the operator name (e.g. “E E”) is omitted from every voice announcement.</string>
     <string name="voice_announcement_speak_technology">Speak technology (2 G/4 G/5 G)</string>
     <string name="voice_announcement_speak_technology_hint">When off, the technology (e.g. “4 G”, “5 G E N D C”) is omitted from every voice announcement.</string>
+    <string name="carrier_config_title">Carrier config (UE behavior) — research</string>
+    <string name="carrier_config_summary">Read-only dump of CarrierConfigManager keys that affect actual device behavior (VoLTE, WiFi calling, VoNR, 5 G availability, network selection, emergency) — for diagnostics/research only. Not used by any of this app\'s own signal or announcement logic. Exporting to a file is planned for later.</string>
+    <string name="carrier_config_permission_hint">Grant phone state permission to read carrier config.</string>
+    <string name="carrier_config_unavailable_hint">Carrier config isn\'t available right now (no active SIM, or the platform returned an empty config). Try Refresh.</string>
+    <string name="carrier_config_carrier_label">%1$s (sub ID %2$d)</string>
+    <string name="carrier_config_sub_only_label">Sub ID %1$d</string>
+    <string name="carrier_config_refresh">Refresh</string>
     <string name="audio_cell_change_voice_enabled">Voice announcement on cell change</string>
     <string name="audio_cell_change_voice_enabled_hint">After the cell change bell, speaks operator, technology, then cell reselect with channel and PCI (e.g. “E E, 4 G, cell reselect, channel 6 4 0 0, PCI 1 2 3”).</string>
     <string name="audio_volume_cell_change_voice">Cell change voice announcement</string>

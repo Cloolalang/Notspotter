@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Documentation** — [MOCK_NETWORK_SCENARIOS.md](MOCK_NETWORK_SCENARIOS.md) (agreed mock trigger states per scenario) and [SETTINGS_PROFILES.md](SETTINGS_PROFILES.md) (profile JSON capture scope, including full `passiveMock` block). Updated [RXSS_CATALOGUE.md](RXSS_CATALOGUE.md), [VOICE_ANNOUNCEMENTS.md](VOICE_ANNOUNCEMENTS.md), and [README.md](README.md) cross-links; RXSS **0**, **11**, **12**, **20**, **23** rows reflect current voice implementation.
 
+## [2.11.0] - 2026-09-10
+
+### Added
+
+- **"Carrier config (UE behavior) — research" panel** — new collapsible card at the bottom of the settings screen that reads and displays a curated set of `CarrierConfigManager` keys known to affect actual device behavior: VoLTE (availability, provisioning, downgrade-to-audio, replacement RAT), WiFi calling/VoWiFi (availability, default mode/roaming mode, wifi-only support), VoNR, NR/5G availability (NSA/SA), network selection (home-network-only manual selection), and emergency (SMS-over-IMS, dialed-SIM-only ECC list). Read-only for now — exporting the dump to a text file is planned for later. Has its own manual "Refresh" button and refreshes automatically on app resume.
+
 ## [2.10.1] - 2026-09-10
 
 ### Fixed
