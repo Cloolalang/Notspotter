@@ -29,6 +29,8 @@ data class ConnectivityStats(
     val ltePci: Int? = null,
     val nrEarfcn: Int? = null,
     val nrPci: Int? = null,
+    /** Serving NR operating band (e.g. 78 for n78) — see [CellularRadioMetrics.nrBand]. */
+    val nrBand: Int? = null,
     val gsmEarfcn: Int? = null,
     val gsmBsic: Int? = null,
     val isOn2g: Boolean = false,

@@ -26,6 +26,34 @@ class PassiveMockSettingsTest {
     }
 
     @Test
+    fun home5gEndcScenario_isInServiceOnEndcWithNrSecondary() {
+        val radio = PassiveMockSettings(scenario = MockNetworkScenario.HOME_5G_ENDC).toRadioMetrics()
+        assertEquals(CellularSignalReader.RADIO_5G_ENDC, radio.radioAccessType)
+        assertFalse(radio.isOn2g)
+        assertFalse(radio.isLimitedService)
+        assertFalse(radio.isCompleteNoService)
+        assertTrue(radio.hasLteNrSignal)
+        assertEquals(PassiveMockSettings.MOCK_LTE_EARFCN, radio.lteEarfcn)
+        assertEquals(PassiveMockSettings.MOCK_NR_EARFCN, radio.nrEarfcn)
+        assertEquals(PassiveMockSettings.MOCK_NR_PCI, radio.nrPci)
+        assertEquals(PassiveMockSettings.MOCK_HOME_OPERATOR, radio.homeNetworkOperatorName)
+    }
+
+    @Test
+    fun home5gEndcScenario_usesLteNrSignalStrengthAndMapsToRsrpTiers() {
+        assertTrue(MockNetworkScenario.HOME_5G_ENDC.usesLteNrSignalStrength())
+        assertTrue(MockNetworkScenario.HOME_5G_ENDC.appliesMockSignalStrength())
+        val stats = PassiveMockSettings(scenario = MockNetworkScenario.HOME_5G_ENDC, rsrpDbm = -80).toConnectivityStats(
+            monitor2gFallback = true,
+            passiveSettings = passiveSettings,
+            passiveIdleMode = false,
+            passiveOnlySession = true
+        )
+        assertTrue(stats.cellularAvailable)
+        assertEquals(CellularSignalReader.RADIO_5G_ENDC, stats.radioAccessType)
+    }
+
+    @Test
     fun home2gScenario_isCampedOnHome2g() {
         val radio = PassiveMockSettings(scenario = MockNetworkScenario.HOME_2G).toRadioMetrics()
         assertEquals(CellularSignalReader.RADIO_2G, radio.radioAccessType)

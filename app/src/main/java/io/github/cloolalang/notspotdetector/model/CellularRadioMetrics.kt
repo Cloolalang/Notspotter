@@ -8,6 +8,13 @@ data class CellularRadioMetrics(
     val ltePci: Int? = null,
     val nrEarfcn: Int? = null,
     val nrPci: Int? = null,
+    /**
+     * Serving NR operating band (e.g. 78 for n78), read directly from
+     * [android.telephony.CellIdentityNr.getBands] (API 30+) rather than derived from the
+     * NR-ARFCN, since NR-ARFCN ranges overlap across multiple bands (e.g. n1/n66) and the modem
+     * reports the actual serving band(s) unambiguously. Null below API 30 or when unavailable.
+     */
+    val nrBand: Int? = null,
     val gsmEarfcn: Int? = null,
     val gsmBsic: Int? = null,
     val isOn2g: Boolean = false,

@@ -28,8 +28,6 @@ data class PassiveSignalSettings(
     val rsrqTierPulseDurationMs: Int = DEFAULT_RSRQ_TIER_PULSE_DURATION_MS,
     val quietAlertRsrqDb: Int = DEFAULT_QUIET_ALERT_RSRQ_DB,
     val quietAlertRsrpMaxDbm: Int = DEFAULT_QUIET_ALERT_RSRP_MAX_DBM,
-    /** RXSS 1 (signal high) — length of each signal pulse (ms). */
-    val veryStrongTierPulseDurationMs: Int = DEFAULT_VERY_STRONG_TIER_PULSE_DURATION_MS,
     /** RXSS 2 (Level Range A) — length of each signal pulse (ms). */
     val mildTierPulseDurationMs: Int = DEFAULT_MILD_TIER_PULSE_DURATION_MS,
     /** RXSS 3 (Level Range B) — length of each signal pulse (ms). */
@@ -42,11 +40,19 @@ data class PassiveSignalSettings(
     val criticalTierPulseDurationMs: Int = DEFAULT_CRITICAL_TIER_PULSE_DURATION_MS,
     /** Passive-only time between signal-pulse clicks in each RSRP tier (ms). */
     val criticalTierClickIntervalMs: Int = DEFAULT_CRITICAL_TIER_CLICK_INTERVAL_MS,
-    /** Level Ranges A–D (RXSS 2–5) shared click interval. Legacy per-range fields stay in sync. */
+    /**
+     * @deprecated Level Ranges A–D (RXSS 2–5) now each have an independent click interval
+     * ([mildTierClickIntervalMs] and siblings). This field is kept only as an internal fallback
+     * default (used when no specific tier can be resolved) and is no longer writable from the UI.
+     */
     val levelRangeAbcdClickIntervalMs: Int = DEFAULT_LEVEL_RANGE_ABCD_CLICK_INTERVAL_MS,
+    /** RXSS 5 (Level Range D) — time between signal-pulse clicks (ms). */
     val poorTierClickIntervalMs: Int = DEFAULT_POOR_TIER_CLICK_INTERVAL_MS,
+    /** RXSS 4 (Level Range C) — time between signal-pulse clicks (ms). */
     val fairTierClickIntervalMs: Int = DEFAULT_FAIR_TIER_CLICK_INTERVAL_MS,
+    /** RXSS 3 (Level Range B) — time between signal-pulse clicks (ms). */
     val goodTierClickIntervalMs: Int = DEFAULT_GOOD_TIER_CLICK_INTERVAL_MS,
+    /** RXSS 2 (Level Range A) — time between signal-pulse clicks (ms). */
     val mildTierClickIntervalMs: Int = DEFAULT_MILD_TIER_CLICK_INTERVAL_MS,
     val veryStrongTierClickIntervalMs: Int = DEFAULT_VERY_STRONG_TIER_CLICK_INTERVAL_MS,
     val veryStrongTierSoundEnabled: Boolean = DEFAULT_TIER_SOUND_ENABLED,
@@ -130,7 +136,6 @@ data class PassiveSignalSettings(
             rsrqTierPulseDurationMs = rsrqTierPulseDurationMs.coerceCampTierPulseDuration(),
             quietAlertRsrqDb = quietRsrq,
             quietAlertRsrpMaxDbm = quietRsrp,
-            veryStrongTierPulseDurationMs = veryStrongTierPulseDurationMs.coerceCampTierPulseDuration(),
             mildTierPulseDurationMs = mildTierPulseDurationMs.coerceCampTierPulseDuration(),
             goodTierPulseDurationMs = goodTierPulseDurationMs.coerceCampTierPulseDuration(),
             fairTierPulseDurationMs = fairTierPulseDurationMs.coerceCampTierPulseDuration(),
@@ -138,10 +143,10 @@ data class PassiveSignalSettings(
             criticalTierPulseDurationMs = criticalTierPulseDurationMs.coerceCampTierPulseDuration(),
             criticalTierClickIntervalMs = criticalTierClickIntervalMs.coerceTierClickInterval(),
             levelRangeAbcdClickIntervalMs = levelRangeAbcdClickIntervalMs.coerceTierClickInterval(),
-            poorTierClickIntervalMs = levelRangeAbcdClickIntervalMs.coerceTierClickInterval(),
-            fairTierClickIntervalMs = levelRangeAbcdClickIntervalMs.coerceTierClickInterval(),
-            goodTierClickIntervalMs = levelRangeAbcdClickIntervalMs.coerceTierClickInterval(),
-            mildTierClickIntervalMs = levelRangeAbcdClickIntervalMs.coerceTierClickInterval(),
+            poorTierClickIntervalMs = poorTierClickIntervalMs.coerceTierClickInterval(),
+            fairTierClickIntervalMs = fairTierClickIntervalMs.coerceTierClickInterval(),
+            goodTierClickIntervalMs = goodTierClickIntervalMs.coerceTierClickInterval(),
+            mildTierClickIntervalMs = mildTierClickIntervalMs.coerceTierClickInterval(),
             veryStrongTierClickIntervalMs = veryStrongTierClickIntervalMs.coerceTierClickInterval(),
             g2StrongTierClickIntervalMs = g2StrongTierClickIntervalMs.coerceTierClickInterval(),
             g2WeakTierClickIntervalMs = g2WeakTierClickIntervalMs.coerceTierClickInterval(),
@@ -211,7 +216,6 @@ data class PassiveSignalSettings(
         const val MAX_TIER_CLICK_INTERVAL_MS = 20_000
         const val TIER_CLICK_INTERVAL_STEP_MS = 10
 
-        const val DEFAULT_VERY_STRONG_TIER_PULSE_DURATION_MS = AudioVolumeSettings.DEFAULT_SIGNAL_PULSE_DURATION_MS
         const val DEFAULT_MILD_TIER_PULSE_DURATION_MS = AudioVolumeSettings.DEFAULT_SIGNAL_PULSE_DURATION_MS
         const val DEFAULT_GOOD_TIER_PULSE_DURATION_MS = AudioVolumeSettings.DEFAULT_SIGNAL_PULSE_DURATION_MS
         const val DEFAULT_FAIR_TIER_PULSE_DURATION_MS = AudioVolumeSettings.DEFAULT_SIGNAL_PULSE_DURATION_MS
@@ -244,31 +248,26 @@ data class PassiveSignalSettings(
         const val DEFAULT_SEARCHING_2G_TIER_PULSE_DURATION_MS = AudioVolumeSettings.DEFAULT_SIGNAL_PULSE_DURATION_MS
         const val DEFAULT_LIMITED_SERVICE_TIER_PULSE_DURATION_MS = AudioVolumeSettings.DEFAULT_SIGNAL_PULSE_DURATION_MS
         const val DEFAULT_LIMITED_ALT_2G_TIER_PULSE_DURATION_MS = 300
-
-        /** One-time migration from legacy global / Level Range B–D pulse duration in [AudioVolumeSettings]. */
-        fun migrateRsrpPulseDurationsFromAudio(
-            passive: PassiveSignalSettings,
-            audio: AudioVolumeSettings
-        ): PassiveSignalSettings {
-            return passive.copy(
-                veryStrongTierPulseDurationMs = audio.signalPulseDurationMs,
-                criticalTierPulseDurationMs = audio.signalPulseDurationMs,
-                mildTierPulseDurationMs = audio.levelRangeBcdPulseDurationMs,
-                goodTierPulseDurationMs = audio.levelRangeBcdPulseDurationMs,
-                fairTierPulseDurationMs = audio.levelRangeBcdPulseDurationMs,
-                poorTierPulseDurationMs = audio.levelRangeBcdPulseDurationMs
-            ).normalized()
-        }
     }
 }
 
-/** Longest pulse among Level Ranges A–D (RXSS 2–5) — used for shared click-interval floor. */
+/** Longest pulse among Level Ranges A–D (RXSS 2–5) — used for the shared volume/frequency preview. */
 fun PassiveSignalSettings.levelRangeAbcdMaxPulseDurationMs(): Int {
     return maxOf(
         mildTierPulseDurationMs,
         goodTierPulseDurationMs,
         fairTierPulseDurationMs,
         poorTierPulseDurationMs
+    )
+}
+
+/** Fastest click interval among Level Ranges A–D (RXSS 2–5) — used for the shared volume/frequency preview. */
+fun PassiveSignalSettings.levelRangeAbcdMinClickIntervalMs(): Int {
+    return minOf(
+        mildTierClickIntervalMs,
+        goodTierClickIntervalMs,
+        fairTierClickIntervalMs,
+        poorTierClickIntervalMs
     )
 }
 
@@ -333,8 +332,10 @@ private fun Int.coerceRsrqTierClickInterval(): Int {
 
 fun PassiveSignalSettings.clickIntervalMsForTier(tier: SignalStrengthTier): Long {
     return when (tier) {
-        SignalStrengthTier.MILD, SignalStrengthTier.GOOD, SignalStrengthTier.FAIR,
-        SignalStrengthTier.POOR -> levelRangeAbcdClickIntervalMs
+        SignalStrengthTier.MILD -> mildTierClickIntervalMs
+        SignalStrengthTier.GOOD -> goodTierClickIntervalMs
+        SignalStrengthTier.FAIR -> fairTierClickIntervalMs
+        SignalStrengthTier.POOR -> poorTierClickIntervalMs
         SignalStrengthTier.CRITICAL -> criticalTierClickIntervalMs
         SignalStrengthTier.G2_STRONG -> g2StrongTierClickIntervalMs
         SignalStrengthTier.G2_WEAK -> g2WeakTierClickIntervalMs

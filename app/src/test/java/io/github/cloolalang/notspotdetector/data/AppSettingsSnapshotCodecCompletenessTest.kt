@@ -2,6 +2,7 @@ package io.github.cloolalang.notspotdetector.data
 
 import io.github.cloolalang.notspotdetector.model.AppSettingsSnapshot
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
+import io.github.cloolalang.notspotdetector.model.CellReselectBandNamingStyle
 import io.github.cloolalang.notspotdetector.model.MockNetworkScenario
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.PassiveMockSettings
@@ -107,6 +108,11 @@ class AppSettingsSnapshotCodecCompletenessTest {
                 quietAlertRsrqDb = -19,
                 quietAlertRsrpMaxDbm = -104,
                 criticalTierClickIntervalMs = 350,
+                criticalTierPulseDurationMs = 170,
+                mildTierPulseDurationMs = 160,
+                goodTierPulseDurationMs = 165,
+                fairTierPulseDurationMs = 175,
+                poorTierPulseDurationMs = 185,
                 levelRangeAbcdClickIntervalMs = 1_400,
                 veryStrongTierClickIntervalMs = 1_300,
                 veryStrongTierSoundEnabled = false,
@@ -147,6 +153,7 @@ class AppSettingsSnapshotCodecCompletenessTest {
                 rsrqDb = -16
             ),
             audioVolumes = AudioVolumeSettings(
+                masterVoiceAnnouncementsEnabled = false,
                 pingClickVolume = 0.4f,
                 lowSignalClickVolume = 0.55f,
                 signalPulseFrequencyHz = 720,
@@ -162,6 +169,8 @@ class AppSettingsSnapshotCodecCompletenessTest {
                 cellChangeBellVolume = 0.45f,
                 cellChangeVoiceEnabled = true,
                 cellChangeVoiceVolume = 0.5f,
+                cellChangeSpeakBandEnabled = true,
+                cellChangeBandNamingStyle = CellReselectBandNamingStyle.MHZ_NICKNAME,
                 technologyChangeTo2gToneVolume = 0.41f,
                 technologyChangeTo2gVoiceEnabled = true,
                 technologyChangeTo2gVoiceVolume = 0.42f,
@@ -234,6 +243,11 @@ class AppSettingsSnapshotCodecCompletenessTest {
             "quietAlertRsrqDb",
             "quietAlertRsrpMaxDbm",
             "criticalTierClickIntervalMs",
+            "criticalTierPulseDurationMs",
+            "mildTierPulseDurationMs",
+            "goodTierPulseDurationMs",
+            "fairTierPulseDurationMs",
+            "poorTierPulseDurationMs",
             "levelRangeAbcdClickIntervalMs",
             "poorTierClickIntervalMs",
             "fairTierClickIntervalMs",
@@ -273,6 +287,7 @@ class AppSettingsSnapshotCodecCompletenessTest {
         )
 
         private val AUDIO_KEYS = setOf(
+            "masterVoiceAnnouncementsEnabled",
             "pingClickVolume",
             "lowSignalClickVolume",
             "signalPulseFrequencyHz",
@@ -288,6 +303,8 @@ class AppSettingsSnapshotCodecCompletenessTest {
             "cellChangeBellVolume",
             "cellChangeVoiceEnabled",
             "cellChangeVoiceVolume",
+            "cellChangeSpeakBandEnabled",
+            "cellChangeBandNamingStyle",
             "technologyChangeTo2gToneVolume",
             "technologyChangeTo2gVoiceEnabled",
             "technologyChangeTo2gVoiceVolume",

@@ -331,6 +331,7 @@ class CellularPingMonitor(
             ltePci = metrics.ltePci,
             nrEarfcn = metrics.nrEarfcn,
             nrPci = metrics.nrPci,
+            nrBand = metrics.nrBand,
             gsmEarfcn = metrics.gsmEarfcn,
             gsmBsic = metrics.gsmBsic,
             isOn2g = metrics.isOn2g,

@@ -98,4 +98,63 @@ class CellIdentityAnnouncementTest {
             announcement
         )
     }
+
+    @Test
+    fun format_speakBandEnabledWithBandNumberStyle_speaksBandInsteadOfChannelAndPci() {
+        val previous = CellIdentitySnapshot(lteEarfcn = 1_800, ltePci = 42)
+        val next = CellIdentitySnapshot(lteEarfcn = 6_400, ltePci = 123)
+
+        val announcement = CellIdentityAnnouncement.format(
+            previous,
+            next,
+            CellularSignalReader.RADIO_4G,
+            speakBandEnabled = true,
+            bandNamingStyle = CellReselectBandNamingStyle.BAND_NUMBER
+        )
+
+        assertEquals("4 G, band, twenty", announcement)
+    }
+
+    @Test
+    fun format_speakBandEnabledWithMhzNicknameStyle_speaksNicknameInsteadOfChannelAndPci() {
+        val previous = CellIdentitySnapshot(lteEarfcn = 1_800, ltePci = 42)
+        val next = CellIdentitySnapshot(lteEarfcn = 6_400, ltePci = 123)
+
+        val announcement = CellIdentityAnnouncement.format(
+            previous,
+            next,
+            CellularSignalReader.RADIO_4G,
+            speakBandEnabled = true,
+            bandNamingStyle = CellReselectBandNamingStyle.MHZ_NICKNAME
+        )
+
+        assertEquals("4 G, band, L eight hundred", announcement)
+    }
+
+    @Test
+    fun format_speakBandEnabledWithNoLteEarfcn_fallsBackToNormalPhrasing() {
+        val previous = CellIdentitySnapshot(gsmEarfcn = 62, gsmBsic = 12)
+        val next = CellIdentitySnapshot(gsmEarfcn = 71, gsmBsic = 15)
+
+        val announcement = CellIdentityAnnouncement.format(
+            previous,
+            next,
+            CellularSignalReader.RADIO_2G,
+            speakBandEnabled = true,
+            bandNamingStyle = CellReselectBandNamingStyle.BAND_NUMBER
+        )
+
+        assertEquals("2 G, cell reselect, channel 7 1, BSIC 1 5", announcement)
+    }
+
+    @Test
+    fun previewText_speakBandEnabled_includesBandPhrase() {
+        val preview = CellIdentityAnnouncement.previewText(
+            networkOperatorName = null,
+            speakBandEnabled = true,
+            bandNamingStyle = CellReselectBandNamingStyle.BAND_NUMBER
+        )
+
+        assertEquals("4 G, band, twenty", preview)
+    }
 }

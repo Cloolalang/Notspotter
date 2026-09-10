@@ -84,6 +84,7 @@ class CellularPassiveSignalMonitor(
                 ltePci = radio.ltePci,
                 nrEarfcn = radio.nrEarfcn,
                 nrPci = radio.nrPci,
+                nrBand = radio.nrBand,
                 gsmEarfcn = radio.gsmEarfcn,
                 gsmBsic = radio.gsmBsic,
                 isOn2g = radio.isOn2g,

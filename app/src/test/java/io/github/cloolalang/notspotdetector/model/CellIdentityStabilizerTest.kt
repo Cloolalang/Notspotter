@@ -45,6 +45,32 @@ class CellIdentityStabilizerTest {
     }
 
     @Test
+    fun coalesceWith_fillsMissingNrBandFromPrevious() {
+        val current = CellIdentitySnapshot(nrEarfcn = 158_760, nrPci = 231, nrBand = null)
+        val previous = CellIdentitySnapshot(nrEarfcn = 158_760, nrPci = 231, nrBand = 20)
+
+        val merged = current.coalesceWith(previous)
+
+        assertEquals(20, merged.nrBand)
+    }
+
+    @Test
+    fun withStabilizedCellIdentity_clearsNrBandOnCompleteNoService() {
+        val stats = ConnectivityStats(
+            isCompleteNoService = true,
+            nrEarfcn = 158_760,
+            nrPci = 231,
+            nrBand = 20
+        )
+        val previous = CellIdentitySnapshot(nrEarfcn = 158_760, nrPci = 231, nrBand = 20)
+
+        val (display, cache) = stats.withStabilizedCellIdentity(previous)
+
+        assertNull(display.nrBand)
+        assertNull(cache.nrBand)
+    }
+
+    @Test
     fun withStabilizedCellIdentity_clearsMetricsWhenNoSignalActive() {
         val stats = ConnectivityStats(
             isMonitoring = true,

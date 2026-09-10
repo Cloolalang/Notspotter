@@ -34,24 +34,35 @@ object SettingsCompatibility {
 
     fun normalizePassiveSignalSettings(
         settings: PassiveSignalSettings,
-        signalPulseDurationMs: Int,
-        levelRangeBcdPulseDurationMs: Int = signalPulseDurationMs
+        signalPulseDurationMs: Int
     ): PassiveSignalSettings {
         val normalized = settings.normalized()
-        val levelRangeAbcdClickIntervalMs = coerceStoredTierClickIntervalMs(
-            normalized.levelRangeAbcdClickIntervalMs,
-            levelRangeBcdPulseDurationMs
-        )
         return normalized.copy(
             criticalTierClickIntervalMs = coerceStoredTierClickIntervalMs(
                 normalized.criticalTierClickIntervalMs,
                 signalPulseDurationMs
             ),
-            levelRangeAbcdClickIntervalMs = levelRangeAbcdClickIntervalMs,
-            mildTierClickIntervalMs = levelRangeAbcdClickIntervalMs,
-            goodTierClickIntervalMs = levelRangeAbcdClickIntervalMs,
-            fairTierClickIntervalMs = levelRangeAbcdClickIntervalMs,
-            poorTierClickIntervalMs = levelRangeAbcdClickIntervalMs,
+            // Kept only as an internal fallback default — no longer synced from the per-range values below.
+            levelRangeAbcdClickIntervalMs = coerceStoredTierClickIntervalMs(
+                normalized.levelRangeAbcdClickIntervalMs,
+                normalized.levelRangeAbcdMaxPulseDurationMs()
+            ),
+            mildTierClickIntervalMs = coerceStoredTierClickIntervalMs(
+                normalized.mildTierClickIntervalMs,
+                normalized.mildTierPulseDurationMs
+            ),
+            goodTierClickIntervalMs = coerceStoredTierClickIntervalMs(
+                normalized.goodTierClickIntervalMs,
+                normalized.goodTierPulseDurationMs
+            ),
+            fairTierClickIntervalMs = coerceStoredTierClickIntervalMs(
+                normalized.fairTierClickIntervalMs,
+                normalized.fairTierPulseDurationMs
+            ),
+            poorTierClickIntervalMs = coerceStoredTierClickIntervalMs(
+                normalized.poorTierClickIntervalMs,
+                normalized.poorTierPulseDurationMs
+            ),
             veryStrongTierClickIntervalMs = coerceStoredTierClickIntervalMs(
                 normalized.veryStrongTierClickIntervalMs,
                 signalPulseDurationMs

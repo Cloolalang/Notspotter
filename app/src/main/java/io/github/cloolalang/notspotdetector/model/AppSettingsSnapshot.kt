@@ -26,8 +26,7 @@ data class AppSettingsSnapshot(
             monitoringSettings = monitoringSettings.normalized(),
             passiveSignalSettings = SettingsCompatibility.normalizePassiveSignalSettings(
                 passiveSignalSettings.normalized(),
-                normalizedAudio.signalPulseDurationMs,
-                normalizedAudio.levelRangeBcdPulseDurationMs
+                normalizedAudio.signalPulseDurationMs
             ),
             passiveMockSettings = passiveMockSettings.normalized(),
             audioVolumes = normalizedAudio

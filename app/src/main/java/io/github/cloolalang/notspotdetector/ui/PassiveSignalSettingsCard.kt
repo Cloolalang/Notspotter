@@ -26,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.cloolalang.notspotdetector.R
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
+import io.github.cloolalang.notspotdetector.model.CellReselectBandNamingStyle
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
 import io.github.cloolalang.notspotdetector.model.SettingsCompatibility
@@ -36,6 +37,8 @@ import io.github.cloolalang.notspotdetector.model.G2_NO_SIGNAL_TIER_NUMBER
 import io.github.cloolalang.notspotdetector.model.G2_STRONG_TIER_NUMBER
 import io.github.cloolalang.notspotdetector.model.G2_WEAK_TIER_NUMBER
 import io.github.cloolalang.notspotdetector.model.LIMITED_ALT_2G_TIER_NUMBER
+import io.github.cloolalang.notspotdetector.model.levelRangeAbcdMaxPulseDurationMs
+import io.github.cloolalang.notspotdetector.model.levelRangeAbcdMinClickIntervalMs
 import io.github.cloolalang.notspotdetector.model.LIMITED_SERVICE_TIER_NUMBER
 import io.github.cloolalang.notspotdetector.model.NO_SIGNAL_TIER_NUMBER
 import io.github.cloolalang.notspotdetector.model.SEARCHING_2G_TIER_NUMBER
@@ -85,13 +88,14 @@ fun PassiveSignalSettingsCard(
     onCellChangeVoiceVolumeChange: (Float) -> Unit,
     onPreviewCellChangeBell: () -> Unit,
     onPreviewCellChangeVoice: () -> Unit,
+    onCellChangeSpeakBandEnabledChange: (Boolean) -> Unit = {},
+    onCellChangeBandNamingStyleChange: (CellReselectBandNamingStyle) -> Unit = {},
     onLowSignalClickVolumeChange: (Float) -> Unit,
     onSignalPulseDurationChange: (Int) -> Unit,
     onPreviewLowSignalClick: (frequencyHz: Int, pulseDurationMs: Int) -> Unit,
     onPreviewSignalPulse: (volume: Float, frequencyHz: Int, pulseDurationMs: Int) -> Unit,
     onLevelRangeBcdClickVolumeChange: (Float) -> Unit,
     onLevelRangeBcdPulseFrequencyChange: (Int) -> Unit,
-    onLevelRangeBcdPulseDurationChange: (Int) -> Unit,
     onPreviewLevelRangeBcdClick: (frequencyHz: Int, pulseDurationMs: Int) -> Unit,
     onPreviewRsrqWhiteNoise: () -> Unit,
     onSignalPulseFrequencyChange: (Int) -> Unit,
@@ -198,7 +202,6 @@ fun PassiveSignalSettingsCard(
                     onPreviewSignalPulse = onPreviewSignalPulse,
                     onLevelRangeBcdClickVolumeChange = onLevelRangeBcdClickVolumeChange,
                     onLevelRangeBcdPulseFrequencyChange = onLevelRangeBcdPulseFrequencyChange,
-                    onLevelRangeBcdPulseDurationChange = onLevelRangeBcdPulseDurationChange,
                     onPreviewLevelRangeBcdClick = onPreviewLevelRangeBcdClick,
                     onSignalPulseFrequencyChange = onSignalPulseFrequencyChange
                 )
@@ -227,7 +230,9 @@ fun PassiveSignalSettingsCard(
                     onCellChangeVoiceEnabledChange = onCellChangeVoiceEnabledChange,
                     onCellChangeVoiceVolumeChange = onCellChangeVoiceVolumeChange,
                     onPreviewCellChangeBell = onPreviewCellChangeBell,
-                    onPreviewCellChangeVoice = onPreviewCellChangeVoice
+                    onPreviewCellChangeVoice = onPreviewCellChangeVoice,
+                    onCellChangeSpeakBandEnabledChange = onCellChangeSpeakBandEnabledChange,
+                    onCellChangeBandNamingStyleChange = onCellChangeBandNamingStyleChange
                 )
 
                 CampStateTierSettings(
@@ -597,7 +602,6 @@ private fun RsrpBandTierIntervalControls(
     tier: SignalStrengthTier,
     settings: PassiveSignalSettings,
     gap: Int,
-    pulseDurationMs: Int,
     passiveMeasurementIntervalMs: Long,
     onSettingsChange: (PassiveSignalSettings) -> Unit
 ) {
@@ -627,6 +631,24 @@ private fun RsrpBandTierIntervalControls(
                         accentColor = accent,
                         onValueChange = { onSettingsChange(settings.copy(goodRsrpMinDbm = it)) }
                     )
+                },
+                durationControls = {
+                    TierPulseDurationSlider(
+                        label = stringResource(R.string.passive_signal_tier_pulse_duration, tierNumber),
+                        durationMs = settings.goodTierPulseDurationMs,
+                        accentColor = accent,
+                        onDurationChange = { onSettingsChange(settings.copy(goodTierPulseDurationMs = it)) }
+                    )
+                },
+                intervalControls = {
+                    TierClickSpeedSlider(
+                        label = stringResource(R.string.passive_signal_tier_click_interval, tierNumber),
+                        intervalMs = settings.goodTierClickIntervalMs,
+                        signalPulseDurationMs = settings.goodTierPulseDurationMs,
+                        passiveMeasurementIntervalMs = passiveMeasurementIntervalMs,
+                        accentColor = accent,
+                        onIntervalChange = { onSettingsChange(settings.copy(goodTierClickIntervalMs = it)) }
+                    )
                 }
             )
         }
@@ -655,6 +677,24 @@ private fun RsrpBandTierIntervalControls(
                         accentColor = accent,
                         onValueChange = { onSettingsChange(settings.copy(fairRsrpMinDbm = it)) }
                     )
+                },
+                durationControls = {
+                    TierPulseDurationSlider(
+                        label = stringResource(R.string.passive_signal_tier_pulse_duration, tierNumber),
+                        durationMs = settings.fairTierPulseDurationMs,
+                        accentColor = accent,
+                        onDurationChange = { onSettingsChange(settings.copy(fairTierPulseDurationMs = it)) }
+                    )
+                },
+                intervalControls = {
+                    TierClickSpeedSlider(
+                        label = stringResource(R.string.passive_signal_tier_click_interval, tierNumber),
+                        intervalMs = settings.fairTierClickIntervalMs,
+                        signalPulseDurationMs = settings.fairTierPulseDurationMs,
+                        passiveMeasurementIntervalMs = passiveMeasurementIntervalMs,
+                        accentColor = accent,
+                        onIntervalChange = { onSettingsChange(settings.copy(fairTierClickIntervalMs = it)) }
+                    )
                 }
             )
         }
@@ -681,11 +721,9 @@ private fun RsrpTierSettings(
     onPreviewSignalPulse: (volume: Float, frequencyHz: Int, pulseDurationMs: Int) -> Unit,
     onLevelRangeBcdClickVolumeChange: (Float) -> Unit,
     onLevelRangeBcdPulseFrequencyChange: (Int) -> Unit,
-    onLevelRangeBcdPulseDurationChange: (Int) -> Unit,
     onPreviewLevelRangeBcdClick: (frequencyHz: Int, pulseDurationMs: Int) -> Unit,
     onSignalPulseFrequencyChange: (Int) -> Unit
 ) {
-    val levelRangeBcdPulseDurationMs = audioVolumes.levelRangeBcdPulseDurationMs
     val levelRangeBcdAccent = SignalTierColors.forStrengthTier(SignalStrengthTier.MILD)
     val gap = PassiveSignalSettings.MIN_RSRP_BAND_GAP_DBM
     val maxMild = settings.veryStrongRsrpMinDbm - gap
@@ -784,12 +822,8 @@ private fun RsrpTierSettings(
             audioVolumes = audioVolumes,
             previewEnabled = previewEnabled,
             accentColor = levelRangeBcdAccent,
-            passiveMeasurementIntervalMs = passiveMeasurementIntervalMs,
-            levelRangeBcdPulseDurationMs = levelRangeBcdPulseDurationMs,
-            onSettingsChange = onSettingsChange,
             onLevelRangeBcdClickVolumeChange = onLevelRangeBcdClickVolumeChange,
             onLevelRangeBcdPulseFrequencyChange = onLevelRangeBcdPulseFrequencyChange,
-            onLevelRangeBcdPulseDurationChange = onLevelRangeBcdPulseDurationChange,
             onPreviewLevelRangeBcdClick = onPreviewLevelRangeBcdClick
         )
 
@@ -821,6 +855,24 @@ private fun RsrpTierSettings(
                         accentColor = accent,
                         onValueChange = { onSettingsChange(settings.copy(mildRsrpMinDbm = it)) }
                     )
+                },
+                durationControls = {
+                    TierPulseDurationSlider(
+                        label = stringResource(R.string.passive_signal_tier_pulse_duration, tierNumber),
+                        durationMs = settings.mildTierPulseDurationMs,
+                        accentColor = accent,
+                        onDurationChange = { onSettingsChange(settings.copy(mildTierPulseDurationMs = it)) }
+                    )
+                },
+                intervalControls = {
+                    TierClickSpeedSlider(
+                        label = stringResource(R.string.passive_signal_tier_click_interval, tierNumber),
+                        intervalMs = settings.mildTierClickIntervalMs,
+                        signalPulseDurationMs = settings.mildTierPulseDurationMs,
+                        passiveMeasurementIntervalMs = passiveMeasurementIntervalMs,
+                        accentColor = accent,
+                        onIntervalChange = { onSettingsChange(settings.copy(mildTierClickIntervalMs = it)) }
+                    )
                 }
             )
         }
@@ -833,7 +885,6 @@ private fun RsrpTierSettings(
                 tier = SignalStrengthTier.GOOD,
                 settings = settings,
                 gap = gap,
-                pulseDurationMs = levelRangeBcdPulseDurationMs,
                 passiveMeasurementIntervalMs = passiveMeasurementIntervalMs,
                 onSettingsChange = onSettingsChange
             )
@@ -847,7 +898,6 @@ private fun RsrpTierSettings(
                 tier = SignalStrengthTier.FAIR,
                 settings = settings,
                 gap = gap,
-                pulseDurationMs = levelRangeBcdPulseDurationMs,
                 passiveMeasurementIntervalMs = passiveMeasurementIntervalMs,
                 onSettingsChange = onSettingsChange
             )
@@ -881,6 +931,24 @@ private fun RsrpTierSettings(
                             (settings.fairRsrpMinDbm - gap),
                         accentColor = accent,
                         onValueChange = { onSettingsChange(settings.copy(poorRsrpMinDbm = it)) }
+                    )
+                },
+                durationControls = {
+                    TierPulseDurationSlider(
+                        label = stringResource(R.string.passive_signal_tier_pulse_duration, tierNumber),
+                        durationMs = settings.poorTierPulseDurationMs,
+                        accentColor = accent,
+                        onDurationChange = { onSettingsChange(settings.copy(poorTierPulseDurationMs = it)) }
+                    )
+                },
+                intervalControls = {
+                    TierClickSpeedSlider(
+                        label = stringResource(R.string.passive_signal_tier_click_interval, tierNumber),
+                        intervalMs = settings.poorTierClickIntervalMs,
+                        signalPulseDurationMs = settings.poorTierPulseDurationMs,
+                        passiveMeasurementIntervalMs = passiveMeasurementIntervalMs,
+                        accentColor = accent,
+                        onIntervalChange = { onSettingsChange(settings.copy(poorTierClickIntervalMs = it)) }
                     )
                 }
             )
@@ -981,7 +1049,9 @@ private fun CellChangeTierSettings(
     onCellChangeVoiceEnabledChange: (Boolean) -> Unit,
     onCellChangeVoiceVolumeChange: (Float) -> Unit,
     onPreviewCellChangeBell: () -> Unit,
-    onPreviewCellChangeVoice: () -> Unit
+    onPreviewCellChangeVoice: () -> Unit,
+    onCellChangeSpeakBandEnabledChange: (Boolean) -> Unit = {},
+    onCellChangeBandNamingStyleChange: (CellReselectBandNamingStyle) -> Unit = {}
 ) {
     val accent = SignalTierColors.forRxssNumber(CELL_CHANGE_RXSS_NUMBER)
     TierSettingSection(tierNumber = CELL_CHANGE_RXSS_NUMBER, accentColor = accent) {
@@ -998,7 +1068,9 @@ private fun CellChangeTierSettings(
             onCellChangeVoiceEnabledChange = onCellChangeVoiceEnabledChange,
             onCellChangeVoiceVolumeChange = onCellChangeVoiceVolumeChange,
             onPreviewCellChangeBell = onPreviewCellChangeBell,
-            onPreviewCellChangeVoice = onPreviewCellChangeVoice
+            onPreviewCellChangeVoice = onPreviewCellChangeVoice,
+            onCellChangeSpeakBandEnabledChange = onCellChangeSpeakBandEnabledChange,
+            onCellChangeBandNamingStyleChange = onCellChangeBandNamingStyleChange
         )
     }
 }
@@ -1263,17 +1335,16 @@ private fun LevelRangeBcdSharedSoundControls(
     audioVolumes: AudioVolumeSettings,
     previewEnabled: Boolean,
     accentColor: Color,
-    passiveMeasurementIntervalMs: Long,
-    levelRangeBcdPulseDurationMs: Int,
-    onSettingsChange: (PassiveSignalSettings) -> Unit,
     onLevelRangeBcdClickVolumeChange: (Float) -> Unit,
     onLevelRangeBcdPulseFrequencyChange: (Int) -> Unit,
-    onLevelRangeBcdPulseDurationChange: (Int) -> Unit,
     onPreviewLevelRangeBcdClick: (frequencyHz: Int, pulseDurationMs: Int) -> Unit
 ) {
+    // Each Level Range (A–D) has its own pulse duration and click interval; use the longest
+    // duration and fastest interval among the four as a representative preview rate.
+    val sharedFloorPulseDurationMs = settings.levelRangeAbcdMaxPulseDurationMs()
     val previewRepeatIntervalMs = tierPreviewRepeatIntervalMs(
-        settings.levelRangeAbcdClickIntervalMs,
-        levelRangeBcdPulseDurationMs
+        settings.levelRangeAbcdMinClickIntervalMs(),
+        sharedFloorPulseDurationMs
     )
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
@@ -1296,25 +1367,11 @@ private fun LevelRangeBcdSharedSoundControls(
             onPreview = {
                 onPreviewLevelRangeBcdClick(
                     audioVolumes.levelRangeBcdPulseFrequencyHz,
-                    audioVolumes.levelRangeBcdPulseDurationMs
+                    sharedFloorPulseDurationMs
                 )
             },
             previewRepeatIntervalMs = previewRepeatIntervalMs,
             accentColor = accentColor
-        )
-        TierPulseDurationSlider(
-            label = stringResource(R.string.passive_signal_level_range_bcd_duration),
-            durationMs = audioVolumes.levelRangeBcdPulseDurationMs,
-            accentColor = accentColor,
-            onDurationChange = onLevelRangeBcdPulseDurationChange
-        )
-        TierClickSpeedSlider(
-            label = stringResource(R.string.passive_signal_level_range_abcd_click_interval),
-            intervalMs = settings.levelRangeAbcdClickIntervalMs,
-            signalPulseDurationMs = levelRangeBcdPulseDurationMs,
-            passiveMeasurementIntervalMs = passiveMeasurementIntervalMs,
-            accentColor = accentColor,
-            onIntervalChange = { onSettingsChange(settings.copy(levelRangeAbcdClickIntervalMs = it)) }
         )
         TierPulseFrequencySlider(
             label = stringResource(R.string.passive_signal_level_range_bcd_frequency),

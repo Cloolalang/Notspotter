@@ -16,6 +16,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -32,6 +33,7 @@ import androidx.compose.ui.unit.sp
 import io.github.cloolalang.notspotdetector.network.CellularSignalReader
 import io.github.cloolalang.notspotdetector.R
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
+import io.github.cloolalang.notspotdetector.model.CellReselectBandNamingStyle
 import io.github.cloolalang.notspotdetector.model.ConnectivityStats
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.NetworkModePreference
@@ -105,9 +107,12 @@ fun MonitorScreen(
     onG2StrongTierPulseFrequencyChange: (Int) -> Unit,
     onG2WeakTierPulseFrequencyChange: (Int) -> Unit,
     onSignalPulseDurationChange: (Int) -> Unit,
+    onMasterVoiceAnnouncementsEnabledChange: (Boolean) -> Unit,
     onCellChangeBellVolumeChange: (Float) -> Unit,
     onCellChangeVoiceEnabledChange: (Boolean) -> Unit,
     onCellChangeVoiceVolumeChange: (Float) -> Unit,
+    onCellChangeSpeakBandEnabledChange: (Boolean) -> Unit = {},
+    onCellChangeBandNamingStyleChange: (CellReselectBandNamingStyle) -> Unit = {},
     onTechnologyChangeToneVolumeChange: (TechnologyChangeTarget, Float) -> Unit,
     onTechnologyChangeVoiceEnabledChange: (TechnologyChangeTarget, Boolean) -> Unit,
     onTechnologyChangeVoiceVolumeChange: (TechnologyChangeTarget, Float) -> Unit,
@@ -127,7 +132,6 @@ fun MonitorScreen(
     onPreviewSignalPulse: (volume: Float, frequencyHz: Int, pulseDurationMs: Int) -> Unit,
     onLevelRangeBcdClickVolumeChange: (Float) -> Unit,
     onLevelRangeBcdPulseFrequencyChange: (Int) -> Unit,
-    onLevelRangeBcdPulseDurationChange: (Int) -> Unit,
     onPreviewLevelRangeBcdClick: (frequencyHz: Int, pulseDurationMs: Int) -> Unit,
     onPreviewCellChangeBell: () -> Unit,
     onPreviewCellChangeVoice: () -> Unit,
@@ -174,6 +178,11 @@ fun MonitorScreen(
                 fontWeight = FontWeight.Medium
             )
         }
+
+        MasterVoiceAnnouncementsToggle(
+            enabled = audioVolumes.masterVoiceAnnouncementsEnabled,
+            onEnabledChange = onMasterVoiceAnnouncementsEnabledChange
+        )
 
         MonitoringControlButtons(
             isRunning = isRunning,
@@ -320,7 +329,6 @@ fun MonitorScreen(
             onPreviewSignalPulse = onPreviewSignalPulse,
             onLevelRangeBcdClickVolumeChange = onLevelRangeBcdClickVolumeChange,
             onLevelRangeBcdPulseFrequencyChange = onLevelRangeBcdPulseFrequencyChange,
-            onLevelRangeBcdPulseDurationChange = onLevelRangeBcdPulseDurationChange,
             onPreviewLevelRangeBcdClick = onPreviewLevelRangeBcdClick,
             onPreviewRsrqWhiteNoise = onPreviewRsrqWhiteNoise,
             onSignalPulseFrequencyChange = onSignalPulseFrequencyChange,
@@ -329,6 +337,8 @@ fun MonitorScreen(
             onCellChangeVoiceVolumeChange = onCellChangeVoiceVolumeChange,
             onPreviewCellChangeBell = onPreviewCellChangeBell,
             onPreviewCellChangeVoice = onPreviewCellChangeVoice,
+            onCellChangeSpeakBandEnabledChange = onCellChangeSpeakBandEnabledChange,
+            onCellChangeBandNamingStyleChange = onCellChangeBandNamingStyleChange,
             onReset = onResetPassiveSignalSettings
         )
 
@@ -373,6 +383,37 @@ fun MonitorScreen(
         }
 
         Spacer(modifier = Modifier.size(8.dp))
+    }
+}
+
+@Composable
+private fun MasterVoiceAnnouncementsToggle(
+    enabled: Boolean,
+    onEnabledChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(modifier = modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.audio_master_voice_announcements),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = stringResource(R.string.audio_master_voice_announcements_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Switch(checked = enabled, onCheckedChange = onEnabledChange)
+        }
     }
 }
 
@@ -545,6 +586,10 @@ private fun CellIdentityMetrics(stats: ConnectivityStats) {
                 label = stringResource(R.string.metric_nr_pci),
                 value = formatCellIdentityValue(stats.nrPci, permissionGranted)
             )
+            MetricRow(
+                label = stringResource(R.string.metric_nr_band),
+                value = formatNrBandValue(stats.nrBand, permissionGranted)
+            )
         }
         CellularSignalReader.RADIO_5G -> {
             MetricRow(
@@ -554,6 +599,10 @@ private fun CellIdentityMetrics(stats: ConnectivityStats) {
             MetricRow(
                 label = stringResource(R.string.metric_nr_pci),
                 value = formatCellIdentityValue(stats.nrPci, permissionGranted)
+            )
+            MetricRow(
+                label = stringResource(R.string.metric_nr_band),
+                value = formatNrBandValue(stats.nrBand, permissionGranted)
             )
         }
         CellularSignalReader.RADIO_2G -> {
@@ -668,6 +717,21 @@ private fun formatCellIdentityValue(
         return "—"
     }
     return value.toString()
+}
+
+/** Formats an NR band number as its 3GPP band name, e.g. 78 -> "n78". */
+@Composable
+private fun formatNrBandValue(
+    value: Int?,
+    permissionGranted: Boolean
+): String {
+    if (!permissionGranted) {
+        return stringResource(R.string.cell_identity_permission_required)
+    }
+    if (value == null) {
+        return "—"
+    }
+    return "n$value"
 }
 
 @Composable

@@ -21,6 +21,7 @@ import io.github.cloolalang.notspotdetector.model.ProfileExportOutcome
 import io.github.cloolalang.notspotdetector.model.ProfileImportResult
 import io.github.cloolalang.notspotdetector.model.ProfileSaveResult
 import io.github.cloolalang.notspotdetector.model.SettingsCompatibility
+import io.github.cloolalang.notspotdetector.model.CellReselectBandNamingStyle
 import io.github.cloolalang.notspotdetector.model.TechnologyChangeTarget
 import io.github.cloolalang.notspotdetector.model.SettingsProfileSummary
 import io.github.cloolalang.notspotdetector.model.PingSettings
@@ -74,8 +75,14 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         MonitorState.setThresholds(thresholdRepository.load())
         MonitorState.setPingSettings(pingSettingsRepository.load())
         MonitorState.setMonitoringSettings(monitoringSettingsRepository.load())
-        MonitorState.setAudioVolumes(audioVolumeRepository.load())
-        MonitorState.setPassiveSignalSettings(passiveSignalSettingsRepository.load())
+        val loadedAudioVolumes = audioVolumeRepository.load()
+        MonitorState.setAudioVolumes(loadedAudioVolumes)
+        MonitorState.setPassiveSignalSettings(
+            passiveSignalSettingsRepository.load(
+                legacySignalPulseDurationMs = loadedAudioVolumes.signalPulseDurationMs,
+                legacyLevelRangeBcdPulseDurationMs = loadedAudioVolumes.levelRangeBcdPulseDurationMs
+            )
+        )
         MonitorState.setPassiveMockSettings(passiveMockSettingsRepository.load())
         reconcilePassiveTierClickIntervals(MonitorState.audioVolumes.value)
         cellVoiceAnnouncer.setVoiceSelectionProvider {
@@ -283,10 +290,8 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         reconcilePassiveTierClickIntervals(normalizedAudio)
     }
 
-    fun updateLevelRangeBcdPulseDurationMs(value: Int) {
-        val normalizedAudio = audioVolumes.value.copy(levelRangeBcdPulseDurationMs = value).normalized()
-        updateAudioVolumes(normalizedAudio)
-        reconcilePassiveTierClickIntervals(normalizedAudio)
+    fun updateMasterVoiceAnnouncementsEnabled(enabled: Boolean) {
+        updateAudioVolumes(audioVolumes.value.copy(masterVoiceAnnouncementsEnabled = enabled))
     }
 
     fun updateCellChangeBellVolume(value: Float) {
@@ -299,6 +304,14 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
 
     fun updateCellChangeVoiceVolume(value: Float) {
         updateAudioVolumes(audioVolumes.value.copy(cellChangeVoiceVolume = value))
+    }
+
+    fun updateCellChangeSpeakBandEnabled(enabled: Boolean) {
+        updateAudioVolumes(audioVolumes.value.copy(cellChangeSpeakBandEnabled = enabled))
+    }
+
+    fun updateCellChangeBandNamingStyle(style: CellReselectBandNamingStyle) {
+        updateAudioVolumes(audioVolumes.value.copy(cellChangeBandNamingStyle = style))
     }
 
     fun updateTechnologyChangeToneVolume(target: TechnologyChangeTarget, value: Float) {
@@ -430,7 +443,11 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         previewAlertWithVoice(
             onPlayTone = { alertSoundPreview.playCellChangeBell(volumes.cellChangeBellVolume) },
             toneDurationMs = GeigerCounterPlayer.CELL_CHANGE_BELL_DURATION_MS,
-            announcement = CellIdentityAnnouncement.previewText(readCurrentOperatorName()),
+            announcement = CellIdentityAnnouncement.previewText(
+                readCurrentOperatorName(),
+                speakBandEnabled = volumes.cellChangeSpeakBandEnabled,
+                bandNamingStyle = volumes.cellChangeBandNamingStyle
+            ),
             voiceVolume = volumes.cellChangeVoiceVolume
         )
     }
@@ -615,8 +632,7 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
     fun updatePassiveSignalSettings(settings: PassiveSignalSettings) {
         val normalized = SettingsCompatibility.normalizePassiveSignalSettings(
             settings,
-            MonitorState.audioVolumes.value.signalPulseDurationMs,
-            MonitorState.audioVolumes.value.levelRangeBcdPulseDurationMs
+            MonitorState.audioVolumes.value.signalPulseDurationMs
         )
         passiveSignalSettingsRepository.save(normalized)
         MonitorState.setPassiveSignalSettings(normalized)
@@ -678,8 +694,7 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
     private fun reconcilePassiveTierClickIntervals(audioVolumes: AudioVolumeSettings) {
         val reconciled = SettingsCompatibility.normalizePassiveSignalSettings(
             MonitorState.passiveSignalSettings.value,
-            audioVolumes.signalPulseDurationMs,
-            audioVolumes.levelRangeBcdPulseDurationMs
+            audioVolumes.signalPulseDurationMs
         )
         if (reconciled != MonitorState.passiveSignalSettings.value) {
             passiveSignalSettingsRepository.save(reconciled)

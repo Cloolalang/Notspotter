@@ -36,6 +36,9 @@ class LimitedServiceSignalOverlayTest {
         assertTrue(stats.shouldPlayLimitedServiceSignalOverlay(settings))
         assertTrue(stats.shouldPlayVeryStrongSignalIndicator(settings))
         assertTrue(stats.shouldPlaySignalStrengthInterval(settings))
+        // A measurable-signal overlay (not the critical/weak "signal low" overlay) must still let
+        // the 30s VA-14 "limited service" reminder cycle.
+        assertTrue(stats.shouldAllowLimitedServicePeriodicVoice(settings))
     }
 
     @Test
@@ -66,6 +69,8 @@ class LimitedServiceSignalOverlayTest {
         assertEquals(SignalMeasurementTier.LIMITED_ALT_2G, stats.resolveSignalMeasurementTier(settings))
         assertEquals(Rxss.G2_WEAK, stats.resolveLimitedServiceSignalOverlayRxss(settings))
         assertTrue(stats.isG2WeakSignal(settings))
+        // VA-18 "signal low" periodic takes over on the weak overlay — VA-14 stays suppressed.
+        assertFalse(stats.shouldAllowLimitedServicePeriodicVoice(settings))
     }
 
     @Test
@@ -73,6 +78,8 @@ class LimitedServiceSignalOverlayTest {
         val stats = limitedAlt2g(rsrpDbm = -95)
         assertEquals(Rxss.G2_GOOD, stats.resolveLimitedServiceSignalOverlayRxss(settings))
         assertFalse(stats.isG2WeakSignal(settings))
+        // Strong 2G overlay is not the critical/weak "signal low" case — VA-14 must cycle every 30s.
+        assertTrue(stats.shouldAllowLimitedServicePeriodicVoice(settings))
     }
 
     @Test

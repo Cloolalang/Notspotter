@@ -4,14 +4,22 @@ import io.github.cloolalang.notspotdetector.network.CellularSignalReader
 
 object CellIdentityAnnouncement {
 
-    private val PREVIEW_IDENTITY: String
-        get() = "channel ${SpeechDigits.format(6400)}, PCI ${SpeechDigits.format(123)}"
+    private const val PREVIEW_LTE_EARFCN = 6400
 
-    fun previewText(networkOperatorName: String?): String {
+    private val PREVIEW_IDENTITY: String
+        get() = "channel ${SpeechDigits.format(PREVIEW_LTE_EARFCN)}, PCI ${SpeechDigits.format(123)}"
+
+    fun previewText(
+        networkOperatorName: String?,
+        speakBandEnabled: Boolean = false,
+        bandNamingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.DEFAULT
+    ): String {
+        val bandPhrase = if (speakBandEnabled) formatBandPhrase(PREVIEW_LTE_EARFCN, bandNamingStyle) else null
         return formatAnnouncementBody(
             networkOperatorName = networkOperatorName,
             radioAccessType = CellularSignalReader.RADIO_4G,
-            identityBody = PREVIEW_IDENTITY
+            identityBody = bandPhrase ?: PREVIEW_IDENTITY,
+            includeCellReselectPrefix = bandPhrase == null
         )
     }
 
@@ -20,9 +28,22 @@ object CellIdentityAnnouncement {
         next: CellIdentitySnapshot,
         radioAccessType: String?,
         networkOperatorName: String? = null,
-        campedOnVisitedOperator: Boolean = false
+        campedOnVisitedOperator: Boolean = false,
+        speakBandEnabled: Boolean = false,
+        bandNamingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.DEFAULT
     ): String {
         if (previous == next) return ""
+
+        val bandPhrase = if (speakBandEnabled) formatBandPhrase(next.lteEarfcn, bandNamingStyle) else null
+        if (bandPhrase != null) {
+            return formatAnnouncementBody(
+                networkOperatorName = networkOperatorName,
+                radioAccessType = radioAccessType,
+                identityBody = bandPhrase,
+                campedOnVisitedOperator = campedOnVisitedOperator,
+                includeCellReselectPrefix = false
+            )
+        }
 
         val identityParts = mutableListOf<String>()
         val lteChanged = lteIdentityChanged(previous, next)
@@ -53,11 +74,39 @@ object CellIdentityAnnouncement {
         )
     }
 
+    /**
+     * RXSS 9 alternative phrasing — "band, &lt;number in words&gt;" (option A, e.g. "band, twenty")
+     * or "band, L &lt;MHz in words&gt;" (option B, e.g. "band, L eight hundred"), derived from the
+     * LTE EARFCN. Numbers are spoken as whole words (not digit-by-digit) so they read naturally, and
+     * a comma after "band" forces a short TTS pause — without it, "band" run straight into a number
+     * can be clipped/mumbled by some TTS engines (e.g. sounding like "bunt"). Returns null when
+     * there is no LTE EARFCN to map (2G-only or NR-only reselect), so callers fall back to the
+     * normal channel/PCI phrasing.
+     */
+    private fun formatBandPhrase(lteEarfcn: Int?, namingStyle: CellReselectBandNamingStyle): String? {
+        val earfcn = lteEarfcn ?: return null
+        val bandInfo = EutraBand.forEarfcn(earfcn) ?: return null
+        val spokenBand = when (namingStyle) {
+            CellReselectBandNamingStyle.BAND_NUMBER -> NumberWords.toWords(bandInfo.band)
+            CellReselectBandNamingStyle.MHZ_NICKNAME -> formatMhzNicknameForSpeech(bandInfo.mhzNickname)
+        }
+        return "band, $spokenBand"
+    }
+
+    /** Splits a nickname like "L800" into "L eight hundred" for natural TTS. */
+    private fun formatMhzNicknameForSpeech(nickname: String): String {
+        val letterPart = nickname.takeWhile { it.isLetter() }
+        val digitPart = nickname.drop(letterPart.length)
+        val digitsWords = digitPart.toIntOrNull()?.let { NumberWords.toWords(it) } ?: digitPart
+        return if (letterPart.isNotEmpty()) "$letterPart $digitsWords" else digitsWords
+    }
+
     private fun formatAnnouncementBody(
         networkOperatorName: String?,
         radioAccessType: String?,
         identityBody: String,
-        campedOnVisitedOperator: Boolean = false
+        campedOnVisitedOperator: Boolean = false,
+        includeCellReselectPrefix: Boolean = true
     ): String {
         val operatorSpoken = NetworkOperatorSpeech.formatForSpeech(networkOperatorName)?.let { spoken ->
             if (campedOnVisitedOperator) {
@@ -66,7 +115,11 @@ object CellIdentityAnnouncement {
                 spoken
             }
         }
-        val detail = listOf("cell reselect", identityBody).filter { it.isNotBlank() }.joinToString(", ")
+        val detail = if (includeCellReselectPrefix) {
+            listOf("cell reselect", identityBody).filter { it.isNotBlank() }.joinToString(", ")
+        } else {
+            identityBody
+        }
         return SignalStateAnnouncement.joinAnnouncementParts(
             operatorNames = listOf(operatorSpoken),
             radioAccessType = radioAccessType,

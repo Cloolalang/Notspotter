@@ -2,6 +2,7 @@ package io.github.cloolalang.notspotdetector.data
 
 import io.github.cloolalang.notspotdetector.model.AppSettingsSnapshot
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
+import io.github.cloolalang.notspotdetector.model.CellReselectBandNamingStyle
 import io.github.cloolalang.notspotdetector.model.MockNetworkScenario
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.PassiveMockSettings
@@ -102,13 +103,14 @@ object AppSettingsSnapshotCodec {
     }
 
     private fun decodeSettings(json: JSONObject): AppSettingsSnapshot {
+        val audioVolumes = decodeAudio(json.optJSONObject("audio"))
         return AppSettingsSnapshot(
             thresholds = decodeThresholds(json.optJSONObject("thresholds")),
             pingSettings = decodePing(json.optJSONObject("ping")),
             monitoringSettings = decodeMonitoring(json.optJSONObject("monitoring")),
-            passiveSignalSettings = decodePassiveSignal(json.optJSONObject("passiveSignal")),
+            passiveSignalSettings = decodePassiveSignal(json.optJSONObject("passiveSignal"), audioVolumes),
             passiveMockSettings = decodePassiveMock(json.optJSONObject("passiveMock")),
-            audioVolumes = decodeAudio(json.optJSONObject("audio"))
+            audioVolumes = audioVolumes
         ).normalized()
     }
 
@@ -210,6 +212,11 @@ object AppSettingsSnapshotCodec {
             .put("quietAlertRsrqDb", settings.quietAlertRsrqDb)
             .put("quietAlertRsrpMaxDbm", settings.quietAlertRsrpMaxDbm)
             .put("criticalTierClickIntervalMs", settings.criticalTierClickIntervalMs)
+            .put("criticalTierPulseDurationMs", settings.criticalTierPulseDurationMs)
+            .put("mildTierPulseDurationMs", settings.mildTierPulseDurationMs)
+            .put("goodTierPulseDurationMs", settings.goodTierPulseDurationMs)
+            .put("fairTierPulseDurationMs", settings.fairTierPulseDurationMs)
+            .put("poorTierPulseDurationMs", settings.poorTierPulseDurationMs)
             .put("levelRangeAbcdClickIntervalMs", settings.levelRangeAbcdClickIntervalMs)
             .put("poorTierClickIntervalMs", settings.poorTierClickIntervalMs)
             .put("fairTierClickIntervalMs", settings.fairTierClickIntervalMs)
@@ -248,8 +255,16 @@ object AppSettingsSnapshotCodec {
             .put("limitedAlt2gTierPulseDurationMs", settings.limitedAlt2gTierPulseDurationMs)
     }
 
-    private fun decodePassiveSignal(json: JSONObject?): PassiveSignalSettings {
-        if (json == null) return PassiveSignalSettings()
+    private fun decodePassiveSignal(json: JSONObject?, audioVolumes: AudioVolumeSettings): PassiveSignalSettings {
+        if (json == null) {
+            return PassiveSignalSettings(
+                criticalTierPulseDurationMs = audioVolumes.signalPulseDurationMs,
+                mildTierPulseDurationMs = audioVolumes.levelRangeBcdPulseDurationMs,
+                goodTierPulseDurationMs = audioVolumes.levelRangeBcdPulseDurationMs,
+                fairTierPulseDurationMs = audioVolumes.levelRangeBcdPulseDurationMs,
+                poorTierPulseDurationMs = audioVolumes.levelRangeBcdPulseDurationMs
+            )
+        }
         return PassiveSignalSettings(
             noSignalRsrpDbm = json.optInt("noSignalRsrpDbm", PassiveSignalSettings.DEFAULT_NO_SIGNAL_RSRP_DBM),
             poorRsrpMinDbm = json.optInt("poorRsrpMinDbm", PassiveSignalSettings.DEFAULT_POOR_RSRP_MIN_DBM),
@@ -289,6 +304,26 @@ object AppSettingsSnapshotCodec {
             criticalTierClickIntervalMs = json.optInt(
                 "criticalTierClickIntervalMs",
                 PassiveSignalSettings.DEFAULT_CRITICAL_TIER_CLICK_INTERVAL_MS
+            ),
+            criticalTierPulseDurationMs = json.optInt(
+                "criticalTierPulseDurationMs",
+                audioVolumes.signalPulseDurationMs
+            ),
+            mildTierPulseDurationMs = json.optInt(
+                "mildTierPulseDurationMs",
+                audioVolumes.levelRangeBcdPulseDurationMs
+            ),
+            goodTierPulseDurationMs = json.optInt(
+                "goodTierPulseDurationMs",
+                audioVolumes.levelRangeBcdPulseDurationMs
+            ),
+            fairTierPulseDurationMs = json.optInt(
+                "fairTierPulseDurationMs",
+                audioVolumes.levelRangeBcdPulseDurationMs
+            ),
+            poorTierPulseDurationMs = json.optInt(
+                "poorTierPulseDurationMs",
+                audioVolumes.levelRangeBcdPulseDurationMs
             ),
             levelRangeAbcdClickIntervalMs = decodeLevelRangeAbcdClickIntervalMs(json),
             poorTierClickIntervalMs = json.optInt(
@@ -454,6 +489,7 @@ object AppSettingsSnapshotCodec {
 
     private fun encodeAudio(settings: AudioVolumeSettings): JSONObject {
         return JSONObject()
+            .put("masterVoiceAnnouncementsEnabled", settings.masterVoiceAnnouncementsEnabled)
             .put("pingClickVolume", settings.pingClickVolume.toDouble())
             .put("lowSignalClickVolume", settings.lowSignalClickVolume.toDouble())
             .put("signalPulseFrequencyHz", settings.signalPulseFrequencyHz)
@@ -469,6 +505,8 @@ object AppSettingsSnapshotCodec {
             .put("cellChangeBellVolume", settings.cellChangeBellVolume.toDouble())
             .put("cellChangeVoiceEnabled", settings.cellChangeVoiceEnabled)
             .put("cellChangeVoiceVolume", settings.cellChangeVoiceVolume.toDouble())
+            .put("cellChangeSpeakBandEnabled", settings.cellChangeSpeakBandEnabled)
+            .put("cellChangeBandNamingStyle", settings.cellChangeBandNamingStyle.id)
             .put("technologyChangeTo2gToneVolume", settings.technologyChangeTo2gToneVolume.toDouble())
             .put("technologyChangeTo2gVoiceEnabled", settings.technologyChangeTo2gVoiceEnabled)
             .put("technologyChangeTo2gVoiceVolume", settings.technologyChangeTo2gVoiceVolume.toDouble())
@@ -583,6 +621,10 @@ object AppSettingsSnapshotCodec {
     private fun decodeAudio(json: JSONObject?): AudioVolumeSettings {
         if (json == null) return AudioVolumeSettings()
         return AudioVolumeSettings(
+            masterVoiceAnnouncementsEnabled = json.optBoolean(
+                "masterVoiceAnnouncementsEnabled",
+                AudioVolumeSettings.DEFAULT_MASTER_VOICE_ANNOUNCEMENTS_ENABLED
+            ),
             pingClickVolume = json.optDouble("pingClickVolume", AudioVolumeSettings.DEFAULT_VOLUME.toDouble())
                 .toFloat(),
             lowSignalClickVolume = json.optDouble(
@@ -620,6 +662,13 @@ object AppSettingsSnapshotCodec {
                 "cellChangeVoiceVolume",
                 AudioVolumeSettings.DEFAULT_VOLUME.toDouble()
             ).toFloat(),
+            cellChangeSpeakBandEnabled = json.optBoolean(
+                "cellChangeSpeakBandEnabled",
+                AudioVolumeSettings.DEFAULT_CELL_CHANGE_SPEAK_BAND_ENABLED
+            ),
+            cellChangeBandNamingStyle = CellReselectBandNamingStyle.fromId(
+                json.optString("cellChangeBandNamingStyle", CellReselectBandNamingStyle.DEFAULT.id)
+            ),
             technologyChangeTo2gToneVolume = decodeTechnologyChangeToneVolume(json, "technologyChangeTo2gToneVolume"),
             technologyChangeTo2gVoiceEnabled = decodeTechnologyChangeVoiceEnabled(json, "technologyChangeTo2gVoiceEnabled"),
             technologyChangeTo2gVoiceVolume = decodeTechnologyChangeVoiceVolume(json, "technologyChangeTo2gVoiceVolume"),

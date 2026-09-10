@@ -104,8 +104,11 @@ class MonitorStateMockLimitedServiceOverlayTest {
         pushMockRsrp(MockNetworkScenario.ALT_OPERATOR_2G, -110)
         stats = MonitorState.stats.value
         assertEquals(Rxss.G2_WEAK, stats.resolveLimitedServiceSignalOverlayRxss(passiveSettings))
+        // Only the tier5-style periodic job (VA-15/VA-18 shared) should handle this — the G2 job's
+        // weak-voice branch must stay false here, otherwise the same "signal low" announcement
+        // would be scheduled and spoken twice every 30s.
         assertTrue(stats.shouldPlayTier5StylePeriodicVoice(passiveSettings))
-        assertTrue(stats.shouldAllowG2WeakPeriodicVoice(passiveSettings))
+        assertFalse(stats.shouldAllowG2WeakPeriodicVoice(passiveSettings))
         assertEquals(
             "E E visited, 2 G, signal low",
             SignalStateAnnouncement.formatTier5SignalLowAnnouncement(stats)

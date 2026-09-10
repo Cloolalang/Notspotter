@@ -4,6 +4,14 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 data class AudioVolumeSettings(
+    /**
+     * Master on/off switch for every spoken voice announcement (VA-1 through VA-18 and beyond).
+     * When false, all TTS speech is suppressed at the [io.github.cloolalang.notspotdetector.service.ConnectivityMonitorService]
+     * playback choke points — alert tones, bells, clicks, and vibration are unaffected, only the
+     * spoken announcement text is muted. Manual "preview" buttons in Settings are also unaffected,
+     * so users can still audition a voice while announcements are globally muted.
+     */
+    val masterVoiceAnnouncementsEnabled: Boolean = DEFAULT_MASTER_VOICE_ANNOUNCEMENTS_ENABLED,
     val pingClickVolume: Float = DEFAULT_VOLUME,
     val lowSignalClickVolume: Float = DEFAULT_VOLUME,
     /** RXSS 6 (signal low / critical) signal pulse frequency. */
@@ -21,13 +29,26 @@ data class AudioVolumeSettings(
     /** Tier 8 (2G weak) tone frequency — independent of [signalPulseFrequencyHz]. */
     val g2WeakTierPulseFrequencyHz: Int = DEFAULT_G2_WEAK_TIER_PULSE_FREQUENCY_HZ,
     val signalPulseDurationMs: Int = DEFAULT_SIGNAL_PULSE_DURATION_MS,
-    /** Level Ranges A–D (RXSS 2–5) pulse length — independent of [signalPulseDurationMs]. */
+    /**
+     * @deprecated Level Ranges A–D (RXSS 2–5) now each have an independent pulse duration
+     * ([PassiveSignalSettings.mildTierPulseDurationMs] and siblings). This field is kept only as the
+     * one-time migration seed for those per-range values and is no longer read during playback or
+     * writable from the UI.
+     */
     val levelRangeBcdPulseDurationMs: Int = DEFAULT_SIGNAL_PULSE_DURATION_MS,
     /** Level Ranges A–D (RXSS 2–5) click volume — independent of [lowSignalClickVolume]. */
     val levelRangeBcdClickVolume: Float = DEFAULT_VOLUME,
     val cellChangeBellVolume: Float = DEFAULT_VOLUME,
     val cellChangeVoiceEnabled: Boolean = DEFAULT_CELL_CHANGE_VOICE_ENABLED,
     val cellChangeVoiceVolume: Float = DEFAULT_VOLUME,
+    /**
+     * RXSS 9 alternative announcement — speak the E-UTRA band (derived from the LTE EARFCN)
+     * instead of "cell reselect, channel …, PCI …". Falls back to the normal phrasing when the
+     * reselected cell has no LTE EARFCN (2G-only or NR-only reselect).
+     */
+    val cellChangeSpeakBandEnabled: Boolean = DEFAULT_CELL_CHANGE_SPEAK_BAND_ENABLED,
+    /** How [cellChangeSpeakBandEnabled] speaks the resolved band — number vs. MHz nickname. */
+    val cellChangeBandNamingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.DEFAULT,
     val technologyChangeTo2gToneVolume: Float = DEFAULT_VOLUME,
     val technologyChangeTo2gVoiceEnabled: Boolean = DEFAULT_VOICE_ANNOUNCEMENT_ENABLED,
     val technologyChangeTo2gVoiceVolume: Float = DEFAULT_VOLUME,
@@ -207,7 +228,9 @@ data class AudioVolumeSettings(
         const val DEFAULT_VOLUME = 1f
         const val MIN_VOLUME = 0f
         const val MAX_VOLUME = 1f
+        const val DEFAULT_MASTER_VOICE_ANNOUNCEMENTS_ENABLED = true
         const val DEFAULT_CELL_CHANGE_VOICE_ENABLED = false
+        const val DEFAULT_CELL_CHANGE_SPEAK_BAND_ENABLED = false
         const val DEFAULT_VOICE_ANNOUNCEMENT_ENABLED = false
         const val DEFAULT_NO_SIGNAL_VIBRATION_ENABLED = false
         val DEFAULT_VOICE_ANNOUNCER_CHOICE = VoiceAnnouncerChoice.SYSTEM_DEFAULT

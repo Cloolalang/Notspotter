@@ -194,6 +194,7 @@ private fun mockScenarioLabel(scenario: MockNetworkScenario): String {
             MockNetworkScenario.ALT_OPERATOR_2G -> R.string.mock_scenario_alt_2g
             MockNetworkScenario.NO_SERVICE -> R.string.mock_scenario_no_service
             MockNetworkScenario.SEARCHING_2G -> R.string.mock_scenario_searching_2g
+            MockNetworkScenario.HOME_5G_ENDC -> R.string.mock_scenario_home_5g_endc
         }
     )
 }
@@ -208,6 +209,7 @@ private fun mockScenarioHint(scenario: MockNetworkScenario): String {
             MockNetworkScenario.ALT_OPERATOR_2G -> R.string.mock_scenario_alt_2g_hint
             MockNetworkScenario.NO_SERVICE -> R.string.mock_scenario_no_service_hint
             MockNetworkScenario.SEARCHING_2G -> R.string.mock_scenario_searching_2g_hint
+            MockNetworkScenario.HOME_5G_ENDC -> R.string.mock_scenario_home_5g_endc_hint
         }
     )
 }

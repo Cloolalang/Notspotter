@@ -208,12 +208,29 @@ fun ConnectivityStats.resolveLimitedServiceSignalOverlayRxss(
     return settings.resolveSignalStrengthTier(rsrp)?.rxssNumber
 }
 
-/** Primary RXSS is a catalogue no-signal row (Signal = No). */
+/**
+ * Primary RXSS is a catalogue no-signal row (Signal = No), or a search/transition state with no
+ * camped cell (RXSS 11 searching 2G, and any future 16/17/18/24/25). [ConnectivityStats.noSignalActive]
+ * is the debounced flag driving those transition states, so it is checked directly rather than
+ * only the narrower catalogue "No" tier-number list — otherwise states like RXSS 11 (which the
+ * catalogue marks Signal = "—", not "No") would slip through and allow a stale cell-reselect
+ * announcement while there is no usable cell to report.
+ *
+ * Also treats [SignalMeasurementTier.UNAVAILABLE] as no-signal: this tier is returned when the
+ * device is camped (`radioAccessType` present) but has no RSRP/RSRQ measurement yet — e.g. right
+ * after entering a dead zone or losing signal, before the two-poll [noSignalActive] debounce
+ * confirms it. Without this, a stale/flickering PCI or EARFCN carried over between polls by
+ * `coalesceWith` in `CellIdentityStabilizer.kt` could still trigger a cell-reselect announcement
+ * during that debounce window even though there is no usable signal to report.
+ */
 fun ConnectivityStats.isInNoSignalRxss(
     settings: PassiveSignalSettings = PassiveSignalSettings()
 ): Boolean {
     if (isLimitedServiceNoSignalCamp(settings)) return true
-    return resolveSignalMeasurementTier(settings).isNoSignalRxss()
+    if (noSignalActive) return true
+    val tier = resolveSignalMeasurementTier(settings)
+    if (tier == SignalMeasurementTier.UNAVAILABLE) return true
+    return tier.isNoSignalRxss()
 }
 
 /** Whether **VA-10** cell-reselect voice may fire on this poll. */
@@ -236,24 +253,36 @@ fun ConnectivityStats.shouldAllowG2CampedPeriodicVoice(
     return !isInNoSignalRxss(settings)
 }
 
-/** Whether **VA-14** limited-service periodic voice may fire on this poll. */
+/**
+ * Whether **VA-14** limited-service periodic voice may fire on this poll — the 30s cycling
+ * "limited service" reminder for RXSS 12/13 with a measurable RSRP/RX overlay (1-5 or 7).
+ * Only the dedicated overlay voices take over instead: VA-15 (4G) / VA-18 (2G) "signal low" on
+ * the critical/weak overlay (6 on 4G, 8 on 2G) via [isSignalLowVoiceCamp], and VA-12 on the
+ * no-signal overlay (20/23) via [isInNoSignalRxss]. Any other RSRP/RX tier overlay (1-5, 7)
+ * must still let VA-14 cycle every 30 s.
+ */
 fun ConnectivityStats.shouldAllowLimitedServicePeriodicVoice(
     settings: PassiveSignalSettings = PassiveSignalSettings()
 ): Boolean {
     if (!isMonitoring || isPassiveIdleMode) return false
     if (!isLimitedService) return false
-    if (shouldPlayLimitedServiceSignalOverlay(settings)) return false
+    if (isSignalLowVoiceCamp(settings)) return false
     return !isInNoSignalRxss(settings)
 }
 
-/** Whether **VA-18** 2G weak “signal low” periodic voice may fire on this poll. */
+/**
+ * Whether **VA-18** 2G weak "signal low" periodic voice may fire on this poll — the non-limited
+ * camped-2G-fallback case only (RXSS 8 while camped on home 2G after LTE/NR loss). The equivalent
+ * announcement for limited visited-2G weak overlay (RXSS 13 overlay 8) is handled exclusively by
+ * the tier5-style periodic job via [isSignalLowVoiceCamp] / `shouldPlayTier5StylePeriodicVoice` —
+ * this function must return false for [isLimitedServiceAlt2g], otherwise both periodic jobs
+ * schedule independently and the same "signal low" announcement plays twice every 30 s.
+ */
 fun ConnectivityStats.shouldAllowG2WeakPeriodicVoice(
     settings: PassiveSignalSettings = PassiveSignalSettings()
 ): Boolean {
     if (!isMonitoring) return false
-    if (isLimitedServiceAlt2g()) {
-        return isG2WeakSignal(settings)
-    }
+    if (isLimitedServiceAlt2g()) return false
     if (!usesG2SignalTiers()) return false
     if (shouldAllowLimitedServicePeriodicVoice(settings)) return false
     if (!isG2WeakSignal(settings)) return false

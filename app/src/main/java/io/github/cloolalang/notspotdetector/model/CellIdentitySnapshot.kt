@@ -5,6 +5,8 @@ data class CellIdentitySnapshot(
     val ltePci: Int? = null,
     val nrEarfcn: Int? = null,
     val nrPci: Int? = null,
+    /** Serving NR operating band — see [CellularRadioMetrics.nrBand]. */
+    val nrBand: Int? = null,
     val gsmEarfcn: Int? = null,
     val gsmBsic: Int? = null
 ) {
@@ -20,6 +22,7 @@ data class CellIdentitySnapshot(
                 ltePci = stats.ltePci,
                 nrEarfcn = stats.nrEarfcn,
                 nrPci = stats.nrPci,
+                nrBand = stats.nrBand,
                 gsmEarfcn = stats.gsmEarfcn,
                 gsmBsic = stats.gsmBsic
             )
@@ -31,6 +34,7 @@ data class CellIdentitySnapshot(
                 ltePci = metrics.ltePci,
                 nrEarfcn = metrics.nrEarfcn,
                 nrPci = metrics.nrPci,
+                nrBand = metrics.nrBand,
                 gsmEarfcn = metrics.gsmEarfcn,
                 gsmBsic = metrics.gsmBsic
             )

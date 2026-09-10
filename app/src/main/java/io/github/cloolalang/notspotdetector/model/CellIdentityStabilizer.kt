@@ -10,6 +10,7 @@ fun CellIdentitySnapshot.coalesceWith(previous: CellIdentitySnapshot): CellIdent
         ltePci = ltePci ?: previous.ltePci,
         nrEarfcn = nrEarfcn ?: previous.nrEarfcn,
         nrPci = nrPci ?: previous.nrPci,
+        nrBand = nrBand ?: previous.nrBand,
         gsmEarfcn = gsmEarfcn ?: previous.gsmEarfcn,
         gsmBsic = gsmBsic ?: previous.gsmBsic
     )
@@ -39,6 +40,7 @@ fun ConnectivityStats.withStabilizedCellIdentity(
             ltePci = null,
             nrEarfcn = null,
             nrPci = null,
+            nrBand = null,
             gsmEarfcn = null,
             gsmBsic = null
         ) to CellIdentitySnapshot()
@@ -51,6 +53,7 @@ fun ConnectivityStats.withStabilizedCellIdentity(
             ltePci = null,
             nrEarfcn = null,
             nrPci = null,
+            nrBand = null,
             gsmEarfcn = current.gsmEarfcn ?: previous.gsmEarfcn,
             gsmBsic = current.gsmBsic ?: previous.gsmBsic
         )
@@ -62,6 +65,7 @@ fun ConnectivityStats.withStabilizedCellIdentity(
         ltePci = stabilized.ltePci,
         nrEarfcn = stabilized.nrEarfcn,
         nrPci = stabilized.nrPci,
+        nrBand = stabilized.nrBand,
         gsmEarfcn = stabilized.gsmEarfcn,
         gsmBsic = stabilized.gsmBsic
     ) to stabilized

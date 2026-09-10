@@ -11,6 +11,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Documentation** — [MOCK_NETWORK_SCENARIOS.md](MOCK_NETWORK_SCENARIOS.md) (agreed mock trigger states per scenario) and [SETTINGS_PROFILES.md](SETTINGS_PROFILES.md) (profile JSON capture scope, including full `passiveMock` block). Updated [RXSS_CATALOGUE.md](RXSS_CATALOGUE.md), [VOICE_ANNOUNCEMENTS.md](VOICE_ANNOUNCEMENTS.md), and [README.md](README.md) cross-links; RXSS **0**, **11**, **12**, **20**, **23** rows reflect current voice implementation.
 
+## [2.7.1] - 2026-09-10
+
+### Fixed
+
+- **Regression: EARFCN/PCI/network mode not displaying at all** — The 2.7.0 dual-SIM cross-contamination mitigation required an *explicit* PLMN match before accepting any cell identity whenever a second SIM was active. In practice, the expected/serving PLMN and/or the cell identity's own MCC/MNC are frequently blank or unreliable on real devices — especially via a subscription-scoped `TelephonyManager` — so the stricter check ended up rejecting every cell and blanking out EARFCN, PCI, and related metrics, regardless of whether one or two SIMs were active. Reverted to the previous best-effort behavior (accept an unverifiable cell only when nothing else explicitly matched; still reject an explicit PLMN mismatch). The underlying dual-SIM cross-contamination report from before 2.7.0 is not further mitigated by this release — a safer fix needs more reliable per-SIM signal than this device class provides before it's worth re-attempting.
+
+## [2.7.0] - 2026-09-10
+
+### Added
+
+- **5G band shown in cellular metrics** — When camped on 5G (standalone or EN-DC), the cellular metrics panel now shows the serving NR operating band (e.g. "n78") alongside NR-ARFCN/PCI. Read directly from the modem via `CellIdentityNr.getBands()` (Android 11+) rather than derived from the NR-ARFCN, since NR-ARFCN channel ranges overlap across multiple bands and only the modem-reported band is unambiguous. Shows "—" on older Android versions or when unavailable.
+
+### Fixed
+
+- **Dual-SIM cell-identity cross-contamination** — On some dual-SIM devices, `getAllCellInfo()` can leak a "registered" cell entry belonging to the *other* active SIM's network with no PLMN attached, which could get displayed as this SIM's EARFCN/PCI. When a second SIM is active, the app now requires an explicit PLMN match before accepting an LTE/NR/GSM cell identity, instead of guessing from unverifiable cells — unverifiable readings are now suppressed (showing "—", or the last-known-good value via the existing stabilizer) rather than potentially showing another operator's channel. This uses only live PLMN comparison; no hardcoded operator/EARFCN tables were added, keeping the app non-geo-specific.
+- **Foreground service time-limit handling on long screen-locked runs** — On Android 15+, the monitoring service's `dataSync` foreground service type is limited to ~6 hours of runtime per rolling 24h window; without handling this, the service would be forcibly stopped by the system once the budget ran out (most likely during a long overnight screen-locked session), silently ending monitoring. The service now implements `Service.onTimeout()`, stopping itself cleanly and posting a notification asking the user to reopen the app to resume monitoring, instead of failing silently or risking an ANR.
+
+## [2.6.0] - 2026-09-10
+
+### Added
+
+- **Master voice announcements switch** — New on/off toggle near the top of the main screen that mutes every spoken voice announcement (VA-1 through VA-18 and beyond) with a single tap, without touching any individual voice setting. Alert tones, bells, click sounds, and vibration are unaffected; the "preview" buttons in Settings still work while the master switch is off, so a voice can still be auditioned. Persisted with the rest of the audio settings and included in settings-profile export/import.
+
+### Changed
+
+- **RXSS 9 "speak band" announcement now speaks natural number words** — The alternative cell-reselect band announcement (`cellChangeSpeakBandEnabled`) previously spoke digits one at a time (e.g. "band 2 0", "band L 8 0 0"), which could be misheard or clipped by some TTS engines. It now speaks whole numbers ("band, twenty", "band, L eight hundred"), with a comma pause after "band" to stop the word being swallowed/clipped into the following number (reported as sounding like "bunt").
+
+### Fixed
+
+- **Duplicate "signal low" 30s announcement on limited-service visited 2G weak overlay** — On a limited-service visited-2G camp with a weak (RXSS 8) overlay, both the tier5-style periodic voice job and the 2G-fallback periodic voice job independently qualified to speak the same "…visited, 2G, signal low" announcement, so it played twice back-to-back every 30 s. The 2G-fallback job's weak-voice branch no longer fires for this limited-service case, leaving the tier5-style job as the single source of that announcement.
+
+## [2.5.0] - 2026-09-10
+
+### Added
+
+- **"Home operator 5G ENDC" mock scenario** — New passive mock network scenario simulating a home-operator LTE anchor with an NR secondary carrier (EN-DC), alongside the existing 4G/2G/alt-operator/no-service/searching scenarios, with full settings, UI, and documentation wiring.
+- **RXSS 9 (cell reselect) alternative "speak band" announcement** — New opt-in setting (`cellChangeSpeakBandEnabled`) that, on cell reselect, replaces the spoken "cell reselect, channel …, PCI …" with the E-UTRA band derived from the LTE channel (EARFCN), e.g. EARFCN 6300 → band 20. Two styles are available (`cellChangeBandNamingStyle`): **band number** (e.g. "band, twenty") or the band's common **MHz nickname** (e.g. "band, L eight hundred" for band 20). Falls back to the normal channel/PCI phrasing when there is no LTE channel to map (2G-only reselect). New controls added under the RXSS 9 cell-change section of Passive signal thresholds.
+
+### Changed
+
+- **Passive signal thresholds panel colors** — The per-tier accent colors used in the Passive signal thresholds panel are now theme-aware, using higher-contrast light/dark color pairs so text and labels stay readable against both light and dark backgrounds.
+
+### Fixed
+
+- **Cell-reselect voice (VA-10) no longer fires during no-signal / searching states** — Cell-reselect announcements could still speak a stale channel/PCI while searching for signal with no camped cell (e.g. RXSS 11 searching 2G), or while camped with no RSRP/RSRQ reading yet (mid-debounce right after losing signal), because the no-signal guard only checked the catalogue's narrower "Signal = No" tier list. The guard now also checks the debounced no-signal flag and the "no measurement yet" tier directly, suppressing VA-10 correctly in both cases.
+- **Limited service 4G/2G missing 30s cycling voice announcement (VA-14)** — VA-14's periodic "limited service" reminder was incorrectly suppressed whenever any measurable RSRP/RX overlay applied, not just the critical/weak overlay that has its own dedicated periodic voice (VA-15/VA-18). This made VA-14 effectively dead for any limited-service state with usable signal. VA-14 now cycles correctly for RXSS 12/13 overlays 1–5 and 7, while VA-15/VA-18 continue to take over on the critical/weak overlay (6/8).
+
+## [2.4.0] - 2026-09-10
+
+### Added
+
+- **Independent Level Range click intervals** — RXSS 2–5 (Level Ranges A–D) each now have their own click-interval slider, instead of a single "Click interval" value shared across all four ranges. Volume and frequency remain shared; each range's interval is floored against its own pulse duration.
+
+## [2.3.0] - 2026-09-10
+
+### Added
+
+- **Independent Level Range signal pulse durations** — RXSS 2–5 (Level Ranges A–D) each now have their own signal pulse duration slider, instead of a single value shared across all four ranges. Volume, frequency, and click interval remain shared.
+
+### Fixed
+
+- **Level Range / signal-low pulse durations silently reset on every restart** — RXSS 2–5 (Level Ranges A–D) and RXSS 6 (signal low / critical) each have their own pulse-duration setting in the data model, but it was never saved to device storage or included in settings-profile exports, so it silently reverted to a 250 ms default every time the app restarted or a profile was reloaded — regardless of what was configured. These durations are now persisted and included in settings-profile JSON, with existing values migrated from the previous shared duration on first load so nobody's configured pulse length changes unexpectedly.
+- **RXSS 1 (signal high) pulse duration had no effect** — The "RXSS 1 signal pulse duration" slider (shared with the Global alert sound settings duration) was saved correctly but never actually used during playback; very strong signal pulses always played at a fixed 250 ms regardless of the configured value. Playback now uses the configured duration.
+
 ## [2.2.28] - 2026-09-09
 
 ### Fixed

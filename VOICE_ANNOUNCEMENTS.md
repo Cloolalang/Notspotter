@@ -69,6 +69,8 @@ Mock scenarios use real UK operator labels so spoken output matches field testin
 - **VA-1 / VA-12** (overlay 20): “E E visited, 4 G, no signal” · exit **VA-2:** “… signal restored”  
 - **VA-10:** “E E visited, 4 G, cell reselect, channel …, PCI …”  
 - **VA-10** on mock visited 2G: “E E visited, 2 G, cell reselect, channel …, BSIC …”  
+- **VA-10** with `cellChangeSpeakBandEnabled` (`BAND_NUMBER`): “E E visited, 4 G, band, twenty” (EARFCN 6300 → band 20)  
+- **VA-10** with `cellChangeSpeakBandEnabled` (`MHZ_NICKNAME`): “E E visited, 4 G, band, L eight hundred”  
 - **VA-18** (overlay 8 on 13): “E E visited, 2 G, signal low”  
 - **VA-3** (mock **NO_SERVICE**): “Vodafone, deadzone, no service, no SOS calls” — **not** “Vodafone, 4 G, no signal”  
 - **VA-11** (mock **SEARCHING_2G**): “Vodafone, 4 G, no signal, searching 2 G” (~5 s)
@@ -89,7 +91,7 @@ Home-only mock (e.g. Home 4G): operator is **Vodafone** with no role suffix — 
 | **VA-7** | **6** | 2G camped after LTE/NR loss | `{operator}, 2 G` | G2 fallback | First poll on **2G** after LTE/NR no-signal episode; `monitor2gFallback` enabled; G2-fallback baseline ready. | — |
 | **VA-8** | **5** | Signal low (immediate) | `{operator}, {tech}, signal low` | 5 / 6 | `tier5Immediate`: dead zone→tier 5, or tier 10→tier 6 recovery; `tier5AnnouncerEnabled`. | — |
 | **VA-9** | **8** | Technology change | `{operator}, {tech}` | 28–30 | Camped `radioAccessType` changes after radio baseline. | LTE/NR→**2G** after no-signal (RXSS **10** exit path — **VA-7** instead). |
-| **VA-10** | **9** | Cell reselect (lowest immediate) | Home camp: `{operator}, {tech}, cell reselect, channel …, PCI …` · visited camp: `{operator} visited, {tech}, cell reselect, …` (2G: `channel …, BSIC …`; EN-DC: `LTE channel …, PCI …, NR channel …, PCI …`) | 9 | LTE/NR PCI or channel change, or 2G BSIC/channel change, after cell-identity baseline. Visited suffix when `resolveCampedVisitedOperatorName()` is non-null. | Any [no-signal RXSS](#no-signal-rxss-voice-rules): **0**, **10**, **15**, **20**, **21**, **23**, **26**, **27**. |
+| **VA-10** | **9** | Cell reselect (lowest immediate) | Home camp: `{operator}, {tech}, cell reselect, channel …, PCI …` · visited camp: `{operator} visited, {tech}, cell reselect, …` (2G: `channel …, BSIC …`; EN-DC: `LTE channel …, PCI …, NR channel …, PCI …`). Alternative (`cellChangeSpeakBandEnabled`): replaces `cell reselect, channel …, PCI …` with `band, …` — the E-UTRA band from the LTE channel (EARFCN), spoken as whole-number words — the band number (`cellChangeBandNamingStyle = BAND_NUMBER`, e.g. “band, twenty”) or MHz nickname (`MHZ_NICKNAME`, e.g. “band, L eight hundred”); falls back to the normal phrasing with no LTE channel (2G-only reselect) | 9 | LTE/NR PCI or channel change, or 2G BSIC/channel change, after cell-identity baseline. Visited suffix when `resolveCampedVisitedOperatorName()` is non-null. | Any [no-signal RXSS](#no-signal-rxss-voice-rules): **0**, **10**, **15**, **20**, **21**, **23**, **26**, **27**. |
 
 ### Delayed immediate
 
@@ -195,6 +197,7 @@ On one poll, priorities **1–9** run back-to-back via `immediateAnnouncements()
 | **VA-7**, **VA-16** | `technologyChangeTo2gVoiceEnabled` | `technologyChangeTo2gVoiceVolume` | `technologyChangeTo2gToneVolume` |
 | **VA-9** → 2G / 4G / 5G | `technologyChangeTo{2g,4g,5gEndc}VoiceEnabled` | matching `…VoiceVolume` | matching `…ToneVolume` |
 | **VA-10** | `cellChangeVoiceEnabled` | `cellChangeVoiceVolume` | `cellChangeBellVolume` |
+| **VA-10** band phrasing | `cellChangeSpeakBandEnabled`, `cellChangeBandNamingStyle` | — | — |
 | All | `voiceAnnouncerChoice`, `voiceAnnouncerEngineId` | — | — |
 
 UI controls live under **Signal thresholds** (per RXSS) and **Alert sound volume** (global announcer picker).
@@ -216,9 +219,11 @@ UI controls live under **Signal thresholds** (per RXSS) and **Alert sound volume
 | **26** | Limited alt 4G no signal, SIM suspended (placeholder) |
 | **27** | Limited alt 2G no signal, SIM suspended (placeholder) |
 
-**Not** included: **RXSS 11** (searching for home 2G) — transition/search, Signal column is n/a.
+**Not** included: **RXSS 11** (searching for home 2G) — transition/search, Signal column is n/a. `isInNoSignalRxss()` still treats it as no-signal for voice-suppression purposes (see below), since there is no camped cell to report despite the catalogue's "—" column.
 
 Limited-service camps on RXSS **12** / **13** with RSRP at or below the no-signal threshold are treated as no-signal overlays (**20** / **23**) via `isLimitedServiceNoSignalCamp()`.
+
+`isInNoSignalRxss()` also treats the debounced `noSignalActive` flag and the `UNAVAILABLE` measurement tier (camped with no RSRP/RSRQ reading yet — e.g. mid-debounce right after losing signal) as no-signal, in addition to the catalogue tier-number list above. This closes gaps where a stale/flickering PCI or EARFCN carried over between polls (`coalesceWith` in `CellIdentityStabilizer.kt`) could otherwise trigger a voice announcement while there is no usable cell to report.
 
 Enforcement:
 

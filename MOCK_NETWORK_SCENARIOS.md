@@ -141,6 +141,23 @@ Each row is the **agreed trigger state** the mock simulates. Live detection uses
 
 ---
 
+### 7. Home operator 5G ENDC — `HOME_5G_ENDC`
+
+| Field | Value |
+|-------|--------|
+| **Primary RXSS** | **1–6** (from mock RSRP/RSRQ slider) · optional **14** (RSRQ overlay) |
+| **Operator** | Vodafone home (`homePlmn == plmn`) |
+| **Tech** | 5G NSA / EN-DC (`radioAccessType = "5G EN-DC"`, LTE anchor + NR secondary, `isOn2g = false`) |
+| **Service** | Full home — `isLimitedService = false`, `isCompleteNoService = false` |
+| **Signal** | `hasLteNrSignal = true`, `cellularAvailable` from RSRP thresholds (same tier math as `HOME_4G`) |
+| **Cell identity** | `lteEarfcn`/`ltePci` (anchor) plus `nrEarfcn`/`nrPci` (secondary) — both set, so **RXSS 9** cell-reselect voice can announce the NR leg too |
+| **Mock slider** | RSRP + RSRQ |
+| **Not** | Limited service, dead zone, RXSS 10/11, 2G |
+
+**Voice (examples):** switching into this scenario from another RAT fires **RXSS 30** technology-change voice — “Vodafone, 5 G E N D C”; tier 6 → “Vodafone, 5 G E N D C, signal low”.
+
+---
+
 ## Using mock in the app
 
 1. Enable **Mock network state** on the card.
@@ -157,6 +174,6 @@ Each row is the **agreed trigger state** the mock simulates. Live detection uses
 
 Profile JSON stores `passiveMock.scenario` as the enum name:
 
-`HOME_4G` · `HOME_2G` · `ALT_OPERATOR_4G` · `ALT_OPERATOR_2G` · `NO_SERVICE` · `SEARCHING_2G`
+`HOME_4G` · `HOME_2G` · `ALT_OPERATOR_4G` · `ALT_OPERATOR_2G` · `NO_SERVICE` · `SEARCHING_2G` · `HOME_5G_ENDC`
 
 Unknown values fall back to `HOME_4G` on import.

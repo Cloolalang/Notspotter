@@ -2,6 +2,7 @@ package io.github.cloolalang.notspotdetector.data
 
 import android.content.Context
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
+import io.github.cloolalang.notspotdetector.model.CellReselectBandNamingStyle
 import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerChoice
 import kotlin.math.roundToInt
 
@@ -85,6 +86,10 @@ class AudioVolumeSettingsRepository(context: Context) {
             AudioVolumeSettings.DEFAULT_VOLUME
         )
         return AudioVolumeSettings(
+            masterVoiceAnnouncementsEnabled = prefs.getBoolean(
+                KEY_MASTER_VOICE_ANNOUNCEMENTS_ENABLED,
+                AudioVolumeSettings.DEFAULT_MASTER_VOICE_ANNOUNCEMENTS_ENABLED
+            ),
             pingClickVolume = prefs.getFloat(KEY_PING_CLICK, AudioVolumeSettings.DEFAULT_VOLUME),
             lowSignalClickVolume = prefs.getFloat(KEY_LOW_SIGNAL_CLICK, AudioVolumeSettings.DEFAULT_VOLUME),
             signalPulseFrequencyHz = signalPulseFrequencyHz,
@@ -108,6 +113,13 @@ class AudioVolumeSettingsRepository(context: Context) {
             cellChangeVoiceVolume = prefs.getFloat(
                 KEY_CELL_CHANGE_VOICE,
                 AudioVolumeSettings.DEFAULT_VOLUME
+            ),
+            cellChangeSpeakBandEnabled = prefs.getBoolean(
+                KEY_CELL_CHANGE_SPEAK_BAND_ENABLED,
+                AudioVolumeSettings.DEFAULT_CELL_CHANGE_SPEAK_BAND_ENABLED
+            ),
+            cellChangeBandNamingStyle = CellReselectBandNamingStyle.fromId(
+                prefs.getString(KEY_CELL_CHANGE_BAND_NAMING_STYLE, null)
             ),
             technologyChangeTo2gToneVolume = prefs.getFloat(
                 KEY_TECHNOLOGY_CHANGE_TO_2G_TONE,
@@ -188,6 +200,7 @@ class AudioVolumeSettingsRepository(context: Context) {
     fun save(settings: AudioVolumeSettings) {
         val normalized = settings.normalized()
         prefs.edit()
+            .putBoolean(KEY_MASTER_VOICE_ANNOUNCEMENTS_ENABLED, normalized.masterVoiceAnnouncementsEnabled)
             .putFloat(KEY_PING_CLICK, normalized.pingClickVolume)
             .putFloat(KEY_LOW_SIGNAL_CLICK, normalized.lowSignalClickVolume)
             .putInt(KEY_SIGNAL_PULSE_FREQUENCY, normalized.signalPulseFrequencyHz)
@@ -203,6 +216,8 @@ class AudioVolumeSettingsRepository(context: Context) {
             .putFloat(KEY_CELL_CHANGE_BELL, normalized.cellChangeBellVolume)
             .putBoolean(KEY_CELL_CHANGE_VOICE_ENABLED, normalized.cellChangeVoiceEnabled)
             .putFloat(KEY_CELL_CHANGE_VOICE, normalized.cellChangeVoiceVolume)
+            .putBoolean(KEY_CELL_CHANGE_SPEAK_BAND_ENABLED, normalized.cellChangeSpeakBandEnabled)
+            .putString(KEY_CELL_CHANGE_BAND_NAMING_STYLE, normalized.cellChangeBandNamingStyle.id)
             .putFloat(KEY_TECHNOLOGY_CHANGE_TO_2G_TONE, normalized.technologyChangeTo2gToneVolume)
             .putBoolean(KEY_TECHNOLOGY_CHANGE_TO_2G_VOICE_ENABLED, normalized.technologyChangeTo2gVoiceEnabled)
             .putFloat(KEY_TECHNOLOGY_CHANGE_TO_2G_VOICE, normalized.technologyChangeTo2gVoiceVolume)
@@ -228,6 +243,7 @@ class AudioVolumeSettingsRepository(context: Context) {
 
     companion object {
         private const val PREFS_NAME = "notspot_audio_volumes"
+        private const val KEY_MASTER_VOICE_ANNOUNCEMENTS_ENABLED = "master_voice_announcements_enabled"
         private const val KEY_PING_CLICK = "ping_click_volume"
         private const val KEY_LOW_SIGNAL_CLICK = "low_signal_click_volume"
         private const val KEY_SIGNAL_PULSE_FREQUENCY = "signal_pulse_frequency_hz"
@@ -243,6 +259,8 @@ class AudioVolumeSettingsRepository(context: Context) {
         private const val KEY_CELL_CHANGE_BELL = "cell_change_bell_volume"
         private const val KEY_CELL_CHANGE_VOICE_ENABLED = "cell_change_voice_enabled"
         private const val KEY_CELL_CHANGE_VOICE = "cell_change_voice_volume"
+        private const val KEY_CELL_CHANGE_SPEAK_BAND_ENABLED = "cell_change_speak_band_enabled"
+        private const val KEY_CELL_CHANGE_BAND_NAMING_STYLE = "cell_change_band_naming_style"
         private const val KEY_TECHNOLOGY_CHANGE = "technology_change_volume"
         private const val KEY_TECHNOLOGY_CHANGE_VOICE_ENABLED = "technology_change_voice_enabled"
         private const val KEY_TECHNOLOGY_CHANGE_VOICE = "technology_change_voice_volume"

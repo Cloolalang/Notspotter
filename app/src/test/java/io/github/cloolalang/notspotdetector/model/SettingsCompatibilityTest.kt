@@ -23,7 +23,8 @@ class SettingsCompatibilityTest {
     fun normalizePassiveSignalSettingsRaisesTierIntervalsBelowPulseDuration() {
         val settings = PassiveSignalSettings(
             criticalTierClickIntervalMs = 50,
-            levelRangeAbcdClickIntervalMs = 50
+            levelRangeAbcdClickIntervalMs = 50,
+            poorTierClickIntervalMs = 50
         )
         val normalized = SettingsCompatibility.normalizePassiveSignalSettings(
             settings,
@@ -31,25 +32,33 @@ class SettingsCompatibilityTest {
         )
         assertEquals(280, normalized.criticalTierClickIntervalMs)
         assertEquals(280, normalized.levelRangeAbcdClickIntervalMs)
+        // poorTierClickIntervalMs is floored by its own pulse duration (default 250 ms), not the shared value.
         assertEquals(280, normalized.poorTierClickIntervalMs)
     }
 
     @Test
-    fun normalizePassiveSignalSettingsUsesSeparateBcdPulseDurationForLevelRangesAToD() {
+    fun normalizePassiveSignalSettingsUsesEachLevelRangesOwnDurationForItsClickIntervalFloor() {
         val settings = PassiveSignalSettings(
-            levelRangeAbcdClickIntervalMs = 50,
-            criticalTierClickIntervalMs = 50
+            criticalTierClickIntervalMs = 50,
+            mildTierPulseDurationMs = 150,
+            mildTierClickIntervalMs = 50,
+            goodTierPulseDurationMs = 400,
+            goodTierClickIntervalMs = 50,
+            fairTierPulseDurationMs = 200,
+            fairTierClickIntervalMs = 50,
+            poorTierPulseDurationMs = 180,
+            poorTierClickIntervalMs = 50
         )
         val normalized = SettingsCompatibility.normalizePassiveSignalSettings(
             settings,
-            signalPulseDurationMs = 100,
-            levelRangeBcdPulseDurationMs = 400
+            signalPulseDurationMs = 100
         )
         assertEquals(130, normalized.criticalTierClickIntervalMs)
-        assertEquals(430, normalized.levelRangeAbcdClickIntervalMs)
-        assertEquals(430, normalized.mildTierClickIntervalMs)
+        // Each Level Range's click interval floor now derives from that same range's own pulse duration.
+        assertEquals(180, normalized.mildTierClickIntervalMs)
         assertEquals(430, normalized.goodTierClickIntervalMs)
-        assertEquals(430, normalized.poorTierClickIntervalMs)
+        assertEquals(230, normalized.fairTierClickIntervalMs)
+        assertEquals(210, normalized.poorTierClickIntervalMs)
     }
 
     @Test

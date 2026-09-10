@@ -12,7 +12,8 @@ enum class MockNetworkScenario {
     ALT_OPERATOR_4G,
     ALT_OPERATOR_2G,
     NO_SERVICE,
-    SEARCHING_2G;
+    SEARCHING_2G,
+    HOME_5G_ENDC;
 
     companion object {
         val DEFAULT = HOME_4G
@@ -23,7 +24,7 @@ enum class MockNetworkScenario {
         }
     }
 
-    fun usesLteNrSignalStrength(): Boolean = this == HOME_4G || this == ALT_OPERATOR_4G
+    fun usesLteNrSignalStrength(): Boolean = this == HOME_4G || this == ALT_OPERATOR_4G || this == HOME_5G_ENDC
 
     fun usesG2SignalStrength(): Boolean = this == HOME_2G || this == ALT_OPERATOR_2G
 
@@ -57,6 +58,7 @@ data class PassiveMockSettings(
             MockNetworkScenario.ALT_OPERATOR_2G -> altOperator2gMetrics()
             MockNetworkScenario.NO_SERVICE -> noServiceMetrics()
             MockNetworkScenario.SEARCHING_2G -> searching2gMetrics()
+            MockNetworkScenario.HOME_5G_ENDC -> home5gEndcMetrics()
         }
     }
 
@@ -67,6 +69,32 @@ data class PassiveMockSettings(
             radioAccessType = CellularSignalReader.RADIO_4G,
             lteEarfcn = MOCK_LTE_EARFCN,
             ltePci = MOCK_LTE_PCI,
+            isOn2g = false,
+            isLimitedService = false,
+            networkServiceMode = NetworkServiceMode.IN_SERVICE,
+            hasLimitedServiceOnAnySim = false,
+            isCompleteNoService = false,
+            hasHomeGsmSignal = false,
+            hasLteNrSignal = true,
+            networkOperatorName = MOCK_HOME_OPERATOR,
+            homeNetworkOperatorName = MOCK_HOME_OPERATOR,
+            servingNetworkOperatorName = MOCK_HOME_OPERATOR,
+            plmn = MOCK_HOME_PLMN,
+            homePlmn = MOCK_HOME_PLMN
+        )
+    }
+
+    /** Home operator 5G NSA (EN-DC) — LTE anchor + NR secondary carrier, same RSRP tiers as [home4gMetrics]. */
+    private fun home5gEndcMetrics(): CellularRadioMetrics {
+        return baseMetrics(
+            rsrpDbm = rsrpDbm,
+            rsrqDb = rsrqDb,
+            radioAccessType = CellularSignalReader.RADIO_5G_ENDC,
+            lteEarfcn = MOCK_LTE_EARFCN,
+            ltePci = MOCK_LTE_PCI,
+            nrEarfcn = MOCK_NR_EARFCN,
+            nrPci = MOCK_NR_PCI,
+            nrBand = MOCK_NR_BAND,
             isOn2g = false,
             isLimitedService = false,
             networkServiceMode = NetworkServiceMode.IN_SERVICE,
@@ -195,6 +223,9 @@ data class PassiveMockSettings(
         radioAccessType: String?,
         lteEarfcn: Int? = null,
         ltePci: Int? = null,
+        nrEarfcn: Int? = null,
+        nrPci: Int? = null,
+        nrBand: Int? = null,
         gsmEarfcn: Int? = null,
         gsmBsic: Int? = null,
         isOn2g: Boolean,
@@ -217,6 +248,9 @@ data class PassiveMockSettings(
             radioAccessType = radioAccessType,
             lteEarfcn = lteEarfcn,
             ltePci = ltePci,
+            nrEarfcn = nrEarfcn,
+            nrPci = nrPci,
+            nrBand = nrBand,
             gsmEarfcn = gsmEarfcn,
             gsmBsic = gsmBsic,
             isOn2g = isOn2g,
@@ -256,6 +290,11 @@ data class PassiveMockSettings(
         const val MOCK_ALT_PLMN = MOCK_VISITED_PLMN
         const val MOCK_LTE_EARFCN = 1_800
         const val MOCK_LTE_PCI = 42
+        /** NR secondary carrier for the Home operator 5G EN-DC mock scenario. */
+        const val MOCK_NR_EARFCN = 158_760
+        const val MOCK_NR_PCI = 231
+        /** n20 (700 MHz APT) — matches [MOCK_NR_EARFCN]'s NR-ARFCN range per 3GPP TS 38.101-1. */
+        const val MOCK_NR_BAND = 20
         const val MOCK_ALT_LTE_EARFCN = 1_850
         const val MOCK_ALT_LTE_PCI = 87
         const val MOCK_GSM_EARFCN = 62
@@ -290,6 +329,7 @@ fun PassiveMockSettings.toConnectivityStats(
         ltePci = radio.ltePci,
         nrEarfcn = radio.nrEarfcn,
         nrPci = radio.nrPci,
+        nrBand = radio.nrBand,
         gsmEarfcn = radio.gsmEarfcn,
         gsmBsic = radio.gsmBsic,
         isOn2g = radio.isOn2g,

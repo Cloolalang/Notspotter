@@ -1,5 +1,6 @@
 package io.github.cloolalang.notspotdetector.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -28,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.cloolalang.notspotdetector.R
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
+import io.github.cloolalang.notspotdetector.model.CellReselectBandNamingStyle
 import io.github.cloolalang.notspotdetector.model.TechnologyChangeTarget
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
@@ -331,7 +334,9 @@ fun CellChangeAlertControls(
     onCellChangeVoiceEnabledChange: (Boolean) -> Unit,
     onCellChangeVoiceVolumeChange: (Float) -> Unit,
     onPreviewCellChangeBell: () -> Unit,
-    onPreviewCellChangeVoice: () -> Unit
+    onPreviewCellChangeVoice: () -> Unit,
+    onCellChangeSpeakBandEnabledChange: (Boolean) -> Unit = {},
+    onCellChangeBandNamingStyleChange: (CellReselectBandNamingStyle) -> Unit = {}
 ) {
     RxssAlertSubsectionTitle(accentColor = accentColor)
     RxssVolumeSlider(
@@ -354,6 +359,72 @@ fun CellChangeAlertControls(
         onPreviewVoice = onPreviewCellChangeVoice,
         accentColor = accentColor
     )
+    if (audioVolumes.cellChangeVoiceEnabled) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Checkbox(
+                checked = audioVolumes.cellChangeSpeakBandEnabled,
+                onCheckedChange = onCellChangeSpeakBandEnabledChange
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.audio_cell_change_speak_band_enabled),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Medium,
+                    color = accentColor
+                )
+                Text(
+                    text = stringResource(R.string.audio_cell_change_speak_band_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        if (audioVolumes.cellChangeSpeakBandEnabled) {
+            CellChangeBandNamingStyleOption(
+                selected = CellReselectBandNamingStyle.BAND_NUMBER,
+                current = audioVolumes.cellChangeBandNamingStyle,
+                label = stringResource(R.string.audio_cell_change_band_naming_number),
+                hint = stringResource(R.string.audio_cell_change_band_naming_number_hint),
+                onSelect = onCellChangeBandNamingStyleChange
+            )
+            CellChangeBandNamingStyleOption(
+                selected = CellReselectBandNamingStyle.MHZ_NICKNAME,
+                current = audioVolumes.cellChangeBandNamingStyle,
+                label = stringResource(R.string.audio_cell_change_band_naming_mhz),
+                hint = stringResource(R.string.audio_cell_change_band_naming_mhz_hint),
+                onSelect = onCellChangeBandNamingStyleChange
+            )
+        }
+    }
+}
+
+@Composable
+private fun CellChangeBandNamingStyleOption(
+    selected: CellReselectBandNamingStyle,
+    current: CellReselectBandNamingStyle,
+    label: String,
+    hint: String,
+    onSelect: (CellReselectBandNamingStyle) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onSelect(selected) },
+        verticalAlignment = Alignment.Top
+    ) {
+        RadioButton(selected = current == selected, onClick = { onSelect(selected) })
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = label, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                text = hint,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
 }
 
 @Composable

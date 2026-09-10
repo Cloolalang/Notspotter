@@ -172,6 +172,41 @@ class ConnectivityMonitorService : Service() {
         super.onDestroy()
     }
 
+    /**
+     * Called by the platform (API 35+) when this foreground service hits the `dataSync` type's
+     * execution time limit (a total of ~6h per rolling 24h window) — most likely to be hit on a
+     * long screen-locked stretch (e.g. overnight), since that's when nothing else brings the app
+     * to the foreground to reset the budget. The system requires [stopSelf] within a few seconds
+     * or it raises an ANR; simply restarting immediately is *not* possible — the OS throws
+     * `ForegroundServiceStartNotAllowedException` for further `dataSync` starts until the app is
+     * brought to the foreground again. So instead: stop cleanly and leave a notification telling
+     * the user monitoring paused and to reopen the app to resume it.
+     */
+    override fun onTimeout(startId: Int, fgsType: Int) {
+        runCatching { notifyMonitoringPausedByTimeLimit() }
+        stopMonitoring()
+        stopSelf(startId)
+    }
+
+    private fun notifyMonitoringPausedByTimeLimit() {
+        val openAppIntent = PendingIntent.getActivity(
+            this,
+            0,
+            Intent(this, MainActivity::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val notification = NotificationCompat.Builder(this, NotificationChannels.MONITOR_CHANNEL_ID)
+            .setContentTitle(getString(R.string.notification_title))
+            .setContentText(getString(R.string.notification_paused_time_limit))
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setContentIntent(openAppIntent)
+            .setOngoing(false)
+            .setAutoCancel(true)
+            .build()
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+        manager.notify(NOTIFICATION_ID, notification)
+    }
+
     override fun onTaskRemoved(rootIntent: Intent?) {
         if (isMonitoringActive) {
             val notification = buildNotification(MonitorState.stats.value.statusLabel(this))
@@ -486,7 +521,8 @@ class ConnectivityMonitorService : Service() {
     ) {
         onPlayTone()
         delay(AudioVolumeSettings.voiceDelayAfterAlertTone(toneDurationMs))
-        if (voiceEnabled && !announcement.isNullOrBlank() && voiceVolume > 0f) {
+        val masterVoiceEnabled = MonitorState.audioVolumes.value.masterVoiceAnnouncementsEnabled
+        if (masterVoiceEnabled && voiceEnabled && !announcement.isNullOrBlank() && voiceVolume > 0f) {
             cellVoiceAnnouncer.speakAwait(announcement, voiceVolume)
         }
     }
@@ -596,7 +632,11 @@ class ConnectivityMonitorService : Service() {
 
     private suspend fun playTier5VoiceAlertAwait(announcement: String?) {
         val volumes = MonitorState.audioVolumes.value.normalized()
-        if (!volumes.tier5AnnouncerEnabled || announcement.isNullOrBlank() || volumes.tier5AnnouncerVolume <= 0f) {
+        if (!volumes.masterVoiceAnnouncementsEnabled ||
+            !volumes.tier5AnnouncerEnabled ||
+            announcement.isNullOrBlank() ||
+            volumes.tier5AnnouncerVolume <= 0f
+        ) {
             return
         }
         cellVoiceAnnouncer.speakAwait(announcement, volumes.tier5AnnouncerVolume)

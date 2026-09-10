@@ -100,4 +100,36 @@ class AppSettingsSnapshotCodecTest {
 
         assertEquals(280, snapshot.passiveSignalSettings.criticalTierClickIntervalMs)
     }
+
+    @Test
+    fun decodingLegacyProfileWithoutPerTierDurationKeysSeedsFromFormerlySharedAudioDurations() {
+        // Pre-fix exported profile: no mildTierPulseDurationMs / criticalTierPulseDurationMs keys at all —
+        // only the (now-legacy) shared audio-level durations that used to appear to control them.
+        val legacyJson = """
+            {
+              "schemaVersion": 1,
+              "profile": {
+                "id": "legacy",
+                "name": "Legacy export",
+                "savedAtMs": 1,
+                "settings": {
+                  "audio": {
+                    "signalPulseDurationMs": 222,
+                    "levelRangeBcdPulseDurationMs": 333
+                  },
+                  "passiveSignal": {}
+                }
+              }
+            }
+        """.trimIndent()
+
+        val decoded = AppSettingsSnapshotCodec.decodeProfile(legacyJson)
+
+        requireNotNull(decoded)
+        assertEquals(222, decoded.settings.passiveSignalSettings.criticalTierPulseDurationMs)
+        assertEquals(333, decoded.settings.passiveSignalSettings.mildTierPulseDurationMs)
+        assertEquals(333, decoded.settings.passiveSignalSettings.goodTierPulseDurationMs)
+        assertEquals(333, decoded.settings.passiveSignalSettings.fairTierPulseDurationMs)
+        assertEquals(333, decoded.settings.passiveSignalSettings.poorTierPulseDurationMs)
+    }
 }

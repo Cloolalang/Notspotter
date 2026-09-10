@@ -1,13 +1,24 @@
 package io.github.cloolalang.notspotdetector.data
 
 import android.content.Context
+import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
 
 class PassiveSignalSettingsRepository(context: Context) {
 
     private val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-    fun load(): PassiveSignalSettings {
+    /**
+     * @param legacySignalPulseDurationMs Seed for [PassiveSignalSettings.criticalTierPulseDurationMs] the first
+     * time it is loaded (before it had its own persisted key), taken from the global signal pulse duration.
+     * @param legacyLevelRangeBcdPulseDurationMs Seed for the Level Range A–D (RXSS 2–5) per-tier pulse durations
+     * the first time they are loaded (before each range had its own persisted key), taken from the formerly-shared
+     * Level Range B–D pulse duration.
+     */
+    fun load(
+        legacySignalPulseDurationMs: Int = AudioVolumeSettings.DEFAULT_SIGNAL_PULSE_DURATION_MS,
+        legacyLevelRangeBcdPulseDurationMs: Int = AudioVolumeSettings.DEFAULT_SIGNAL_PULSE_DURATION_MS
+    ): PassiveSignalSettings {
         return PassiveSignalSettings(
             noSignalRsrpDbm = prefs.getInt(KEY_NO_SIGNAL_RSRP, PassiveSignalSettings.DEFAULT_NO_SIGNAL_RSRP_DBM),
             poorRsrpMinDbm = prefs.getInt(KEY_POOR_RSRP_MIN, PassiveSignalSettings.DEFAULT_POOR_RSRP_MIN_DBM),
@@ -47,6 +58,26 @@ class PassiveSignalSettingsRepository(context: Context) {
             criticalTierClickIntervalMs = prefs.getInt(
                 KEY_CRITICAL_TIER_CLICK_MS,
                 PassiveSignalSettings.DEFAULT_CRITICAL_TIER_CLICK_INTERVAL_MS
+            ),
+            criticalTierPulseDurationMs = prefs.getInt(
+                KEY_CRITICAL_TIER_PULSE_MS,
+                legacySignalPulseDurationMs
+            ),
+            mildTierPulseDurationMs = prefs.getInt(
+                KEY_MILD_TIER_PULSE_MS,
+                legacyLevelRangeBcdPulseDurationMs
+            ),
+            goodTierPulseDurationMs = prefs.getInt(
+                KEY_GOOD_TIER_PULSE_MS,
+                legacyLevelRangeBcdPulseDurationMs
+            ),
+            fairTierPulseDurationMs = prefs.getInt(
+                KEY_FAIR_TIER_PULSE_MS,
+                legacyLevelRangeBcdPulseDurationMs
+            ),
+            poorTierPulseDurationMs = prefs.getInt(
+                KEY_POOR_TIER_PULSE_MS,
+                legacyLevelRangeBcdPulseDurationMs
             ),
             levelRangeAbcdClickIntervalMs = decodeLevelRangeAbcdClickIntervalMs(prefs),
             poorTierClickIntervalMs = prefs.getInt(
@@ -210,6 +241,11 @@ class PassiveSignalSettingsRepository(context: Context) {
             .putInt(KEY_QUIET_ALERT_RSRQ, normalized.quietAlertRsrqDb)
             .putInt(KEY_QUIET_ALERT_RSRP_MAX, normalized.quietAlertRsrpMaxDbm)
             .putInt(KEY_CRITICAL_TIER_CLICK_MS, normalized.criticalTierClickIntervalMs)
+            .putInt(KEY_CRITICAL_TIER_PULSE_MS, normalized.criticalTierPulseDurationMs)
+            .putInt(KEY_MILD_TIER_PULSE_MS, normalized.mildTierPulseDurationMs)
+            .putInt(KEY_GOOD_TIER_PULSE_MS, normalized.goodTierPulseDurationMs)
+            .putInt(KEY_FAIR_TIER_PULSE_MS, normalized.fairTierPulseDurationMs)
+            .putInt(KEY_POOR_TIER_PULSE_MS, normalized.poorTierPulseDurationMs)
             .putInt(KEY_LEVEL_RANGE_ABCD_CLICK_MS, normalized.levelRangeAbcdClickIntervalMs)
             .putInt(KEY_POOR_TIER_CLICK_MS, normalized.poorTierClickIntervalMs)
             .putInt(KEY_FAIR_TIER_CLICK_MS, normalized.fairTierClickIntervalMs)
@@ -282,6 +318,11 @@ class PassiveSignalSettingsRepository(context: Context) {
         private const val KEY_QUIET_ALERT_RSRQ = "quiet_alert_rsrq_db"
         private const val KEY_QUIET_ALERT_RSRP_MAX = "quiet_alert_rsrp_max_dbm"
         private const val KEY_CRITICAL_TIER_CLICK_MS = "critical_tier_click_ms"
+        private const val KEY_CRITICAL_TIER_PULSE_MS = "critical_tier_pulse_ms"
+        private const val KEY_MILD_TIER_PULSE_MS = "mild_tier_pulse_ms"
+        private const val KEY_GOOD_TIER_PULSE_MS = "good_tier_pulse_ms"
+        private const val KEY_FAIR_TIER_PULSE_MS = "fair_tier_pulse_ms"
+        private const val KEY_POOR_TIER_PULSE_MS = "poor_tier_pulse_ms"
         private const val KEY_LEVEL_RANGE_ABCD_CLICK_MS = "level_range_abcd_click_interval_ms"
         private const val KEY_POOR_TIER_CLICK_MS = "poor_tier_click_ms"
         private const val KEY_FAIR_TIER_CLICK_MS = "fair_tier_click_ms"

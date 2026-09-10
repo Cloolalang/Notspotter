@@ -483,7 +483,7 @@ class GeigerCounterPlayer {
     ): Int {
         return when {
             stats.usesG2SignalTiers() -> passiveSettings.pulseDurationMsForTier(playbackTier)
-            isVeryStrong -> passiveSettings.veryStrongTierPulseDurationMs
+            isVeryStrong -> volumes.veryStrongTierPulseDurationMs()
             resolvedWeakTier != null -> passiveSettings.pulseDurationMsForTier(resolvedWeakTier)
             else -> volumes.pulseDurationMsForTier(playbackTier)
         }

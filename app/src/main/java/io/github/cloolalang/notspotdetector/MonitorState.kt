@@ -287,6 +287,7 @@ object MonitorState {
             ltePci = metrics.ltePci,
             nrEarfcn = metrics.nrEarfcn,
             nrPci = metrics.nrPci,
+            nrBand = metrics.nrBand,
             gsmEarfcn = metrics.gsmEarfcn,
             gsmBsic = metrics.gsmBsic,
             isOn2g = metrics.isOn2g,
@@ -334,6 +335,7 @@ object MonitorState {
             ltePci = metrics.ltePci,
             nrEarfcn = metrics.nrEarfcn,
             nrPci = metrics.nrPci,
+            nrBand = metrics.nrBand,
             gsmEarfcn = metrics.gsmEarfcn,
             gsmBsic = metrics.gsmBsic,
             isOn2g = metrics.isOn2g,
@@ -777,12 +779,15 @@ object MonitorState {
             return null
         }
 
+        val volumes = _audioVolumes.value
         return CellIdentityAnnouncement.format(
             previous = previous,
             next = next,
             radioAccessType = radioAccessType,
             networkOperatorName = networkOperatorName,
-            campedOnVisitedOperator = stats.resolveCampedVisitedOperatorName() != null
+            campedOnVisitedOperator = stats.resolveCampedVisitedOperatorName() != null,
+            speakBandEnabled = volumes.cellChangeSpeakBandEnabled,
+            bandNamingStyle = volumes.cellChangeBandNamingStyle
         )
     }
 
@@ -827,7 +832,8 @@ object MonitorState {
                     }
                     return computeSearching2gFallbackActive(debounced, lteRatBeforeNoSignalEpisode)
                 }
-                MockNetworkScenario.HOME_4G, MockNetworkScenario.ALT_OPERATOR_4G -> {
+                MockNetworkScenario.HOME_4G, MockNetworkScenario.ALT_OPERATOR_4G,
+                MockNetworkScenario.HOME_5G_ENDC -> {
                     if (!debounced.noSignalActive) {
                         lteRatBeforeNoSignalEpisode = null
                     }
