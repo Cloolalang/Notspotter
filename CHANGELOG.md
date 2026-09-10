@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Documentation** — [MOCK_NETWORK_SCENARIOS.md](MOCK_NETWORK_SCENARIOS.md) (agreed mock trigger states per scenario) and [SETTINGS_PROFILES.md](SETTINGS_PROFILES.md) (profile JSON capture scope, including full `passiveMock` block). Updated [RXSS_CATALOGUE.md](RXSS_CATALOGUE.md), [VOICE_ANNOUNCEMENTS.md](VOICE_ANNOUNCEMENTS.md), and [README.md](README.md) cross-links; RXSS **0**, **11**, **12**, **20**, **23** rows reflect current voice implementation.
 
+## [2.11.1] - 2026-09-10
+
+### Added
+
+- **"5G SA allowed by SIM" summary row** in the Carrier config research panel's NR/5G availability section — a plain `Yes`/`No` derived from whether `carrier_nr_availabilities_int_array` contains the SA value, shown right above the raw array. `No` means the SIM's carrier config hard-disables 5G SA regardless of device or network; `Yes` means carrier config permits it (device modem support and network SA coverage still apply).
+
 ## [2.11.0] - 2026-09-10
 
 ### Added

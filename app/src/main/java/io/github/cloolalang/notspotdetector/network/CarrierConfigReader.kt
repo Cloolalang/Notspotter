@@ -49,7 +49,7 @@ object CarrierConfigReader {
             return CarrierConfigSnapshot(available = false, subscriptionId = effectiveSubId ?: -1)
         }
 
-        val entries = KEY_DEFINITIONS.map { definition ->
+        val baseEntries = KEY_DEFINITIONS.map { definition ->
             CarrierConfigEntry(
                 category = definition.category,
                 label = definition.label,
@@ -57,6 +57,7 @@ object CarrierConfigReader {
                 value = definition.format(bundle)
             )
         }
+        val entries = insertNrStandaloneAllowedSummary(baseEntries, bundle)
         val carrierName = SimSubscriptionHelper.resolveCarrierName(context, subscriptionId)
 
         return CarrierConfigSnapshot(
@@ -65,6 +66,38 @@ object CarrierConfigReader {
             carrierName = carrierName,
             entries = entries
         )
+    }
+
+    /**
+     * Inserts a plain-English "5G SA allowed by SIM" summary row right before the raw
+     * `carrier_nr_availabilities_int_array` row, derived from whether that array contains
+     * [CarrierConfigManager.CARRIER_NR_AVAILABILITY_SA]. This answers "will the SIM allow the UE
+     * to work on 5G SA?" directly — a `"No"` here means SA is hard-disabled by carrier config,
+     * regardless of device modem capability or network coverage. A `"Yes"` means carrier config
+     * *permits* SA; actually seeing SA in the field additionally requires device/modem support
+     * and SA coverage from the network.
+     */
+    private fun insertNrStandaloneAllowedSummary(
+        entries: List<CarrierConfigEntry>,
+        bundle: PersistableBundle
+    ): List<CarrierConfigEntry> {
+        val nrAvailabilities = bundle.getIntArray(CarrierConfigManager.KEY_CARRIER_NR_AVAILABILITIES_INT_ARRAY)
+            ?: intArrayOf()
+        val standaloneAllowed = nrAvailabilities.contains(CarrierConfigManager.CARRIER_NR_AVAILABILITY_SA)
+        val summaryEntry = CarrierConfigEntry(
+            category = "NR/5G availability",
+            label = "5G SA allowed by SIM",
+            key = "derived from carrier_nr_availabilities_int_array",
+            value = if (standaloneAllowed) "Yes" else "No"
+        )
+
+        return entries.flatMap { entry ->
+            if (entry.key == CarrierConfigManager.KEY_CARRIER_NR_AVAILABILITIES_INT_ARRAY) {
+                listOf(summaryEntry, entry)
+            } else {
+                listOf(entry)
+            }
+        }
     }
 
     private class KeyDefinition(
