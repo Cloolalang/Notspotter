@@ -1647,6 +1647,11 @@ private fun NoSignalCampTierBlock(
                     style = MaterialTheme.typography.bodySmall,
                     color = accentColor
                 )
+                Text(
+                    text = stringResource(R.string.passive_signal_no_signal_tier_wifi_calling_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = accentColor
+                )
             },
             volumeControls = {
                 CampSignalPulseVolumeControl(

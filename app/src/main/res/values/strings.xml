@@ -160,6 +160,7 @@
     <string name="passive_signal_camp_tiers_section">Not-spot camp tiers</string>
     <string name="passive_signal_camp_tiers_section_hint">Camp states during not-spot hunting (RXSS 10, 15, 11, 12, 13). Each block has signal pulses and, where applicable, voice and alert tone controls below.</string>
     <string name="passive_signal_no_signal_tier_threshold">LTE/NR no signal (debounced) — not yet searching or dead zone</string>
+    <string name="passive_signal_no_signal_tier_wifi_calling_hint">Also controls RXSS 31 (WiFi calling, no cellular signal) — it reuses this tier\'s click, tone, and voice settings.</string>
     <string name="passive_signal_searching_2g_tier_threshold">Scanning for home 2G after LTE/NR loss (all-tech mode)</string>
     <string name="passive_signal_limited_service_tier_threshold">Limited service on home or visited operator 4G</string>
     <string name="passive_signal_limited_alt_2g_tier_threshold">Limited service on visited operator 2G</string>
@@ -319,7 +320,7 @@
     <string name="audio_no_signal_vibration_enabled">Vibration buzz on no signal</string>
     <string name="audio_no_signal_vibration_enabled_hint">Vibrates in sync with the no-signal tone when signal is lost, restored, or during periodic no-signal reminders.</string>
     <string name="audio_no_signal_voice_enabled">Voice announcement on no signal</string>
-    <string name="audio_no_signal_voice_enabled_hint">After the no-signal tone, speaks when signal is lost or restored (e.g. “E E, 4 G, no signal” / “E E, 4 G, signal restored”). Dead zone: “deadzone, no service, no SOS calls”.</string>
+    <string name="audio_no_signal_voice_enabled_hint">After the no-signal tone, speaks when signal is lost or restored (e.g. “E E, 4 G, no signal” / “E E, 4 G, signal restored”). Dead zone: “deadzone, no service, no SOS calls”. WiFi calling: “E E, wifi calling, no cellular signal” / “E E, cellular signal restored”.</string>
     <string name="audio_volume_no_signal_voice">No signal voice announcement</string>
     <string name="audio_volume_limited_service">Limited service tone</string>
     <string name="audio_limited_service_voice_enabled">Voice announcement on limited service</string>

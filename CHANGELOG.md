@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Searching-2G false positive during WiFi calling** — The RXSS 11 ("searching for home 2G") condition previously triggered whenever LTE/NR signal was lost, regardless of cause. Since WiFi calling reports `IN_SERVICE` with no cellular RAT/RSRP, it satisfied every RXSS 11 condition and was wrongly announced as "searching 2 G". `computeSearching2gFallbackActive()` now also requires WiFi calling to be inactive.
+- **RXSS 31 sound/voice settings weren't clearly discoverable** — RXSS 31 (WiFi calling, no cellular signal) reuses the existing "RXSS 10" tier's click/tone/pulse settings and the shared no-signal voice toggle, but the Passive Signal settings section was only labelled "RXSS 10" with no mention it also governs RXSS 31. Added a hint under that section explaining the shared controls, and extended the no-signal voice-announcement hint text with the WiFi calling phrase example.
 - **Stale EARFCN/PCI shown during no-signal states** — The Metrics panel's EARFCN/PCI/BSIC/NR band rows could keep displaying the last-known cell identity (carried forward by `CellIdentityStabilizer`'s flicker-smoothing) after signal was lost, misleadingly implying the phone was still camped on that cell. These fields are now blanked out (`—`) whenever the current RXSS is any no-signal state (dead zone, LTE/NR/2G no signal, searching 2G, limited-service no-signal overlays, WiFi calling, etc.) — see `ConnectivityStats.isInNoSignalRxss()`.
 
 ### Changed
