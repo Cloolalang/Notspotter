@@ -26,6 +26,7 @@ import io.github.cloolalang.notspotdetector.R
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
 import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerChoice
 import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerOption
+import io.github.cloolalang.notspotdetector.ui.theme.Sushi
 import kotlin.math.roundToInt
 
 @Composable
@@ -63,7 +64,8 @@ fun AudioVolumeSettingsCard(
                 Text(
                     text = stringResource(R.string.audio_volume_title),
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold
+                    color = Sushi,
+                    fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = if (expanded) "▲" else "▼",

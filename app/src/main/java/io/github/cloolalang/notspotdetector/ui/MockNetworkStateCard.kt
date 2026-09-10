@@ -26,6 +26,7 @@ import io.github.cloolalang.notspotdetector.R
 import io.github.cloolalang.notspotdetector.model.MockNetworkScenario
 import io.github.cloolalang.notspotdetector.model.PassiveMockSettings
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
+import io.github.cloolalang.notspotdetector.ui.theme.Sushi
 import kotlin.math.roundToInt
 
 @Composable
@@ -51,7 +52,8 @@ fun MockNetworkStateCard(
                 Text(
                     text = stringResource(R.string.mock_network_state_title),
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold
+                    color = Sushi,
+                    fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = if (expanded) "▲" else "▼",
@@ -195,6 +197,7 @@ private fun mockScenarioLabel(scenario: MockNetworkScenario): String {
             MockNetworkScenario.NO_SERVICE -> R.string.mock_scenario_no_service
             MockNetworkScenario.SEARCHING_2G -> R.string.mock_scenario_searching_2g
             MockNetworkScenario.HOME_5G_ENDC -> R.string.mock_scenario_home_5g_endc
+            MockNetworkScenario.WIFI_CALLING -> R.string.mock_scenario_wifi_calling
         }
     )
 }
@@ -210,6 +213,7 @@ private fun mockScenarioHint(scenario: MockNetworkScenario): String {
             MockNetworkScenario.NO_SERVICE -> R.string.mock_scenario_no_service_hint
             MockNetworkScenario.SEARCHING_2G -> R.string.mock_scenario_searching_2g_hint
             MockNetworkScenario.HOME_5G_ENDC -> R.string.mock_scenario_home_5g_endc_hint
+            MockNetworkScenario.WIFI_CALLING -> R.string.mock_scenario_wifi_calling_hint
         }
     )
 }

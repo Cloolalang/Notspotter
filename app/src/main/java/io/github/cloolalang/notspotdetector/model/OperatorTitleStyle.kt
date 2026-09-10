@@ -71,7 +71,8 @@ fun SignalMeasurementTier.isLowOrNoSignalForTitle(): Boolean {
         SignalMeasurementTier.G2_NO_SIGNAL,
         SignalMeasurementTier.DEADZONE,
         SignalMeasurementTier.NO_SIGNAL,
-        SignalMeasurementTier.SEARCHING_2G -> true
+        SignalMeasurementTier.SEARCHING_2G,
+        SignalMeasurementTier.WIFI_CALLING -> true
         else -> false
     }
 }

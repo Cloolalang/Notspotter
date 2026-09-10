@@ -41,6 +41,8 @@ data class ConnectivityStats(
     val searching2gFallbackActive: Boolean = false,
     val isLimitedService: Boolean = false,
     val networkServiceMode: NetworkServiceMode = NetworkServiceMode.UNKNOWN,
+    /** WiFi calling / VoWiFi registered as the in-service transport — see [CellularRadioMetrics.isWifiCallingActive]. */
+    val isWifiCallingActive: Boolean = false,
     val hasLimitedServiceOnAnySim: Boolean = false,
     val isCompleteNoService: Boolean = false,
     val hasHomeGsmSignal: Boolean = false,

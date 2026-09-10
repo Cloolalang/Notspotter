@@ -114,6 +114,8 @@ enum class SignalMeasurementTier {
     /** RXSS **23** — limited visited 2G camp, no usable RX. */
     LIMITED_ALT_2G_NO_SIGNAL,
     RSRQ_POOR,
+    /** RXSS **31** — in service via WiFi calling only, no cellular RAT/RSRP. */
+    WIFI_CALLING,
     PERMISSION_REQUIRED,
     UNAVAILABLE;
 
@@ -137,6 +139,7 @@ enum class SignalMeasurementTier {
             LIMITED_4G_NO_SIGNAL -> Rxss.LIMITED_4G_NO_SIGNAL
             LIMITED_ALT_2G_NO_SIGNAL -> Rxss.LIMITED_ALT_2G_NO_SIGNAL
             RSRQ_POOR -> Rxss.RSRQ_POOR
+            WIFI_CALLING -> Rxss.WIFI_CALLING_NO_SIGNAL
             else -> null
         }
 
@@ -152,6 +155,8 @@ enum class SignalMeasurementTier {
         LIMITED_SERVICE -> SignalStrengthTier.LIMITED_SERVICE
         LIMITED_ALT_2G -> SignalStrengthTier.LIMITED_ALT_2G
         RSRQ_POOR -> SignalStrengthTier.RSRQ_POOR
+        // Reuses the RXSS 10 no-signal camp-tier sound/voice settings — see RXSS_CATALOGUE.md RXSS 31.
+        WIFI_CALLING -> SignalStrengthTier.NO_SIGNAL
         else -> null
     }
 
@@ -299,7 +304,7 @@ fun ConnectivityStats.isSignalLowVoiceCamp(
 
 /**
  * RX Signal State catalogue numbers — see [RXSS_CATALOGUE.md].
- * Implemented in the app: **0**, **1–9**, **10–15**, **14** (overlay), **20** / **23** (limited no-signal overlays), **28–30** (technology change).
+ * Implemented in the app: **0**, **1–9**, **10–15**, **14** (overlay), **20** / **23** (limited no-signal overlays), **28–30** (technology change), **31** (WiFi calling, no cellular signal).
  */
 object Rxss {
     const val DEADZONE = 0
@@ -337,6 +342,13 @@ object Rxss {
     const val LIMITED_ALT_4G_NO_SIGNAL_SUSPENDED = 26
     const val LIMITED_ALT_2G_NO_SIGNAL_SUSPENDED = 27
 
+    /**
+     * In service via WiFi calling / VoWiFi only — no cellular RAT camped and no RSRP/RSRQ
+     * measurable. Distinguishes this from RXSS 10 (camped 4G/5G, no signal) and prevents it from
+     * being misclassified as RXSS 11 (searching for home 2G).
+     */
+    const val WIFI_CALLING_NO_SIGNAL = 31
+
     /** RXSS rows whose Signal column is **No** in [RXSS_CATALOGUE.md] — no VA-10 cell reselect voice. */
     val NO_SIGNAL_RXSS_NUMBERS = setOf(
         DEADZONE,
@@ -346,7 +358,8 @@ object Rxss {
         LIMITED_HOME_2G_NO_SIGNAL,
         LIMITED_ALT_2G_NO_SIGNAL,
         LIMITED_ALT_4G_NO_SIGNAL_SUSPENDED,
-        LIMITED_ALT_2G_NO_SIGNAL_SUSPENDED
+        LIMITED_ALT_2G_NO_SIGNAL_SUSPENDED,
+        WIFI_CALLING_NO_SIGNAL
     )
 }
 
@@ -526,6 +539,12 @@ fun ConnectivityStats.resolveSignalMeasurementTier(
     }
     if (isMonitoring && isCompleteNoService) return SignalMeasurementTier.DEADZONE
     if (isMonitoring && searching2gFallbackActive) return SignalMeasurementTier.SEARCHING_2G
+    // RXSS 31 — WiFi calling registered as the in-service transport with no cellular RAT/RSRP.
+    // Checked ahead of the generic no-signal branch below so it gets its own catalogue number
+    // and voice wording instead of being reported as a plain "LTE/NR no signal" (RXSS 10).
+    if (isMonitoring && isWifiCallingActive && noSignalActive) {
+        return SignalMeasurementTier.WIFI_CALLING
+    }
     if (isMonitoring && noSignalActive && usesG2SignalTiers()) {
         return SignalMeasurementTier.G2_NO_SIGNAL
     }

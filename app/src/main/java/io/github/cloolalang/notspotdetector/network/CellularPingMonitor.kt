@@ -339,6 +339,7 @@ class CellularPingMonitor(
             restrictedTo2gNetwork = metrics.restrictedTo2gNetwork,
             isLimitedService = metrics.isLimitedService,
             networkServiceMode = metrics.networkServiceMode,
+            isWifiCallingActive = metrics.isWifiCallingActive,
             hasLimitedServiceOnAnySim = metrics.hasLimitedServiceOnAnySim,
             isCompleteNoService = metrics.isCompleteNoService,
             hasHomeGsmSignal = metrics.hasHomeGsmSignal,

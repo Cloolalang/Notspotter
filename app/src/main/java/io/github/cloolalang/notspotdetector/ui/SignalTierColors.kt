@@ -55,7 +55,9 @@ object SignalTierColors {
         23 to (0xFF8E0000L to 0xFFEF9A9AL),
         28 to (0xFF004D40L to 0xFF80CBC4L),
         29 to (0xFF0D47A1L to 0xFF64B5F6L),
-        30 to (0xFF311B92L to 0xFFB39DDBL)
+        30 to (0xFF311B92L to 0xFFB39DDBL),
+        // RXSS 31 (WiFi calling, no cellular signal) reuses RXSS 10's tone.
+        31 to (0xFFB71C1CL to 0xFFE57373L)
     )
 
     @Composable
@@ -95,6 +97,8 @@ object SignalTierColors {
             SignalMeasurementTier.LIMITED_4G_NO_SIGNAL -> tier10
             SignalMeasurementTier.LIMITED_ALT_2G_NO_SIGNAL -> tier15
             SignalMeasurementTier.RSRQ_POOR -> tier14
+            // RXSS 31 reuses the RXSS 10 (no signal) accent — see RXSS_CATALOGUE.md.
+            SignalMeasurementTier.WIFI_CALLING -> tier10
             SignalMeasurementTier.PERMISSION_REQUIRED,
             SignalMeasurementTier.UNAVAILABLE -> MaterialTheme.colorScheme.onSurfaceVariant
         }

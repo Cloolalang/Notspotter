@@ -295,6 +295,7 @@ object MonitorState {
             restrictedTo2gNetwork = metrics.restrictedTo2gNetwork,
             isLimitedService = metrics.isLimitedService,
             networkServiceMode = metrics.networkServiceMode,
+            isWifiCallingActive = metrics.isWifiCallingActive,
             hasLimitedServiceOnAnySim = metrics.hasLimitedServiceOnAnySim,
             isCompleteNoService = metrics.isCompleteNoService,
             hasHomeGsmSignal = metrics.hasHomeGsmSignal,
@@ -343,6 +344,7 @@ object MonitorState {
             restrictedTo2gNetwork = metrics.restrictedTo2gNetwork,
             isLimitedService = metrics.isLimitedService,
             networkServiceMode = metrics.networkServiceMode,
+            isWifiCallingActive = metrics.isWifiCallingActive,
             hasLimitedServiceOnAnySim = metrics.hasLimitedServiceOnAnySim,
             isCompleteNoService = metrics.isCompleteNoService,
             hasHomeGsmSignal = metrics.hasHomeGsmSignal,
@@ -625,7 +627,8 @@ object MonitorState {
             return SignalStateAnnouncement.formatNoSignalChange(
                 active = true,
                 networkOperatorName = networkOperatorName,
-                radioAccessType = next.resolveNoSignalAnnouncementRadioAccessType(lastKnownRadioAccessType)
+                radioAccessType = next.resolveNoSignalAnnouncementRadioAccessType(lastKnownRadioAccessType),
+                isWifiCallingActive = next.isWifiCallingActive
             )
         }
 
@@ -647,7 +650,8 @@ object MonitorState {
         return SignalStateAnnouncement.formatNoSignalChange(
             active = false,
             networkOperatorName = networkOperatorName,
-            radioAccessType = next.resolveNoSignalAnnouncementRadioAccessType(lastKnownRadioAccessType)
+            radioAccessType = next.resolveNoSignalAnnouncementRadioAccessType(lastKnownRadioAccessType),
+            isWifiCallingActive = next.isWifiCallingActive
         )
     }
 

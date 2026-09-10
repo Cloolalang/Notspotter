@@ -29,6 +29,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import io.github.cloolalang.notspotdetector.R
 import io.github.cloolalang.notspotdetector.model.PingSettings
+import io.github.cloolalang.notspotdetector.ui.theme.Sushi
 import kotlin.math.roundToInt
 
 @Composable
@@ -64,7 +65,8 @@ fun PingSettingsCard(
                 Text(
                     text = stringResource(R.string.ping_settings_title),
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold
+                    color = Sushi,
+                    fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = if (expanded) "▲" else "▼",

@@ -19,6 +19,9 @@ object SignalStateAnnouncement {
     internal const val PHRASE_VISITED_OPERATOR_ROLE = "visited"
     internal const val PHRASE_DEADZONE = "deadzone, no service, no SOS calls"
     internal const val PHRASE_SEARCHING_2G = "searching 2 G"
+    /** RXSS 31 — in service via WiFi calling only, no cellular RAT/RSRP. */
+    internal const val PHRASE_WIFI_CALLING_NO_SIGNAL = "wifi calling, no cellular signal"
+    internal const val PHRASE_CELLULAR_SIGNAL_RESTORED = "cellular signal restored"
 
     fun isLteNrRadioAccessType(radioAccessType: String?): Boolean {
         return radioAccessType != null && radioAccessType in LTE_NR_RADIO_TYPES
@@ -79,8 +82,15 @@ object SignalStateAnnouncement {
 
     fun formatNoSignalAnnouncement(
         networkOperatorName: String?,
-        radioAccessType: String?
+        radioAccessType: String?,
+        isWifiCallingActive: Boolean = false
     ): String {
+        if (isWifiCallingActive) {
+            return joinAnnouncementParts(
+                operatorNames = listOf(networkOperatorName),
+                serviceState = PHRASE_WIFI_CALLING_NO_SIGNAL
+            )
+        }
         return formatCampedSignalStateAnnouncement(
             operatorSpeech = networkOperatorName?.let(NetworkOperatorSpeech::formatForSpeech),
             radioAccessType = radioAccessType,
@@ -118,18 +128,26 @@ object SignalStateAnnouncement {
     fun formatNoSignalChange(
         active: Boolean,
         networkOperatorName: String?,
-        radioAccessType: String? = null
+        radioAccessType: String? = null,
+        isWifiCallingActive: Boolean = false
     ): String {
         if (active) {
-            return formatNoSignalAnnouncement(networkOperatorName, radioAccessType)
+            return formatNoSignalAnnouncement(networkOperatorName, radioAccessType, isWifiCallingActive)
         }
-        return formatSignalRestoredAnnouncement(networkOperatorName, radioAccessType)
+        return formatSignalRestoredAnnouncement(networkOperatorName, radioAccessType, isWifiCallingActive)
     }
 
     fun formatSignalRestoredAnnouncement(
         networkOperatorName: String?,
-        radioAccessType: String?
+        radioAccessType: String?,
+        isWifiCallingActive: Boolean = false
     ): String {
+        if (isWifiCallingActive) {
+            return joinAnnouncementParts(
+                operatorNames = listOf(networkOperatorName),
+                serviceState = PHRASE_CELLULAR_SIGNAL_RESTORED
+            )
+        }
         return joinAnnouncementParts(
             operatorNames = listOf(networkOperatorName),
             radioAccessType = radioAccessType,
@@ -141,11 +159,19 @@ object SignalStateAnnouncement {
         return formatNoSignalChange(
             active = stats.noSignalActive,
             networkOperatorName = stats.networkOperatorName,
-            radioAccessType = stats.resolveNoSignalAnnouncementRadioAccessType(lastKnownRadioAccessType)
+            radioAccessType = stats.resolveNoSignalAnnouncementRadioAccessType(lastKnownRadioAccessType),
+            isWifiCallingActive = stats.isWifiCallingActive
         )
     }
 
     fun formatNoSignalAnnouncement(stats: ConnectivityStats, lastKnownRadioAccessType: String? = null): String {
+        if (stats.isWifiCallingActive) {
+            return formatNoSignalAnnouncement(
+                networkOperatorName = stats.networkOperatorName,
+                radioAccessType = null,
+                isWifiCallingActive = true
+            )
+        }
         return formatCampedSignalStateAnnouncement(
             stats = stats,
             lastKnownRadioAccessType = lastKnownRadioAccessType,
@@ -157,6 +183,13 @@ object SignalStateAnnouncement {
         stats: ConnectivityStats,
         lastKnownRadioAccessType: String? = null
     ): String {
+        if (stats.isWifiCallingActive) {
+            return formatSignalRestoredAnnouncement(
+                networkOperatorName = stats.networkOperatorName,
+                radioAccessType = null,
+                isWifiCallingActive = true
+            )
+        }
         return formatCampedSignalStateAnnouncement(
             stats = stats,
             lastKnownRadioAccessType = lastKnownRadioAccessType,

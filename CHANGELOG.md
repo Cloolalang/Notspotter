@@ -11,6 +11,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Documentation** — [MOCK_NETWORK_SCENARIOS.md](MOCK_NETWORK_SCENARIOS.md) (agreed mock trigger states per scenario) and [SETTINGS_PROFILES.md](SETTINGS_PROFILES.md) (profile JSON capture scope, including full `passiveMock` block). Updated [RXSS_CATALOGUE.md](RXSS_CATALOGUE.md), [VOICE_ANNOUNCEMENTS.md](VOICE_ANNOUNCEMENTS.md), and [README.md](README.md) cross-links; RXSS **0**, **11**, **12**, **20**, **23** rows reflect current voice implementation.
 
+## [2.9.0] - 2026-09-10
+
+### Added
+
+- **WiFi calling detection (RXSS 31)** — When WiFi calling / VoWiFi is registered as the in-service transport (`ServiceState.getNetworkRegistrationInfoList()`, API 30+, with a legacy `TelephonyManager.getDataNetworkType()` IWLAN fallback below API 30) and there is no cellular RAT camped or measurable RSRP/RSRQ, the app now classifies this as its own state — RXSS **31**, "WiFi calling, no cellular signal" — instead of misreporting it as RXSS **10** (LTE/NR no signal) or, worse, RXSS **11** (searching for home 2G). Voice: "{operator}, wifi calling, no cellular signal" on entry / every 30 s, "{operator}, cellular signal restored" on exit — reusing the existing no-signal voice toggles and camp-tier click sound. The **Technology** metric now reads "Wifi Calling, no mobile data" instead of "—" while this state is active. A new **WiFi calling (no cellular)** mock scenario lets this be tested without forcing real WiFi calling on-device. See [RXSS_CATALOGUE.md](RXSS_CATALOGUE.md), [VOICE_ANNOUNCEMENTS.md](VOICE_ANNOUNCEMENTS.md), and [MOCK_NETWORK_SCENARIOS.md](MOCK_NETWORK_SCENARIOS.md).
+
+### Fixed
+
+- **Searching-2G false positive during WiFi calling** — The RXSS 11 ("searching for home 2G") condition previously triggered whenever LTE/NR signal was lost, regardless of cause. Since WiFi calling reports `IN_SERVICE` with no cellular RAT/RSRP, it satisfied every RXSS 11 condition and was wrongly announced as "searching 2 G". `computeSearching2gFallbackActive()` now also requires WiFi calling to be inactive.
+- **Stale EARFCN/PCI shown during no-signal states** — The Metrics panel's EARFCN/PCI/BSIC/NR band rows could keep displaying the last-known cell identity (carried forward by `CellIdentityStabilizer`'s flicker-smoothing) after signal was lost, misleadingly implying the phone was still camped on that cell. These fields are now blanked out (`—`) whenever the current RXSS is any no-signal state (dead zone, LTE/NR/2G no signal, searching 2G, limited-service no-signal overlays, WiFi calling, etc.) — see `ConnectivityStats.isInNoSignalRxss()`.
+
+### Changed
+
+- **App title and section panel titles are now bold Sushi green** — The "NotSpotter" app title and every settings/metrics card's title text (Metrics, Cellular signal thresholds, Ping settings, Monitoring settings, Audio volume, Mock network state, RSRP histogram, RTT graph, Settings profiles, Master voice announcements) are now bold and colored Sushi green `#79A52B`, matching the new brand accent. The passive signal thresholds panel's per-tier readability colors and the RSRP histogram bar colors are unchanged.
+- **New brand color scheme** — The main UI's Material theme (primary/secondary/tertiary colors and their container variants, light and dark) now uses the brand palette: Bondi Blue `#0097A6` (cyan, primary), Scarpa Flow `#485463` (slate, secondary), and Sushi `#79A52B` (green, accent/tertiary), replacing the default Material purple palette. Dynamic (Material You wallpaper-based) color is now off by default so this palette is actually shown on Android 12+. This only touches the app's chrome (buttons, top bar, selection highlights, etc.) — the passive signal thresholds panel's tier-readability text colors and the RSRP histogram bar colors are semantic/functional and were intentionally left unchanged.
+
 ## [2.7.1] - 2026-09-10
 
 ### Fixed

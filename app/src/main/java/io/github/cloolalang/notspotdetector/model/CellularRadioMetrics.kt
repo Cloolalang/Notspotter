@@ -17,6 +17,15 @@ data class CellularRadioMetrics(
     val nrBand: Int? = null,
     val gsmEarfcn: Int? = null,
     val gsmBsic: Int? = null,
+    /**
+     * True when [android.telephony.ServiceState.getNetworkRegistrationInfoList] reports a
+     * home-registered WLAN (WiFi calling / VoWiFi) transport — i.e. the modem/carrier is treating
+     * WiFi calling as the in-service path, independent of any cellular RAT camp. Read via the
+     * public API added in API 30; on older API levels this falls back to
+     * `serviceState.dataNetworkType == TelephonyManager.NETWORK_TYPE_IWLAN`. See
+     * `RXSS_CATALOGUE.md` RXSS 31.
+     */
+    val isWifiCallingActive: Boolean = false,
     val isOn2g: Boolean = false,
     val networkModePreference: NetworkModePreference = NetworkModePreference.UNKNOWN,
     val restrictedTo2gNetwork: Boolean = false,

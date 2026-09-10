@@ -77,14 +77,23 @@ Mock scenarios use real UK operator labels so spoken output matches field testin
 
 Home-only mock (e.g. Home 4G): operator is **Vodafone** with no role suffix — “Vodafone, 4 G, no signal”, etc.
 
+### RXSS 31 — WiFi calling, no cellular signal
+
+When `ServiceState.getNetworkRegistrationInfoList()` reports a home-registered **WLAN** transport (WiFi calling / VoWiFi) and there is no cellular RAT camped and no RSRP/RSRQ measurable (`CellularRadioMetrics.isWifiCallingActive` / `ConnectivityStats.isWifiCallingActive`), the debounced no-signal state is classified as **RXSS 31** instead of RXSS **10** (LTE/NR no signal) or RXSS **11** (searching for home 2G) — see [RXSS_CATALOGUE.md](RXSS_CATALOGUE.md). It reuses the **exact same** VA-1 / VA-2 / VA-12 entry, exit, and 30 s-repeat triggers and toggles (`noSignalVoiceEnabled`, `noSignalVoiceVolume`) and the RXSS 10 camp-tier click sound (`noSignalTierSoundEnabled`, etc.) — only the spoken wording differs, since tech and “no signal” aren’t meaningful when the modem has no cellular RAT at all:
+
+- **Entry / 30 s repeat:** “Vodafone, wifi calling, no cellular signal”
+- **Exit:** “Vodafone, cellular signal restored”
+
+Mock scenario **WiFi calling (no cellular)** in the Mock network state panel drives this without needing to force real WiFi calling on the device.
+
 **Priority** — when more than one VA is queued in a short window, **lower number speaks first** (service state before technology detail; severity before milder repeats). **VA-1** and **VA-2** share **p2** (entry vs exit — only one applies per poll). Implemented for immediate batch order in [`MonitoringUpdateEvents.immediateAnnouncements()`](app/src/main/java/io/github/cloolalang/notspotdetector/model/MonitoringUpdateEvents.kt); periodic jobs share one mutex so the lowest applicable priority wins when timers coincide.
 
 ### Immediate (state change, same poll)
 
 | ID | Pri | Name | Typical phrase | RXSS | Trigger | Suppressed when |
 |----|-----|------|----------------|------|---------|-----------------|
-| **VA-1** | **2** | No signal entry | `{operator}, {tech}, no signal` | 10 | Debounced `noSignalActive` **false→true** on LTE/NR (not 2G); monitoring running; no-signal baseline ready. | On **2G** (RXSS **15** — **VA-17** periodic instead); **dead zone** (**RXSS 0** — **VA-3** instead, including debounced no-signal entry while `isCompleteNoService`). |
-| **VA-2** | **2** | Signal restored | `{operator}, {tech}, signal restored` | 10 exit | Debounced `noSignalActive` **true→false**, **or** `isCompleteNoService` **true→false** (dead-zone exit) before debounce clears. | [Signal restored skipped](#signal-restored-skipped): dead zone→**5**/**6**; tier **10**→**6**; LTE/NR no-signal exit→**2G** camp; duplicate after dead zone. |
+| **VA-1** | **2** | No signal entry | `{operator}, {tech}, no signal` — or, when [WiFi calling](#rxss-31--wifi-calling-no-cellular-signal) is active (RXSS **31**), `{operator}, wifi calling, no cellular signal` (tech omitted) | 10 / **31** | Debounced `noSignalActive` **false→true** on LTE/NR (not 2G); monitoring running; no-signal baseline ready. | On **2G** (RXSS **15** — **VA-17** periodic instead); **dead zone** (**RXSS 0** — **VA-3** instead, including debounced no-signal entry while `isCompleteNoService`). |
+| **VA-2** | **2** | Signal restored | `{operator}, {tech}, signal restored` — or `{operator}, cellular signal restored` recovering from **RXSS 31** | 10 / **31** exit | Debounced `noSignalActive` **true→false**, **or** `isCompleteNoService` **true→false** (dead-zone exit) before debounce clears. | [Signal restored skipped](#signal-restored-skipped): dead zone→**5**/**6**; tier **10**→**6**; LTE/NR no-signal exit→**2G** camp; duplicate after dead zone. |
 | **VA-3** | **1** | Dead zone entry | `{operator}, deadzone, no service, no SOS calls` | 0 | `isCompleteNoService` **false→true**; once per no-signal episode. | Already announced this episode. |
 | **VA-4** | **4** | Limited service entry | Dual PLMN: `{home} home, {visited} visited, {tech}, limited service` · single: `{operator}, {tech}, limited service` | 12 / 13 | `isLimitedService` **false→true**; limited-service baseline ready. | — |
 | **VA-6** | **8** | Limited service operator change | Same as **VA-4** | 12 / 13 | Visited operator changes while still in limited service (`limitedServiceVisitedOperatorChanged`). | — |
@@ -103,7 +112,7 @@ Home-only mock (e.g. Home 4G): operator is **Vodafone** with no role suffix — 
 
 | ID | Pri | Name | Typical phrase | RXSS | Trigger | Suppressed when |
 |----|-----|------|----------------|------|---------|-----------------|
-| **VA-12** | 12 | No signal repeat | `{operator} visited, {tech}, no signal` on visited PLMN; else `{operator}, {tech}, no signal` | 10 / **20** / **23** | `shouldPlayNoSignalVoiceAnnouncements()` — LTE/NR flatline, RXSS 10 camp, or limited visited no-signal overlays (**20**, **23**). Entry and exit (**VA-2** restored phrasing on visited PLMN). | On home **2G** or dead zone (**0**). |
+| **VA-12** | 12 | No signal repeat | `{operator} visited, {tech}, no signal` on visited PLMN; else `{operator}, {tech}, no signal` (or the **RXSS 31** WiFi calling phrasing — see **VA-1**) | 10 / **20** / **23** / **31** | `shouldPlayNoSignalVoiceAnnouncements()` — LTE/NR flatline, RXSS 10 camp, or limited visited no-signal overlays (**20**, **23**). Entry and exit (**VA-2** restored phrasing on visited PLMN). | On home **2G** or dead zone (**0**). |
 | **VA-13** | 11 | Dead zone repeat | `{operator}, deadzone, no service, no SOS calls` | 0 | `isCompleteNoService`; monitoring active; not passive idle. | — |
 | **VA-14** | 14 | Limited service repeat | Same phrasing as **VA-4** | 12 / 13 | `shouldAllowLimitedServicePeriodicVoice()` — limited service with measurable signal; every **30 s**. | Any [no-signal RXSS](#no-signal-rxss-voice-rules) while limited (incl. overlays **20**, **21**, **23**, **26**, **27**). |
 | **VA-15** | 16 | Signal low repeat | `{operator} visited, {tech}, signal low` on visited PLMN when applicable | **6** / **12·6** / **13·8** | RSRP in RXSS **6**, limited 4G overlay **6**, or limited visited 2G weak **8**; `tier5AnnouncerEnabled`; first repeat after **5 s** when entered via VA-8, else 5 s then 30 s. RXSS **5** is signal pulses only. | [Quiet passive alerts](#passive-alert-gating) (not RXSS-specific). |

@@ -29,6 +29,7 @@ import io.github.cloolalang.notspotdetector.model.ProfileExportResult
 import io.github.cloolalang.notspotdetector.model.ProfileImportResult
 import io.github.cloolalang.notspotdetector.model.ProfileSaveResult
 import io.github.cloolalang.notspotdetector.model.SettingsProfileSummary
+import io.github.cloolalang.notspotdetector.ui.theme.Sushi
 import java.text.DateFormat
 import java.util.Date
 
@@ -64,7 +65,8 @@ fun SettingsProfilesCard(
                 Text(
                     text = stringResource(R.string.settings_profiles_title),
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold
+                    color = Sushi,
+                    fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = if (expanded) "▲" else "▼",

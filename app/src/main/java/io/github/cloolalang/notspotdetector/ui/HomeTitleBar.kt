@@ -17,6 +17,7 @@ import io.github.cloolalang.notspotdetector.model.OperatorTitleStyle
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
 import io.github.cloolalang.notspotdetector.model.UkOperatorBrand
 import io.github.cloolalang.notspotdetector.model.isLowOrNoSignalForTitle
+import io.github.cloolalang.notspotdetector.ui.theme.Sushi
 
 private val EeGoodColor = Color(0xFF2E7D32)
 private val Vmo2GoodColor = Color(0xFF0066CC)
@@ -42,6 +43,7 @@ fun HomeTitleBar(
                 "${stringResource(R.string.home_title)} - "
             },
             style = titleStyle,
+            color = Sushi,
             fontWeight = titleWeight
         )
         if (operatorLabel != null) {

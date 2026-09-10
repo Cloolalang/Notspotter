@@ -30,6 +30,46 @@ class SignalStateAnnouncementTest {
     }
 
     @Test
+    fun formatNoSignalChange_wifiCallingUsesDedicatedPhraseWithoutTech() {
+        assertEquals(
+            "E E, wifi calling, no cellular signal",
+            SignalStateAnnouncement.formatNoSignalChange(
+                active = true,
+                networkOperatorName = "EE",
+                radioAccessType = CellularSignalReader.RADIO_4G,
+                isWifiCallingActive = true
+            )
+        )
+        assertEquals(
+            "E E, cellular signal restored",
+            SignalStateAnnouncement.formatNoSignalChange(
+                active = false,
+                networkOperatorName = "EE",
+                radioAccessType = CellularSignalReader.RADIO_4G,
+                isWifiCallingActive = true
+            )
+        )
+    }
+
+    @Test
+    fun formatNoSignalAnnouncement_stats_wifiCallingUsesDedicatedPhrase() {
+        val stats = ConnectivityStats(
+            isMonitoring = true,
+            networkOperatorName = "Vodafone",
+            isWifiCallingActive = true,
+            noSignalActive = true
+        )
+        assertEquals(
+            "Vodafone, wifi calling, no cellular signal",
+            SignalStateAnnouncement.formatNoSignalAnnouncement(stats)
+        )
+        assertEquals(
+            "Vodafone, cellular signal restored",
+            SignalStateAnnouncement.formatSignalRestoredAnnouncement(stats)
+        )
+    }
+
+    @Test
     fun formatNoSignalChange_announcesEnterAndExit() {
         assertEquals(
             "4 G, no signal",

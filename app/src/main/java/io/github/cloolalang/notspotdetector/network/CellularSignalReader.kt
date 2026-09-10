@@ -5,6 +5,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
+import android.telephony.AccessNetworkConstants
 import android.telephony.CellIdentity
 import android.telephony.CellIdentityGsm
 import android.telephony.CellIdentityLte
@@ -16,6 +17,7 @@ import android.telephony.CellInfoNr
 import android.telephony.CellSignalStrengthGsm
 import android.telephony.CellSignalStrengthLte
 import android.telephony.CellSignalStrengthNr
+import android.telephony.NetworkRegistrationInfo
 import android.telephony.ServiceState
 import android.telephony.SignalStrength
 import android.telephony.TelephonyManager
@@ -66,6 +68,7 @@ object CellularSignalReader {
         val networkModePreference = readNetworkModePreference(telephonyManager)
         val restrictedTo2gNetwork = networkModePreference == NetworkModePreference.FORCED_2G
         val networkServiceMode = readNetworkServiceMode(telephonyManager)
+        val isWifiCallingActive = readWifiCallingActive(telephonyManager)
         val simSlotIndex = SimSubscriptionHelper.resolveSlotIndex(context, subscriptionId)
         val simDisplayName = SimSubscriptionHelper.resolveSubscriptionLabel(context, subscriptionId)
         val hasLimitedServiceOnAnySim = hasLimitedServiceOnAnySubscription(context)
@@ -110,6 +113,7 @@ object CellularSignalReader {
             restrictedTo2gNetwork = restrictedTo2gNetwork,
             isLimitedService = isLimitedService,
             networkServiceMode = networkServiceMode,
+            isWifiCallingActive = isWifiCallingActive,
             hasHomeGsmSignal = hasHomeGsmSignal,
             subscriptionId = subscriptionId.takeIf {
                 it != MonitoringSettings.DEFAULT_SUBSCRIPTION_ID
@@ -362,6 +366,32 @@ object CellularSignalReader {
         }
 
         return false
+    }
+
+    /**
+     * True when the modem is registered for service over a WLAN transport (WiFi calling / VoWiFi)
+     * per [ServiceState.getNetworkRegistrationInfoList] — a public API added in API 30. Uses
+     * [NetworkRegistrationInfo.isRegistered] rather than the registration-state getter/constants
+     * (`getRegistrationState()`, `REGISTRATION_STATE_HOME`), which are `@SystemApi`-restricted and
+     * unavailable to third-party apps. Falls back to the legacy public
+     * [TelephonyManager.getDataNetworkType] IWLAN check below API 30 (less precise, OEM variable
+     * — [ServiceState.getDataNetworkType] is `@SystemApi`-restricted, unlike the `TelephonyManager`
+     * equivalent). See `RXSS_CATALOGUE.md` RXSS 31.
+     */
+    private fun readWifiCallingActive(telephonyManager: TelephonyManager): Boolean {
+        val serviceState = telephonyManager.serviceState ?: return false
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            return runCatching {
+                serviceState.networkRegistrationInfoList.any { info ->
+                    info.transportType == AccessNetworkConstants.TRANSPORT_TYPE_WLAN &&
+                        @Suppress("DEPRECATION") info.isRegistered
+                }
+            }.getOrDefault(false)
+        }
+        @Suppress("DEPRECATION")
+        return runCatching {
+            telephonyManager.dataNetworkType == TelephonyManager.NETWORK_TYPE_IWLAN
+        }.getOrDefault(false)
     }
 
     private fun invokeBooleanMethod(target: Any, methodName: String): Boolean {

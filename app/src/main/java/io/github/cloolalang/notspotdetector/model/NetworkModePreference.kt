@@ -67,5 +67,8 @@ fun computeSearching2gFallbackActive(
         !stats.isOn2g &&
         !stats.isCompleteNoService &&
         !stats.isLimitedService &&
+        // WiFi calling can report IN_SERVICE with no cellular RAT/RSRP, which otherwise satisfies
+        // every condition above and gets misclassified as "searching for home 2G" (RXSS 11).
+        !stats.isWifiCallingActive &&
         SignalStateAnnouncement.isLteNrRadioAccessType(lteRatBeforeNoSignalEpisode)
 }

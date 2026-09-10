@@ -35,6 +35,35 @@ class SignalMeasurementTierTest {
         assertEquals(Rxss.RSRQ_POOR, SignalMeasurementTier.RSRQ_POOR.rxssNumber)
         assertEquals(Rxss.HOME_2G_NO_SIGNAL, SignalMeasurementTier.G2_NO_SIGNAL.rxssNumber)
         assertEquals(Rxss.CELL_CHANGE, MonitoringAnnouncementKind.CELL_IDENTITY.rxssNumber)
+        assertEquals(Rxss.WIFI_CALLING_NO_SIGNAL, SignalMeasurementTier.WIFI_CALLING.rxssNumber)
+    }
+
+    @Test
+    fun wifiCallingActiveMapsToWifiCallingTierNotNoSignalOrSearching() {
+        val stats = ConnectivityStats(
+            isMonitoring = true,
+            isWifiCallingActive = true,
+            noSignalActive = true,
+            networkModePreference = NetworkModePreference.ALL_TECHNOLOGIES,
+            monitor2gFallbackEnabled = true,
+            signalPermissionGranted = true,
+            cellularAvailable = false,
+            searching2gFallbackActive = false
+        )
+        assertEquals(SignalMeasurementTier.WIFI_CALLING, stats.resolveSignalMeasurementTier(settings))
+        assertTrue(stats.resolveSignalMeasurementTier(settings).isNoSignalRxss())
+    }
+
+    @Test
+    fun wifiCallingInactiveWithNoSignalStillMapsToNoSignalTier() {
+        val stats = ConnectivityStats(
+            isMonitoring = true,
+            isWifiCallingActive = false,
+            noSignalActive = true,
+            signalPermissionGranted = true,
+            cellularAvailable = false
+        )
+        assertEquals(SignalMeasurementTier.NO_SIGNAL, stats.resolveSignalMeasurementTier(settings))
     }
 
     @Test

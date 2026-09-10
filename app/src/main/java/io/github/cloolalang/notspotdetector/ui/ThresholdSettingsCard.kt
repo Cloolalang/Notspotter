@@ -23,6 +23,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.cloolalang.notspotdetector.R
+import io.github.cloolalang.notspotdetector.ui.theme.Sushi
 import io.github.cloolalang.notspotdetector.model.ThresholdSettings
 import kotlin.math.roundToInt
 
@@ -55,7 +56,8 @@ fun ThresholdSettingsCard(
                 Text(
                     text = stringResource(R.string.thresholds_title),
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold
+                    color = Sushi,
+                    fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = if (expanded) "▲" else "▼",

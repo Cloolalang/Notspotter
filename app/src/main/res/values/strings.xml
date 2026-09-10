@@ -105,6 +105,7 @@
     <string name="rxss_state_limited_alt_2g_no_signal">Visited operator 2G limited, no signal</string>
     <string name="rxss_state_rsrq_poor">RSRQ poor</string>
     <string name="rxss_state_home_2g_no_signal">Home 2G no signal</string>
+    <string name="rxss_state_wifi_calling">WiFi calling, no cellular signal</string>
     <string name="passive_signal_rsrp_band_section">RXSS %1$s</string>
     <string name="passive_signal_rsrp_band_click_interval">RXSS %1$s click interval</string>
     <string name="passive_signal_rsrp_band_sound_enabled">RXSS %1$s signal pulse sound</string>
@@ -145,6 +146,8 @@
     <string name="mock_scenario_searching_2g_hint">4G lost, scanning for home 2G — Searching 2G tier and voice after 5 s.</string>
     <string name="mock_scenario_home_5g_endc">Home operator 5G ENDC</string>
     <string name="mock_scenario_home_5g_endc_hint">In service on home 5G NSA (EN-DC, LTE anchor + NR) — RXSS 1–6 from mock RSRP/RSRQ; technology-change voice announces “5 G E N D C”.</string>
+    <string name="mock_scenario_wifi_calling">WiFi calling (no cellular)</string>
+    <string name="mock_scenario_wifi_calling_hint">In service via WiFi calling only, no cellular RAT/RSRP — RXSS 31, “WiFi calling, no cellular signal” voice.</string>
     <string name="passive_signal_settings_reset">Reset to defaults</string>
     <string name="passive_signal_rsrp_section">RSRP tiers</string>
     <string name="passive_signal_g2_section">2G fallback tiers</string>
@@ -224,6 +227,7 @@
     <string name="metric_rsrq_lte">RSRQ (4G)</string>
     <string name="metric_pci">PCI</string>
     <string name="signal_unavailable">—</string>
+    <string name="metric_radio_wifi_calling">Wifi Calling, no mobile data</string>
     <string name="signal_permission_required">Permission needed</string>
     <string name="cell_identity_permission_required">Location needed</string>
     <string name="cell_identity_permission_hint">Android requires location permission to read EARFCN and PCI. The app does not track your GPS position. After allowing location for NotSpotter, turn on the device Location toggle if EARFCN/PCI still show “Location needed”.</string>

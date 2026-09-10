@@ -89,4 +89,25 @@ class NetworkModePreferenceTest {
             computeSearching2gFallbackActive(base.copy(isLimitedService = true), CellularSignalReader.RADIO_4G)
         )
     }
+
+    @Test
+    fun computeSearching2gFallbackActive_falseWhenWifiCallingActive() {
+        val base = ConnectivityStats(
+            isMonitoring = true,
+            noSignalActive = true,
+            monitor2gFallbackEnabled = true,
+            networkModePreference = NetworkModePreference.ALL_TECHNOLOGIES
+        )
+
+        // Without WiFi calling, the conditions are satisfied (regression guard for the false
+        // positive fixed by adding the isWifiCallingActive gate below).
+        assertTrue(computeSearching2gFallbackActive(base, CellularSignalReader.RADIO_4G))
+
+        assertFalse(
+            computeSearching2gFallbackActive(
+                base.copy(isWifiCallingActive = true),
+                CellularSignalReader.RADIO_4G
+            )
+        )
+    }
 }

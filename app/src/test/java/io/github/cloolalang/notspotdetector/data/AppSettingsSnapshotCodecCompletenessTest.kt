@@ -35,6 +35,26 @@ class AppSettingsSnapshotCodecCompletenessTest {
     }
 
     @Test
+    fun roundTripPreservesWifiCallingMockScenario() {
+        val snapshot = fullyCustomizedSnapshot().copy(
+            passiveMockSettings = PassiveMockSettings(
+                enabled = true,
+                scenario = MockNetworkScenario.WIFI_CALLING,
+                rsrpDbm = -112,
+                rsrqDb = -16
+            )
+        ).normalized()
+
+        val encoded = AppSettingsSnapshotCodec.encodeProfile(
+            SettingsProfile(id = "wifi-calling", name = "WiFi calling", savedAtMs = 1L, settings = snapshot)
+        )
+        val decoded = AppSettingsSnapshotCodec.decodeProfile(encoded)
+
+        assertEquals(MockNetworkScenario.WIFI_CALLING, decoded?.settings?.passiveMockSettings?.scenario)
+        assertEquals(snapshot, decoded?.settings)
+    }
+
+    @Test
     fun roundTripPreservesFullyCustomizedSnapshot() {
         val snapshot = fullyCustomizedSnapshot().normalized()
         val encoded = AppSettingsSnapshotCodec.encodeProfiles(

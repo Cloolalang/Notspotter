@@ -158,6 +158,23 @@ Each row is the **agreed trigger state** the mock simulates. Live detection uses
 
 ---
 
+### 8. WiFi calling, no cellular signal — `WIFI_CALLING`
+
+| Field | Value |
+|-------|--------|
+| **Primary RXSS** | **31** |
+| **Operator** | Vodafone home (no cellular camp) |
+| **Tech** | None (`radioAccessType = null`) |
+| **Service** | `networkServiceMode = IN_SERVICE`, `isWifiCallingActive = true`, `isCompleteNoService = false`, `isLimitedService = false` |
+| **Signal** | No RSRP/RSRQ, `cellularAvailable = false` |
+| **Mock slider** | None |
+
+**Not the same as:** RXSS **0** (dead zone — API reports fully out of service) or RXSS **10** / **11** (camped/searching LTE — real WiFi calling reports `IN_SERVICE` with no cellular RAT, which used to be misclassified as **11** before this scenario was added — see [RXSS_CATALOGUE.md](RXSS_CATALOGUE.md)).
+
+**Voice:** **VA-1** / **VA-12** — “Vodafone, wifi calling, no cellular signal”; exit **VA-2** — “Vodafone, cellular signal restored”. See [VOICE_ANNOUNCEMENTS.md](VOICE_ANNOUNCEMENTS.md#rxss-31--wifi-calling-no-cellular-signal).
+
+---
+
 ## Using mock in the app
 
 1. Enable **Mock network state** on the card.
@@ -174,6 +191,6 @@ Each row is the **agreed trigger state** the mock simulates. Live detection uses
 
 Profile JSON stores `passiveMock.scenario` as the enum name:
 
-`HOME_4G` · `HOME_2G` · `ALT_OPERATOR_4G` · `ALT_OPERATOR_2G` · `NO_SERVICE` · `SEARCHING_2G` · `HOME_5G_ENDC`
+`HOME_4G` · `HOME_2G` · `ALT_OPERATOR_4G` · `ALT_OPERATOR_2G` · `NO_SERVICE` · `SEARCHING_2G` · `HOME_5G_ENDC` · `WIFI_CALLING`
 
 Unknown values fall back to `HOME_4G` on import.

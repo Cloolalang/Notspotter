@@ -13,7 +13,9 @@ enum class MockNetworkScenario {
     ALT_OPERATOR_2G,
     NO_SERVICE,
     SEARCHING_2G,
-    HOME_5G_ENDC;
+    HOME_5G_ENDC,
+    /** RXSS 31 — in service via WiFi calling only, no cellular RAT/RSRP. */
+    WIFI_CALLING;
 
     companion object {
         val DEFAULT = HOME_4G
@@ -59,6 +61,7 @@ data class PassiveMockSettings(
             MockNetworkScenario.NO_SERVICE -> noServiceMetrics()
             MockNetworkScenario.SEARCHING_2G -> searching2gMetrics()
             MockNetworkScenario.HOME_5G_ENDC -> home5gEndcMetrics()
+            MockNetworkScenario.WIFI_CALLING -> wifiCallingMetrics()
         }
     }
 
@@ -217,6 +220,28 @@ data class PassiveMockSettings(
         )
     }
 
+    /** RXSS 31 — WiFi calling registered as the in-service transport, no cellular RAT/RSRP. */
+    private fun wifiCallingMetrics(): CellularRadioMetrics {
+        return baseMetrics(
+            rsrpDbm = null,
+            rsrqDb = null,
+            radioAccessType = null,
+            isOn2g = false,
+            isLimitedService = false,
+            networkServiceMode = NetworkServiceMode.IN_SERVICE,
+            isWifiCallingActive = true,
+            hasLimitedServiceOnAnySim = false,
+            isCompleteNoService = false,
+            hasHomeGsmSignal = false,
+            hasLteNrSignal = false,
+            networkOperatorName = MOCK_HOME_OPERATOR,
+            homeNetworkOperatorName = MOCK_HOME_OPERATOR,
+            servingNetworkOperatorName = MOCK_HOME_OPERATOR,
+            plmn = MOCK_HOME_PLMN,
+            homePlmn = MOCK_HOME_PLMN
+        )
+    }
+
     private fun baseMetrics(
         rsrpDbm: Int?,
         rsrqDb: Int?,
@@ -231,6 +256,7 @@ data class PassiveMockSettings(
         isOn2g: Boolean,
         isLimitedService: Boolean,
         networkServiceMode: NetworkServiceMode,
+        isWifiCallingActive: Boolean = false,
         hasLimitedServiceOnAnySim: Boolean,
         isCompleteNoService: Boolean,
         hasHomeGsmSignal: Boolean,
@@ -258,6 +284,7 @@ data class PassiveMockSettings(
             restrictedTo2gNetwork = networkModePreference == NetworkModePreference.FORCED_2G,
             isLimitedService = isLimitedService,
             networkServiceMode = networkServiceMode,
+            isWifiCallingActive = isWifiCallingActive,
             hasLimitedServiceOnAnySim = hasLimitedServiceOnAnySim,
             isCompleteNoService = isCompleteNoService,
             hasHomeGsmSignal = hasHomeGsmSignal,
@@ -315,6 +342,7 @@ fun PassiveMockSettings.toConnectivityStats(
     val hasSignal = when (normalized.scenario) {
         MockNetworkScenario.NO_SERVICE -> false
         MockNetworkScenario.SEARCHING_2G -> false
+        MockNetworkScenario.WIFI_CALLING -> false
         else -> radio.hasUsableSignalForMonitoring(monitor2gFallback, passiveSettings)
     }
     return ConnectivityStats(
@@ -337,6 +365,7 @@ fun PassiveMockSettings.toConnectivityStats(
         restrictedTo2gNetwork = radio.restrictedTo2gNetwork,
         isLimitedService = radio.isLimitedService,
         networkServiceMode = radio.networkServiceMode,
+        isWifiCallingActive = radio.isWifiCallingActive,
         hasLimitedServiceOnAnySim = radio.hasLimitedServiceOnAnySim,
         isCompleteNoService = radio.isCompleteNoService,
         hasHomeGsmSignal = radio.hasHomeGsmSignal,

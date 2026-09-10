@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.sp
 import io.github.cloolalang.notspotdetector.MonitorState
 import io.github.cloolalang.notspotdetector.R
 import io.github.cloolalang.notspotdetector.model.RttSample
+import io.github.cloolalang.notspotdetector.ui.theme.Sushi
 import kotlinx.coroutines.delay
 
 private const val CHART_MIN_RTT_MS = 20f
@@ -65,7 +66,8 @@ fun RttGraphCard(
             Text(
                 text = stringResource(R.string.rtt_graph_title),
                 style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold
+                color = Sushi,
+                fontWeight = FontWeight.Bold
             )
 
             Row(

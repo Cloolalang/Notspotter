@@ -38,6 +38,7 @@ import io.github.cloolalang.notspotdetector.model.G2_STRONG_TIER_NUMBER
 import io.github.cloolalang.notspotdetector.model.G2_WEAK_TIER_NUMBER
 import io.github.cloolalang.notspotdetector.model.LIMITED_ALT_2G_TIER_NUMBER
 import io.github.cloolalang.notspotdetector.model.levelRangeAbcdMaxPulseDurationMs
+import io.github.cloolalang.notspotdetector.ui.theme.Sushi
 import io.github.cloolalang.notspotdetector.model.levelRangeAbcdMinClickIntervalMs
 import io.github.cloolalang.notspotdetector.model.LIMITED_SERVICE_TIER_NUMBER
 import io.github.cloolalang.notspotdetector.model.NO_SIGNAL_TIER_NUMBER
@@ -119,7 +120,8 @@ fun PassiveSignalSettingsCard(
                 Text(
                     text = stringResource(R.string.passive_signal_settings_title),
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold
+                    color = Sushi,
+                    fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = if (expanded) "▲" else "▼",

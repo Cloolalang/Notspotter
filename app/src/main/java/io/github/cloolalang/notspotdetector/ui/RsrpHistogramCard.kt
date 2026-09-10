@@ -39,6 +39,7 @@ import io.github.cloolalang.notspotdetector.model.RsrpHistogram
 import io.github.cloolalang.notspotdetector.model.RsrpHistogramBand
 import io.github.cloolalang.notspotdetector.model.RsrpSample
 import io.github.cloolalang.notspotdetector.model.coerceToHistogramWindowStep
+import io.github.cloolalang.notspotdetector.ui.theme.Sushi
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 
@@ -78,7 +79,8 @@ fun RsrpHistogramCard(
             Text(
                 text = stringResource(R.string.rsrp_histogram_title),
                 style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold
+                color = Sushi,
+                fontWeight = FontWeight.Bold
             )
             Text(
                 text = stringResource(R.string.rsrp_histogram_summary),

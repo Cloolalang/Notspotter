@@ -27,6 +27,7 @@ import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
 import io.github.cloolalang.notspotdetector.model.SimSubscriptionOption
 import io.github.cloolalang.notspotdetector.network.SimSubscriptionHelper
+import io.github.cloolalang.notspotdetector.ui.theme.Sushi
 import kotlin.math.roundToInt
 
 @Composable
@@ -58,7 +59,8 @@ fun MonitoringSettingsCard(
                 Text(
                     text = stringResource(R.string.monitoring_settings_title),
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold
+                    color = Sushi,
+                    fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = if (expanded) "▲" else "▼",

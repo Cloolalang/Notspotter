@@ -56,9 +56,11 @@ import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerChoice
 import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerOption
 import io.github.cloolalang.notspotdetector.model.SignalMeasurementTier
 import io.github.cloolalang.notspotdetector.model.RSRQ_POOR_TIER_NUMBER
+import io.github.cloolalang.notspotdetector.model.isInNoSignalRxss
 import io.github.cloolalang.notspotdetector.model.isRsrqPoor
 import io.github.cloolalang.notspotdetector.model.resolveLimitedServiceSignalOverlayRxss
 import io.github.cloolalang.notspotdetector.model.resolveSignalMeasurementTier
+import io.github.cloolalang.notspotdetector.ui.theme.Sushi
 
 @Composable
 fun MonitorScreen(
@@ -404,7 +406,8 @@ private fun MasterVoiceAnnouncementsToggle(
                 Text(
                     text = stringResource(R.string.audio_master_voice_announcements),
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Medium
+                    color = Sushi,
+                    fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = stringResource(R.string.audio_master_voice_announcements_hint),
@@ -474,7 +477,8 @@ private fun MetricsCard(
             Text(
                 text = stringResource(R.string.metrics_title),
                 style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold
+                color = Sushi,
+                fontWeight = FontWeight.Bold
             )
 
             MetricRow(
@@ -497,9 +501,9 @@ private fun MetricsCard(
             )
             MetricRow(
                 label = stringResource(R.string.metric_radio),
-                value = stats.radioAccessType ?: stringResource(R.string.signal_unavailable)
+                value = formatRadioAccessType(stats)
             )
-            CellIdentityMetrics(stats = stats)
+            CellIdentityMetrics(stats = stats, passiveSignalSettings = passiveSignalSettings)
             if (!stats.cellIdentityPermissionGranted) {
                 Text(
                     text = stringResource(R.string.cell_identity_permission_hint),
@@ -566,63 +570,77 @@ private fun MetricsCard(
 }
 
 @Composable
-private fun CellIdentityMetrics(stats: ConnectivityStats) {
+private fun CellIdentityMetrics(
+    stats: ConnectivityStats,
+    passiveSignalSettings: PassiveSignalSettings
+) {
     val permissionGranted = stats.cellIdentityPermissionGranted
+    // Any no-signal RXSS (dead zone, LTE/NR/2G no signal, searching 2G, WiFi calling, etc.) can
+    // still carry a stale EARFCN/PCI/BSIC/band forward from CellIdentityStabilizer's coalescing —
+    // that cell is no longer valid, so blank these fields out rather than show last-known values.
+    val staleNoSignal = stats.isInNoSignalRxss(passiveSignalSettings)
+    val lteEarfcn = stats.lteEarfcn.takeUnless { staleNoSignal }
+    val ltePci = stats.ltePci.takeUnless { staleNoSignal }
+    val nrEarfcn = stats.nrEarfcn.takeUnless { staleNoSignal }
+    val nrPci = stats.nrPci.takeUnless { staleNoSignal }
+    val nrBand = stats.nrBand.takeUnless { staleNoSignal }
+    val gsmEarfcn = stats.gsmEarfcn.takeUnless { staleNoSignal }
+    val gsmBsic = stats.gsmBsic.takeUnless { staleNoSignal }
     when (stats.radioAccessType) {
         CellularSignalReader.RADIO_5G_ENDC -> {
             MetricRow(
                 label = stringResource(R.string.metric_lte_earfcn),
-                value = formatCellIdentityValue(stats.lteEarfcn, permissionGranted)
+                value = formatCellIdentityValue(lteEarfcn, permissionGranted)
             )
             MetricRow(
                 label = stringResource(R.string.metric_lte_pci),
-                value = formatCellIdentityValue(stats.ltePci, permissionGranted)
+                value = formatCellIdentityValue(ltePci, permissionGranted)
             )
             MetricRow(
                 label = stringResource(R.string.metric_nr_arfcn),
-                value = formatCellIdentityValue(stats.nrEarfcn, permissionGranted)
+                value = formatCellIdentityValue(nrEarfcn, permissionGranted)
             )
             MetricRow(
                 label = stringResource(R.string.metric_nr_pci),
-                value = formatCellIdentityValue(stats.nrPci, permissionGranted)
+                value = formatCellIdentityValue(nrPci, permissionGranted)
             )
             MetricRow(
                 label = stringResource(R.string.metric_nr_band),
-                value = formatNrBandValue(stats.nrBand, permissionGranted)
+                value = formatNrBandValue(nrBand, permissionGranted)
             )
         }
         CellularSignalReader.RADIO_5G -> {
             MetricRow(
                 label = stringResource(R.string.metric_nr_arfcn),
-                value = formatCellIdentityValue(stats.nrEarfcn, permissionGranted)
+                value = formatCellIdentityValue(nrEarfcn, permissionGranted)
             )
             MetricRow(
                 label = stringResource(R.string.metric_nr_pci),
-                value = formatCellIdentityValue(stats.nrPci, permissionGranted)
+                value = formatCellIdentityValue(nrPci, permissionGranted)
             )
             MetricRow(
                 label = stringResource(R.string.metric_nr_band),
-                value = formatNrBandValue(stats.nrBand, permissionGranted)
+                value = formatNrBandValue(nrBand, permissionGranted)
             )
         }
         CellularSignalReader.RADIO_2G -> {
             MetricRow(
                 label = stringResource(R.string.metric_gsm_arfcn),
-                value = formatCellIdentityValue(stats.gsmEarfcn, permissionGranted)
+                value = formatCellIdentityValue(gsmEarfcn, permissionGranted)
             )
             MetricRow(
                 label = stringResource(R.string.metric_gsm_bsic),
-                value = formatCellIdentityValue(stats.gsmBsic, permissionGranted)
+                value = formatCellIdentityValue(gsmBsic, permissionGranted)
             )
         }
         else -> {
             MetricRow(
                 label = stringResource(R.string.metric_earfcn),
-                value = formatCellIdentityValue(stats.lteEarfcn, permissionGranted)
+                value = formatCellIdentityValue(lteEarfcn, permissionGranted)
             )
             MetricRow(
                 label = stringResource(R.string.metric_pci),
-                value = formatCellIdentityValue(stats.ltePci, permissionGranted)
+                value = formatCellIdentityValue(ltePci, permissionGranted)
             )
         }
     }
@@ -660,6 +678,15 @@ private fun formatServiceState(stats: ConnectivityStats): String {
         NetworkServiceMode.OUT_OF_SERVICE -> stringResource(R.string.service_state_no_service)
         NetworkServiceMode.UNKNOWN -> stringResource(R.string.service_state_unknown)
     }
+}
+
+@Composable
+private fun formatRadioAccessType(stats: ConnectivityStats): String {
+    stats.radioAccessType?.let { return it }
+    if (stats.isWifiCallingActive) {
+        return stringResource(R.string.metric_radio_wifi_calling)
+    }
+    return stringResource(R.string.signal_unavailable)
 }
 
 @Composable
