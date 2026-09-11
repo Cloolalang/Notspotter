@@ -37,7 +37,6 @@ fun MonitorApp(
     val voiceAnnouncerOptions by viewModel.voiceAnnouncerOptions.collectAsStateWithLifecycle()
     val settingsProfiles by viewModel.settingsProfiles.collectAsStateWithLifecycle()
     val rttHistory by viewModel.rttHistory.collectAsStateWithLifecycle()
-    val rsrpHistory by viewModel.rsrpHistory.collectAsStateWithLifecycle()
     val carrierConfigSnapshot by viewModel.carrierConfigSnapshot.collectAsStateWithLifecycle()
 
     var phoneStatePermissionGranted by remember {
@@ -71,7 +70,6 @@ fun MonitorApp(
             voiceAnnouncerOptions = voiceAnnouncerOptions,
             settingsProfiles = settingsProfiles,
             rttHistory = rttHistory,
-            rsrpHistory = rsrpHistory,
             isRunning = isRunning,
             onStart = {
                 // "Start monitoring" starts passive (signal-only) monitoring — see

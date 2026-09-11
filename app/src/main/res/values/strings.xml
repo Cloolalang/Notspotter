@@ -284,15 +284,7 @@
     <string name="rtt_graph_empty">Waiting for RTT samples…</string>
     <string name="rtt_graph_time_start">−60 s</string>
     <string name="rtt_graph_time_now">Now</string>
-    <string name="rsrp_histogram_title">RF signal level Histogram (all technologies)</string>
-    <string name="rsrp_histogram_summary">−70 to −126 dBm · 5 dB bins · active bins only</string>
     <string name="rsrp_histogram_window_label">Sample window</string>
-    <string name="rsrp_histogram_empty">Waiting for RSRP samples…</string>
-    <string name="rsrp_histogram_bin_label">%1$d</string>
-    <string name="rsrp_histogram_sample_count">%1$d samples in window</string>
-    <string name="rsrp_histogram_sample_count_active">%1$d samples · %2$d active bins</string>
-    <string name="rsrp_histogram_bin_percent">%1$d%%</string>
-    <string name="rsrp_histogram_null_bin_label">N/A</string>
     <string name="histogram_controls_title">Histogram controls</string>
     <string name="histogram_controls_summary">Adjust the RSRP histogram\'s sample window.</string>
     <string name="audio_volume_title">Global alert sound settings</string>

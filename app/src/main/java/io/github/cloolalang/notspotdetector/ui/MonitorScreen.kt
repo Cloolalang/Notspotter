@@ -47,7 +47,6 @@ import io.github.cloolalang.notspotdetector.model.PassiveMockSettings
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
 import io.github.cloolalang.notspotdetector.model.SettingsCompatibility
 import io.github.cloolalang.notspotdetector.model.PingSettings
-import io.github.cloolalang.notspotdetector.model.RsrpSample
 import io.github.cloolalang.notspotdetector.model.RttSample
 import io.github.cloolalang.notspotdetector.model.ProfileExportOutcome
 import io.github.cloolalang.notspotdetector.model.ProfileImportResult
@@ -82,7 +81,6 @@ fun MonitorScreen(
     voiceAnnouncerOptions: List<VoiceAnnouncerOption>,
     settingsProfiles: List<SettingsProfileSummary>,
     rttHistory: List<RttSample>,
-    rsrpHistory: List<RsrpSample>,
     isRunning: Boolean,
     onStart: () -> Unit,
     onStop: () -> Unit,
@@ -199,12 +197,6 @@ fun MonitorScreen(
             isRunning = isRunning,
             onStart = onStart,
             onStop = onStop
-        )
-
-        RsrpHistogramCard(
-            samples = rsrpHistory,
-            windowMs = monitoringSettings.rsrpHistogramWindowMs,
-            isActive = isRunning
         )
 
         if (isRunning) {

@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Documentation** — [MOCK_NETWORK_SCENARIOS.md](MOCK_NETWORK_SCENARIOS.md) (agreed mock trigger states per scenario) and [SETTINGS_PROFILES.md](SETTINGS_PROFILES.md) (profile JSON capture scope, including full `passiveMock` block). Updated [RXSS_CATALOGUE.md](RXSS_CATALOGUE.md), [VOICE_ANNOUNCEMENTS.md](VOICE_ANNOUNCEMENTS.md), and [README.md](README.md) cross-links; RXSS **0**, **11**, **12**, **20**, **23** rows reflect current voice implementation.
 
+## [2.16.1] - 2026-09-11
+
+### Removed
+
+- Removed the "RF signal level Histogram" panel (the bar-chart display of RSRP samples). The "Histogram controls" panel and underlying sample recording remain in place for now, ready to be re-connected if the histogram display returns in a future update.
+
 ## [2.16.0] - 2026-09-11
 
 ### Changed
