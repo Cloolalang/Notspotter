@@ -11,6 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Documentation** — [MOCK_NETWORK_SCENARIOS.md](MOCK_NETWORK_SCENARIOS.md) (agreed mock trigger states per scenario) and [SETTINGS_PROFILES.md](SETTINGS_PROFILES.md) (profile JSON capture scope, including full `passiveMock` block). Updated [RXSS_CATALOGUE.md](RXSS_CATALOGUE.md), [VOICE_ANNOUNCEMENTS.md](VOICE_ANNOUNCEMENTS.md), and [README.md](README.md) cross-links; RXSS **0**, **11**, **12**, **20**, **23** rows reflect current voice implementation.
 
+## [2.19.0] - 2026-09-11
+
+### Changed
+
+- Added a new "Global voice settings" panel (inside **General App settings**) combining voice announcer selection with the app-wide "speak operator name"/"speak technology" preferences; removed the now-empty standalone "VA — Voice announcement preferences" panel.
+- Renamed "Global alert sound settings" to "Alert sound settings" and moved it into **Active mode testing**; its voice-announcer picker moved into the new "Global voice settings" panel.
+- Moved "Mock network state" from **Passive mode monitoring** into **Development area**.
+- Moved the master voice-announcements switch into the **Passive mode monitoring** panel.
+
 ## [2.18.0] - 2026-09-11
 
 ### Changed

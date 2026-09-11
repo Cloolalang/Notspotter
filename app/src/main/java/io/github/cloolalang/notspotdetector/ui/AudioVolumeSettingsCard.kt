@@ -12,7 +12,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -24,20 +23,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.cloolalang.notspotdetector.R
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
-import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerChoice
-import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerOption
 import io.github.cloolalang.notspotdetector.ui.theme.Sushi
 import kotlin.math.roundToInt
 
 @Composable
 fun AudioVolumeSettingsCard(
     audioVolumes: AudioVolumeSettings,
-    voiceAnnouncerOptions: List<VoiceAnnouncerOption>,
     previewEnabled: Boolean,
     signalPulsePreviewRepeatIntervalMs: Long,
-    onVoiceAnnouncerChoiceChange: (VoiceAnnouncerChoice) -> Unit,
-    onRefreshVoiceAnnouncerOptions: () -> Unit,
-    onPreviewVoiceAnnouncer: () -> Unit,
     onPingClickVolumeChange: (Float) -> Unit,
     onLowSignalClickVolumeChange: (Float) -> Unit,
     onSignalPulseFrequencyChange: (Int) -> Unit,
@@ -81,10 +74,6 @@ fun AudioVolumeSettingsCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                LaunchedEffect(Unit) {
-                    onRefreshVoiceAnnouncerOptions()
-                }
-
                 if (!previewEnabled) {
                     Text(
                         text = stringResource(R.string.audio_volume_test_disabled_hint),
@@ -92,14 +81,6 @@ fun AudioVolumeSettingsCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-
-                VoiceAnnouncerSelector(
-                    selectedChoice = audioVolumes.voiceAnnouncerChoice,
-                    options = voiceAnnouncerOptions,
-                    previewEnabled = previewEnabled,
-                    onChoiceChange = onVoiceAnnouncerChoiceChange,
-                    onPreview = onPreviewVoiceAnnouncer
-                )
 
                 VolumeSlider(
                     label = stringResource(R.string.audio_volume_ping_clicks),

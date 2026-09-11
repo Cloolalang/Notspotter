@@ -190,11 +190,6 @@ fun MonitorScreen(
             )
         }
 
-        MasterVoiceAnnouncementsToggle(
-            enabled = audioVolumes.masterVoiceAnnouncementsEnabled,
-            onEnabledChange = onMasterVoiceAnnouncementsEnabledChange
-        )
-
         MonitoringControlButtons(
             isRunning = isRunning,
             onStart = onStart,
@@ -259,6 +254,11 @@ fun MonitorScreen(
         }
 
         TopLevelSectionCard(title = stringResource(R.string.top_level_passive_mode_monitoring)) {
+            MasterVoiceAnnouncementsToggle(
+                enabled = audioVolumes.masterVoiceAnnouncementsEnabled,
+                onEnabledChange = onMasterVoiceAnnouncementsEnabledChange
+            )
+
             MonitoringSettingsCard(
                 monitoringSettings = monitoringSettings,
                 passiveSignalSettings = passiveSignalSettings,
@@ -268,11 +268,6 @@ fun MonitorScreen(
                 onPassiveQuietUntilCriticalChange = onPassiveQuietUntilCriticalChange,
                 onPassiveSignalSettingsChange = onPassiveSignalSettingsChange,
                 onSubscriptionChange = onSubscriptionChange
-            )
-
-            MockNetworkStateCard(
-                mockSettings = passiveMockSettings,
-                onMockSettingsChange = onPassiveMockSettingsChange
             )
         }
 
@@ -350,6 +345,23 @@ fun MonitorScreen(
                 onGoodConnectionClicksPerPingChange = onGoodConnectionClicksPerPingChange,
                 onReset = onResetThresholds
             )
+
+            AudioVolumeSettingsCard(
+                audioVolumes = audioVolumes,
+                previewEnabled = !isRunning,
+                signalPulsePreviewRepeatIntervalMs = SettingsCompatibility.resolveTierClickIntervalMs(
+                    configuredMs = passiveSignalSettings.levelRangeAbcdClickIntervalMs.toLong(),
+                    signalPulseDurationMs = audioVolumes.signalPulseDurationMs,
+                    isPassiveOnlySession = true
+                ),
+                onPingClickVolumeChange = onPingClickVolumeChange,
+                onLowSignalClickVolumeChange = onLowSignalClickVolumeChange,
+                onSignalPulseFrequencyChange = onSignalPulseFrequencyChange,
+                onSignalPulseDurationChange = onSignalPulseDurationChange,
+                onPreviewPingClick = onPreviewPingClick,
+                onPreviewLowSignalClick = onPreviewLowSignalClick,
+                onReset = onResetAudioVolumes
+            )
         }
 
         TopLevelSectionCard(title = stringResource(R.string.top_level_general_app_settings)) {
@@ -363,36 +375,26 @@ fun MonitorScreen(
                 onExportProfileToDownloads = onExportSettingsProfileToDownloads
             )
 
-            AudioVolumeSettingsCard(
-                audioVolumes = audioVolumes,
+            GlobalVoiceSettingsCard(
+                voiceAnnouncerChoice = audioVolumes.voiceAnnouncerChoice,
                 voiceAnnouncerOptions = voiceAnnouncerOptions,
                 previewEnabled = !isRunning,
-                signalPulsePreviewRepeatIntervalMs = SettingsCompatibility.resolveTierClickIntervalMs(
-                    configuredMs = passiveSignalSettings.levelRangeAbcdClickIntervalMs.toLong(),
-                    signalPulseDurationMs = audioVolumes.signalPulseDurationMs,
-                    isPassiveOnlySession = true
-                ),
+                speakOperatorNameEnabled = audioVolumes.speakOperatorNameEnabled,
+                speakTechnologyEnabled = audioVolumes.speakTechnologyEnabled,
                 onVoiceAnnouncerChoiceChange = onVoiceAnnouncerChoiceChange,
                 onRefreshVoiceAnnouncerOptions = onRefreshVoiceAnnouncerOptions,
                 onPreviewVoiceAnnouncer = onPreviewVoiceAnnouncer,
-                onPingClickVolumeChange = onPingClickVolumeChange,
-                onLowSignalClickVolumeChange = onLowSignalClickVolumeChange,
-                onSignalPulseFrequencyChange = onSignalPulseFrequencyChange,
-                onSignalPulseDurationChange = onSignalPulseDurationChange,
-                onPreviewPingClick = onPreviewPingClick,
-                onPreviewLowSignalClick = onPreviewLowSignalClick,
-                onReset = onResetAudioVolumes
-            )
-
-            VoiceAnnouncementPreferencesCard(
-                speakOperatorNameEnabled = audioVolumes.speakOperatorNameEnabled,
-                speakTechnologyEnabled = audioVolumes.speakTechnologyEnabled,
                 onSpeakOperatorNameEnabledChange = onSpeakOperatorNameEnabledChange,
                 onSpeakTechnologyEnabledChange = onSpeakTechnologyEnabledChange
             )
         }
 
         TopLevelSectionCard(title = stringResource(R.string.top_level_development_area)) {
+            MockNetworkStateCard(
+                mockSettings = passiveMockSettings,
+                onMockSettingsChange = onPassiveMockSettingsChange
+            )
+
             CarrierConfigCard(
                 snapshot = carrierConfigSnapshot,
                 phoneStatePermissionGranted = phoneStatePermissionGranted,

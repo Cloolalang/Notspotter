@@ -298,8 +298,10 @@
     <string name="rsrp_histogram_sample_count_active">%1$d samples · %2$d active bins</string>
     <string name="rsrp_histogram_bin_percent">%1$d%%</string>
     <string name="rsrp_histogram_null_bin_label">N/A</string>
-    <string name="audio_volume_title">Global alert sound settings</string>
-    <string name="audio_volume_summary">Voice announcer, connection-test clicks, shared signal-pulse loudness, and cell-change alerts. Per-RXSS voice and tones are under Passive signal thresholds and alert settings.</string>
+    <string name="audio_volume_title">Alert sound settings</string>
+    <string name="audio_volume_summary">Connection-test clicks, shared signal-pulse loudness, and cell-change alerts. Per-RXSS tones are under Passive signal thresholds and alert settings; voice announcer settings live in Global voice settings.</string>
+    <string name="global_voice_settings_title">Global voice settings</string>
+    <string name="global_voice_settings_summary">Voice announcer selection and the app-wide options that apply to every spoken announcement (cell reselect, technology change, no-signal, limited service, signal low, dead zone, searching 2 G, and 2 G camped).</string>
     <string name="audio_volume_test">Test</string>
     <string name="audio_volume_test_disabled_hint">Stop monitoring to use Test buttons.</string>
     <string name="audio_volume_ping_clicks">Connection test clicks</string>
@@ -312,8 +314,6 @@
     <string name="audio_volume_cell_change_bell">Cell change bell</string>
     <string name="audio_master_voice_announcements">Voice announcements</string>
     <string name="audio_master_voice_announcements_hint">Master switch for all spoken voice announcements. Turning this off mutes every voice announcement without changing your individual voice settings below; tones, bells, clicks, and vibration are unaffected.</string>
-    <string name="voice_announcement_preferences_title">VA — Voice announcement preferences</string>
-    <string name="voice_announcement_preferences_summary">Global options that apply to every spoken voice announcement app-wide (cell reselect, technology change, no-signal, limited service, signal low, dead zone, searching 2 G, and 2 G camped).</string>
     <string name="voice_announcement_speak_operator_name">Speak operator name</string>
     <string name="voice_announcement_speak_operator_name_hint">When off, the operator name (e.g. “E E”) is omitted from every voice announcement.</string>
     <string name="voice_announcement_speak_technology">Speak technology (2 G/4 G/5 G)</string>
