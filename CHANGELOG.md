@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Documentation** — [MOCK_NETWORK_SCENARIOS.md](MOCK_NETWORK_SCENARIOS.md) (agreed mock trigger states per scenario) and [SETTINGS_PROFILES.md](SETTINGS_PROFILES.md) (profile JSON capture scope, including full `passiveMock` block). Updated [RXSS_CATALOGUE.md](RXSS_CATALOGUE.md), [VOICE_ANNOUNCEMENTS.md](VOICE_ANNOUNCEMENTS.md), and [README.md](README.md) cross-links; RXSS **0**, **11**, **12**, **20**, **23** rows reflect current voice implementation.
 
+## [2.18.0] - 2026-09-11
+
+### Changed
+
+- Restored the live RSRP histogram display, now shown inside the "Level histogram" panel (previously "Histogram controls") alongside its sample window slider, so the histogram is visible again while monitoring/testing is on.
+- Renamed the "Histogram controls" panel to "Level histogram".
+- Moved "Active mode alert thresholds" into the **Active mode testing** top-level panel, alongside "Ping settings".
+
 ## [2.17.0] - 2026-09-11
 
 ### Changed
