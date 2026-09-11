@@ -72,7 +72,7 @@
     <string name="passive_signal_rxss1_click_volume">Signal pulse volume</string>
     <string name="passive_signal_rxss1_click_volume_hint">Used by signal high (RXSS 1), RXSS 2, and signal low (RXSS 6). Also under Global alert sound settings.</string>
     <string name="passive_signal_rxss1_pulse_duration_hint">Shared with the global signal pulse duration under Global alert sound settings.</string>
-    <string name="passive_signal_level_range_bcd_section">RXSS 2–5 · shared signal pulse</string>
+    <string name="passive_signal_level_range_bcd_section">RXSS 2-5 common settings</string>
     <string name="passive_signal_level_range_bcd_section_hint">Volume and frequency shared by RXSS 2–5. Each tier below keeps its own enable toggle, RSRP boundary, pulse duration, and click interval.</string>
     <string name="passive_signal_level_range_bcd_volume">Signal pulse volume</string>
     <string name="passive_signal_level_range_bcd_frequency">Signal pulse frequency</string>
@@ -153,13 +153,10 @@
     <string name="mock_scenario_wifi_calling">WiFi calling (no cellular)</string>
     <string name="mock_scenario_wifi_calling_hint">In service via WiFi calling only, no cellular RAT/RSRP — RXSS 31, “WiFi calling, no cellular signal” voice.</string>
     <string name="passive_signal_settings_reset">Reset to defaults</string>
-    <string name="passive_signal_rsrp_section">RSRP tiers</string>
-    <string name="passive_signal_g2_section">2G fallback tiers</string>
     <string name="passive_signal_g2_section_hint">Used instead of RXSS 1–6 when 2G fallback is enabled and the phone is on 2G. Split at %1$d dBm: RXSS 7 at or above, RXSS 8 below.</string>
     <string name="passive_signal_g2_tier7_threshold">2G only — RX level at or above %1$d dBm</string>
     <string name="passive_signal_g2_tier8_threshold">2G only — RX level below %1$d dBm</string>
     <string name="passive_signal_g2_no_signal_tier_threshold">Home 2G camp, debounced no signal — separate from LTE/NR RXSS 10</string>
-    <string name="passive_signal_deadzone_section">Dead zone (RXSS 0)</string>
     <string name="passive_signal_deadzone_section_hint">Used when there is no signal from any network or technology (out of service everywhere, no limited service). RXSS 0 clicks replace the continuous flatline tone when enabled.</string>
     <string name="passive_signal_camp_tiers_section">Not-spot camp tiers</string>
     <string name="passive_signal_camp_tiers_section_hint">Camp states during not-spot hunting (RXSS 10, 15, 11, 12, 13). Each block has signal pulses and, where applicable, voice and alert tone controls below.</string>

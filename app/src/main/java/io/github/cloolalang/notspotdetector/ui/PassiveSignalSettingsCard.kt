@@ -166,27 +166,6 @@ fun PassiveSignalSettingsCard(
                     onPreviewSignalPulse = onPreviewSignalPulse
                 )
 
-                Text(
-                    text = stringResource(R.string.passive_signal_rsrp_section),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium
-                )
-                Text(
-                    text = stringResource(
-                        R.string.passive_signal_rsrp_section_hint,
-                        PassiveSignalSettings.MIN_RSRP_DBM,
-                        PassiveSignalSettings.MAX_RSRP_DBM
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Text(
-                    text = stringResource(R.string.passive_signal_rsrp_order_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
                 RsrpTierSettings(
                     settings = settings,
                     audioVolumes = audioVolumes,
@@ -1157,25 +1136,19 @@ private fun G2TierSettings(
     onPreviewLowSignalClick: (frequencyHz: Int, pulseDurationMs: Int) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text(
-            text = stringResource(R.string.passive_signal_g2_section),
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium
-        )
-        Text(
-            text = stringResource(
-                R.string.passive_signal_g2_section_hint,
-                PassiveSignalSettings.G2_TIER_RX_LEVEL_SPLIT_DBM
-            ),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
         TierSettingSection(
             tierNumber = G2_STRONG_TIER_NUMBER,
             accentColor = SignalTierColors.forTierNumber(G2_STRONG_TIER_NUMBER)
         ) {
             val accent = SignalTierColors.forTierNumber(G2_STRONG_TIER_NUMBER)
+            Text(
+                text = stringResource(
+                    R.string.passive_signal_g2_section_hint,
+                    PassiveSignalSettings.G2_TIER_RX_LEVEL_SPLIT_DBM
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             RxssSectionControlsOrdered(
                 accentColor = accent,
                 showSignalPulseSubsection = true,
@@ -1332,6 +1305,11 @@ private fun G2TierSettings(
     }
 }
 
+/**
+ * Collapsible sub-panel ("RXSS 2-5 common settings") for the signal-pulse volume/frequency
+ * shared by RXSS 2-5 (Level Ranges A-D). Each of those tiers still keeps its own enable toggle,
+ * RSRP boundary, pulse duration, and click interval in its own [TierSettingSection].
+ */
 @Composable
 private fun LevelRangeBcdSharedSoundControls(
     settings: PassiveSignalSettings,
@@ -1349,39 +1327,76 @@ private fun LevelRangeBcdSharedSoundControls(
         settings.levelRangeAbcdMinClickIntervalMs(),
         sharedFloorPulseDurationMs
     )
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            text = stringResource(R.string.passive_signal_level_range_bcd_section),
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = accentColor
-        )
-        Text(
-            text = stringResource(R.string.passive_signal_level_range_bcd_section_hint),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        RxssSignalPulseSubsectionTitle(accentColor = accentColor)
-        RxssVolumeSlider(
-            label = stringResource(R.string.passive_signal_level_range_bcd_volume),
-            value = audioVolumes.levelRangeBcdClickVolume,
-            onValueChange = onLevelRangeBcdClickVolumeChange,
-            previewEnabled = previewEnabled,
-            onPreview = {
-                onPreviewLevelRangeBcdClick(
-                    audioVolumes.levelRangeBcdPulseFrequencyHz,
-                    sharedFloorPulseDurationMs
+    var expanded by rememberSaveable { mutableStateOf(false) }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded },
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.passive_signal_level_range_bcd_section),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = accentColor
                 )
-            },
-            previewRepeatIntervalMs = previewRepeatIntervalMs,
-            accentColor = accentColor
-        )
-        TierPulseFrequencySlider(
-            label = stringResource(R.string.passive_signal_level_range_bcd_frequency),
-            frequencyHz = audioVolumes.levelRangeBcdPulseFrequencyHz,
-            accentColor = accentColor,
-            onFrequencyChange = onLevelRangeBcdPulseFrequencyChange
-        )
+                Text(
+                    text = if (expanded) "▲" else "▼",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            if (expanded) {
+                Text(
+                    text = stringResource(
+                        R.string.passive_signal_rsrp_section_hint,
+                        PassiveSignalSettings.MIN_RSRP_DBM,
+                        PassiveSignalSettings.MAX_RSRP_DBM
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = stringResource(R.string.passive_signal_rsrp_order_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = stringResource(R.string.passive_signal_level_range_bcd_section_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                RxssSignalPulseSubsectionTitle(accentColor = accentColor)
+                RxssVolumeSlider(
+                    label = stringResource(R.string.passive_signal_level_range_bcd_volume),
+                    value = audioVolumes.levelRangeBcdClickVolume,
+                    onValueChange = onLevelRangeBcdClickVolumeChange,
+                    previewEnabled = previewEnabled,
+                    onPreview = {
+                        onPreviewLevelRangeBcdClick(
+                            audioVolumes.levelRangeBcdPulseFrequencyHz,
+                            sharedFloorPulseDurationMs
+                        )
+                    },
+                    previewRepeatIntervalMs = previewRepeatIntervalMs,
+                    accentColor = accentColor
+                )
+                TierPulseFrequencySlider(
+                    label = stringResource(R.string.passive_signal_level_range_bcd_frequency),
+                    frequencyHz = audioVolumes.levelRangeBcdPulseFrequencyHz,
+                    accentColor = accentColor,
+                    onFrequencyChange = onLevelRangeBcdPulseFrequencyChange
+                )
+            }
+        }
     }
 }
 
@@ -1411,22 +1426,16 @@ private fun DeadzoneTierSettings(
     onPreviewSignalPulse: (volume: Float, frequencyHz: Int, pulseDurationMs: Int) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text(
-            text = stringResource(R.string.passive_signal_deadzone_section),
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium
-        )
-        Text(
-            text = stringResource(R.string.passive_signal_deadzone_section_hint),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
         TierSettingSection(
             tierNumber = DEADZONE_TIER_NUMBER,
             accentColor = SignalTierColors.forTierNumber(DEADZONE_TIER_NUMBER)
         ) {
             val accent = SignalTierColors.forTierNumber(DEADZONE_TIER_NUMBER)
+            Text(
+                text = stringResource(R.string.passive_signal_deadzone_section_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             RxssSectionControlsOrdered(
                 accentColor = accent,
                 showSignalPulseSubsection = true,

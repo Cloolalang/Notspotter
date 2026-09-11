@@ -11,6 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Documentation** — [MOCK_NETWORK_SCENARIOS.md](MOCK_NETWORK_SCENARIOS.md) (agreed mock trigger states per scenario) and [SETTINGS_PROFILES.md](SETTINGS_PROFILES.md) (profile JSON capture scope, including full `passiveMock` block). Updated [RXSS_CATALOGUE.md](RXSS_CATALOGUE.md), [VOICE_ANNOUNCEMENTS.md](VOICE_ANNOUNCEMENTS.md), and [README.md](README.md) cross-links; RXSS **0**, **11**, **12**, **20**, **23** rows reflect current voice implementation.
 
+## [2.21.0] - 2026-09-11
+
+### Added
+
+- New collapsible "RXSS 2-5 common settings" sub-panel inside "Passive signal thresholds and alert settings", holding the signal-pulse volume/frequency shared by RXSS 2–5 (Level Ranges A–D). Each of those tiers still keeps its own enable toggle, RSRP boundary, pulse duration, and click interval in its own collapsible tier panel.
+
+### Changed
+
+- Decluttered the always-visible parts of "Passive signal thresholds and alert settings": the "RSRP tiers" group header and its "signal range is fixed…" / "RXSS 1 sits above…" hints moved into the new "RXSS 2-5 common settings" panel; the "Dead zone (RXSS 0)" and "2G fallback tiers" group headers/hints moved inside their own tier's collapsible panel (removing the now-redundant duplicate titles).
+
 ## [2.20.0] - 2026-09-11
 
 ### Added
