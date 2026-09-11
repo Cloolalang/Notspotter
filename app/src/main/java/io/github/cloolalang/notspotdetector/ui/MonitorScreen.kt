@@ -249,6 +249,7 @@ fun MonitorScreen(
                 stats = stats,
                 monitoringSettings = monitoringSettings,
                 passiveSignalSettings = passiveSignalSettings,
+                passiveMockSettings = passiveMockSettings,
                 onRequestCellIdentityPermission = onRequestCellIdentityPermission
             )
         }
@@ -489,18 +490,23 @@ private fun MetricsCard(
     stats: ConnectivityStats,
     monitoringSettings: MonitoringSettings,
     passiveSignalSettings: PassiveSignalSettings,
+    passiveMockSettings: PassiveMockSettings,
     onRequestCellIdentityPermission: () -> Unit
 ) {
+    val mockActive = stats.isPassiveOnlySession && passiveMockSettings.enabled
+
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = stringResource(R.string.metrics_title),
+                text = stringResource(
+                    if (mockActive) R.string.metrics_title_mock else R.string.metrics_title
+                ),
                 modifier = Modifier.fillMaxWidth(),
                 style = MaterialTheme.typography.titleSmall,
-                color = Sushi,
+                color = if (mockActive) MaterialTheme.colorScheme.error else Sushi,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center
             )

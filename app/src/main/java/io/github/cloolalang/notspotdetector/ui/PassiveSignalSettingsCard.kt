@@ -2238,23 +2238,48 @@ private fun CampTierSignalPulseControls(
     )
 }
 
+/**
+ * Collapsible sub-panel for a single RXSS tier's controls, nested inside the "Passive signal
+ * thresholds and alert settings" panel. One instance per RXSS number (see [rxssSectionTitle]).
+ */
 @Composable
 private fun TierSettingSection(
     tierNumber: Int,
     accentColor: Color,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Text(
-            text = rxssSectionTitle(tierNumber),
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = accentColor
-        )
-        content()
+    var expanded by rememberSaveable { mutableStateOf(false) }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded },
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = rxssSectionTitle(tierNumber),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = accentColor
+                )
+                Text(
+                    text = if (expanded) "▲" else "▼",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            if (expanded) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    content()
+                }
+            }
+        }
     }
 }
 

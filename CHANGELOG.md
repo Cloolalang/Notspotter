@@ -11,6 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Documentation** — [MOCK_NETWORK_SCENARIOS.md](MOCK_NETWORK_SCENARIOS.md) (agreed mock trigger states per scenario) and [SETTINGS_PROFILES.md](SETTINGS_PROFILES.md) (profile JSON capture scope, including full `passiveMock` block). Updated [RXSS_CATALOGUE.md](RXSS_CATALOGUE.md), [VOICE_ANNOUNCEMENTS.md](VOICE_ANNOUNCEMENTS.md), and [README.md](README.md) cross-links; RXSS **0**, **11**, **12**, **20**, **23** rows reflect current voice implementation.
 
+## [2.20.0] - 2026-09-11
+
+### Added
+
+- Each RXSS tier inside "Passive signal thresholds and alert settings" is now its own collapsible sub-panel (collapsed by default), instead of one long always-expanded list — makes it much easier to find and adjust a single tier's controls.
+
+### Changed
+
+- The "Cellular metrics" panel title now reads "Mock cellular metrics" and switches to the error color whenever a mock network scenario is active during a passive-only session, making it obvious the displayed data is simulated rather than live.
+
 ## [2.19.2] - 2026-09-11
 
 ### Fixed

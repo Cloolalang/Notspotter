@@ -7,6 +7,7 @@
     <string name="start_active_mode_testing">Start active mode testing</string>
     <string name="stop_monitoring">Stop</string>
     <string name="metrics_title">Cellular metrics</string>
+    <string name="metrics_title_mock">Mock cellular metrics</string>
     <string name="top_level_passive_mode_monitoring">Passive mode monitoring</string>
     <string name="top_level_active_mode_testing">Active mode testing</string>
     <string name="top_level_general_app_settings">General App settings</string>
