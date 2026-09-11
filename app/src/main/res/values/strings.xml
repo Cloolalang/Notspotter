@@ -37,7 +37,6 @@
     <string name="notification_paused_time_limit">Monitoring paused after running 6h in the background — open the app to resume it.</string>
     <string name="notification_passive_idle">Passive idle — checking signal KPIs</string>
     <string name="passive_idle_hint">Active ping tests stopped after 10 minutes. Signal alert sounds and KPI polling continue until you tap Stop.</string>
-    <string name="passive_only_active_hint">Signal-only monitoring — no ping tests. Low-signal click rates follow your passive signal range settings. Alert audio continues until you tap Stop.</string>
     <string name="passive_only_idle_hint">Passive-only monitoring — RSRP, EARFCN, and PCI continue updating. Tap Stop to end monitoring.</string>
     <string name="notification_passive_only">Signal monitoring — no pings</string>
     <string name="passive_signal_settings_title">Passive signal thresholds and alert settings</string>
@@ -294,6 +293,8 @@
     <string name="rsrp_histogram_sample_count_active">%1$d samples · %2$d active bins</string>
     <string name="rsrp_histogram_bin_percent">%1$d%%</string>
     <string name="rsrp_histogram_null_bin_label">N/A</string>
+    <string name="histogram_controls_title">Histogram controls</string>
+    <string name="histogram_controls_summary">Adjust the RSRP histogram\'s sample window.</string>
     <string name="audio_volume_title">Global alert sound settings</string>
     <string name="audio_volume_summary">Voice announcer, connection-test clicks, shared signal-pulse loudness, and cell-change alerts. Per-RXSS voice and tones are under Passive signal thresholds and alert settings.</string>
     <string name="audio_volume_test">Test</string>

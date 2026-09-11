@@ -69,13 +69,13 @@ fun MonitoringSettingsCard(
                 )
             }
 
-            Text(
-                text = stringResource(R.string.monitoring_settings_summary),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
             if (expanded) {
+                Text(
+                    text = stringResource(R.string.monitoring_settings_summary),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
                 SimSelectionSection(
                     selectedSubscriptionId = monitoringSettings.subscriptionId,
                     simSubscriptions = simSubscriptions,

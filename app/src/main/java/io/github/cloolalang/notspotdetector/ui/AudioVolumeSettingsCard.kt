@@ -74,13 +74,13 @@ fun AudioVolumeSettingsCard(
                 )
             }
 
-            Text(
-                text = stringResource(R.string.audio_volume_summary),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
             if (expanded) {
+                Text(
+                    text = stringResource(R.string.audio_volume_summary),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
                 LaunchedEffect(Unit) {
                     onRefreshVoiceAnnouncerOptions()
                 }

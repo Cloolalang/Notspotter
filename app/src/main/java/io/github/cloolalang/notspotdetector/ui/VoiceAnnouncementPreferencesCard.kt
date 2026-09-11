@@ -1,5 +1,6 @@
 package io.github.cloolalang.notspotdetector.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,6 +11,10 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -32,35 +37,53 @@ fun VoiceAnnouncementPreferencesCard(
     onSpeakTechnologyEnabledChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+
     Card(modifier = modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                text = stringResource(R.string.voice_announcement_preferences_title),
-                style = MaterialTheme.typography.titleSmall,
-                color = Sushi,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = stringResource(R.string.voice_announcement_preferences_summary),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded },
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.voice_announcement_preferences_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = Sushi,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = if (expanded) "▲" else "▼",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
 
-            VoiceAnnouncementPreferenceOption(
-                checked = speakOperatorNameEnabled,
-                onCheckedChange = onSpeakOperatorNameEnabledChange,
-                title = stringResource(R.string.voice_announcement_speak_operator_name),
-                hint = stringResource(R.string.voice_announcement_speak_operator_name_hint)
-            )
-            VoiceAnnouncementPreferenceOption(
-                checked = speakTechnologyEnabled,
-                onCheckedChange = onSpeakTechnologyEnabledChange,
-                title = stringResource(R.string.voice_announcement_speak_technology),
-                hint = stringResource(R.string.voice_announcement_speak_technology_hint)
-            )
+            if (expanded) {
+                Text(
+                    text = stringResource(R.string.voice_announcement_preferences_summary),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                VoiceAnnouncementPreferenceOption(
+                    checked = speakOperatorNameEnabled,
+                    onCheckedChange = onSpeakOperatorNameEnabledChange,
+                    title = stringResource(R.string.voice_announcement_speak_operator_name),
+                    hint = stringResource(R.string.voice_announcement_speak_operator_name_hint)
+                )
+                VoiceAnnouncementPreferenceOption(
+                    checked = speakTechnologyEnabled,
+                    onCheckedChange = onSpeakTechnologyEnabledChange,
+                    title = stringResource(R.string.voice_announcement_speak_technology),
+                    hint = stringResource(R.string.voice_announcement_speak_technology_hint)
+                )
+            }
         }
     }
 }

@@ -75,13 +75,13 @@ fun PingSettingsCard(
                 )
             }
 
-            Text(
-                text = stringResource(R.string.ping_settings_summary),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
             if (expanded) {
+                Text(
+                    text = stringResource(R.string.ping_settings_summary),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
                 OutlinedTextField(
                     value = addressInput,
                     onValueChange = { addressInput = it },

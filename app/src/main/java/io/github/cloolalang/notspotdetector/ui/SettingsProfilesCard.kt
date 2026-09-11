@@ -75,13 +75,13 @@ fun SettingsProfilesCard(
                 )
             }
 
-            Text(
-                text = stringResource(R.string.settings_profiles_summary),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
             if (expanded) {
+                Text(
+                    text = stringResource(R.string.settings_profiles_summary),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
                 OutlinedTextField(
                     value = profileName,
                     onValueChange = {

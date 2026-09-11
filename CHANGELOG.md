@@ -11,6 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Documentation** — [MOCK_NETWORK_SCENARIOS.md](MOCK_NETWORK_SCENARIOS.md) (agreed mock trigger states per scenario) and [SETTINGS_PROFILES.md](SETTINGS_PROFILES.md) (profile JSON capture scope, including full `passiveMock` block). Updated [RXSS_CATALOGUE.md](RXSS_CATALOGUE.md), [VOICE_ANNOUNCEMENTS.md](VOICE_ANNOUNCEMENTS.md), and [README.md](README.md) cross-links; RXSS **0**, **11**, **12**, **20**, **23** rows reflect current voice implementation.
 
+## [2.16.0] - 2026-09-11
+
+### Changed
+
+- "Passive signal thresholds and alert settings" (RF signal level thresholds) is now hidden while monitoring/testing is off, matching the other run-only panels.
+- Removed the "Signal-only monitoring — no ping tests…" hint card; the mock-network-active hint still shows when a mock scenario is running.
+- The "Cellular metrics" panel title is now center-justified.
+- Moved the RSRP histogram's sample-window slider into its own new collapsible **"Histogram controls"** panel (only shown while monitoring/testing is running).
+- The "Voice announcement preferences" panel is now collapsible.
+- All collapsible panels now show only their title bar when collapsed — the description text that used to always sit below the title now appears at the top of the panel once expanded, instead of before it.
+- The "Start monitoring" button now uses an explicit teal (brand cyan) color.
+
 ## [2.15.0] - 2026-09-11
 
 ### Changed

@@ -62,13 +62,13 @@ fun MockNetworkStateCard(
                 )
             }
 
-            Text(
-                text = stringResource(R.string.mock_network_state_summary),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
             if (expanded) {
+                Text(
+                    text = stringResource(R.string.mock_network_state_summary),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically

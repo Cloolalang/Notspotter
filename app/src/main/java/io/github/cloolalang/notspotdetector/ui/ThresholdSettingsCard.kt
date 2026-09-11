@@ -66,13 +66,13 @@ fun ThresholdSettingsCard(
                 )
             }
 
-            Text(
-                text = stringResource(R.string.thresholds_summary),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
             if (expanded) {
+                Text(
+                    text = stringResource(R.string.thresholds_summary),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
                 ThresholdSlider(
                     label = stringResource(R.string.threshold_good_rtt),
                     value = thresholds.goodRttMs.toFloat(),

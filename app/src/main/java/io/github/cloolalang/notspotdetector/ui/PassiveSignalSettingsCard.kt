@@ -131,13 +131,13 @@ fun PassiveSignalSettingsCard(
                 )
             }
 
-            Text(
-                text = stringResource(R.string.passive_signal_settings_summary),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
             if (expanded) {
+                Text(
+                    text = stringResource(R.string.passive_signal_settings_summary),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
                 if (!previewEnabled) {
                     Text(
                         text = stringResource(R.string.audio_volume_test_disabled_hint),

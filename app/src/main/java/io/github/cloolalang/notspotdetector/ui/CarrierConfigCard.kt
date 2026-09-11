@@ -65,13 +65,13 @@ fun CarrierConfigCard(
                 )
             }
 
-            Text(
-                text = stringResource(R.string.carrier_config_summary),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
             if (expanded) {
+                Text(
+                    text = stringResource(R.string.carrier_config_summary),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
                 LaunchedEffect(Unit) {
                     onRefresh()
                 }

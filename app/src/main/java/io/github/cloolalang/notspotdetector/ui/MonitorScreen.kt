@@ -65,6 +65,7 @@ import io.github.cloolalang.notspotdetector.model.isRsrqPoor
 import io.github.cloolalang.notspotdetector.model.resolveLimitedServiceSignalOverlayRxss
 import io.github.cloolalang.notspotdetector.model.resolveSignalMeasurementTier
 import io.github.cloolalang.notspotdetector.ui.theme.BondiBlue
+import io.github.cloolalang.notspotdetector.ui.theme.OnBondiBlue
 import io.github.cloolalang.notspotdetector.ui.theme.Sushi
 
 @Composable
@@ -203,11 +204,15 @@ fun MonitorScreen(
         RsrpHistogramCard(
             samples = rsrpHistory,
             windowMs = monitoringSettings.rsrpHistogramWindowMs,
-            isActive = isRunning,
-            onWindowChange = onRsrpHistogramWindowChange
+            isActive = isRunning
         )
 
         if (isRunning) {
+            HistogramControlsCard(
+                windowMs = monitoringSettings.rsrpHistogramWindowMs,
+                onWindowChange = onRsrpHistogramWindowChange
+            )
+
             if (stats.isPassiveIdleMode) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -228,7 +233,7 @@ fun MonitorScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-            } else if (stats.isPassiveOnlySession) {
+            } else if (stats.isPassiveOnlySession && passiveMockSettings.enabled) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
@@ -236,13 +241,7 @@ fun MonitorScreen(
                     )
                 ) {
                     Text(
-                        text = stringResource(
-                            if (passiveMockSettings.enabled) {
-                                R.string.passive_mock_active_hint
-                            } else {
-                                R.string.passive_only_active_hint
-                            }
-                        ),
+                        text = stringResource(R.string.passive_mock_active_hint),
                         modifier = Modifier.padding(16.dp),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -296,6 +295,7 @@ fun MonitorScreen(
             onMockSettingsChange = onPassiveMockSettingsChange
         )
 
+        if (isRunning) {
         PassiveSignalSettingsCard(
             settings = passiveSignalSettings,
             audioVolumes = audioVolumes,
@@ -349,6 +349,7 @@ fun MonitorScreen(
             onCellChangeBandNamingStyleChange = onCellChangeBandNamingStyleChange,
             onReset = onResetPassiveSignalSettings
         )
+        }
 
         ThresholdSettingsCard(
             thresholds = thresholds,
@@ -461,7 +462,11 @@ private fun MonitoringControlButtons(
         // button below.
         Button(
             onClick = onStart,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = BondiBlue,
+                contentColor = OnBondiBlue
+            )
         ) {
             Text(text = stringResource(R.string.start_monitoring))
         }
@@ -489,9 +494,11 @@ private fun MetricsCard(
         ) {
             Text(
                 text = stringResource(R.string.metrics_title),
+                modifier = Modifier.fillMaxWidth(),
                 style = MaterialTheme.typography.titleSmall,
                 color = Sushi,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
             )
 
             MetricRow(
