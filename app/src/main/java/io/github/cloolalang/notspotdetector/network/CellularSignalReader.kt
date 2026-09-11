@@ -525,6 +525,9 @@ object CellularSignalReader {
      * - `primaryLayerCellCount`: number of detected cells (sectors) sharing the primary EARFCN.
      * - `alternateLayerCount`: number of distinct *other* EARFCNs detected.
      * - `alternateLayerCellCount`: total cells across all of those alternate EARFCNs combined.
+     * - `primaryLayerDominanceDb`: RSRP gap (dB) between the primary/serving sector and the
+     *   next-strongest *other* sector on that same primary EARFCN — see
+     *   [computePrimaryLayerDominanceDb].
      *
      * Deliberately uses whatever the modem/UE already reports with no additional signal-quality
      * floor — any [CellInfoLte] entry with a valid EARFCN counts, regardless of its RSRP/RSRQ.
@@ -550,11 +553,13 @@ object CellularSignalReader {
             val cellInfoList = telephonyManager.allCellInfo ?: return null
             val hasExplicitLtePlmnMatches = hasExplicitPlmnMatchForRat(cellInfoList, expectedPlmn) { it is CellInfoLte }
 
-            val earfcnsByLayer = cellInfoList
+            val eligibleCells = cellInfoList
                 .filterIsInstance<CellInfoLte>()
                 .filter { info ->
                     shouldUseCellIdentity(info.cellIdentity, expectedPlmn, hasExplicitLtePlmnMatches, isDualSimActive)
                 }
+
+            val earfcnsByLayer = eligibleCells
                 .mapNotNull { info -> info.cellIdentity.earfcn.takeIf { isValidCellIdentityValue(it) } }
                 .groupingBy { it }
                 .eachCount()
@@ -565,13 +570,51 @@ object CellularSignalReader {
             LteLayerResilienceReading(
                 primaryLayerCellCount = primaryLayerCellCount,
                 alternateLayerCount = alternateLayers.size,
-                alternateLayerCellCount = alternateLayers.values.sum()
+                alternateLayerCellCount = alternateLayers.values.sum(),
+                primaryLayerDominanceDb = computePrimaryLayerDominanceDb(eligibleCells, primaryLteEarfcn)
             )
         } catch (_: SecurityException) {
             null
         } catch (_: RuntimeException) {
             null
         }
+    }
+
+    /**
+     * "Primary cell level dominance" — the RSRP gap in dB between the serving/primary LTE sector
+     * and the next-strongest *other* sector sharing the same (primary) EARFCN. The "serving"
+     * sector within the primary-EARFCN group is picked by [CellInfoLte.isRegistered] when
+     * available, otherwise by highest RSRP. Returns null when fewer than two sectors are
+     * detected on the primary EARFCN, or when RSRP isn't available for the comparison — i.e.
+     * dominance is only meaningful when there's an actual intra-channel competitor to compare
+     * against.
+     */
+    @Suppress("DEPRECATION")
+    private fun computePrimaryLayerDominanceDb(
+        eligibleCells: List<CellInfoLte>,
+        primaryLteEarfcn: Int?
+    ): Int? {
+        if (primaryLteEarfcn == null) return null
+
+        val primaryLayerCells = eligibleCells.filter { info ->
+            info.cellIdentity.earfcn.takeIf { isValidCellIdentityValue(it) } == primaryLteEarfcn
+        }
+        if (primaryLayerCells.size < 2) return null
+
+        val samples = primaryLayerCells.map { info ->
+            val rsrp = info.cellSignalStrength.rsrp.takeIf { isValidMetric(it) }
+            Triple(info, info.isRegistered, rsrp)
+        }
+
+        val serving = samples.firstOrNull { it.second } ?: samples.maxByOrNull { it.third ?: Int.MIN_VALUE }
+        val servingRsrp = serving?.third ?: return null
+        val nextHighestRsrp = samples
+            .filter { it.first !== serving.first }
+            .mapNotNull { it.third }
+            .maxOrNull()
+            ?: return null
+
+        return servingRsrp - nextHighestRsrp
     }
 
     @SuppressLint("MissingPermission")

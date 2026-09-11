@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Documentation** — [MOCK_NETWORK_SCENARIOS.md](MOCK_NETWORK_SCENARIOS.md) (agreed mock trigger states per scenario) and [SETTINGS_PROFILES.md](SETTINGS_PROFILES.md) (profile JSON capture scope, including full `passiveMock` block). Updated [RXSS_CATALOGUE.md](RXSS_CATALOGUE.md), [VOICE_ANNOUNCEMENTS.md](VOICE_ANNOUNCEMENTS.md), and [README.md](README.md) cross-links; RXSS **0**, **11**, **12**, **20**, **23** rows reflect current voice implementation.
 
+## [2.14.0] - 2026-09-11
+
+### Added
+
+- New **"Primary layer dominance"** cellular metric: the RSRP gap (in dB) between the primary/serving LTE sector and the next-strongest *other* sector detected on that same channel (an intra-channel neighbour). Displayed as "N dB (Low/High)" — gaps under 6 dB are flagged **Low** dominance, meaning a nearby sector on the same carrier is nearly as strong as the one currently camped on, so a reselection/handover to it is more plausible. Shows "—" when there's no competing intra-channel sector detected to compare against.
+
 ## [2.13.0] - 2026-09-11
 
 ### Changed

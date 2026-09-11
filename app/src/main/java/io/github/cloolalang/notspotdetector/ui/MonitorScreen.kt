@@ -37,8 +37,11 @@ import io.github.cloolalang.notspotdetector.model.CarrierConfigSnapshot
 import io.github.cloolalang.notspotdetector.model.CellReselectBandNamingStyle
 import io.github.cloolalang.notspotdetector.model.ConnectivityStats
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
+import io.github.cloolalang.notspotdetector.model.LteLayerResilienceReading
 import io.github.cloolalang.notspotdetector.model.NetworkModePreference
 import io.github.cloolalang.notspotdetector.model.NetworkServiceMode
+import io.github.cloolalang.notspotdetector.model.PrimaryLayerDominance
+import io.github.cloolalang.notspotdetector.model.primaryLayerDominance
 import io.github.cloolalang.notspotdetector.model.formatNetworkOperatorDisplay
 import io.github.cloolalang.notspotdetector.model.PassiveMockSettings
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
@@ -686,6 +689,30 @@ private fun CellIdentityMetrics(
             )
         }
     )
+    // RSRP gap between the primary sector and the next-strongest sector on the *same* EARFCN
+    // (see LteLayerResilienceReading.primaryLayerDominanceDb) — undefined ("—") when there's no
+    // competing intra-channel sector detected to compare against.
+    MetricRow(
+        label = stringResource(R.string.metric_primary_layer_dominance),
+        value = formatPrimaryLayerDominanceValue(lteLayerResilience, permissionGranted)
+    )
+}
+
+@Composable
+private fun formatPrimaryLayerDominanceValue(
+    lteLayerResilience: LteLayerResilienceReading?,
+    permissionGranted: Boolean
+): String {
+    if (!permissionGranted) {
+        return stringResource(R.string.cell_identity_permission_required)
+    }
+    val dominanceDb = lteLayerResilience?.primaryLayerDominanceDb ?: return "—"
+    val dominance = lteLayerResilience.primaryLayerDominance() ?: return "—"
+    val dominanceLabel = when (dominance) {
+        PrimaryLayerDominance.LOW -> stringResource(R.string.primary_layer_dominance_low)
+        PrimaryLayerDominance.HIGH -> stringResource(R.string.primary_layer_dominance_high)
+    }
+    return stringResource(R.string.metric_primary_layer_dominance_value, dominanceDb, dominanceLabel)
 }
 
 @Composable
