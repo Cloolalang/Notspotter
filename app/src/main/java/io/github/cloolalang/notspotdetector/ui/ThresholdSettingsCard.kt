@@ -138,7 +138,8 @@ fun ThresholdSettingsCard(
                 ) {
                     Checkbox(
                         checked = thresholds.suppressClicksOnGoodConnection,
-                        onCheckedChange = onSuppressClicksOnGoodChange
+                        onCheckedChange = onSuppressClicksOnGoodChange,
+                        enabled = settingsControlsEnabled()
                     )
                     Column {
                         Text(
@@ -155,6 +156,7 @@ fun ThresholdSettingsCard(
 
                 OutlinedButton(
                     onClick = onReset,
+                    enabled = settingsControlsEnabled(),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(text = stringResource(R.string.thresholds_reset))
@@ -192,6 +194,7 @@ private fun ThresholdSlider(
             )
         }
         Slider(
+            enabled = settingsControlsEnabled(),
             value = value.coerceIn(valueRange.start, valueRange.endInclusive),
             onValueChange = onValueChange,
             valueRange = valueRange,

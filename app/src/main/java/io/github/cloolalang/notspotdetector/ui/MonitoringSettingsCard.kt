@@ -95,7 +95,8 @@ fun MonitoringSettingsCard(
                 ) {
                     Checkbox(
                         checked = monitoringSettings.passiveQuietUntilCritical,
-                        onCheckedChange = onPassiveQuietUntilCriticalChange
+                        onCheckedChange = onPassiveQuietUntilCriticalChange,
+                        enabled = settingsControlsEnabled()
                     )
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
@@ -125,7 +126,8 @@ fun MonitoringSettingsCard(
                 ) {
                     Checkbox(
                         checked = monitoringSettings.monitor2gFallback,
-                        onCheckedChange = onMonitor2gFallbackChange
+                        onCheckedChange = onMonitor2gFallbackChange,
+                        enabled = settingsControlsEnabled()
                     )
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
@@ -204,6 +206,7 @@ private fun QuietAlertSlider(
             )
         }
         Slider(
+            enabled = settingsControlsEnabled(),
             value = value.toFloat().coerceIn(valueRange.first.toFloat(), valueRange.last.toFloat()),
             onValueChange = { onValueChange(it.roundToInt()) },
             valueRange = valueRange.first.toFloat()..valueRange.last.toFloat(),
@@ -265,12 +268,13 @@ private fun SimRadioOption(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onSelect),
+            .clickable(enabled = settingsControlsEnabled(), onClick = onSelect),
         verticalAlignment = Alignment.CenterVertically
     ) {
         RadioButton(
             selected = selected,
-            onClick = onSelect
+            onClick = onSelect,
+            enabled = settingsControlsEnabled()
         )
         Text(
             text = label,
@@ -308,6 +312,7 @@ private fun PassiveMeasurementIntervalSlider(
             )
         }
         Slider(
+            enabled = settingsControlsEnabled(),
             value = valueSeconds.toFloat(),
             onValueChange = { onIntervalChange(it.roundToInt() * 1_000L) },
             valueRange = minSeconds.toFloat()..maxSeconds.toFloat(),

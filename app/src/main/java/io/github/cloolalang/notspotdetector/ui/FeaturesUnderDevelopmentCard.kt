@@ -8,9 +8,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -21,23 +21,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.cloolalang.notspotdetector.R
-import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerChoice
-import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerOption
 import io.github.cloolalang.notspotdetector.ui.theme.Sushi
 
-/**
- * "Global voice settings" panel — voice announcer selection (which TTS voice is used).
- * Per-alert operator / technology / band phrase toggles live on each RXSS that has a VA.
- */
 @Composable
-fun GlobalVoiceSettingsCard(
-    voiceAnnouncerChoice: VoiceAnnouncerChoice,
-    voiceAnnouncerOptions: List<VoiceAnnouncerOption>,
-    previewEnabled: Boolean,
-    onVoiceAnnouncerChoiceChange: (VoiceAnnouncerChoice) -> Unit,
-    onRefreshVoiceAnnouncerOptions: () -> Unit,
-    onPreviewVoiceAnnouncer: () -> Unit,
-    modifier: Modifier = Modifier
+fun FeaturesUnderDevelopmentCard(
+    fiveGFeaturesEnabled: Boolean,
+    onFiveGFeaturesEnabledChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
 
@@ -54,7 +45,7 @@ fun GlobalVoiceSettingsCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = stringResource(R.string.global_voice_settings_title),
+                    text = stringResource(R.string.features_under_development_title),
                     style = MaterialTheme.typography.titleSmall,
                     color = Sushi,
                     fontWeight = FontWeight.Bold
@@ -68,22 +59,40 @@ fun GlobalVoiceSettingsCard(
 
             if (expanded) {
                 Text(
-                    text = stringResource(R.string.global_voice_settings_summary),
+                    text = stringResource(R.string.features_under_development_summary),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-
-                LaunchedEffect(Unit) {
-                    onRefreshVoiceAnnouncerOptions()
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.five_g_features_enabled),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = stringResource(R.string.five_g_features_enabled_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = fiveGFeaturesEnabled,
+                        onCheckedChange = onFiveGFeaturesEnabledChange,
+                        enabled = settingsControlsEnabled()
+                    )
                 }
 
-                VoiceAnnouncerSelector(
-                    selectedChoice = voiceAnnouncerChoice,
-                    options = voiceAnnouncerOptions,
-                    previewEnabled = previewEnabled,
-                    onChoiceChange = onVoiceAnnouncerChoiceChange,
-                    onPreview = onPreviewVoiceAnnouncer
+                Text(
+                    text = stringResource(R.string.top_level_active_mode_testing),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium
                 )
+                content()
             }
         }
     }

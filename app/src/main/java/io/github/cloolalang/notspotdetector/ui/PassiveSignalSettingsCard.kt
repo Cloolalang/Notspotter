@@ -13,6 +13,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,6 +33,9 @@ import io.github.cloolalang.notspotdetector.model.Rxss
 import io.github.cloolalang.notspotdetector.model.SettingsCompatibility
 import io.github.cloolalang.notspotdetector.model.CELL_CHANGE_RXSS_NUMBER
 import io.github.cloolalang.notspotdetector.model.TechnologyChangeTarget
+import io.github.cloolalang.notspotdetector.model.VoicePhraseFragment
+import io.github.cloolalang.notspotdetector.model.VoicePhraseGroup
+import io.github.cloolalang.notspotdetector.model.VoicePhraseOptions
 import io.github.cloolalang.notspotdetector.model.DEADZONE_TIER_NUMBER
 import io.github.cloolalang.notspotdetector.model.G2_NO_SIGNAL_TIER_NUMBER
 import io.github.cloolalang.notspotdetector.model.G2_STRONG_TIER_NUMBER
@@ -73,6 +77,7 @@ fun PassiveSignalSettingsCard(
     onNoSignalVoiceEnabledChange: (Boolean) -> Unit,
     onNoSignalVoiceVolumeChange: (Float) -> Unit,
     onLimitedServiceTierPulseFrequencyChange: (Int) -> Unit,
+    onLimitedServiceTwoToneSpreadPercentChange: (Int) -> Unit,
     onLimitedServiceToneVolumeChange: (Float) -> Unit,
     onLimitedServiceVoiceEnabledChange: (Boolean) -> Unit,
     onLimitedServiceVoiceVolumeChange: (Float) -> Unit,
@@ -100,6 +105,9 @@ fun PassiveSignalSettingsCard(
     onPreviewRsrqWhiteNoise: () -> Unit,
     onSignalPulseFrequencyChange: (Int) -> Unit,
     onReset: () -> Unit,
+    fiveGFeaturesEnabled: Boolean = true,
+    onVoicePhrasesChange: (VoicePhraseGroup, VoicePhraseOptions) -> Unit = { _, _ -> },
+    onPreviewVoicePhrase: (VoicePhraseGroup, VoicePhraseFragment) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
@@ -130,6 +138,10 @@ fun PassiveSignalSettingsCard(
             }
 
             if (expanded) {
+                CompositionLocalProvider(
+                    LocalOnVoicePhrasesChange provides onVoicePhrasesChange,
+                    LocalOnPreviewVoicePhrase provides onPreviewVoicePhrase
+                ) {
                 if (!previewEnabled) {
                     Text(
                         text = stringResource(R.string.audio_volume_test_disabled_hint),
@@ -138,20 +150,7 @@ fun PassiveSignalSettingsCard(
                     )
                 }
 
-                DeadzoneTierSettings(
-                    settings = settings,
-                    audioVolumes = audioVolumes,
-                    previewEnabled = previewEnabled,
-                    passiveMeasurementIntervalMs = passiveMeasurementIntervalMs,
-                    onSettingsChange = onSettingsChange,
-                    onNoSignalTierPulseFrequencyChange = onNoSignalTierPulseFrequencyChange,
-                    onNoSignalToneVolumeChange = onNoSignalToneVolumeChange,
-                    onNoSignalVibrationEnabledChange = onNoSignalVibrationEnabledChange,
-                    onNoSignalVoiceEnabledChange = onNoSignalVoiceEnabledChange,
-                    onNoSignalVoiceVolumeChange = onNoSignalVoiceVolumeChange,
-                    onPreviewNoSignalVoice = onPreviewNoSignalVoice,
-                    onPreviewSignalPulse = onPreviewSignalPulse
-                )
+                AlertSettingsGroupHeading(stringResource(R.string.passive_signal_rsrp_rx_lev_section))
 
                 RsrpTierSettings(
                     settings = settings,
@@ -192,6 +191,8 @@ fun PassiveSignalSettingsCard(
                     onPreviewLowSignalClick = onPreviewLowSignalClick
                 )
 
+                AlertSettingsGroupHeading(stringResource(R.string.passive_signal_cell_state_section))
+
                 CellChangeTierSettings(
                     audioVolumes = audioVolumes,
                     previewEnabled = previewEnabled,
@@ -202,6 +203,23 @@ fun PassiveSignalSettingsCard(
                     onPreviewCellChangeVoice = onPreviewCellChangeVoice,
                     onCellChangeSpeakBandEnabledChange = onCellChangeSpeakBandEnabledChange,
                     onCellChangeBandNamingStyleChange = onCellChangeBandNamingStyleChange
+                )
+
+                AlertSettingsGroupHeading(stringResource(R.string.passive_signal_camped_state_section))
+
+                DeadzoneTierSettings(
+                    settings = settings,
+                    audioVolumes = audioVolumes,
+                    previewEnabled = previewEnabled,
+                    passiveMeasurementIntervalMs = passiveMeasurementIntervalMs,
+                    onSettingsChange = onSettingsChange,
+                    onNoSignalTierPulseFrequencyChange = onNoSignalTierPulseFrequencyChange,
+                    onNoSignalToneVolumeChange = onNoSignalToneVolumeChange,
+                    onNoSignalVibrationEnabledChange = onNoSignalVibrationEnabledChange,
+                    onNoSignalVoiceEnabledChange = onNoSignalVoiceEnabledChange,
+                    onNoSignalVoiceVolumeChange = onNoSignalVoiceVolumeChange,
+                    onPreviewNoSignalVoice = onPreviewNoSignalVoice,
+                    onPreviewSignalPulse = onPreviewSignalPulse
                 )
 
                 CampStateTierSettings(
@@ -216,6 +234,7 @@ fun PassiveSignalSettingsCard(
                     onNoSignalVoiceEnabledChange = onNoSignalVoiceEnabledChange,
                     onNoSignalVoiceVolumeChange = onNoSignalVoiceVolumeChange,
                     onLimitedServiceTierPulseFrequencyChange = onLimitedServiceTierPulseFrequencyChange,
+                    onLimitedServiceTwoToneSpreadPercentChange = onLimitedServiceTwoToneSpreadPercentChange,
                     onLimitedServiceToneVolumeChange = onLimitedServiceToneVolumeChange,
                     onLimitedServiceVoiceEnabledChange = onLimitedServiceVoiceEnabledChange,
                     onLimitedServiceVoiceVolumeChange = onLimitedServiceVoiceVolumeChange,
@@ -228,11 +247,7 @@ fun PassiveSignalSettingsCard(
                     onPreviewSignalPulse = onPreviewSignalPulse
                 )
 
-                Text(
-                    text = stringResource(R.string.passive_signal_rsrq_section),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium
-                )
+                AlertSettingsGroupHeading(stringResource(R.string.passive_signal_rsrq_section))
 
                 RsrqTierSettings(
                     settings = settings,
@@ -242,15 +257,12 @@ fun PassiveSignalSettingsCard(
                     onPreviewRsrqWhiteNoise = onPreviewRsrqWhiteNoise
                 )
 
-                Text(
-                    text = stringResource(R.string.passive_signal_technology_change_section),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium
-                )
+                AlertSettingsGroupHeading(stringResource(R.string.passive_signal_technology_change_section))
 
                 TechnologyChangeTierSettings(
                     audioVolumes = audioVolumes,
                     previewEnabled = previewEnabled,
+                    fiveGFeaturesEnabled = fiveGFeaturesEnabled,
                     onTechnologyChangeToneVolumeChange = onTechnologyChangeToneVolumeChange,
                     onTechnologyChangeVoiceEnabledChange = onTechnologyChangeVoiceEnabledChange,
                     onTechnologyChangeVoiceVolumeChange = onTechnologyChangeVoiceVolumeChange,
@@ -260,13 +272,24 @@ fun PassiveSignalSettingsCard(
 
                 OutlinedButton(
                     onClick = onReset,
+                    enabled = settingsControlsEnabled(),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(text = stringResource(R.string.passive_signal_settings_reset))
                 }
+                }
             }
         }
     }
+}
+
+@Composable
+private fun AlertSettingsGroupHeading(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.bodyMedium,
+        fontWeight = FontWeight.Medium
+    )
 }
 
 /**
@@ -306,6 +329,7 @@ private fun TierSoundEnabledOption(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Checkbox(
+            enabled = settingsControlsEnabled(),
             checked = enabled,
             onCheckedChange = onEnabledChange
         )
@@ -353,10 +377,55 @@ private fun TierPulseFrequencySlider(
             )
         }
         Slider(
+            enabled = settingsControlsEnabled(),
             value = step.toFloat(),
             onValueChange = { onFrequencyChange(it.roundToInt() * stepHz) },
             valueRange = minStep.toFloat()..maxStep.toFloat(),
             steps = (maxStep - minStep - 1).coerceAtLeast(0),
+            colors = tierSliderColors(accentColor)
+        )
+    }
+}
+
+@Composable
+private fun TwoToneSpreadSlider(
+    label: String,
+    lowFrequencyHz: Int,
+    spreadPercent: Int,
+    accentColor: Color,
+    onSpreadChange: (Int) -> Unit
+) {
+    val minPercent = AudioVolumeSettings.MIN_LIMITED_SERVICE_TWO_TONE_SPREAD_PERCENT
+    val maxPercent = AudioVolumeSettings.MAX_LIMITED_SERVICE_TWO_TONE_SPREAD_PERCENT
+    val coercedPercent = spreadPercent.coerceIn(minPercent, maxPercent)
+    val highHz = AudioVolumeSettings.twoToneHighFrequencyHz(lowFrequencyHz, coercedPercent)
+
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Medium,
+                color = accentColor,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                text = stringResource(R.string.passive_signal_two_tone_spread_value, coercedPercent, highHz),
+                style = MaterialTheme.typography.bodySmall,
+                color = accentColor,
+                fontWeight = FontWeight.Medium
+            )
+        }
+        Slider(
+            enabled = settingsControlsEnabled(),
+            value = coercedPercent.toFloat(),
+            onValueChange = { onSpreadChange(it.roundToInt().coerceIn(minPercent, maxPercent)) },
+            valueRange = minPercent.toFloat()..maxPercent.toFloat(),
+            steps = (maxPercent - minPercent - 1).coerceAtLeast(0),
             colors = tierSliderColors(accentColor)
         )
     }
@@ -371,7 +440,7 @@ private fun TierPulseDurationSlider(
 ) {
     val minMs = AudioVolumeSettings.MIN_SIGNAL_PULSE_DURATION_MS
     val maxMs = AudioVolumeSettings.MAX_SIGNAL_PULSE_DURATION_MS
-    val stepMs = 10
+    val stepMs = AudioVolumeSettings.SIGNAL_PULSE_DURATION_STEP_MS
     val steps = ((maxMs - minMs) / stepMs) - 1
     val coercedMs = durationMs.coerceIn(minMs, maxMs)
 
@@ -401,6 +470,7 @@ private fun TierPulseDurationSlider(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Slider(
+            enabled = settingsControlsEnabled(),
             value = coercedMs.toFloat(),
             onValueChange = { raw ->
                 val snapped = minMs + (((raw - minMs) / stepMs).roundToInt() * stepMs)
@@ -488,6 +558,7 @@ private fun TierClickSpeedSlider(
             )
         }
         Slider(
+            enabled = settingsControlsEnabled(),
             value = step.toFloat().coerceIn(0f, maxStep.toFloat()),
             onValueChange = {
                 val selectedMs = TierSliderSupport.tierClickSliderMsFromIndex(
@@ -825,7 +896,7 @@ private fun RsrpTierSettings(
                             settings.fairRsrpMinDbm
                         ),
                         value = settings.poorRsrpMinDbm,
-                        valueRange = (PassiveSignalSettings.DEFAULT_NO_SIGNAL_RSRP_DBM + gap)..
+                        valueRange = (settings.noSignalRsrpDbm + gap)..
                             (settings.fairRsrpMinDbm - gap),
                         accentColor = accent,
                         onValueChange = { onSettingsChange(settings.copy(poorRsrpMinDbm = it)) }
@@ -868,10 +939,18 @@ private fun RsrpTierSettings(
                     )
                 },
                 rangeControls = {
-                    Text(
-                        text = stringResource(R.string.passive_signal_rxss6_rsrp_threshold),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = accent
+                    BoundarySlider(
+                        label = stringResource(R.string.passive_signal_boundary_no_signal),
+                        rangeLabel = stringResource(
+                            R.string.passive_signal_rsrp_band_range,
+                            settings.noSignalRsrpDbm + gap,
+                            settings.poorRsrpMinDbm
+                        ),
+                        value = settings.noSignalRsrpDbm,
+                        valueRange = PassiveSignalSettings.MIN_NO_SIGNAL_RSRP_DBM..
+                            PassiveSignalSettings.MAX_NO_SIGNAL_RSRP_DBM,
+                        accentColor = accent,
+                        onValueChange = { onSettingsChange(settings.copy(noSignalRsrpDbm = it)) }
                     )
                 },
                 volumeControls = {
@@ -971,14 +1050,20 @@ private fun CellChangeTierSettings(
 private fun TechnologyChangeTierSettings(
     audioVolumes: AudioVolumeSettings,
     previewEnabled: Boolean,
+    fiveGFeaturesEnabled: Boolean,
     onTechnologyChangeToneVolumeChange: (TechnologyChangeTarget, Float) -> Unit,
     onTechnologyChangeVoiceEnabledChange: (TechnologyChangeTarget, Boolean) -> Unit,
     onTechnologyChangeVoiceVolumeChange: (TechnologyChangeTarget, Float) -> Unit,
     onPreviewTechnologyChangeTone: (TechnologyChangeTarget) -> Unit,
     onPreviewTechnologyChangeVoice: (TechnologyChangeTarget) -> Unit
 ) {
+    val targets = if (fiveGFeaturesEnabled) {
+        TechnologyChangeTarget.thresholdPanelOrder
+    } else {
+        TechnologyChangeTarget.thresholdPanelOrder.filter { it != TechnologyChangeTarget.TO_5G_ENDC }
+    }
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        TechnologyChangeTarget.thresholdPanelOrder.forEach { target ->
+        targets.forEach { target ->
             val accent = SignalTierColors.forRxssNumber(target.rxssNumber)
             TierSettingSection(tierNumber = target.rxssNumber, accentColor = accent) {
                 TechnologyChangeAlertControls(
@@ -1358,6 +1443,7 @@ private fun CampStateTierSettings(
     onNoSignalVoiceEnabledChange: (Boolean) -> Unit,
     onNoSignalVoiceVolumeChange: (Float) -> Unit,
     onLimitedServiceTierPulseFrequencyChange: (Int) -> Unit,
+    onLimitedServiceTwoToneSpreadPercentChange: (Int) -> Unit,
     onLimitedServiceToneVolumeChange: (Float) -> Unit,
     onLimitedServiceVoiceEnabledChange: (Boolean) -> Unit,
     onLimitedServiceVoiceVolumeChange: (Float) -> Unit,
@@ -1370,21 +1456,6 @@ private fun CampStateTierSettings(
     onPreviewSignalPulse: (volume: Float, frequencyHz: Int, pulseDurationMs: Int) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        NoSignalCampTierBlock(
-            settings = settings,
-            audioVolumes = audioVolumes,
-            previewEnabled = previewEnabled,
-            passiveMeasurementIntervalMs = passiveMeasurementIntervalMs,
-            onSettingsChange = onSettingsChange,
-            onNoSignalTierPulseFrequencyChange = onNoSignalTierPulseFrequencyChange,
-            onNoSignalToneVolumeChange = onNoSignalToneVolumeChange,
-            onNoSignalVibrationEnabledChange = onNoSignalVibrationEnabledChange,
-            onNoSignalVoiceEnabledChange = onNoSignalVoiceEnabledChange,
-            onNoSignalVoiceVolumeChange = onNoSignalVoiceVolumeChange,
-            onPreviewNoSignalTone = onPreviewNoSignalTone,
-            onPreviewNoSignalVoice = onPreviewNoSignalVoice,
-            onPreviewSignalPulse = onPreviewSignalPulse
-        )
         WifiCallingCampTierBlock(
             settings = settings,
             audioVolumes = audioVolumes,
@@ -1396,21 +1467,6 @@ private fun CampStateTierSettings(
             onNoSignalVibrationEnabledChange = onNoSignalVibrationEnabledChange,
             onNoSignalVoiceEnabledChange = onNoSignalVoiceEnabledChange,
             onNoSignalVoiceVolumeChange = onNoSignalVoiceVolumeChange,
-            onPreviewNoSignalVoice = onPreviewNoSignalVoice,
-            onPreviewSignalPulse = onPreviewSignalPulse
-        )
-        G2NoSignalCampTierBlock(
-            settings = settings,
-            audioVolumes = audioVolumes,
-            previewEnabled = previewEnabled,
-            passiveMeasurementIntervalMs = passiveMeasurementIntervalMs,
-            onSettingsChange = onSettingsChange,
-            onNoSignalTierPulseFrequencyChange = onNoSignalTierPulseFrequencyChange,
-            onNoSignalToneVolumeChange = onNoSignalToneVolumeChange,
-            onNoSignalVibrationEnabledChange = onNoSignalVibrationEnabledChange,
-            onNoSignalVoiceEnabledChange = onNoSignalVoiceEnabledChange,
-            onNoSignalVoiceVolumeChange = onNoSignalVoiceVolumeChange,
-            onPreviewNoSignalTone = onPreviewNoSignalTone,
             onPreviewNoSignalVoice = onPreviewNoSignalVoice,
             onPreviewSignalPulse = onPreviewSignalPulse
         )
@@ -1435,6 +1491,7 @@ private fun CampStateTierSettings(
             passiveMeasurementIntervalMs = passiveMeasurementIntervalMs,
             onSettingsChange = onSettingsChange,
             onLimitedServiceTierPulseFrequencyChange = onLimitedServiceTierPulseFrequencyChange,
+            onLimitedServiceTwoToneSpreadPercentChange = onLimitedServiceTwoToneSpreadPercentChange,
             onLimitedServiceToneVolumeChange = onLimitedServiceToneVolumeChange,
             onLimitedServiceVoiceEnabledChange = onLimitedServiceVoiceEnabledChange,
             onLimitedServiceVoiceVolumeChange = onLimitedServiceVoiceVolumeChange,
@@ -1454,6 +1511,36 @@ private fun CampStateTierSettings(
             onLimitedServiceVoiceVolumeChange = onLimitedServiceVoiceVolumeChange,
             onPreviewLimitedServiceTone = onPreviewLimitedServiceTone,
             onPreviewLimitedServiceVoice = onPreviewLimitedServiceVoice,
+            onPreviewSignalPulse = onPreviewSignalPulse
+        )
+        NoSignalCampTierBlock(
+            settings = settings,
+            audioVolumes = audioVolumes,
+            previewEnabled = previewEnabled,
+            passiveMeasurementIntervalMs = passiveMeasurementIntervalMs,
+            onSettingsChange = onSettingsChange,
+            onNoSignalTierPulseFrequencyChange = onNoSignalTierPulseFrequencyChange,
+            onNoSignalToneVolumeChange = onNoSignalToneVolumeChange,
+            onNoSignalVibrationEnabledChange = onNoSignalVibrationEnabledChange,
+            onNoSignalVoiceEnabledChange = onNoSignalVoiceEnabledChange,
+            onNoSignalVoiceVolumeChange = onNoSignalVoiceVolumeChange,
+            onPreviewNoSignalTone = onPreviewNoSignalTone,
+            onPreviewNoSignalVoice = onPreviewNoSignalVoice,
+            onPreviewSignalPulse = onPreviewSignalPulse
+        )
+        G2NoSignalCampTierBlock(
+            settings = settings,
+            audioVolumes = audioVolumes,
+            previewEnabled = previewEnabled,
+            passiveMeasurementIntervalMs = passiveMeasurementIntervalMs,
+            onSettingsChange = onSettingsChange,
+            onNoSignalTierPulseFrequencyChange = onNoSignalTierPulseFrequencyChange,
+            onNoSignalToneVolumeChange = onNoSignalToneVolumeChange,
+            onNoSignalVibrationEnabledChange = onNoSignalVibrationEnabledChange,
+            onNoSignalVoiceEnabledChange = onNoSignalVoiceEnabledChange,
+            onNoSignalVoiceVolumeChange = onNoSignalVoiceVolumeChange,
+            onPreviewNoSignalTone = onPreviewNoSignalTone,
+            onPreviewNoSignalVoice = onPreviewNoSignalVoice,
             onPreviewSignalPulse = onPreviewSignalPulse
         )
     }
@@ -1822,6 +1909,7 @@ private fun LimitedServiceCampTierBlock(
     passiveMeasurementIntervalMs: Long,
     onSettingsChange: (PassiveSignalSettings) -> Unit,
     onLimitedServiceTierPulseFrequencyChange: (Int) -> Unit,
+    onLimitedServiceTwoToneSpreadPercentChange: (Int) -> Unit,
     onLimitedServiceToneVolumeChange: (Float) -> Unit,
     onLimitedServiceVoiceEnabledChange: (Boolean) -> Unit,
     onLimitedServiceVoiceVolumeChange: (Float) -> Unit,
@@ -1849,16 +1937,13 @@ private fun LimitedServiceCampTierBlock(
                 )
             },
             volumeControls = {
-                CampSignalPulseVolumeControl(
-                    label = stringResource(R.string.audio_volume_limited_service),
-                    volume = audioVolumes.limitedServiceToneVolume,
-                    onVolumeChange = onLimitedServiceToneVolumeChange,
+                RxssVolumeSlider(
+                    label = stringResource(R.string.audio_volume_limited_service_two_tone),
+                    value = audioVolumes.limitedServiceToneVolume,
+                    onValueChange = onLimitedServiceToneVolumeChange,
                     previewEnabled = previewEnabled,
-                    accentColor = accentColor,
-                    pulseDurationMs = settings.limitedServiceTierPulseDurationMs,
-                    clickIntervalMs = settings.limitedServiceTierClickIntervalMs,
-                    frequencyHz = audioVolumes.limitedServiceTierPulseFrequencyHz,
-                    onPreviewSignalPulse = onPreviewSignalPulse
+                    onPreview = onPreviewLimitedServiceTone,
+                    accentColor = accentColor
                 )
             },
             durationControls = {
@@ -1881,10 +1966,17 @@ private fun LimitedServiceCampTierBlock(
             },
             frequencyControls = {
                 TierPulseFrequencySlider(
-                    label = stringResource(R.string.passive_signal_tier_pulse_frequency, LIMITED_SERVICE_TIER_NUMBER),
+                    label = stringResource(R.string.passive_signal_two_tone_lower_frequency),
                     frequencyHz = audioVolumes.limitedServiceTierPulseFrequencyHz,
                     accentColor = accentColor,
                     onFrequencyChange = onLimitedServiceTierPulseFrequencyChange
+                )
+                TwoToneSpreadSlider(
+                    label = stringResource(R.string.passive_signal_two_tone_spread),
+                    lowFrequencyHz = audioVolumes.limitedServiceTierPulseFrequencyHz,
+                    spreadPercent = audioVolumes.limitedServiceTwoToneSpreadPercent,
+                    accentColor = accentColor,
+                    onSpreadChange = onLimitedServiceTwoToneSpreadPercentChange
                 )
             },
             voiceControls = {
@@ -2140,6 +2232,7 @@ private fun RsrqTierSettings(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Checkbox(
+            enabled = settingsControlsEnabled(),
                 checked = settings.rsrqTierCoupledToSignalTier,
                 onCheckedChange = { onSettingsChange(settings.copy(rsrqTierCoupledToSignalTier = it)) }
             )
@@ -2227,6 +2320,7 @@ private fun TierWhiteNoiseVolumeSlider(
             )
         }
         Slider(
+            enabled = settingsControlsEnabled(),
             value = coerced,
             onValueChange = onVolumeChange,
             valueRange = min..max,
@@ -2326,6 +2420,7 @@ private fun BoundarySlider(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Slider(
+            enabled = settingsControlsEnabled(),
             value = sliderValue,
             onValueChange = { onValueChange(it.roundToInt()) },
             valueRange = valueRange.first.toFloat()..valueRange.last.toFloat(),

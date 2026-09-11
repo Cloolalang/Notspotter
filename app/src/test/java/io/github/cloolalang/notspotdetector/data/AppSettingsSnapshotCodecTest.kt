@@ -6,6 +6,7 @@ import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.PassiveMockSettings
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
 import io.github.cloolalang.notspotdetector.model.PingSettings
+import io.github.cloolalang.notspotdetector.model.RsrpHistogramBinningMode
 import io.github.cloolalang.notspotdetector.model.SettingsProfile
 import io.github.cloolalang.notspotdetector.model.ThresholdSettings
 import org.junit.Assert.assertEquals
@@ -40,7 +41,11 @@ class AppSettingsSnapshotCodecTest {
             pingSettings = PingSettings(host = "1.1.1.1", pingsPerTest = 4),
             monitoringSettings = MonitoringSettings(
                 passiveMeasurementIntervalMs = 3_000L,
-                rsrpHistogramWindowMs = 120_000L
+                rsrpHistogramWindowMs = 120_000L,
+                rsrpHistogramBinningMode = RsrpHistogramBinningMode.THRESHOLD,
+                rsrpHistogramThreshold1Dbm = -88,
+                rsrpHistogramThreshold2Dbm = -102,
+                rsrpHistogramThreshold3Dbm = -118
             ),
             passiveSignalSettings = PassiveSignalSettings(
                 criticalTierClickIntervalMs = 400,
@@ -89,6 +94,38 @@ class AppSettingsSnapshotCodecTest {
         val decoded = AppSettingsSnapshotCodec.decodeProfiles(encoded).single().settings
 
         assertEquals(snapshot, decoded)
+    }
+
+    @Test
+    fun roundTripPreservesHistogramBinSettings() {
+        val snapshot = AppSettingsSnapshot(
+            monitoringSettings = MonitoringSettings(
+                rsrpHistogramWindowMs = 150_000L,
+                rsrpHistogramBinningMode = RsrpHistogramBinningMode.THRESHOLD,
+                rsrpHistogramThreshold1Dbm = -90,
+                rsrpHistogramThreshold2Dbm = -100,
+                rsrpHistogramThreshold3Dbm = -120
+            )
+        ).normalized()
+
+        val encoded = AppSettingsSnapshotCodec.encodeProfile(
+            SettingsProfile(
+                id = "histogram-bins",
+                name = "Histogram bins",
+                savedAtMs = 7L,
+                settings = snapshot
+            )
+        )
+        val decoded = AppSettingsSnapshotCodec.decodeProfile(encoded)
+
+        requireNotNull(decoded)
+        val monitoring = decoded.settings.monitoringSettings
+        assertEquals(150_000L, monitoring.rsrpHistogramWindowMs)
+        assertEquals(RsrpHistogramBinningMode.THRESHOLD, monitoring.rsrpHistogramBinningMode)
+        assertEquals(-90, monitoring.rsrpHistogramThreshold1Dbm)
+        assertEquals(-100, monitoring.rsrpHistogramThreshold2Dbm)
+        assertEquals(-120, monitoring.rsrpHistogramThreshold3Dbm)
+        assertEquals(snapshot.monitoringSettings, monitoring)
     }
 
     @Test

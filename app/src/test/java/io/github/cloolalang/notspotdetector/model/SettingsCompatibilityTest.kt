@@ -62,9 +62,19 @@ class SettingsCompatibilityTest {
     }
 
     @Test
-    fun normalizedFixesNoSignalRsrpAtNegative125Dbm() {
-        val normalized = PassiveSignalSettings(noSignalRsrpDbm = -110).normalized()
-        assertEquals(PassiveSignalSettings.DEFAULT_NO_SIGNAL_RSRP_DBM, normalized.noSignalRsrpDbm)
+    fun normalizedClampsNoSignalRsrpToConfigurableRange() {
+        assertEquals(
+            PassiveSignalSettings.MAX_NO_SIGNAL_RSRP_DBM,
+            PassiveSignalSettings(noSignalRsrpDbm = -110).normalized().noSignalRsrpDbm
+        )
+        assertEquals(
+            PassiveSignalSettings.MIN_NO_SIGNAL_RSRP_DBM,
+            PassiveSignalSettings(noSignalRsrpDbm = -140).normalized().noSignalRsrpDbm
+        )
+        assertEquals(
+            PassiveSignalSettings.DEFAULT_NO_SIGNAL_RSRP_DBM,
+            PassiveSignalSettings(noSignalRsrpDbm = -125).normalized().noSignalRsrpDbm
+        )
     }
 
     @Test
@@ -105,12 +115,12 @@ class SettingsCompatibilityTest {
     }
 
     @Test
-    fun passiveOnlyHonorsConfiguredIntervalBelowLegacy125msFloor() {
+    fun passiveOnlyHonorsConfiguredIntervalAtThirtyMsFloor() {
         assertEquals(
-            40L,
+            50L,
             SettingsCompatibility.resolveTierClickIntervalMs(
-                configuredMs = 40L,
-                signalPulseDurationMs = 10,
+                configuredMs = 50L,
+                signalPulseDurationMs = 20,
                 isPassiveOnlySession = true
             )
         )

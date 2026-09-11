@@ -6,6 +6,8 @@ import io.github.cloolalang.notspotdetector.model.CellIdentitySnapshot
 import io.github.cloolalang.notspotdetector.model.CellularRadioMetrics
 import io.github.cloolalang.notspotdetector.model.ConnectionQuality
 import io.github.cloolalang.notspotdetector.model.ConnectivityStats
+import io.github.cloolalang.notspotdetector.model.hidingFiveGIfDisabled
+import io.github.cloolalang.notspotdetector.model.TechnologyChangeTarget
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.MonitoringUpdateEvents
 import io.github.cloolalang.notspotdetector.model.PassiveMockSettings
@@ -83,6 +85,8 @@ object MonitorState {
     private val noSignalDebouncer = NoSignalDebouncer()
     private val lteLayerResilienceDebouncer = LteLayerResilienceDebouncer()
     private var lastKnownRadioAccessType: String? = null
+    /** Camped RAT the current histogram belongs to; a change wipes the sample window. */
+    private var histogramRadioAccessType: String? = null
     private var lteRatBeforeNoSignalEpisode: String? = null
     private var searching2gAnnounced = false
     private var deadzoneAnnouncedThisEpisode = false
@@ -109,8 +113,7 @@ object MonitorState {
         return SignalStateAnnouncement.formatNoSignalAnnouncement(
             stats,
             lastKnownRadioAccessType,
-            volumes.speakOperatorNameEnabled,
-            volumes.speakTechnologyEnabled
+            phrases = volumes.noSignalPhrases
         )
     }
 
@@ -119,15 +122,14 @@ object MonitorState {
         return SignalStateAnnouncement.formatSignalRestoredAnnouncement(
             stats,
             lastKnownRadioAccessType,
-            volumes.speakOperatorNameEnabled,
-            volumes.speakTechnologyEnabled
+            phrases = volumes.noSignalPhrases
         )
     }
 
     fun formatDeadzoneAnnouncement(stats: ConnectivityStats = _stats.value): String {
         return SignalStateAnnouncement.formatDeadzoneAnnouncement(
             stats.networkOperatorName,
-            _audioVolumes.value.speakOperatorNameEnabled
+            _audioVolumes.value.noSignalPhrases.speakOperatorName
         )
     }
 
@@ -136,8 +138,7 @@ object MonitorState {
         return SignalStateAnnouncement.formatTier5SignalLowAnnouncement(
             stats,
             lastKnownRadioAccessType,
-            volumes.speakOperatorNameEnabled,
-            volumes.speakTechnologyEnabled
+            phrases = volumes.signalLowPhrases
         )
     }
 
@@ -146,18 +147,19 @@ object MonitorState {
         return SignalStateAnnouncement.formatLimitedServiceAnnouncement(
             stats,
             lastKnownRadioAccessType,
-            volumes.speakOperatorNameEnabled,
-            volumes.speakTechnologyEnabled
+            phrases = volumes.limitedServicePhrases
         )
     }
 
     fun formatSearching2gAnnouncement(): String {
         val volumes = _audioVolumes.value
+        val stats = _stats.value
         return SignalStateAnnouncement.formatSearching2gAnnouncement(
-            _stats.value.networkOperatorName,
+            stats.networkOperatorName,
             lteRatBeforeNoSignalEpisode,
-            volumes.speakOperatorNameEnabled,
-            volumes.speakTechnologyEnabled
+            phrases = volumes.noSignalPhrases,
+            lteEarfcn = stats.lteEarfcn,
+            nrBand = stats.nrBand
         )
     }
 
@@ -194,7 +196,7 @@ object MonitorState {
             passiveSettings = _passiveSignalSettings.value,
             passiveIdleMode = currentStats.isPassiveIdleMode,
             passiveOnlySession = true
-        )
+        ).hidingFiveGIfDisabled(_monitoringSettings.value.fiveGFeaturesEnabled)
         // Two polls so no-signal debounce confirms immediately after scenario changes.
         updateStats(mockStats)
         updateStats(mockStats)
@@ -221,7 +223,8 @@ object MonitorState {
 
     fun updateStats(rawStats: ConnectivityStats): MonitoringUpdateEvents {
         val events = synchronized(monitorLock) {
-            rememberRadioAccessType(rawStats)
+            val remapped = rawStats.hidingFiveGIfDisabled(_monitoringSettings.value.fiveGFeaturesEnabled)
+            rememberRadioAccessType(remapped)
             val passiveSettings = _passiveSignalSettings.value
             val previous = _stats.value
             // CellularPingMonitor/CellularPassiveSignalMonitor build ConnectivityStats directly
@@ -229,9 +232,9 @@ object MonitorState {
             // here (the single funnel point for the actual running-monitor path) rather than in
             // those readers, so a single flickering neighbour reading doesn't make the displayed
             // "4G layers detected" values jump around.
-            val stats = rawStats.copy(
+            val stats = remapped.copy(
                 lteLayerResilience = lteLayerResilienceDebouncer.update(
-                    rawStats.lteLayerResilience
+                    remapped.lteLayerResilience
                 ).confirmedReading
             )
             val (displayStats, updatedIdentity) = stats.withStabilizedCellIdentity(stableCellIdentity)
@@ -243,7 +246,7 @@ object MonitorState {
             }
             val (finalStats, events) = buildMonitoringEvents(previous, enriched, passiveSettings)
             _stats.value = finalStats
-            recordRsrpSample(displayStats.rsrpDbm, stats.isMonitoring)
+            clearRsrpHistogramIfTechnologyChanged(finalStats.radioAccessType)
             if (!enriched.isPassiveIdleMode) {
                 enriched.rttMs?.let { recordRttSample(it, enriched.lastPingTimestampMs) }
             }
@@ -266,19 +269,57 @@ object MonitorState {
         _rttHistory.value = _rttHistory.value.filter { it.timestampMs >= cutoff }
     }
 
-    private fun recordRsrpSample(rsrpDbm: Int?, isMonitoring: Boolean) {
+    /**
+     * Records one occupancy sample of the latest RSRP. Called on a 1 s tick so a longer sample
+     * window actually accumulates more counts instead of only storing one point per radio poll.
+     */
+    fun tickRsrpHistogramSample() {
+        synchronized(monitorLock) {
+            val stats = _stats.value
+            recordRsrpSample(stats.rsrpDbm, stats.isMonitoring, stats.radioAccessType)
+        }
+    }
+
+    private fun recordRsrpSample(
+        rsrpDbm: Int?,
+        isMonitoring: Boolean,
+        radioAccessType: String?
+    ) {
         // rsrpDbm may be null (e.g. a no-signal state) — still recorded so the histogram's
         // "no signal" bin reflects how often that happened within the window, rather than
         // silently dropping those polls.
         if (!_isRunning.value || !isMonitoring) return
+        clearRsrpHistogramIfTechnologyChanged(radioAccessType)
         val timestampMs = System.currentTimeMillis()
-        val cutoff = timestampMs - RSRP_HISTORY_RETENTION_MS
+        val retainMs = rsrpHistoryRetentionMs()
+        val cutoff = timestampMs - retainMs
         _rsrpHistory.value = (_rsrpHistory.value + RsrpSample(timestampMs, rsrpDbm))
             .filter { it.timestampMs >= cutoff }
     }
 
+    /**
+     * Drops the rolling histogram when the camped RAT changes so 2G / 4G / 5G / EN-DC
+     * measurements never share one window. A blank or missing type (no-signal) does not
+     * count as a change — those N/A samples stay with the last camped technology.
+     */
+    private fun clearRsrpHistogramIfTechnologyChanged(radioAccessType: String?) {
+        val currentTech = radioAccessType?.takeIf { it.isNotBlank() } ?: return
+        val previousTech = histogramRadioAccessType
+        if (previousTech != null && previousTech != currentTech) {
+            _rsrpHistory.value = emptyList()
+        }
+        histogramRadioAccessType = currentTech
+    }
+
+    /** Empties the live histogram so sampling restarts from the next tick. */
+    fun clearRsrpHistogram() {
+        synchronized(monitorLock) {
+            _rsrpHistory.value = emptyList()
+        }
+    }
+
     fun pruneRsrpHistory(nowMs: Long = System.currentTimeMillis()) {
-        val cutoff = nowMs - RSRP_HISTORY_RETENTION_MS
+        val cutoff = nowMs - rsrpHistoryRetentionMs()
         _rsrpHistory.value = _rsrpHistory.value.filter { it.timestampMs >= cutoff }
     }
 
@@ -562,11 +603,19 @@ object MonitorState {
         }
 
         val volumes = _audioVolumes.value
+        val target = TechnologyChangeTarget.fromRadioAccessType(nextType)
+        val phrases = if (target != null) {
+            volumes.phrasesForTechnologyChange(target)
+        } else {
+            volumes.technologyChangeTo4gPhrases
+        }
         return SignalStateAnnouncement.formatTechnologyChange(
             nextType,
             networkOperatorName,
-            volumes.speakOperatorNameEnabled,
-            volumes.speakTechnologyEnabled
+            phrases.speakOperatorName,
+            phrases.speakTechnology,
+            phrases.speakBand,
+            phrases.bandPhraseFor(previous.lteEarfcn, previous.nrBand)
         )
     }
 
@@ -677,8 +726,9 @@ object MonitorState {
                 networkOperatorName = networkOperatorName,
                 radioAccessType = next.resolveNoSignalAnnouncementRadioAccessType(lastKnownRadioAccessType),
                 isWifiCallingActive = next.isWifiCallingActive,
-                speakOperatorNameEnabled = volumes.speakOperatorNameEnabled,
-                speakTechnologyEnabled = volumes.speakTechnologyEnabled
+                phrases = volumes.noSignalPhrases,
+                lteEarfcn = next.lteEarfcn,
+                nrBand = next.nrBand
             )
         }
 
@@ -703,8 +753,9 @@ object MonitorState {
             networkOperatorName = networkOperatorName,
             radioAccessType = next.resolveNoSignalAnnouncementRadioAccessType(lastKnownRadioAccessType),
             isWifiCallingActive = next.isWifiCallingActive,
-            speakOperatorNameEnabled = volumes.speakOperatorNameEnabled,
-            speakTechnologyEnabled = volumes.speakTechnologyEnabled
+            phrases = volumes.noSignalPhrases,
+            lteEarfcn = next.lteEarfcn,
+            nrBand = next.nrBand
         )
     }
 
@@ -726,8 +777,10 @@ object MonitorState {
         return SignalStateAnnouncement.formatSignalRestoredAnnouncement(
             networkOperatorName = networkOperatorName,
             radioAccessType = next.resolveNoSignalAnnouncementRadioAccessType(lastKnownRadioAccessType),
-            speakOperatorNameEnabled = volumes.speakOperatorNameEnabled,
-            speakTechnologyEnabled = volumes.speakTechnologyEnabled
+            speakOperatorNameEnabled = volumes.noSignalPhrases.speakOperatorName,
+            speakTechnologyEnabled = volumes.noSignalPhrases.speakTechnology,
+            speakBandEnabled = volumes.noSignalPhrases.speakBand,
+            bandPhrase = volumes.noSignalPhrases.bandPhraseFor(next.lteEarfcn, next.nrBand)
         )
     }
 
@@ -762,8 +815,9 @@ object MonitorState {
         val volumes = _audioVolumes.value
         return SignalStateAnnouncement.formatG2CampedAnnouncement(
             networkOperatorName,
-            volumes.speakOperatorNameEnabled,
-            volumes.speakTechnologyEnabled
+            phrases = volumes.technologyChangeTo2gPhrases,
+            lteEarfcn = next.lteEarfcn,
+            nrBand = next.nrBand
         )
     }
 
@@ -781,7 +835,7 @@ object MonitorState {
         searching2gAnnounced = true
         return SignalStateAnnouncement.formatDeadzoneAnnouncement(
             networkOperatorName,
-            _audioVolumes.value.speakOperatorNameEnabled
+            _audioVolumes.value.noSignalPhrases.speakOperatorName
         )
     }
 
@@ -805,7 +859,8 @@ object MonitorState {
 
         return SignalStateAnnouncement.formatLimitedServiceChange(
             stats = next,
-            lastKnownRadioAccessType = lastKnownRadioAccessType
+            lastKnownRadioAccessType = lastKnownRadioAccessType,
+            phrases = _audioVolumes.value.limitedServicePhrases
         )
     }
 
@@ -819,7 +874,8 @@ object MonitorState {
 
         return SignalStateAnnouncement.formatLimitedServiceAnnouncement(
             stats = next,
-            lastKnownRadioAccessType = lastKnownRadioAccessType
+            lastKnownRadioAccessType = lastKnownRadioAccessType,
+            phrases = _audioVolumes.value.limitedServicePhrases
         )
     }
 
@@ -856,8 +912,7 @@ object MonitorState {
             campedOnVisitedOperator = stats.resolveCampedVisitedOperatorName() != null,
             speakBandEnabled = volumes.cellChangeSpeakBandEnabled,
             bandNamingStyle = volumes.cellChangeBandNamingStyle,
-            speakOperatorNameEnabled = volumes.speakOperatorNameEnabled,
-            speakTechnologyEnabled = volumes.speakTechnologyEnabled
+            prefixPhrases = volumes.cellChangePhrases
         )
     }
 
@@ -976,10 +1031,18 @@ object MonitorState {
                 _stats.value = ConnectivityStats(isMonitoring = false)
                 _rttHistory.value = emptyList()
                 _rsrpHistory.value = emptyList()
+                histogramRadioAccessType = null
             }
         }
     }
 
     const val RTT_HISTORY_WINDOW_MS = 60_000L
     const val RSRP_HISTORY_RETENTION_MS = 300_000L
+
+    private fun rsrpHistoryRetentionMs(): Long {
+        return maxOf(
+            RSRP_HISTORY_RETENTION_MS,
+            _monitoringSettings.value.rsrpHistogramWindowMs
+        )
+    }
 }

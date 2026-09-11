@@ -19,6 +19,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -47,6 +48,7 @@ import io.github.cloolalang.notspotdetector.model.PassiveMockSettings
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
 import io.github.cloolalang.notspotdetector.model.SettingsCompatibility
 import io.github.cloolalang.notspotdetector.model.PingSettings
+import io.github.cloolalang.notspotdetector.model.RsrpHistogramBinningMode
 import io.github.cloolalang.notspotdetector.model.RsrpSample
 import io.github.cloolalang.notspotdetector.model.RttSample
 import io.github.cloolalang.notspotdetector.model.ProfileExportOutcome
@@ -58,6 +60,9 @@ import io.github.cloolalang.notspotdetector.model.TechnologyChangeTarget
 import io.github.cloolalang.notspotdetector.model.ThresholdSettings
 import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerChoice
 import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerOption
+import io.github.cloolalang.notspotdetector.model.VoicePhraseFragment
+import io.github.cloolalang.notspotdetector.model.VoicePhraseGroup
+import io.github.cloolalang.notspotdetector.model.VoicePhraseOptions
 import io.github.cloolalang.notspotdetector.model.SignalMeasurementTier
 import io.github.cloolalang.notspotdetector.model.RSRQ_POOR_TIER_NUMBER
 import io.github.cloolalang.notspotdetector.model.isInNoSignalRxss
@@ -102,6 +107,9 @@ fun MonitorScreen(
     onPassiveMockSettingsChange: (PassiveMockSettings) -> Unit,
     onPassiveMeasurementIntervalChange: (Long) -> Unit,
     onRsrpHistogramWindowChange: (Long) -> Unit,
+    onRsrpHistogramBinningModeChange: (RsrpHistogramBinningMode) -> Unit = {},
+    onRsrpHistogramThresholdChange: (Int, Int) -> Unit = { _, _ -> },
+    onClearRsrpHistogram: () -> Unit = {},
     onResetPassiveSignalSettings: () -> Unit,
     onSubscriptionChange: (Int) -> Unit,
     onVoiceAnnouncerChoiceChange: (VoiceAnnouncerChoice) -> Unit,
@@ -115,8 +123,11 @@ fun MonitorScreen(
     onG2WeakTierPulseFrequencyChange: (Int) -> Unit,
     onSignalPulseDurationChange: (Int) -> Unit,
     onMasterVoiceAnnouncementsEnabledChange: (Boolean) -> Unit,
-    onSpeakOperatorNameEnabledChange: (Boolean) -> Unit = {},
-    onSpeakTechnologyEnabledChange: (Boolean) -> Unit = {},
+    onVoicePhrasesChange: (VoicePhraseGroup, VoicePhraseOptions) -> Unit = { _, _ -> },
+    onPreviewVoicePhrase: (VoicePhraseGroup, VoicePhraseFragment) -> Unit = { _, _ -> },
+    onFiveGFeaturesEnabledChange: (Boolean) -> Unit = {},
+    settingsUnlocked: Boolean = false,
+    onSettingsUnlockedChange: (Boolean) -> Unit = {},
     onCellChangeBellVolumeChange: (Float) -> Unit,
     onCellChangeVoiceEnabledChange: (Boolean) -> Unit,
     onCellChangeVoiceVolumeChange: (Float) -> Unit,
@@ -133,6 +144,7 @@ fun MonitorScreen(
     onNoSignalVoiceEnabledChange: (Boolean) -> Unit,
     onNoSignalVoiceVolumeChange: (Float) -> Unit,
     onLimitedServiceTierPulseFrequencyChange: (Int) -> Unit,
+    onLimitedServiceTwoToneSpreadPercentChange: (Int) -> Unit,
     onLimitedServiceToneVolumeChange: (Float) -> Unit,
     onLimitedServiceVoiceEnabledChange: (Boolean) -> Unit,
     onLimitedServiceVoiceVolumeChange: (Float) -> Unit,
@@ -165,6 +177,7 @@ fun MonitorScreen(
     onRefreshCarrierConfig: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    CompositionLocalProvider(LocalSettingsUnlocked provides settingsUnlocked) {
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -200,8 +213,13 @@ fun MonitorScreen(
             HistogramControlsCard(
                 samples = rsrpHistory,
                 windowMs = monitoringSettings.rsrpHistogramWindowMs,
+                binningMode = monitoringSettings.rsrpHistogramBinningMode,
+                thresholdsDbm = monitoringSettings.rsrpHistogramThresholdsDbm(),
                 isActive = isRunning,
-                onWindowChange = onRsrpHistogramWindowChange
+                onWindowChange = onRsrpHistogramWindowChange,
+                onBinningModeChange = onRsrpHistogramBinningModeChange,
+                onThresholdChange = onRsrpHistogramThresholdChange,
+                onClearHistogram = onClearRsrpHistogram
             )
 
             if (stats.isPassiveIdleMode) {
@@ -296,6 +314,7 @@ fun MonitorScreen(
                 onNoSignalVoiceEnabledChange = onNoSignalVoiceEnabledChange,
                 onNoSignalVoiceVolumeChange = onNoSignalVoiceVolumeChange,
                 onLimitedServiceTierPulseFrequencyChange = onLimitedServiceTierPulseFrequencyChange,
+                onLimitedServiceTwoToneSpreadPercentChange = onLimitedServiceTwoToneSpreadPercentChange,
                 onLimitedServiceToneVolumeChange = onLimitedServiceToneVolumeChange,
                 onLimitedServiceVoiceEnabledChange = onLimitedServiceVoiceEnabledChange,
                 onLimitedServiceVoiceVolumeChange = onLimitedServiceVoiceVolumeChange,
@@ -322,44 +341,10 @@ fun MonitorScreen(
                 onPreviewCellChangeVoice = onPreviewCellChangeVoice,
                 onCellChangeSpeakBandEnabledChange = onCellChangeSpeakBandEnabledChange,
                 onCellChangeBandNamingStyleChange = onCellChangeBandNamingStyleChange,
-                onReset = onResetPassiveSignalSettings
-            )
-        }
-
-        TopLevelSectionCard(title = stringResource(R.string.top_level_active_mode_testing)) {
-            PingSettingsCard(
-                pingSettings = pingSettings,
-                onAddressChange = onPingAddressChange,
-                onPingsPerTestChange = onPingsPerTestChange,
-                onTestIntervalChange = onTestIntervalChange
-            )
-
-            ThresholdSettingsCard(
-                thresholds = thresholds,
-                onGoodRttChange = onGoodRttChange,
-                onPoorRttChange = onPoorRttChange,
-                onPoorJitterChange = onPoorJitterChange,
-                onPoorPacketLossChange = onPoorPacketLossChange,
-                onSuppressClicksOnGoodChange = onSuppressClicksOnGoodChange,
-                onGoodConnectionClicksPerPingChange = onGoodConnectionClicksPerPingChange,
-                onReset = onResetThresholds
-            )
-
-            AudioVolumeSettingsCard(
-                audioVolumes = audioVolumes,
-                previewEnabled = !isRunning,
-                signalPulsePreviewRepeatIntervalMs = SettingsCompatibility.resolveTierClickIntervalMs(
-                    configuredMs = passiveSignalSettings.levelRangeAbcdClickIntervalMs.toLong(),
-                    signalPulseDurationMs = audioVolumes.signalPulseDurationMs,
-                    isPassiveOnlySession = true
-                ),
-                onPingClickVolumeChange = onPingClickVolumeChange,
-                onLowSignalClickVolumeChange = onLowSignalClickVolumeChange,
-                onSignalPulseFrequencyChange = onSignalPulseFrequencyChange,
-                onSignalPulseDurationChange = onSignalPulseDurationChange,
-                onPreviewPingClick = onPreviewPingClick,
-                onPreviewLowSignalClick = onPreviewLowSignalClick,
-                onReset = onResetAudioVolumes
+                onReset = onResetPassiveSignalSettings,
+                fiveGFeaturesEnabled = monitoringSettings.fiveGFeaturesEnabled,
+                onVoicePhrasesChange = onVoicePhrasesChange,
+                onPreviewVoicePhrase = onPreviewVoicePhrase
             )
         }
 
@@ -378,19 +363,56 @@ fun MonitorScreen(
                 voiceAnnouncerChoice = audioVolumes.voiceAnnouncerChoice,
                 voiceAnnouncerOptions = voiceAnnouncerOptions,
                 previewEnabled = !isRunning,
-                speakOperatorNameEnabled = audioVolumes.speakOperatorNameEnabled,
-                speakTechnologyEnabled = audioVolumes.speakTechnologyEnabled,
                 onVoiceAnnouncerChoiceChange = onVoiceAnnouncerChoiceChange,
                 onRefreshVoiceAnnouncerOptions = onRefreshVoiceAnnouncerOptions,
-                onPreviewVoiceAnnouncer = onPreviewVoiceAnnouncer,
-                onSpeakOperatorNameEnabledChange = onSpeakOperatorNameEnabledChange,
-                onSpeakTechnologyEnabledChange = onSpeakTechnologyEnabledChange
+                onPreviewVoiceAnnouncer = onPreviewVoiceAnnouncer
             )
         }
 
         TopLevelSectionCard(title = stringResource(R.string.top_level_development_area)) {
+            FeaturesUnderDevelopmentCard(
+                fiveGFeaturesEnabled = monitoringSettings.fiveGFeaturesEnabled,
+                onFiveGFeaturesEnabledChange = onFiveGFeaturesEnabledChange
+            ) {
+                PingSettingsCard(
+                    pingSettings = pingSettings,
+                    onAddressChange = onPingAddressChange,
+                    onPingsPerTestChange = onPingsPerTestChange,
+                    onTestIntervalChange = onTestIntervalChange
+                )
+
+                ThresholdSettingsCard(
+                    thresholds = thresholds,
+                    onGoodRttChange = onGoodRttChange,
+                    onPoorRttChange = onPoorRttChange,
+                    onPoorJitterChange = onPoorJitterChange,
+                    onPoorPacketLossChange = onPoorPacketLossChange,
+                    onSuppressClicksOnGoodChange = onSuppressClicksOnGoodChange,
+                    onGoodConnectionClicksPerPingChange = onGoodConnectionClicksPerPingChange,
+                    onReset = onResetThresholds
+                )
+
+                AudioVolumeSettingsCard(
+                    audioVolumes = audioVolumes,
+                    previewEnabled = !isRunning,
+                    signalPulsePreviewRepeatIntervalMs = SettingsCompatibility.resolveTierClickIntervalMs(
+                        configuredMs = passiveSignalSettings.levelRangeAbcdClickIntervalMs.toLong(),
+                        signalPulseDurationMs = audioVolumes.signalPulseDurationMs,
+                        isPassiveOnlySession = true
+                    ),
+                    onPingClickVolumeChange = onPingClickVolumeChange,
+                    onLowSignalClickVolumeChange = onLowSignalClickVolumeChange,
+                    onSignalPulseFrequencyChange = onSignalPulseFrequencyChange,
+                    onSignalPulseDurationChange = onSignalPulseDurationChange,
+                    onPreviewPingClick = onPreviewPingClick,
+                    onPreviewLowSignalClick = onPreviewLowSignalClick,
+                    onReset = onResetAudioVolumes
+                )
+            }
+
             MockNetworkStateCard(
                 mockSettings = passiveMockSettings,
+                fiveGFeaturesEnabled = monitoringSettings.fiveGFeaturesEnabled,
                 onMockSettingsChange = onPassiveMockSettingsChange
             )
 
@@ -401,6 +423,11 @@ fun MonitorScreen(
             )
         }
 
+        SettingsLockBar(
+            unlocked = settingsUnlocked,
+            onUnlockedChange = onSettingsUnlockedChange
+        )
+
         if (!stats.cellularAvailable && isRunning) {
             Text(
                 text = stringResource(R.string.waiting_for_cellular),
@@ -410,6 +437,7 @@ fun MonitorScreen(
         }
 
         Spacer(modifier = Modifier.size(8.dp))
+    }
     }
 }
 
@@ -440,7 +468,11 @@ private fun MasterVoiceAnnouncementsToggle(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Switch(checked = enabled, onCheckedChange = onEnabledChange)
+            Switch(
+                checked = enabled,
+                onCheckedChange = onEnabledChange,
+                enabled = settingsControlsEnabled()
+            )
         }
     }
 }

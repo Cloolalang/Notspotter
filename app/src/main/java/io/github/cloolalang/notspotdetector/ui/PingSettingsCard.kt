@@ -85,6 +85,7 @@ fun PingSettingsCard(
                 OutlinedTextField(
                     value = addressInput,
                     onValueChange = { addressInput = it },
+                    enabled = settingsControlsEnabled(),
                     modifier = Modifier
                         .fillMaxWidth()
                         .onFocusChanged { focusState ->
@@ -144,6 +145,7 @@ private fun TestIntervalSlider(
             )
         }
         Slider(
+            enabled = settingsControlsEnabled(),
             value = valueSeconds.toFloat(),
             onValueChange = { onValueChange(it.roundToInt()) },
             valueRange = minSeconds.toFloat()..maxSeconds.toFloat(),
@@ -184,6 +186,7 @@ private fun PingCountSlider(
             )
         }
         Slider(
+            enabled = settingsControlsEnabled(),
             value = value.toFloat(),
             onValueChange = { onValueChange(it.roundToInt()) },
             valueRange = PingSettings.MIN_PINGS_PER_TEST.toFloat()..PingSettings.MAX_PINGS_PER_TEST.toFloat(),

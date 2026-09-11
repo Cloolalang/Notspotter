@@ -115,6 +115,7 @@ fun AudioVolumeSettingsCard(
                 )
                 OutlinedButton(
                     onClick = onReset,
+                    enabled = settingsControlsEnabled(),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(text = stringResource(R.string.audio_volume_reset))
@@ -156,6 +157,7 @@ private fun FrequencySlider(
             )
         }
         Slider(
+            enabled = settingsControlsEnabled(),
             value = step.toFloat(),
             onValueChange = { onValueChange(it.roundToInt() * stepHz) },
             valueRange = minStep.toFloat()..maxStep.toFloat(),
@@ -173,7 +175,7 @@ private fun DurationSlider(
 ) {
     val minMs = AudioVolumeSettings.MIN_SIGNAL_PULSE_DURATION_MS
     val maxMs = AudioVolumeSettings.MAX_SIGNAL_PULSE_DURATION_MS
-    val stepMs = 10
+    val stepMs = AudioVolumeSettings.SIGNAL_PULSE_DURATION_STEP_MS
     val steps = ((maxMs - minMs) / stepMs) - 1
 
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -202,6 +204,7 @@ private fun DurationSlider(
             )
         }
         Slider(
+            enabled = settingsControlsEnabled(),
             value = valueMs.toFloat(),
             onValueChange = { raw ->
                 val snapped = minMs + (((raw - minMs) / stepMs).roundToInt() * stepMs)
@@ -248,6 +251,7 @@ private fun VolumeSlider(
             )
         }
         Slider(
+            enabled = settingsControlsEnabled(),
             value = value.coerceIn(AudioVolumeSettings.MIN_VOLUME, AudioVolumeSettings.MAX_VOLUME),
             onValueChange = onValueChange,
             valueRange = AudioVolumeSettings.MIN_VOLUME..AudioVolumeSettings.MAX_VOLUME,

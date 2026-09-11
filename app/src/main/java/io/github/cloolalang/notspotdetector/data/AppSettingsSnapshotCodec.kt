@@ -8,9 +8,12 @@ import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.PassiveMockSettings
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
 import io.github.cloolalang.notspotdetector.model.PingSettings
+import io.github.cloolalang.notspotdetector.model.RsrpHistogram
+import io.github.cloolalang.notspotdetector.model.RsrpHistogramBinningMode
 import io.github.cloolalang.notspotdetector.model.SettingsProfile
 import io.github.cloolalang.notspotdetector.model.ThresholdSettings
 import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerChoice
+import io.github.cloolalang.notspotdetector.model.VoicePhraseOptions
 import kotlin.math.roundToInt
 import org.json.JSONArray
 import org.json.JSONObject
@@ -167,6 +170,11 @@ object AppSettingsSnapshotCodec {
             .put("passiveQuietUntilCritical", settings.passiveQuietUntilCritical)
             .put("passiveMeasurementIntervalMs", settings.passiveMeasurementIntervalMs)
             .put("rsrpHistogramWindowMs", settings.rsrpHistogramWindowMs)
+            .put("rsrpHistogramBinningMode", settings.rsrpHistogramBinningMode.name)
+            .put("rsrpHistogramThreshold1Dbm", settings.rsrpHistogramThreshold1Dbm)
+            .put("rsrpHistogramThreshold2Dbm", settings.rsrpHistogramThreshold2Dbm)
+            .put("rsrpHistogramThreshold3Dbm", settings.rsrpHistogramThreshold3Dbm)
+            .put("fiveGFeaturesEnabled", settings.fiveGFeaturesEnabled)
     }
 
     private fun decodeMonitoring(json: JSONObject?): MonitoringSettings {
@@ -191,6 +199,25 @@ object AppSettingsSnapshotCodec {
             rsrpHistogramWindowMs = json.optLong(
                 "rsrpHistogramWindowMs",
                 MonitoringSettings.DEFAULT_RSRP_HISTOGRAM_WINDOW_MS
+            ),
+            rsrpHistogramBinningMode = RsrpHistogramBinningMode.fromStoredName(
+                json.optString("rsrpHistogramBinningMode", null)
+            ),
+            rsrpHistogramThreshold1Dbm = json.optInt(
+                "rsrpHistogramThreshold1Dbm",
+                RsrpHistogram.DEFAULT_THRESHOLD_1_DBM
+            ),
+            rsrpHistogramThreshold2Dbm = json.optInt(
+                "rsrpHistogramThreshold2Dbm",
+                RsrpHistogram.DEFAULT_THRESHOLD_2_DBM
+            ),
+            rsrpHistogramThreshold3Dbm = json.optInt(
+                "rsrpHistogramThreshold3Dbm",
+                RsrpHistogram.DEFAULT_THRESHOLD_3_DBM
+            ),
+            fiveGFeaturesEnabled = json.optBoolean(
+                "fiveGFeaturesEnabled",
+                MonitoringSettings.DEFAULT_FIVE_G_FEATURES_ENABLED
             )
         )
     }
@@ -510,6 +537,7 @@ object AppSettingsSnapshotCodec {
             .put("signalPulseFrequencyHz", settings.signalPulseFrequencyHz)
             .put("noSignalTierPulseFrequencyHz", settings.noSignalTierPulseFrequencyHz)
             .put("limitedServiceTierPulseFrequencyHz", settings.limitedServiceTierPulseFrequencyHz)
+            .put("limitedServiceTwoToneSpreadPercent", settings.limitedServiceTwoToneSpreadPercent)
             .put("levelRangeBcdPulseFrequencyHz", settings.levelRangeBcdPulseFrequencyHz)
             .put("veryStrongTierPulseFrequencyHz", settings.veryStrongTierPulseFrequencyHz)
             .put("g2StrongTierPulseFrequencyHz", settings.g2StrongTierPulseFrequencyHz)
@@ -544,6 +572,44 @@ object AppSettingsSnapshotCodec {
             .put("limitedServiceVoiceVolume", settings.limitedServiceVoiceVolume.toDouble())
             .put("speakOperatorNameEnabled", settings.speakOperatorNameEnabled)
             .put("speakTechnologyEnabled", settings.speakTechnologyEnabled)
+            .putPhrases("cellChange", settings.cellChangePhrases)
+            .putPhrases("technologyChangeTo2g", settings.technologyChangeTo2gPhrases)
+            .putPhrases("technologyChangeTo4g", settings.technologyChangeTo4gPhrases)
+            .putPhrases("technologyChangeTo5gEndc", settings.technologyChangeTo5gEndcPhrases)
+            .putPhrases("signalLow", settings.signalLowPhrases)
+            .putPhrases("noSignal", settings.noSignalPhrases)
+            .putPhrases("limitedService", settings.limitedServicePhrases)
+    }
+
+    private fun JSONObject.putPhrases(prefix: String, phrases: VoicePhraseOptions): JSONObject {
+        put("${prefix}SpeakOperatorName", phrases.speakOperatorName)
+        put("${prefix}SpeakTechnology", phrases.speakTechnology)
+        put("${prefix}SpeakBand", phrases.speakBand)
+        return this
+    }
+
+    private fun decodePhrases(
+        json: JSONObject,
+        prefix: String,
+        fallbackOperator: Boolean,
+        fallbackTechnology: Boolean
+    ): VoicePhraseOptions {
+        val operatorKey = "${prefix}SpeakOperatorName"
+        val technologyKey = "${prefix}SpeakTechnology"
+        val bandKey = "${prefix}SpeakBand"
+        return VoicePhraseOptions(
+            speakOperatorName = if (json.has(operatorKey)) {
+                json.optBoolean(operatorKey, fallbackOperator)
+            } else {
+                fallbackOperator
+            },
+            speakTechnology = if (json.has(technologyKey)) {
+                json.optBoolean(technologyKey, fallbackTechnology)
+            } else {
+                fallbackTechnology
+            },
+            speakBand = json.optBoolean(bandKey, VoicePhraseOptions.DEFAULT_SPEAK_BAND)
+        )
     }
 
     private fun decodeVeryStrongTierPulseFrequencyHz(json: JSONObject): Int {
@@ -654,6 +720,10 @@ object AppSettingsSnapshotCodec {
             ),
             noSignalTierPulseFrequencyHz = decodeNoSignalTierPulseFrequencyHz(json),
             limitedServiceTierPulseFrequencyHz = decodeLimitedServiceTierPulseFrequencyHz(json),
+            limitedServiceTwoToneSpreadPercent = json.optInt(
+                "limitedServiceTwoToneSpreadPercent",
+                AudioVolumeSettings.DEFAULT_LIMITED_SERVICE_TWO_TONE_SPREAD_PERCENT
+            ),
             levelRangeBcdPulseFrequencyHz = decodeLevelRangeBcdPulseFrequencyHz(json),
             veryStrongTierPulseFrequencyHz = decodeVeryStrongTierPulseFrequencyHz(json),
             g2StrongTierPulseFrequencyHz = decodeG2TierPulseFrequencyHz(json, "g2StrongTierPulseFrequencyHz"),
@@ -742,6 +812,48 @@ object AppSettingsSnapshotCodec {
             speakTechnologyEnabled = json.optBoolean(
                 "speakTechnologyEnabled",
                 AudioVolumeSettings.DEFAULT_SPEAK_TECHNOLOGY_ENABLED
+            ),
+            cellChangePhrases = decodePhrases(
+                json,
+                "cellChange",
+                json.optBoolean("speakOperatorNameEnabled", AudioVolumeSettings.DEFAULT_SPEAK_OPERATOR_NAME_ENABLED),
+                json.optBoolean("speakTechnologyEnabled", AudioVolumeSettings.DEFAULT_SPEAK_TECHNOLOGY_ENABLED)
+            ),
+            technologyChangeTo2gPhrases = decodePhrases(
+                json,
+                "technologyChangeTo2g",
+                json.optBoolean("speakOperatorNameEnabled", AudioVolumeSettings.DEFAULT_SPEAK_OPERATOR_NAME_ENABLED),
+                json.optBoolean("speakTechnologyEnabled", AudioVolumeSettings.DEFAULT_SPEAK_TECHNOLOGY_ENABLED)
+            ),
+            technologyChangeTo4gPhrases = decodePhrases(
+                json,
+                "technologyChangeTo4g",
+                json.optBoolean("speakOperatorNameEnabled", AudioVolumeSettings.DEFAULT_SPEAK_OPERATOR_NAME_ENABLED),
+                json.optBoolean("speakTechnologyEnabled", AudioVolumeSettings.DEFAULT_SPEAK_TECHNOLOGY_ENABLED)
+            ),
+            technologyChangeTo5gEndcPhrases = decodePhrases(
+                json,
+                "technologyChangeTo5gEndc",
+                json.optBoolean("speakOperatorNameEnabled", AudioVolumeSettings.DEFAULT_SPEAK_OPERATOR_NAME_ENABLED),
+                json.optBoolean("speakTechnologyEnabled", AudioVolumeSettings.DEFAULT_SPEAK_TECHNOLOGY_ENABLED)
+            ),
+            signalLowPhrases = decodePhrases(
+                json,
+                "signalLow",
+                json.optBoolean("speakOperatorNameEnabled", AudioVolumeSettings.DEFAULT_SPEAK_OPERATOR_NAME_ENABLED),
+                json.optBoolean("speakTechnologyEnabled", AudioVolumeSettings.DEFAULT_SPEAK_TECHNOLOGY_ENABLED)
+            ),
+            noSignalPhrases = decodePhrases(
+                json,
+                "noSignal",
+                json.optBoolean("speakOperatorNameEnabled", AudioVolumeSettings.DEFAULT_SPEAK_OPERATOR_NAME_ENABLED),
+                json.optBoolean("speakTechnologyEnabled", AudioVolumeSettings.DEFAULT_SPEAK_TECHNOLOGY_ENABLED)
+            ),
+            limitedServicePhrases = decodePhrases(
+                json,
+                "limitedService",
+                json.optBoolean("speakOperatorNameEnabled", AudioVolumeSettings.DEFAULT_SPEAK_OPERATOR_NAME_ENABLED),
+                json.optBoolean("speakTechnologyEnabled", AudioVolumeSettings.DEFAULT_SPEAK_TECHNOLOGY_ENABLED)
             )
         )
     }

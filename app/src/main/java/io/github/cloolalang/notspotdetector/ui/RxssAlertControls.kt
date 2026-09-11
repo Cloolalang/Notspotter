@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -32,8 +33,103 @@ import io.github.cloolalang.notspotdetector.R
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
 import io.github.cloolalang.notspotdetector.model.CellReselectBandNamingStyle
 import io.github.cloolalang.notspotdetector.model.TechnologyChangeTarget
+import io.github.cloolalang.notspotdetector.model.VoicePhraseFragment
+import io.github.cloolalang.notspotdetector.model.VoicePhraseGroup
+import io.github.cloolalang.notspotdetector.model.VoicePhraseOptions
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
+
+val LocalOnVoicePhrasesChange = staticCompositionLocalOf<(VoicePhraseGroup, VoicePhraseOptions) -> Unit> {
+    { _, _ -> }
+}
+
+val LocalOnPreviewVoicePhrase = staticCompositionLocalOf<(VoicePhraseGroup, VoicePhraseFragment) -> Unit> {
+    { _, _ -> }
+}
+
+@Composable
+fun VoicePhraseToggles(
+    group: VoicePhraseGroup,
+    phrases: VoicePhraseOptions,
+    previewEnabled: Boolean,
+    accentColor: Color
+) {
+    val onPhrasesChange = LocalOnVoicePhrasesChange.current
+    val onPreviewFragment = LocalOnPreviewVoicePhrase.current
+    val controlsEnabled = settingsControlsEnabled()
+
+    VoicePhraseToggleRow(
+        checked = phrases.speakOperatorName,
+        onCheckedChange = { onPhrasesChange(group, phrases.withOperator(it)) },
+        title = stringResource(R.string.voice_announcement_speak_operator_name),
+        hint = stringResource(R.string.voice_phrase_speak_operator_hint),
+        previewEnabled = previewEnabled,
+        accentColor = accentColor,
+        controlsEnabled = controlsEnabled,
+        onPreview = { onPreviewFragment(group, VoicePhraseFragment.OPERATOR) }
+    )
+    VoicePhraseToggleRow(
+        checked = phrases.speakTechnology,
+        onCheckedChange = { onPhrasesChange(group, phrases.withTechnology(it)) },
+        title = stringResource(R.string.voice_announcement_speak_technology),
+        hint = stringResource(R.string.voice_phrase_speak_technology_hint),
+        previewEnabled = previewEnabled,
+        accentColor = accentColor,
+        controlsEnabled = controlsEnabled,
+        onPreview = { onPreviewFragment(group, VoicePhraseFragment.TECHNOLOGY) }
+    )
+    VoicePhraseToggleRow(
+        checked = phrases.speakBand,
+        onCheckedChange = { onPhrasesChange(group, phrases.withBand(it)) },
+        title = stringResource(R.string.voice_phrase_speak_band),
+        hint = stringResource(R.string.voice_phrase_speak_band_hint),
+        previewEnabled = previewEnabled,
+        accentColor = accentColor,
+        controlsEnabled = controlsEnabled,
+        onPreview = { onPreviewFragment(group, VoicePhraseFragment.BAND) }
+    )
+}
+
+@Composable
+private fun VoicePhraseToggleRow(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    title: String,
+    hint: String,
+    previewEnabled: Boolean,
+    accentColor: Color,
+    controlsEnabled: Boolean,
+    onPreview: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Checkbox(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            enabled = controlsEnabled
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Medium,
+                color = accentColor
+            )
+            Text(
+                text = hint,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        RepeatablePreviewTestButton(
+            enabled = previewEnabled,
+            onPreview = onPreview,
+            modifier = Modifier.padding(start = 8.dp)
+        )
+    }
+}
 
 @Composable
 fun RxssSharedAlertHint(
@@ -132,7 +228,8 @@ fun RxssVolumeSlider(
             value = value.coerceIn(AudioVolumeSettings.MIN_VOLUME, AudioVolumeSettings.MAX_VOLUME),
             onValueChange = onValueChange,
             valueRange = AudioVolumeSettings.MIN_VOLUME..AudioVolumeSettings.MAX_VOLUME,
-            steps = 19
+            steps = 19,
+            enabled = settingsControlsEnabled()
         )
     }
 }
@@ -158,7 +255,8 @@ fun RxssVoiceAnnouncementOption(
     ) {
         Checkbox(
             checked = enabled,
-            onCheckedChange = onEnabledChange
+            onCheckedChange = onEnabledChange,
+            enabled = settingsControlsEnabled()
         )
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -230,13 +328,20 @@ fun NoSignalVoiceAnnouncementControls(
         onPreviewVoice = onPreviewNoSignalVoice,
         accentColor = accentColor
     )
+    VoicePhraseToggles(
+        group = VoicePhraseGroup.NO_SIGNAL,
+        phrases = audioVolumes.noSignalPhrases,
+        previewEnabled = previewEnabled,
+        accentColor = accentColor
+    )
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Checkbox(
             checked = audioVolumes.noSignalVibrationEnabled,
-            onCheckedChange = onNoSignalVibrationEnabledChange
+            onCheckedChange = onNoSignalVibrationEnabledChange,
+            enabled = settingsControlsEnabled()
         )
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -301,6 +406,12 @@ fun Tier5SignalLowVoiceControls(
         onPreviewVoice = onPreviewTier5Announcer,
         accentColor = accentColor
     )
+    VoicePhraseToggles(
+        group = VoicePhraseGroup.SIGNAL_LOW,
+        phrases = audioVolumes.signalLowPhrases,
+        previewEnabled = previewEnabled,
+        accentColor = accentColor
+    )
 }
 
 @Composable
@@ -335,6 +446,12 @@ fun CellChangeAlertControls(
         onPreviewVoice = onPreviewCellChangeVoice,
         accentColor = accentColor
     )
+    VoicePhraseToggles(
+        group = VoicePhraseGroup.CELL_CHANGE,
+        phrases = audioVolumes.cellChangePhrases,
+        previewEnabled = previewEnabled,
+        accentColor = accentColor
+    )
     if (audioVolumes.cellChangeVoiceEnabled) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -342,7 +459,8 @@ fun CellChangeAlertControls(
         ) {
             Checkbox(
                 checked = audioVolumes.cellChangeSpeakBandEnabled,
-                onCheckedChange = onCellChangeSpeakBandEnabledChange
+                onCheckedChange = onCellChangeSpeakBandEnabledChange,
+                enabled = settingsControlsEnabled()
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -380,10 +498,14 @@ private fun CellChangeBandNamingStyleOption(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onSelect(selected) },
+            .clickable(enabled = settingsControlsEnabled()) { onSelect(selected) },
         verticalAlignment = Alignment.Top
     ) {
-        RadioButton(selected = current == selected, onClick = { onSelect(selected) })
+        RadioButton(
+            selected = current == selected,
+            onClick = { onSelect(selected) },
+            enabled = settingsControlsEnabled()
+        )
         Column(modifier = Modifier.weight(1f)) {
             Text(text = label, style = MaterialTheme.typography.bodyMedium)
         }
@@ -424,6 +546,12 @@ fun TechnologyChangeAlertControls(
         onPreviewVoice = onPreviewVoice,
         accentColor = accentColor
     )
+    VoicePhraseToggles(
+        group = VoicePhraseGroup.forTechnologyChange(target),
+        phrases = audioVolumes.phrasesForTechnologyChange(target),
+        previewEnabled = previewEnabled,
+        accentColor = accentColor
+    )
 }
 
 @Composable
@@ -462,6 +590,12 @@ fun LimitedServiceVoiceAnnouncementControls(
         onVolumeChange = onLimitedServiceVoiceVolumeChange,
         previewEnabled = previewEnabled,
         onPreviewVoice = onPreviewLimitedServiceVoice,
+        accentColor = accentColor
+    )
+    VoicePhraseToggles(
+        group = VoicePhraseGroup.LIMITED_SERVICE,
+        phrases = audioVolumes.limitedServicePhrases,
+        previewEnabled = previewEnabled,
         accentColor = accentColor
     )
 }

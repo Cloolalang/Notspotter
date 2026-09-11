@@ -88,12 +88,14 @@ fun SettingsProfilesCard(
                         profileName = it
                         lastSaveResult = null
                     },
+                    enabled = settingsControlsEnabled(),
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text(text = stringResource(R.string.settings_profiles_name_label)) },
                     singleLine = true
                 )
 
                 OutlinedButton(
+                    enabled = settingsControlsEnabled(),
                     onClick = {
                         val result = onSaveProfile(profileName)
                         lastSaveResult = result
@@ -119,6 +121,7 @@ fun SettingsProfilesCard(
                 }
 
                 OutlinedButton(
+                    enabled = settingsControlsEnabled(),
                     onClick = {
                         lastImportResult = null
                         onImportProfile { result ->
@@ -249,12 +252,14 @@ private fun ProfileRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             OutlinedButton(
+                enabled = settingsControlsEnabled(),
                 onClick = onLoad,
                 modifier = Modifier.weight(1f)
             ) {
                 Text(text = stringResource(R.string.settings_profiles_load))
             }
             OutlinedButton(
+                enabled = settingsControlsEnabled(),
                 onClick = onShare,
                 modifier = Modifier.weight(1f)
             ) {
@@ -266,12 +271,14 @@ private fun ProfileRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             OutlinedButton(
+                enabled = settingsControlsEnabled(),
                 onClick = onExportToDownloads,
                 modifier = Modifier.weight(1f)
             ) {
                 Text(text = stringResource(R.string.settings_profiles_export_downloads))
             }
             OutlinedButton(
+                enabled = settingsControlsEnabled(),
                 onClick = onDelete,
                 modifier = Modifier.weight(1f)
             ) {

@@ -36,7 +36,7 @@ Multi-profile export uses a top-level `"profiles"` array with the same object sh
 |---------|----------|-------------|---------|
 | Ping / active test | `thresholds` | `ThresholdSettings` | RTT, jitter, packet loss, good-connection click suppression |
 | Ping target | `ping` | `PingSettings` | Host, port, pings per test, interval |
-| Monitoring | `monitoring` | `MonitoringSettings` | 2G fallback, SIM, quiet passive alerts, measurement interval, RSRP histogram window |
+| Monitoring | `monitoring` | `MonitoringSettings` | 2G fallback, SIM, quiet passive alerts, measurement interval, RSRP histogram window / binning mode / three threshold floors, 5G features |
 | Signal thresholds & tiers | `passiveSignal` | `PassiveSignalSettings` | RSRP/RSRQ bands, per-RXSS click interval, pulse duration, sound toggles (tiers 0–15, 12, 13, RSRQ 14) |
 | **Mock network** | `passiveMock` | `PassiveMockSettings` | Mock enable, scenario, RSRP, RSRQ — see below |
 | Alert audio & voice | `audio` | `AudioVolumeSettings` | Volumes, voice toggles, TTS engine choice, tier-5 announcer |
@@ -51,6 +51,16 @@ Multi-profile export uses a top-level `"profiles"` array with the same object sh
 | `rsrqDb` | int | Mock RSRQ (LTE/NR scenarios only) |
 
 Scenario reference and trigger states: [MOCK_NETWORK_SCENARIOS.md](MOCK_NETWORK_SCENARIOS.md).
+
+### `monitoring` histogram keys (full capture)
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `rsrpHistogramWindowMs` | long | Sample window (30 s–5 min, 30 s steps) |
+| `rsrpHistogramBinningMode` | string | `LEVEL` (5 dB bins) or `THRESHOLD` (three “stronger than” floors) |
+| `rsrpHistogramThreshold1Dbm` | int | Threshold 1 floor (default −95) |
+| `rsrpHistogramThreshold2Dbm` | int | Threshold 2 floor (default −105) |
+| `rsrpHistogramThreshold3Dbm` | int | Threshold 3 floor (default −115) |
 
 ### `passiveSignal` keys (summary)
 

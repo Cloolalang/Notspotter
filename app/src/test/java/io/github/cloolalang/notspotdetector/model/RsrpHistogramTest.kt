@@ -81,4 +81,72 @@ class RsrpHistogramTest {
         assertEquals(RsrpHistogramBand.POOR, RsrpHistogram.bandForLabelDbm(-120))
         assertEquals(RsrpHistogramBand.CRITICAL, RsrpHistogram.bandForLabelDbm(-125))
     }
+
+    @Test
+    fun buildThresholdBins_countsSamplesStrictlyStrongerThanEachThreshold() {
+        val nowMs = 100_000L
+        val samples = listOf(
+            RsrpSample(timestampMs = 95_000L, rsrpDbm = -90),
+            RsrpSample(timestampMs = 96_000L, rsrpDbm = -100),
+            RsrpSample(timestampMs = 97_000L, rsrpDbm = -110),
+            RsrpSample(timestampMs = 98_000L, rsrpDbm = -95),
+            RsrpSample(timestampMs = 99_000L, rsrpDbm = null),
+            RsrpSample(timestampMs = 50_000L, rsrpDbm = -80)
+        )
+
+        val bins = RsrpHistogram.buildThresholdBins(
+            samples = samples,
+            nowMs = nowMs,
+            windowMs = 30_000L,
+            thresholdsDbm = listOf(-95, -105, -115)
+        )
+
+        assertEquals(4, bins.size)
+        assertEquals(-95, bins[0].labelDbm)
+        assertEquals(1, bins[0].count)
+        assertEquals(-105, bins[1].labelDbm)
+        assertEquals(3, bins[1].count)
+        assertEquals(-115, bins[2].labelDbm)
+        assertEquals(4, bins[2].count)
+        assertEquals(null, bins[3].labelDbm)
+        assertEquals(1, bins[3].count)
+    }
+
+    @Test
+    fun buildThresholdBins_equalToThresholdDoesNotCount() {
+        val nowMs = 10_000L
+        val samples = listOf(
+            RsrpSample(timestampMs = 9_000L, rsrpDbm = -105)
+        )
+
+        val bins = RsrpHistogram.buildThresholdBins(
+            samples,
+            nowMs,
+            windowMs = 30_000L,
+            thresholdsDbm = listOf(-105)
+        )
+
+        assertEquals(0, bins[0].count)
+        assertEquals(null, bins[1].labelDbm)
+        assertEquals(0, bins[1].count)
+    }
+
+    @Test
+    fun buildThresholdBins_nullSamplesOnlyGoInTrailingBin() {
+        val nowMs = 10_000L
+        val samples = listOf(
+            RsrpSample(timestampMs = 9_000L, rsrpDbm = null),
+            RsrpSample(timestampMs = 8_500L, rsrpDbm = null)
+        )
+
+        val bins = RsrpHistogram.buildThresholdBins(
+            samples,
+            nowMs,
+            windowMs = 30_000L,
+            thresholdsDbm = listOf(-95, -105, -115)
+        )
+
+        assertEquals(listOf(0, 0, 0, 2), bins.map { it.count })
+        assertEquals(null, bins.last().labelDbm)
+    }
 }

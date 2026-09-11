@@ -10,7 +10,7 @@ object SignalStateAnnouncement {
         CellularSignalReader.RADIO_5G_ENDC
     )
 
-    /** Spoken phrase order: operator → tech → signal state → service state (when not implicit 4G/5G full service). */
+    /** Spoken phrase order: operator → tech → band → signal state → service state (when not implicit 4G/5G full service). */
     internal const val PHRASE_SIGNAL_LOW = "signal low"
     internal const val PHRASE_NO_SIGNAL = "no signal"
     internal const val PHRASE_SIGNAL_RESTORED = "signal restored"
@@ -23,6 +23,8 @@ object SignalStateAnnouncement {
     internal const val PHRASE_WIFI_CALLING_NO_SIGNAL = "wifi calling, no cellular signal"
     internal const val PHRASE_CELLULAR_SIGNAL_RESTORED = "cellular signal restored"
 
+    private const val PREVIEW_LTE_EARFCN = 6400
+
     fun isLteNrRadioAccessType(radioAccessType: String?): Boolean {
         return radioAccessType != null && radioAccessType in LTE_NR_RADIO_TYPES
     }
@@ -31,73 +33,98 @@ object SignalStateAnnouncement {
         networkOperatorName: String?,
         target: TechnologyChangeTarget = TechnologyChangeTarget.TO_4G,
         speakOperatorNameEnabled: Boolean = true,
-        speakTechnologyEnabled: Boolean = true
+        speakTechnologyEnabled: Boolean = true,
+        phrases: VoicePhraseOptions = VoicePhraseOptions(
+            speakOperatorName = speakOperatorNameEnabled,
+            speakTechnology = speakTechnologyEnabled
+        )
     ): String {
         return formatTechnologyChange(
             target.radioAccessType,
             networkOperatorName,
-            speakOperatorNameEnabled,
-            speakTechnologyEnabled
+            phrases.speakOperatorName,
+            phrases.speakTechnology,
+            phrases.speakBand,
+            phrases.bandPhraseFor(PREVIEW_LTE_EARFCN)
         )
     }
 
     fun previewTier5SignalLow(
         networkOperatorName: String?,
         speakOperatorNameEnabled: Boolean = true,
-        speakTechnologyEnabled: Boolean = true
+        speakTechnologyEnabled: Boolean = true,
+        phrases: VoicePhraseOptions = VoicePhraseOptions(
+            speakOperatorName = speakOperatorNameEnabled,
+            speakTechnology = speakTechnologyEnabled
+        )
     ): String {
         return formatTier5SignalLowAnnouncement(
             networkOperatorName,
             CellularSignalReader.RADIO_4G,
-            speakOperatorNameEnabled,
-            speakTechnologyEnabled
+            phrases.speakOperatorName,
+            phrases.speakTechnology,
+            phrases.speakBand,
+            phrases.bandPhraseFor(PREVIEW_LTE_EARFCN)
         )
     }
 
     fun previewNoSignal(
         networkOperatorName: String?,
         speakOperatorNameEnabled: Boolean = true,
-        speakTechnologyEnabled: Boolean = true
+        speakTechnologyEnabled: Boolean = true,
+        phrases: VoicePhraseOptions = VoicePhraseOptions(
+            speakOperatorName = speakOperatorNameEnabled,
+            speakTechnology = speakTechnologyEnabled
+        )
     ): String {
         return formatNoSignalAnnouncement(
             networkOperatorName,
             CellularSignalReader.RADIO_4G,
-            speakOperatorNameEnabled = speakOperatorNameEnabled,
-            speakTechnologyEnabled = speakTechnologyEnabled
+            speakOperatorNameEnabled = phrases.speakOperatorName,
+            speakTechnologyEnabled = phrases.speakTechnology,
+            speakBandEnabled = phrases.speakBand,
+            bandPhrase = phrases.bandPhraseFor(PREVIEW_LTE_EARFCN)
         )
     }
 
     fun previewLimitedService(
         networkOperatorName: String?,
         speakOperatorNameEnabled: Boolean = true,
-        speakTechnologyEnabled: Boolean = true
+        speakTechnologyEnabled: Boolean = true,
+        phrases: VoicePhraseOptions = VoicePhraseOptions(
+            speakOperatorName = speakOperatorNameEnabled,
+            speakTechnology = speakTechnologyEnabled
+        )
     ): String {
         return formatLimitedServiceAnnouncement(
             homeOperatorName = networkOperatorName,
             visitedOperatorName = "E E",
             radioAccessType = CellularSignalReader.RADIO_4G,
-            speakOperatorNameEnabled = speakOperatorNameEnabled,
-            speakTechnologyEnabled = speakTechnologyEnabled
+            speakOperatorNameEnabled = phrases.speakOperatorName,
+            speakTechnologyEnabled = phrases.speakTechnology,
+            speakBandEnabled = phrases.speakBand,
+            bandPhrase = phrases.bandPhraseFor(PREVIEW_LTE_EARFCN)
         )
     }
 
     /**
-     * Operator + tech only (implicit 4G/5G full service — no service-state phrase). VA-9 —
-     * announcing the technology itself is the entire point of this alert, so [speakTechnologyEnabled]
-     * is intentionally **not** honored here (unlike every other announcement type); only the global
-     * "speak operator name" toggle applies.
+     * Operator + tech + optional band (implicit 4G/5G full service — no service-state phrase).
      */
     fun formatTechnologyChange(
         radioAccessType: String,
         networkOperatorName: String?,
         speakOperatorNameEnabled: Boolean = true,
-        speakTechnologyEnabled: Boolean = true
+        speakTechnologyEnabled: Boolean = true,
+        speakBandEnabled: Boolean = false,
+        bandPhrase: String? = null
     ): String {
         return joinAnnouncementParts(
             operatorNames = listOf(networkOperatorName),
             radioAccessType = radioAccessType,
             speakOperatorNameEnabled = speakOperatorNameEnabled,
-            speakTechnologyEnabled = true
+            speakTechnologyEnabled = speakTechnologyEnabled,
+            speakBandEnabled = speakBandEnabled,
+            bandPhrase = bandPhrase
         )
     }
 
@@ -105,14 +132,18 @@ object SignalStateAnnouncement {
         networkOperatorName: String?,
         radioAccessType: String?,
         speakOperatorNameEnabled: Boolean = true,
-        speakTechnologyEnabled: Boolean = true
+        speakTechnologyEnabled: Boolean = true,
+        speakBandEnabled: Boolean = false,
+        bandPhrase: String? = null
     ): String {
         return formatCampedSignalStateAnnouncement(
             operatorSpeech = networkOperatorName?.let(NetworkOperatorSpeech::formatForSpeech),
             radioAccessType = radioAccessType,
             signalState = PHRASE_SIGNAL_LOW,
             speakOperatorNameEnabled = speakOperatorNameEnabled,
-            speakTechnologyEnabled = speakTechnologyEnabled
+            speakTechnologyEnabled = speakTechnologyEnabled,
+            speakBandEnabled = speakBandEnabled,
+            bandPhrase = bandPhrase
         )
     }
 
@@ -120,14 +151,17 @@ object SignalStateAnnouncement {
         stats: ConnectivityStats,
         lastKnownRadioAccessType: String? = null,
         speakOperatorNameEnabled: Boolean = true,
-        speakTechnologyEnabled: Boolean = true
+        speakTechnologyEnabled: Boolean = true,
+        phrases: VoicePhraseOptions = VoicePhraseOptions(
+            speakOperatorName = speakOperatorNameEnabled,
+            speakTechnology = speakTechnologyEnabled
+        )
     ): String {
         return formatCampedSignalStateAnnouncement(
             stats = stats,
             lastKnownRadioAccessType = lastKnownRadioAccessType,
             signalState = PHRASE_SIGNAL_LOW,
-            speakOperatorNameEnabled = speakOperatorNameEnabled,
-            speakTechnologyEnabled = speakTechnologyEnabled
+            phrases = phrases
         )
     }
 
@@ -136,7 +170,9 @@ object SignalStateAnnouncement {
         radioAccessType: String?,
         isWifiCallingActive: Boolean = false,
         speakOperatorNameEnabled: Boolean = true,
-        speakTechnologyEnabled: Boolean = true
+        speakTechnologyEnabled: Boolean = true,
+        speakBandEnabled: Boolean = false,
+        bandPhrase: String? = null
     ): String {
         if (isWifiCallingActive) {
             return joinAnnouncementParts(
@@ -150,7 +186,9 @@ object SignalStateAnnouncement {
             radioAccessType = radioAccessType,
             signalState = PHRASE_NO_SIGNAL,
             speakOperatorNameEnabled = speakOperatorNameEnabled,
-            speakTechnologyEnabled = speakTechnologyEnabled
+            speakTechnologyEnabled = speakTechnologyEnabled,
+            speakBandEnabled = speakBandEnabled,
+            bandPhrase = bandPhrase
         )
     }
 
@@ -160,14 +198,20 @@ object SignalStateAnnouncement {
         lastKnownRadioAccessType: String? = null,
         signalState: String,
         speakOperatorNameEnabled: Boolean = true,
-        speakTechnologyEnabled: Boolean = true
+        speakTechnologyEnabled: Boolean = true,
+        phrases: VoicePhraseOptions = VoicePhraseOptions(
+            speakOperatorName = speakOperatorNameEnabled,
+            speakTechnology = speakTechnologyEnabled
+        )
     ): String {
         return formatCampedSignalStateAnnouncement(
             operatorSpeech = stats.formatCampedOperatorForSpeech(),
             radioAccessType = stats.resolveNoSignalAnnouncementRadioAccessType(lastKnownRadioAccessType),
             signalState = signalState,
-            speakOperatorNameEnabled = speakOperatorNameEnabled,
-            speakTechnologyEnabled = speakTechnologyEnabled
+            speakOperatorNameEnabled = phrases.speakOperatorName,
+            speakTechnologyEnabled = phrases.speakTechnology,
+            speakBandEnabled = phrases.speakBand,
+            bandPhrase = phrases.bandPhraseFor(stats.lteEarfcn, stats.nrBand)
         )
     }
 
@@ -176,7 +220,9 @@ object SignalStateAnnouncement {
         radioAccessType: String?,
         signalState: String,
         speakOperatorNameEnabled: Boolean = true,
-        speakTechnologyEnabled: Boolean = true
+        speakTechnologyEnabled: Boolean = true,
+        speakBandEnabled: Boolean = false,
+        bandPhrase: String? = null
     ): String {
         val parts = mutableListOf<String>()
         if (speakOperatorNameEnabled) {
@@ -186,6 +232,9 @@ object SignalStateAnnouncement {
             radioAccessType?.takeIf { it.isNotBlank() }?.let {
                 parts.add(formatTechnologyForSpeech(it))
             }
+        }
+        if (speakBandEnabled) {
+            bandPhrase?.takeIf { it.isNotBlank() }?.let(parts::add)
         }
         parts.add(signalState)
         return parts.joinToString(", ")
@@ -197,23 +246,34 @@ object SignalStateAnnouncement {
         radioAccessType: String? = null,
         isWifiCallingActive: Boolean = false,
         speakOperatorNameEnabled: Boolean = true,
-        speakTechnologyEnabled: Boolean = true
+        speakTechnologyEnabled: Boolean = true,
+        phrases: VoicePhraseOptions = VoicePhraseOptions(
+            speakOperatorName = speakOperatorNameEnabled,
+            speakTechnology = speakTechnologyEnabled
+        ),
+        lteEarfcn: Int? = null,
+        nrBand: Int? = null
     ): String {
+        val bandPhrase = phrases.bandPhraseFor(lteEarfcn, nrBand)
         if (active) {
             return formatNoSignalAnnouncement(
                 networkOperatorName,
                 radioAccessType,
                 isWifiCallingActive,
-                speakOperatorNameEnabled,
-                speakTechnologyEnabled
+                phrases.speakOperatorName,
+                phrases.speakTechnology,
+                phrases.speakBand,
+                bandPhrase
             )
         }
         return formatSignalRestoredAnnouncement(
             networkOperatorName,
             radioAccessType,
             isWifiCallingActive,
-            speakOperatorNameEnabled,
-            speakTechnologyEnabled
+            phrases.speakOperatorName,
+            phrases.speakTechnology,
+            phrases.speakBand,
+            bandPhrase
         )
     }
 
@@ -222,7 +282,9 @@ object SignalStateAnnouncement {
         radioAccessType: String?,
         isWifiCallingActive: Boolean = false,
         speakOperatorNameEnabled: Boolean = true,
-        speakTechnologyEnabled: Boolean = true
+        speakTechnologyEnabled: Boolean = true,
+        speakBandEnabled: Boolean = false,
+        bandPhrase: String? = null
     ): String {
         if (isWifiCallingActive) {
             return joinAnnouncementParts(
@@ -236,7 +298,9 @@ object SignalStateAnnouncement {
             radioAccessType = radioAccessType,
             signalState = PHRASE_SIGNAL_RESTORED,
             speakOperatorNameEnabled = speakOperatorNameEnabled,
-            speakTechnologyEnabled = speakTechnologyEnabled
+            speakTechnologyEnabled = speakTechnologyEnabled,
+            speakBandEnabled = speakBandEnabled,
+            bandPhrase = bandPhrase
         )
     }
 
@@ -244,15 +308,20 @@ object SignalStateAnnouncement {
         stats: ConnectivityStats,
         lastKnownRadioAccessType: String? = null,
         speakOperatorNameEnabled: Boolean = true,
-        speakTechnologyEnabled: Boolean = true
+        speakTechnologyEnabled: Boolean = true,
+        phrases: VoicePhraseOptions = VoicePhraseOptions(
+            speakOperatorName = speakOperatorNameEnabled,
+            speakTechnology = speakTechnologyEnabled
+        )
     ): String? {
         return formatNoSignalChange(
             active = stats.noSignalActive,
             networkOperatorName = stats.networkOperatorName,
             radioAccessType = stats.resolveNoSignalAnnouncementRadioAccessType(lastKnownRadioAccessType),
             isWifiCallingActive = stats.isWifiCallingActive,
-            speakOperatorNameEnabled = speakOperatorNameEnabled,
-            speakTechnologyEnabled = speakTechnologyEnabled
+            phrases = phrases,
+            lteEarfcn = stats.lteEarfcn,
+            nrBand = stats.nrBand
         )
     }
 
@@ -260,23 +329,26 @@ object SignalStateAnnouncement {
         stats: ConnectivityStats,
         lastKnownRadioAccessType: String? = null,
         speakOperatorNameEnabled: Boolean = true,
-        speakTechnologyEnabled: Boolean = true
+        speakTechnologyEnabled: Boolean = true,
+        phrases: VoicePhraseOptions = VoicePhraseOptions(
+            speakOperatorName = speakOperatorNameEnabled,
+            speakTechnology = speakTechnologyEnabled
+        )
     ): String {
         if (stats.isWifiCallingActive) {
             return formatNoSignalAnnouncement(
                 networkOperatorName = stats.networkOperatorName,
                 radioAccessType = null,
                 isWifiCallingActive = true,
-                speakOperatorNameEnabled = speakOperatorNameEnabled,
-                speakTechnologyEnabled = speakTechnologyEnabled
+                speakOperatorNameEnabled = phrases.speakOperatorName,
+                speakTechnologyEnabled = phrases.speakTechnology
             )
         }
         return formatCampedSignalStateAnnouncement(
             stats = stats,
             lastKnownRadioAccessType = lastKnownRadioAccessType,
             signalState = PHRASE_NO_SIGNAL,
-            speakOperatorNameEnabled = speakOperatorNameEnabled,
-            speakTechnologyEnabled = speakTechnologyEnabled
+            phrases = phrases
         )
     }
 
@@ -284,23 +356,26 @@ object SignalStateAnnouncement {
         stats: ConnectivityStats,
         lastKnownRadioAccessType: String? = null,
         speakOperatorNameEnabled: Boolean = true,
-        speakTechnologyEnabled: Boolean = true
+        speakTechnologyEnabled: Boolean = true,
+        phrases: VoicePhraseOptions = VoicePhraseOptions(
+            speakOperatorName = speakOperatorNameEnabled,
+            speakTechnology = speakTechnologyEnabled
+        )
     ): String {
         if (stats.isWifiCallingActive) {
             return formatSignalRestoredAnnouncement(
                 networkOperatorName = stats.networkOperatorName,
                 radioAccessType = null,
                 isWifiCallingActive = true,
-                speakOperatorNameEnabled = speakOperatorNameEnabled,
-                speakTechnologyEnabled = speakTechnologyEnabled
+                speakOperatorNameEnabled = phrases.speakOperatorName,
+                speakTechnologyEnabled = phrases.speakTechnology
             )
         }
         return formatCampedSignalStateAnnouncement(
             stats = stats,
             lastKnownRadioAccessType = lastKnownRadioAccessType,
             signalState = PHRASE_SIGNAL_RESTORED,
-            speakOperatorNameEnabled = speakOperatorNameEnabled,
-            speakTechnologyEnabled = speakTechnologyEnabled
+            phrases = phrases
         )
     }
 
@@ -308,13 +383,16 @@ object SignalStateAnnouncement {
         stats: ConnectivityStats,
         lastKnownRadioAccessType: String? = null,
         speakOperatorNameEnabled: Boolean = true,
-        speakTechnologyEnabled: Boolean = true
+        speakTechnologyEnabled: Boolean = true,
+        phrases: VoicePhraseOptions = VoicePhraseOptions(
+            speakOperatorName = speakOperatorNameEnabled,
+            speakTechnology = speakTechnologyEnabled
+        )
     ): String {
         return formatLimitedServiceAnnouncement(
             stats,
             lastKnownRadioAccessType,
-            speakOperatorNameEnabled,
-            speakTechnologyEnabled
+            phrases = phrases
         )
     }
 
@@ -323,7 +401,9 @@ object SignalStateAnnouncement {
         visitedOperatorName: String?,
         radioAccessType: String?,
         speakOperatorNameEnabled: Boolean = true,
-        speakTechnologyEnabled: Boolean = true
+        speakTechnologyEnabled: Boolean = true,
+        speakBandEnabled: Boolean = false,
+        bandPhrase: String? = null
     ): String {
         val parts = mutableListOf<String>()
         if (speakOperatorNameEnabled) {
@@ -343,6 +423,9 @@ object SignalStateAnnouncement {
                 parts.add(formatTechnologyForSpeech(it))
             }
         }
+        if (speakBandEnabled) {
+            bandPhrase?.takeIf { it.isNotBlank() }?.let(parts::add)
+        }
         parts.add(PHRASE_LIMITED_SERVICE)
         return parts.joinToString(", ")
     }
@@ -351,14 +434,18 @@ object SignalStateAnnouncement {
         networkOperatorName: String?,
         radioAccessType: String?,
         speakOperatorNameEnabled: Boolean = true,
-        speakTechnologyEnabled: Boolean = true
+        speakTechnologyEnabled: Boolean = true,
+        speakBandEnabled: Boolean = false,
+        bandPhrase: String? = null
     ): String {
         return formatLimitedServiceAnnouncement(
             homeOperatorName = networkOperatorName,
             visitedOperatorName = null,
             radioAccessType = radioAccessType,
             speakOperatorNameEnabled = speakOperatorNameEnabled,
-            speakTechnologyEnabled = speakTechnologyEnabled
+            speakTechnologyEnabled = speakTechnologyEnabled,
+            speakBandEnabled = speakBandEnabled,
+            bandPhrase = bandPhrase
         )
     }
 
@@ -366,14 +453,20 @@ object SignalStateAnnouncement {
         stats: ConnectivityStats,
         lastKnownRadioAccessType: String? = null,
         speakOperatorNameEnabled: Boolean = true,
-        speakTechnologyEnabled: Boolean = true
+        speakTechnologyEnabled: Boolean = true,
+        phrases: VoicePhraseOptions = VoicePhraseOptions(
+            speakOperatorName = speakOperatorNameEnabled,
+            speakTechnology = speakTechnologyEnabled
+        )
     ): String {
         return formatLimitedServiceAnnouncement(
             homeOperatorName = stats.homeNetworkOperatorName ?: stats.networkOperatorName,
             visitedOperatorName = stats.resolveLimitedServiceVisitedOperatorName(),
             radioAccessType = stats.resolveNoSignalAnnouncementRadioAccessType(lastKnownRadioAccessType),
-            speakOperatorNameEnabled = speakOperatorNameEnabled,
-            speakTechnologyEnabled = speakTechnologyEnabled
+            speakOperatorNameEnabled = phrases.speakOperatorName,
+            speakTechnologyEnabled = phrases.speakTechnology,
+            speakBandEnabled = phrases.speakBand,
+            bandPhrase = phrases.bandPhraseFor(stats.lteEarfcn, stats.nrBand)
         )
     }
 
@@ -381,13 +474,21 @@ object SignalStateAnnouncement {
     fun formatG2CampedAnnouncement(
         networkOperatorName: String?,
         speakOperatorNameEnabled: Boolean = true,
-        speakTechnologyEnabled: Boolean = true
+        speakTechnologyEnabled: Boolean = true,
+        phrases: VoicePhraseOptions = VoicePhraseOptions(
+            speakOperatorName = speakOperatorNameEnabled,
+            speakTechnology = speakTechnologyEnabled
+        ),
+        lteEarfcn: Int? = null,
+        nrBand: Int? = null
     ): String {
         return joinAnnouncementParts(
             operatorNames = listOf(networkOperatorName),
             radioAccessType = CellularSignalReader.RADIO_2G,
-            speakOperatorNameEnabled = speakOperatorNameEnabled,
-            speakTechnologyEnabled = speakTechnologyEnabled
+            speakOperatorNameEnabled = phrases.speakOperatorName,
+            speakTechnologyEnabled = phrases.speakTechnology,
+            speakBandEnabled = phrases.speakBand,
+            bandPhrase = phrases.bandPhraseFor(lteEarfcn, nrBand)
         )
     }
 
@@ -396,15 +497,23 @@ object SignalStateAnnouncement {
         networkOperatorName: String?,
         lastKnownLteNrRadioAccessType: String?,
         speakOperatorNameEnabled: Boolean = true,
-        speakTechnologyEnabled: Boolean = true
+        speakTechnologyEnabled: Boolean = true,
+        phrases: VoicePhraseOptions = VoicePhraseOptions(
+            speakOperatorName = speakOperatorNameEnabled,
+            speakTechnology = speakTechnologyEnabled
+        ),
+        lteEarfcn: Int? = null,
+        nrBand: Int? = null
     ): String {
         return joinAnnouncementParts(
             operatorNames = listOf(networkOperatorName),
             radioAccessType = lastKnownLteNrRadioAccessType,
             signalState = PHRASE_NO_SIGNAL,
             serviceState = PHRASE_SEARCHING_2G,
-            speakOperatorNameEnabled = speakOperatorNameEnabled,
-            speakTechnologyEnabled = speakTechnologyEnabled
+            speakOperatorNameEnabled = phrases.speakOperatorName,
+            speakTechnologyEnabled = phrases.speakTechnology,
+            speakBandEnabled = phrases.speakBand,
+            bandPhrase = phrases.bandPhraseFor(lteEarfcn, nrBand)
         )
     }
 
@@ -444,7 +553,9 @@ object SignalStateAnnouncement {
         signalState: String? = null,
         serviceState: String? = null,
         speakOperatorNameEnabled: Boolean = true,
-        speakTechnologyEnabled: Boolean = true
+        speakTechnologyEnabled: Boolean = true,
+        speakBandEnabled: Boolean = false,
+        bandPhrase: String? = null
     ): String {
         val parts = mutableListOf<String>()
         if (speakOperatorNameEnabled) {
@@ -460,6 +571,9 @@ object SignalStateAnnouncement {
             radioAccessType?.takeIf { it.isNotBlank() }?.let {
                 parts.add(formatTechnologyForSpeech(it))
             }
+        }
+        if (speakBandEnabled) {
+            bandPhrase?.takeIf { it.isNotBlank() }?.let(parts::add)
         }
         signalState?.takeIf { it.isNotBlank() }?.let(parts::add)
         serviceState?.takeIf { it.isNotBlank() }?.let(parts::add)

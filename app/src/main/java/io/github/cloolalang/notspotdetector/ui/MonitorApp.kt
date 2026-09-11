@@ -43,6 +43,7 @@ fun MonitorApp(
     var phoneStatePermissionGranted by remember {
         mutableStateOf(viewModel.phoneStatePermissionGranted)
     }
+    var settingsUnlocked by remember { mutableStateOf(false) }
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         phoneStatePermissionGranted = viewModel.phoneStatePermissionGranted
@@ -96,6 +97,9 @@ fun MonitorApp(
             onPassiveMockSettingsChange = viewModel::updatePassiveMockSettings,
             onPassiveMeasurementIntervalChange = viewModel::updatePassiveMeasurementIntervalMs,
             onRsrpHistogramWindowChange = viewModel::updateRsrpHistogramWindowMs,
+            onRsrpHistogramBinningModeChange = viewModel::updateRsrpHistogramBinningMode,
+            onRsrpHistogramThresholdChange = viewModel::updateRsrpHistogramThresholdDbm,
+            onClearRsrpHistogram = viewModel::clearRsrpHistogram,
             onResetPassiveSignalSettings = viewModel::resetPassiveSignalSettings,
             onSubscriptionChange = viewModel::updateSelectedSubscription,
             onVoiceAnnouncerChoiceChange = viewModel::updateVoiceAnnouncerChoice,
@@ -109,8 +113,11 @@ fun MonitorApp(
             onG2WeakTierPulseFrequencyChange = viewModel::updateG2WeakTierPulseFrequencyHz,
             onSignalPulseDurationChange = viewModel::updateSignalPulseDurationMs,
             onMasterVoiceAnnouncementsEnabledChange = viewModel::updateMasterVoiceAnnouncementsEnabled,
-            onSpeakOperatorNameEnabledChange = viewModel::updateSpeakOperatorNameEnabled,
-            onSpeakTechnologyEnabledChange = viewModel::updateSpeakTechnologyEnabled,
+            onVoicePhrasesChange = viewModel::updateVoicePhrases,
+            onPreviewVoicePhrase = viewModel::previewVoicePhrase,
+            onFiveGFeaturesEnabledChange = viewModel::updateFiveGFeaturesEnabled,
+            settingsUnlocked = settingsUnlocked,
+            onSettingsUnlockedChange = { settingsUnlocked = it },
             onCellChangeBellVolumeChange = viewModel::updateCellChangeBellVolume,
             onCellChangeVoiceEnabledChange = viewModel::updateCellChangeVoiceEnabled,
             onCellChangeVoiceVolumeChange = viewModel::updateCellChangeVoiceVolume,
@@ -127,6 +134,7 @@ fun MonitorApp(
             onNoSignalVoiceEnabledChange = viewModel::updateNoSignalVoiceEnabled,
             onNoSignalVoiceVolumeChange = viewModel::updateNoSignalVoiceVolume,
             onLimitedServiceTierPulseFrequencyChange = viewModel::updateLimitedServiceTierPulseFrequencyHz,
+            onLimitedServiceTwoToneSpreadPercentChange = viewModel::updateLimitedServiceTwoToneSpreadPercent,
             onLimitedServiceToneVolumeChange = viewModel::updateLimitedServiceToneVolume,
             onLimitedServiceVoiceEnabledChange = viewModel::updateLimitedServiceVoiceEnabled,
             onLimitedServiceVoiceVolumeChange = viewModel::updateLimitedServiceVoiceVolume,

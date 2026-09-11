@@ -11,6 +11,81 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Documentation** — [MOCK_NETWORK_SCENARIOS.md](MOCK_NETWORK_SCENARIOS.md) (agreed mock trigger states per scenario) and [SETTINGS_PROFILES.md](SETTINGS_PROFILES.md) (profile JSON capture scope, including full `passiveMock` block). Updated [RXSS_CATALOGUE.md](RXSS_CATALOGUE.md), [VOICE_ANNOUNCEMENTS.md](VOICE_ANNOUNCEMENTS.md), and [README.md](README.md) cross-links; RXSS **0**, **11**, **12**, **20**, **23** rows reflect current voice implementation.
 
+## [2.28.0] - 2026-09-11
+
+### Added
+
+- **Clear histogram** — A **Clear graph** button under the live level histogram wipes the current sample window and restarts collection. It stays usable while settings are locked.
+
+## [2.27.2] - 2026-09-11
+
+### Changed
+
+- **Histogram by technology** — The level histogram no longer mixes RSRP from different RATs. A change between 2G, 4G, 5G, or EN-DC clears the window and starts sampling again for the new technology.
+
+## [2.27.1] - 2026-09-11
+
+### Fixed
+
+- **Histogram sample counts** — The level histogram now records one last-known RSRP every second while monitoring. Widening the sample window includes already-stored samples from the last few minutes, then the count above each bar grows as more seconds are collected (previously only one sample was stored per radio poll, so a longer window often looked unchanged).
+
+## [2.27.0] - 2026-09-11
+
+### Added
+
+- **Threshold histogram N/A bar** — Threshold bins now include a grey **N/A** bar for samples with no RSRP (no signal), the same as the 5 dB histogram.
+
+## [2.26.2] - 2026-09-11
+
+### Changed
+
+- **Histogram bin type while locked** — You can switch between 5 dB bins and threshold bins with the settings lock on. Threshold floors and the sample window stay locked.
+
+## [2.26.1] - 2026-09-11
+
+### Changed
+
+- **Histogram settings sub-panel** — Binning mode, the three threshold floors, and the sample window now live in a nested **Histogram settings** panel under Level histogram, so the live chart stays visible without the controls in the way.
+
+## [2.26.0] - 2026-09-11
+
+### Added
+
+- **Histogram threshold bins** — The level histogram can switch to an alternative view with three bars. Each bar counts samples **stronger than** a settable RSRP floor (defaults −95 / −105 / −115 dBm). Only one histogram is shown at a time; 5 dB bins remain the other option.
+
+## [2.25.1] - 2026-09-11
+
+### Fixed
+
+- **Voice announcements with the screen locked** — Spoken alerts now keep playing after the lock screen comes up. TTS was using default media playback, which many phones pause when the display turns off, and a dropped speech callback could stall later announcements. Voice now uses spoken-guidance audio (same volume as clicks), takes a short audio focus, and no longer waits forever if the engine drops an utterance.
+
+## [2.25.0] - 2026-09-11
+
+### Added
+
+- **Speak band** — Each voice-announcement RXSS now has operator, technology, and **Speak band** toggles with Test buttons. Band is always spoken after operator and technology when those parts are on.
+- **Settings lock** — Password lock (`1234`) at the bottom of the main screen. The app starts locked so sliders and toggles are greyed out; you can still browse every panel. Unlocking lasts until you lock again or the app restarts.
+- **Features under development** — New Development-area panel with a **5 G features** switch. When off, 5 G technology-change alerts, 5 G mock states, and NR metrics are hidden, and live 5 G is treated as 4 G.
+
+### Changed
+
+- Operator and technology phrase toggles moved from Global voice settings onto each RXSS that has a voice announcement. Global voice settings now only chooses the announcer voice.
+- **Active mode testing** (ping, thresholds, and shared alert-sound settings) now lives inside Features under development.
+
+## [2.24.0] - 2026-09-11
+
+### Added
+
+- **RXSS 12 two-tone pitch** — Lower tone frequency (400 Hz–5 kHz) plus an **Upper tone spread** of 5–30% so the high tone tracks a controllable offset above the low tone.
+- **RXSS 6 no-signal RSRP** — Adjustable floor from −130 dBm to −118 dBm (was fixed at −125 dBm).
+
+### Changed
+
+- Alert pulse **duration** sliders now run from **20 ms to 5 000 ms**, and **interval** sliders from **30 ms to 20 s** (including RSRQ).
+- Alert pulse **frequency** sliders stay at **400 Hz–5 kHz**; two-tone RXSS 12 uses the new lower-tone + spread controls instead of a single pulse frequency.
+- Cell change, technology change, and RXSS 12 two-tone volume sliders are labelled **Alert sound volume** (they are not pulse tones).
+- Alert settings group headings: **RSRP/RX lev** (RXSS 1–8), **Cell state** (RXSS 9), **Camped state** (RXSS 0, 31, 11, 12, 13, plus 10 and 15), then the existing **RSRQ** and **Technology change** headings.
+
 ## [2.23.0] - 2026-09-11
 
 ### Changed

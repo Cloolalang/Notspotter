@@ -14,7 +14,11 @@ object CellIdentityAnnouncement {
         speakBandEnabled: Boolean = false,
         bandNamingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.DEFAULT,
         speakOperatorNameEnabled: Boolean = true,
-        speakTechnologyEnabled: Boolean = true
+        speakTechnologyEnabled: Boolean = true,
+        prefixPhrases: VoicePhraseOptions = VoicePhraseOptions(
+            speakOperatorName = speakOperatorNameEnabled,
+            speakTechnology = speakTechnologyEnabled
+        )
     ): String {
         val bandPhrase = if (speakBandEnabled) formatBandPhrase(PREVIEW_LTE_EARFCN, bandNamingStyle) else null
         return formatAnnouncementBody(
@@ -22,8 +26,10 @@ object CellIdentityAnnouncement {
             radioAccessType = CellularSignalReader.RADIO_4G,
             identityBody = bandPhrase ?: PREVIEW_IDENTITY,
             includeCellReselectPrefix = bandPhrase == null,
-            speakOperatorNameEnabled = speakOperatorNameEnabled,
-            speakTechnologyEnabled = speakTechnologyEnabled
+            speakOperatorNameEnabled = prefixPhrases.speakOperatorName,
+            speakTechnologyEnabled = prefixPhrases.speakTechnology,
+            prefixSpeakBandEnabled = prefixPhrases.speakBand,
+            prefixBandPhrase = prefixPhrases.bandPhraseFor(PREVIEW_LTE_EARFCN)
         )
     }
 
@@ -36,7 +42,11 @@ object CellIdentityAnnouncement {
         speakBandEnabled: Boolean = false,
         bandNamingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.DEFAULT,
         speakOperatorNameEnabled: Boolean = true,
-        speakTechnologyEnabled: Boolean = true
+        speakTechnologyEnabled: Boolean = true,
+        prefixPhrases: VoicePhraseOptions = VoicePhraseOptions(
+            speakOperatorName = speakOperatorNameEnabled,
+            speakTechnology = speakTechnologyEnabled
+        )
     ): String {
         if (previous == next) return ""
 
@@ -48,8 +58,10 @@ object CellIdentityAnnouncement {
                 identityBody = bandPhrase,
                 campedOnVisitedOperator = campedOnVisitedOperator,
                 includeCellReselectPrefix = false,
-                speakOperatorNameEnabled = speakOperatorNameEnabled,
-                speakTechnologyEnabled = speakTechnologyEnabled
+                speakOperatorNameEnabled = prefixPhrases.speakOperatorName,
+                speakTechnologyEnabled = prefixPhrases.speakTechnology,
+                prefixSpeakBandEnabled = prefixPhrases.speakBand,
+                prefixBandPhrase = prefixPhrases.bandPhraseFor(next.lteEarfcn, next.nrBand)
             )
         }
 
@@ -79,8 +91,10 @@ object CellIdentityAnnouncement {
             radioAccessType = radioAccessType,
             identityBody = identityParts.joinToString(", "),
             campedOnVisitedOperator = campedOnVisitedOperator,
-            speakOperatorNameEnabled = speakOperatorNameEnabled,
-            speakTechnologyEnabled = speakTechnologyEnabled
+            speakOperatorNameEnabled = prefixPhrases.speakOperatorName,
+            speakTechnologyEnabled = prefixPhrases.speakTechnology,
+            prefixSpeakBandEnabled = prefixPhrases.speakBand,
+            prefixBandPhrase = prefixPhrases.bandPhraseFor(next.lteEarfcn, next.nrBand)
         )
     }
 
@@ -94,7 +108,10 @@ object CellIdentityAnnouncement {
      * no LTE EARFCN to map (2G-only or NR-only reselect), so callers fall back to the normal
      * channel/PCI phrasing.
      */
-    private fun formatBandPhrase(lteEarfcn: Int?, namingStyle: CellReselectBandNamingStyle): String? {
+    fun formatBandPhrase(
+        lteEarfcn: Int?,
+        namingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.DEFAULT
+    ): String? {
         val earfcn = lteEarfcn ?: return null
         val bandInfo = EutraBand.forEarfcn(earfcn) ?: return null
         val spokenBand = when (namingStyle) {
@@ -102,6 +119,20 @@ object CellIdentityAnnouncement {
             CellReselectBandNamingStyle.MHZ_NICKNAME -> formatMhzNicknameForSpeech(bandInfo.mhzNickname)
         }
         return "band, $spokenBand"
+    }
+
+    /**
+     * Prefix band phrase spoken after operator and technology: "band, twenty" (LTE EARFCN) or
+     * "band, seventy eight" (NR operating band).
+     */
+    fun prefixBandPhrase(
+        lteEarfcn: Int?,
+        nrBand: Int? = null,
+        namingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.BAND_NUMBER
+    ): String? {
+        formatBandPhrase(lteEarfcn, namingStyle)?.let { return it }
+        val band = nrBand ?: return null
+        return "band, ${NumberWords.toWords(band)}"
     }
 
     /**
@@ -122,7 +153,9 @@ object CellIdentityAnnouncement {
         campedOnVisitedOperator: Boolean = false,
         includeCellReselectPrefix: Boolean = true,
         speakOperatorNameEnabled: Boolean = true,
-        speakTechnologyEnabled: Boolean = true
+        speakTechnologyEnabled: Boolean = true,
+        prefixSpeakBandEnabled: Boolean = false,
+        prefixBandPhrase: String? = null
     ): String {
         val operatorSpoken = NetworkOperatorSpeech.formatForSpeech(networkOperatorName)?.let { spoken ->
             if (campedOnVisitedOperator) {
@@ -141,7 +174,9 @@ object CellIdentityAnnouncement {
             radioAccessType = radioAccessType,
             serviceState = detail,
             speakOperatorNameEnabled = speakOperatorNameEnabled,
-            speakTechnologyEnabled = speakTechnologyEnabled
+            speakTechnologyEnabled = speakTechnologyEnabled,
+            speakBandEnabled = prefixSpeakBandEnabled,
+            bandPhrase = prefixBandPhrase
         )
     }
 

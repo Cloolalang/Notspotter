@@ -1,5 +1,6 @@
 package io.github.cloolalang.notspotdetector.model
 
+import kotlin.math.roundToInt
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -18,8 +19,10 @@ data class AudioVolumeSettings(
     val signalPulseFrequencyHz: Int = DEFAULT_SIGNAL_PULSE_FREQUENCY_HZ,
     /** RXSS 10/0/11/15 no-signal camp signal pulse frequency — independent of [signalPulseFrequencyHz]. */
     val noSignalTierPulseFrequencyHz: Int = DEFAULT_SIGNAL_PULSE_FREQUENCY_HZ,
-    /** RXSS 12/13 limited-service camp signal pulse frequency — independent of [signalPulseFrequencyHz]. */
+    /** RXSS 12/13 limited-service lower tone (and RXSS 13 pulse) frequency. */
     val limitedServiceTierPulseFrequencyHz: Int = DEFAULT_SIGNAL_PULSE_FREQUENCY_HZ,
+    /** RXSS 12 two-tone: upper tone is this percent above [limitedServiceTierPulseFrequencyHz]. */
+    val limitedServiceTwoToneSpreadPercent: Int = DEFAULT_LIMITED_SERVICE_TWO_TONE_SPREAD_PERCENT,
     /** Level Ranges A–D (RXSS 2–5) tone frequency — independent of [signalPulseFrequencyHz]. */
     val levelRangeBcdPulseFrequencyHz: Int = DEFAULT_SIGNAL_PULSE_FREQUENCY_HZ,
     /** Tier 1 (very strong RSRP) tone frequency — independent of [signalPulseFrequencyHz]. */
@@ -70,16 +73,21 @@ data class AudioVolumeSettings(
     val limitedServiceVoiceEnabled: Boolean = DEFAULT_VOICE_ANNOUNCEMENT_ENABLED,
     val limitedServiceVoiceVolume: Float = DEFAULT_VOLUME,
     /**
-     * Global VA panel — when false, the operator name (e.g. "E E") is omitted from every spoken
-     * voice announcement app-wide (cell reselect, technology change, no-signal, limited service,
-     * tier 5, deadzone, searching 2G, 2G camped). Does not affect tones/clicks/vibration.
+     * Legacy app-wide seed for [VoicePhraseOptions.speakOperatorName]. Per-RXSS copies live in
+     * [cellChangePhrases] and siblings; kept so older profiles migrate cleanly.
      */
     val speakOperatorNameEnabled: Boolean = DEFAULT_SPEAK_OPERATOR_NAME_ENABLED,
     /**
-     * Global VA panel — when false, the technology (e.g. "4 G", "5 G E N D C") is omitted from
-     * every spoken voice announcement app-wide. Does not affect tones/clicks/vibration.
+     * Legacy app-wide seed for [VoicePhraseOptions.speakTechnology].
      */
-    val speakTechnologyEnabled: Boolean = DEFAULT_SPEAK_TECHNOLOGY_ENABLED
+    val speakTechnologyEnabled: Boolean = DEFAULT_SPEAK_TECHNOLOGY_ENABLED,
+    val cellChangePhrases: VoicePhraseOptions = VoicePhraseOptions(),
+    val technologyChangeTo2gPhrases: VoicePhraseOptions = VoicePhraseOptions(),
+    val technologyChangeTo4gPhrases: VoicePhraseOptions = VoicePhraseOptions(),
+    val technologyChangeTo5gEndcPhrases: VoicePhraseOptions = VoicePhraseOptions(),
+    val signalLowPhrases: VoicePhraseOptions = VoicePhraseOptions(),
+    val noSignalPhrases: VoicePhraseOptions = VoicePhraseOptions(),
+    val limitedServicePhrases: VoicePhraseOptions = VoicePhraseOptions()
 ) {
     fun pulseFrequencyHzForTier(tier: SignalStrengthTier): Int {
         return when (tier) {
@@ -96,6 +104,38 @@ data class AudioVolumeSettings(
             SignalStrengthTier.LIMITED_ALT_2G -> limitedServiceTierPulseFrequencyHz
             SignalStrengthTier.CRITICAL -> signalPulseFrequencyHz
             else -> signalPulseFrequencyHz
+        }
+    }
+
+    fun phrasesFor(group: VoicePhraseGroup): VoicePhraseOptions {
+        return when (group) {
+            VoicePhraseGroup.CELL_CHANGE -> cellChangePhrases
+            VoicePhraseGroup.TECH_CHANGE_TO_2G -> technologyChangeTo2gPhrases
+            VoicePhraseGroup.TECH_CHANGE_TO_4G -> technologyChangeTo4gPhrases
+            VoicePhraseGroup.TECH_CHANGE_TO_5G_ENDC -> technologyChangeTo5gEndcPhrases
+            VoicePhraseGroup.SIGNAL_LOW -> signalLowPhrases
+            VoicePhraseGroup.NO_SIGNAL -> noSignalPhrases
+            VoicePhraseGroup.LIMITED_SERVICE -> limitedServicePhrases
+        }
+    }
+
+    fun withPhrases(group: VoicePhraseGroup, phrases: VoicePhraseOptions): AudioVolumeSettings {
+        return when (group) {
+            VoicePhraseGroup.CELL_CHANGE -> copy(cellChangePhrases = phrases)
+            VoicePhraseGroup.TECH_CHANGE_TO_2G -> copy(technologyChangeTo2gPhrases = phrases)
+            VoicePhraseGroup.TECH_CHANGE_TO_4G -> copy(technologyChangeTo4gPhrases = phrases)
+            VoicePhraseGroup.TECH_CHANGE_TO_5G_ENDC -> copy(technologyChangeTo5gEndcPhrases = phrases)
+            VoicePhraseGroup.SIGNAL_LOW -> copy(signalLowPhrases = phrases)
+            VoicePhraseGroup.NO_SIGNAL -> copy(noSignalPhrases = phrases)
+            VoicePhraseGroup.LIMITED_SERVICE -> copy(limitedServicePhrases = phrases)
+        }
+    }
+
+    fun phrasesForTechnologyChange(target: TechnologyChangeTarget): VoicePhraseOptions {
+        return when (target) {
+            TechnologyChangeTarget.TO_2G -> technologyChangeTo2gPhrases
+            TechnologyChangeTarget.TO_4G -> technologyChangeTo4gPhrases
+            TechnologyChangeTarget.TO_5G_ENDC -> technologyChangeTo5gEndcPhrases
         }
     }
 
@@ -180,6 +220,10 @@ data class AudioVolumeSettings(
         }
     }
 
+    fun limitedServiceTwoToneHighFrequencyHz(): Int {
+        return twoToneHighFrequencyHz(limitedServiceTierPulseFrequencyHz, limitedServiceTwoToneSpreadPercent)
+    }
+
     fun normalized(): AudioVolumeSettings {
         return copy(
             pingClickVolume = pingClickVolume.coerceIn(MIN_VOLUME, MAX_VOLUME),
@@ -195,6 +239,10 @@ data class AudioVolumeSettings(
             limitedServiceTierPulseFrequencyHz = limitedServiceTierPulseFrequencyHz.coerceIn(
                 MIN_SIGNAL_PULSE_FREQUENCY_HZ,
                 MAX_SIGNAL_PULSE_FREQUENCY_HZ
+            ),
+            limitedServiceTwoToneSpreadPercent = limitedServiceTwoToneSpreadPercent.coerceIn(
+                MIN_LIMITED_SERVICE_TWO_TONE_SPREAD_PERCENT,
+                MAX_LIMITED_SERVICE_TWO_TONE_SPREAD_PERCENT
             ),
             levelRangeBcdPulseFrequencyHz = levelRangeBcdPulseFrequencyHz.coerceIn(
                 MIN_SIGNAL_PULSE_FREQUENCY_HZ,
@@ -251,8 +299,9 @@ data class AudioVolumeSettings(
         val DEFAULT_VOICE_ANNOUNCER_CHOICE = VoiceAnnouncerChoice.SYSTEM_DEFAULT
 
         const val DEFAULT_SIGNAL_PULSE_DURATION_MS = 250
-        const val MIN_SIGNAL_PULSE_DURATION_MS = 10
-        const val MAX_SIGNAL_PULSE_DURATION_MS = 600
+        const val MIN_SIGNAL_PULSE_DURATION_MS = 20
+        const val MAX_SIGNAL_PULSE_DURATION_MS = 5_000
+        const val SIGNAL_PULSE_DURATION_STEP_MS = 10
 
         const val DEFAULT_SIGNAL_PULSE_FREQUENCY_HZ = 600
         const val DEFAULT_VERY_STRONG_TIER_PULSE_FREQUENCY_HZ = 750
@@ -261,6 +310,19 @@ data class AudioVolumeSettings(
         const val MIN_SIGNAL_PULSE_FREQUENCY_HZ = 400
         const val MAX_SIGNAL_PULSE_FREQUENCY_HZ = 5_000
         const val SIGNAL_PULSE_FREQUENCY_STEP_HZ = 10
+        const val MIN_LIMITED_SERVICE_TWO_TONE_SPREAD_PERCENT = 5
+        const val MAX_LIMITED_SERVICE_TWO_TONE_SPREAD_PERCENT = 30
+        const val DEFAULT_LIMITED_SERVICE_TWO_TONE_SPREAD_PERCENT = 15
+
+        fun twoToneHighFrequencyHz(lowHz: Int, spreadPercent: Int): Int {
+            val clampedLow = lowHz.coerceIn(MIN_SIGNAL_PULSE_FREQUENCY_HZ, MAX_SIGNAL_PULSE_FREQUENCY_HZ)
+            val clampedSpread = spreadPercent.coerceIn(
+                MIN_LIMITED_SERVICE_TWO_TONE_SPREAD_PERCENT,
+                MAX_LIMITED_SERVICE_TWO_TONE_SPREAD_PERCENT
+            )
+            return (clampedLow * (1.0 + clampedSpread / 100.0)).roundToInt()
+                .coerceAtMost(MAX_SIGNAL_PULSE_FREQUENCY_HZ)
+        }
         /** Used when migrating stored settings that coupled tier 1 to [signalPulseFrequencyHz]. */
         const val LEGACY_VERY_STRONG_FREQUENCY_MULTIPLIER = 1.25
 

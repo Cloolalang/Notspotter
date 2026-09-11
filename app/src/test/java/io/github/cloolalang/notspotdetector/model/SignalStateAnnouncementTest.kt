@@ -302,15 +302,44 @@ class SignalStateAnnouncementTest {
     }
 
     @Test
-    fun speakTechnologyDisabled_stillSpeaksTechOnTechnologyChangeAnnouncement() {
-        // VA-9 — announcing the tech is the entire point of this alert, so the global toggle
-        // intentionally does not suppress it here, unlike every other announcement type.
+    fun speakTechnologyDisabled_omitsTechOnTechnologyChangeAnnouncement() {
         assertEquals(
-            "E E, 4 G",
+            "E E",
             SignalStateAnnouncement.formatTechnologyChange(
                 CellularSignalReader.RADIO_4G,
                 "EE",
                 speakTechnologyEnabled = false
+            )
+        )
+    }
+
+    @Test
+    fun speakBand_isSpokenAfterOperatorAndTechnology() {
+        assertEquals(
+            "E E, 4 G, band, twenty, no signal",
+            SignalStateAnnouncement.formatNoSignalAnnouncement(
+                "EE",
+                CellularSignalReader.RADIO_4G,
+                speakBandEnabled = true,
+                bandPhrase = "band, twenty"
+            )
+        )
+        assertEquals(
+            "E E, 4 G, band, twenty",
+            SignalStateAnnouncement.formatTechnologyChange(
+                CellularSignalReader.RADIO_4G,
+                "EE",
+                speakBandEnabled = true,
+                bandPhrase = "band, twenty"
+            )
+        )
+        assertEquals(
+            "E E, 4 G, band, twenty, limited service",
+            SignalStateAnnouncement.formatLimitedServiceAnnouncement(
+                "EE",
+                CellularSignalReader.RADIO_4G,
+                speakBandEnabled = true,
+                bandPhrase = "band, twenty"
             )
         )
     }

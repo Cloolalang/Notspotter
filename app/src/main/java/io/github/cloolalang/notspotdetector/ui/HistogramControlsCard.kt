@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,6 +42,7 @@ import io.github.cloolalang.notspotdetector.R
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.RsrpHistogram
 import io.github.cloolalang.notspotdetector.model.RsrpHistogramBand
+import io.github.cloolalang.notspotdetector.model.RsrpHistogramBinningMode
 import io.github.cloolalang.notspotdetector.model.RsrpSample
 import io.github.cloolalang.notspotdetector.model.coerceToHistogramWindowStep
 import io.github.cloolalang.notspotdetector.ui.theme.Sushi
@@ -52,16 +55,22 @@ private val HistogramMinBarWidth = 12.dp
 private val HistogramMaxBarWidth = 36.dp
 
 /**
- * Collapsible "Level histogram" panel: shows the live RSRP histogram plus the controls that
- * affect it (currently just the sample window slider). Only rendered by the caller while
- * monitoring/testing is running — see [io.github.cloolalang.notspotdetector.ui.MonitorScreen].
+ * Collapsible "Level histogram" panel: shows one live RSRP histogram (5 dB bins or threshold
+ * bins). Mode, thresholds, and sample window live in a nested Histogram settings sub-panel.
+ * Only rendered by the caller while monitoring/testing is running — see
+ * [io.github.cloolalang.notspotdetector.ui.MonitorScreen].
  */
 @Composable
 fun HistogramControlsCard(
     samples: List<RsrpSample>,
     windowMs: Long,
+    binningMode: RsrpHistogramBinningMode,
+    thresholdsDbm: List<Int>,
     isActive: Boolean,
     onWindowChange: (Long) -> Unit,
+    onBinningModeChange: (RsrpHistogramBinningMode) -> Unit,
+    onThresholdChange: (Int, Int) -> Unit,
+    onClearHistogram: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
@@ -97,20 +106,104 @@ fun HistogramControlsCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Text(
-                    text = stringResource(R.string.rsrp_histogram_summary),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
 
                 RsrpHistogramDisplay(
                     samples = samples,
                     windowMs = windowMs.coerceToHistogramWindowStep(),
+                    binningMode = binningMode,
+                    thresholdsDbm = thresholdsDbm,
                     isActive = isActive
                 )
 
-                RsrpHistogramWindowSlider(
+                OutlinedButton(
+                    onClick = onClearHistogram,
+                    enabled = samples.isNotEmpty(),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(text = stringResource(R.string.rsrp_histogram_clear))
+                }
+
+                HistogramSettingsPanel(
                     windowMs = windowMs.coerceToHistogramWindowStep(),
+                    binningMode = binningMode,
+                    thresholdsDbm = thresholdsDbm,
+                    onWindowChange = onWindowChange,
+                    onBinningModeChange = onBinningModeChange,
+                    onThresholdChange = onThresholdChange
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HistogramSettingsPanel(
+    windowMs: Long,
+    binningMode: RsrpHistogramBinningMode,
+    thresholdsDbm: List<Int>,
+    onWindowChange: (Long) -> Unit,
+    onBinningModeChange: (RsrpHistogramBinningMode) -> Unit,
+    onThresholdChange: (Int, Int) -> Unit
+) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded },
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.histogram_settings_title),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Sushi
+                )
+                Text(
+                    text = if (expanded) "▲" else "▼",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            if (expanded) {
+                Text(
+                    text = stringResource(R.string.histogram_settings_summary),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                HistogramBinningModeSelector(
+                    selected = binningMode,
+                    onSelect = onBinningModeChange
+                )
+                Text(
+                    text = stringResource(
+                        if (binningMode == RsrpHistogramBinningMode.THRESHOLD) {
+                            R.string.rsrp_histogram_threshold_summary
+                        } else {
+                            R.string.rsrp_histogram_summary
+                        }
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (binningMode == RsrpHistogramBinningMode.THRESHOLD) {
+                    thresholdsDbm.forEachIndexed { index, dbm ->
+                        HistogramThresholdSlider(
+                            index = index,
+                            thresholdDbm = dbm,
+                            onThresholdChange = { onThresholdChange(index, it) }
+                        )
+                    }
+                }
+                RsrpHistogramWindowSlider(
+                    windowMs = windowMs,
                     onWindowChange = onWindowChange
                 )
             }
@@ -122,10 +215,16 @@ fun HistogramControlsCard(
 private fun RsrpHistogramDisplay(
     samples: List<RsrpSample>,
     windowMs: Long,
+    binningMode: RsrpHistogramBinningMode,
+    thresholdsDbm: List<Int>,
     isActive: Boolean,
     modifier: Modifier = Modifier
 ) {
     var nowMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
+
+    LaunchedEffect(windowMs, samples) {
+        nowMs = System.currentTimeMillis()
+    }
 
     LaunchedEffect(isActive) {
         while (isActive) {
@@ -134,10 +233,22 @@ private fun RsrpHistogramDisplay(
         }
     }
 
-    val bins = RsrpHistogram.buildBins(samples, nowMs, windowMs)
-    val activeBins = RsrpHistogram.activeBins(bins)
+    val bins = if (binningMode == RsrpHistogramBinningMode.THRESHOLD) {
+        RsrpHistogram.buildThresholdBins(samples, nowMs, windowMs, thresholdsDbm)
+    } else {
+        RsrpHistogram.buildBins(samples, nowMs, windowMs)
+    }
+    val displayedBins = if (binningMode == RsrpHistogramBinningMode.THRESHOLD) {
+        bins.withIndex().map { IndexedValue(it.index, it.value) }
+    } else {
+        RsrpHistogram.activeBins(bins)
+    }
     val totalSamples = RsrpHistogram.totalSamples(samples, nowMs, windowMs)
-    val maxCount = activeBins.maxOfOrNull { it.value.count }?.coerceAtLeast(1) ?: 1
+    val maxCount = if (binningMode == RsrpHistogramBinningMode.THRESHOLD) {
+        totalSamples.coerceAtLeast(1)
+    } else {
+        displayedBins.maxOfOrNull { it.value.count }?.coerceAtLeast(1) ?: 1
+    }
 
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -158,23 +269,29 @@ private fun RsrpHistogramDisplay(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.Bottom
             ) {
-                activeBins.forEach { indexedBin ->
+                displayedBins.forEach { indexedBin ->
                     RsrpHistogramBarColumn(
                         labelDbm = indexedBin.value.labelDbm,
                         count = indexedBin.value.count,
                         totalSamples = totalSamples,
                         maxCount = maxCount,
                         barColor = histogramBarColor(indexedBin.value.labelDbm),
+                        thresholdLabel = binningMode == RsrpHistogramBinningMode.THRESHOLD &&
+                            indexedBin.value.labelDbm != null,
                         modifier = Modifier.weight(1f)
                     )
                 }
             }
             Text(
-                text = stringResource(
-                    R.string.rsrp_histogram_sample_count_active,
-                    totalSamples,
-                    activeBins.size
-                ),
+                text = if (binningMode == RsrpHistogramBinningMode.THRESHOLD) {
+                    stringResource(R.string.rsrp_histogram_sample_count, totalSamples)
+                } else {
+                    stringResource(
+                        R.string.rsrp_histogram_sample_count_active,
+                        totalSamples,
+                        displayedBins.size
+                    )
+                },
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -189,6 +306,7 @@ private fun RsrpHistogramBarColumn(
     totalSamples: Int,
     maxCount: Int,
     barColor: Color,
+    thresholdLabel: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     BoxWithConstraints(
@@ -247,18 +365,22 @@ private fun RsrpHistogramBarColumn(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(HistogramLabelAreaHeight),
+                    .height(if (thresholdLabel) 40.dp else HistogramLabelAreaHeight),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = labelDbm?.toString() ?: stringResource(R.string.rsrp_histogram_null_bin_label),
+                    text = when {
+                        labelDbm == null -> stringResource(R.string.rsrp_histogram_null_bin_label)
+                        thresholdLabel -> stringResource(R.string.rsrp_histogram_threshold_bin_label, labelDbm)
+                        else -> labelDbm.toString()
+                    },
                     style = MaterialTheme.typography.labelSmall,
                     fontFamily = FontFamily.Monospace,
-                    fontSize = 10.sp,
-                    maxLines = 1,
-                    softWrap = false,
+                    fontSize = if (thresholdLabel) 11.sp else 10.sp,
+                    maxLines = if (thresholdLabel) 2 else 1,
+                    softWrap = thresholdLabel,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.rotate(-90f)
+                    modifier = if (thresholdLabel) Modifier else Modifier.rotate(-90f)
                 )
             }
         }
@@ -282,6 +404,87 @@ private fun histogramBarColor(labelDbm: Int?): Color {
 private fun histogramBinPercent(count: Int, totalSamples: Int): Int {
     if (totalSamples <= 0) return 0
     return ((count * 100f) / totalSamples).roundToInt()
+}
+
+@Composable
+private fun HistogramBinningModeSelector(
+    selected: RsrpHistogramBinningMode,
+    onSelect: (RsrpHistogramBinningMode) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+        HistogramBinningModeOption(
+            selected = selected == RsrpHistogramBinningMode.LEVEL,
+            label = stringResource(R.string.rsrp_histogram_mode_level),
+            onSelect = { onSelect(RsrpHistogramBinningMode.LEVEL) }
+        )
+        HistogramBinningModeOption(
+            selected = selected == RsrpHistogramBinningMode.THRESHOLD,
+            label = stringResource(R.string.rsrp_histogram_mode_threshold),
+            onSelect = { onSelect(RsrpHistogramBinningMode.THRESHOLD) }
+        )
+    }
+}
+
+@Composable
+private fun HistogramBinningModeOption(
+    selected: Boolean,
+    label: String,
+    onSelect: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onSelect),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RadioButton(
+            selected = selected,
+            onClick = onSelect
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+private fun HistogramThresholdSlider(
+    index: Int,
+    thresholdDbm: Int,
+    onThresholdChange: (Int) -> Unit
+) {
+    val minDbm = RsrpHistogram.MIN_THRESHOLD_DBM
+    val maxDbm = RsrpHistogram.MAX_THRESHOLD_DBM
+    val clamped = thresholdDbm.coerceIn(minDbm, maxDbm)
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.rsrp_histogram_threshold_slider_label, index + 1),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = stringResource(R.string.rsrp_histogram_threshold_slider_value, clamped),
+                style = MaterialTheme.typography.labelMedium,
+                fontFamily = FontFamily.Monospace,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+        Slider(
+            enabled = settingsControlsEnabled(),
+            value = clamped.toFloat(),
+            onValueChange = { onThresholdChange(it.roundToInt()) },
+            valueRange = minDbm.toFloat()..maxDbm.toFloat(),
+            steps = (maxDbm - minDbm - 1).coerceAtLeast(0),
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
 }
 
 @Composable
@@ -314,6 +517,7 @@ private fun RsrpHistogramWindowSlider(
             )
         }
         Slider(
+            enabled = settingsControlsEnabled(),
             value = sliderValue,
             onValueChange = { value ->
                 onWindowChange(minMs + value.roundToInt() * stepMs)
@@ -321,6 +525,11 @@ private fun RsrpHistogramWindowSlider(
             valueRange = 0f..stepCount.toFloat(),
             steps = (stepCount - 1).coerceAtLeast(0),
             modifier = Modifier.fillMaxWidth()
+        )
+        Text(
+            text = stringResource(R.string.rsrp_histogram_window_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Row(
             modifier = Modifier.fillMaxWidth(),

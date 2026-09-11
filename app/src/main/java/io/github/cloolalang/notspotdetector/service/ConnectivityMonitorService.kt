@@ -24,6 +24,7 @@ import io.github.cloolalang.notspotdetector.data.PingSettingsRepository
 import io.github.cloolalang.notspotdetector.data.ThresholdSettingsRepository
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
 import io.github.cloolalang.notspotdetector.model.MonitoringAnnouncementKind
+import io.github.cloolalang.notspotdetector.model.RsrpHistogram
 import io.github.cloolalang.notspotdetector.model.MonitoringUpdateEvents
 import io.github.cloolalang.notspotdetector.model.SignalStateAnnouncement
 import io.github.cloolalang.notspotdetector.model.TechnologyChangeTarget
@@ -70,6 +71,7 @@ class ConnectivityMonitorService : Service() {
     private var deadzonePeriodicAnnouncementJob: Job? = null
     private var tier5PeriodicAnnouncementJob: Job? = null
     private var searching2gAnnouncementJob: Job? = null
+    private var rsrpHistogramSampleJob: Job? = null
     private val monitoringAlertMutex = Mutex()
     private val monitoringEventsHandlerMutex = Mutex()
 
@@ -137,6 +139,7 @@ class ConnectivityMonitorService : Service() {
         isPassiveIdleMode = false
         registerMonitoringEventsListener()
         MonitorState.setRunning(true)
+        startRsrpHistogramSampler()
         acquireWakeLock()
 
         val notificationText = if (isPassiveOnlyStart) {
@@ -229,6 +232,16 @@ class ConnectivityMonitorService : Service() {
             handleStatsUpdate(stats)
         }
         startGeigerPlayer()
+    }
+
+    private fun startRsrpHistogramSampler() {
+        rsrpHistogramSampleJob?.cancel()
+        rsrpHistogramSampleJob = serviceScope.launch {
+            while (isActive) {
+                MonitorState.tickRsrpHistogramSample()
+                delay(RsrpHistogram.SAMPLE_INTERVAL_MS)
+            }
+        }
     }
 
     private fun startGeigerPlayer() {
@@ -409,8 +422,9 @@ class ConnectivityMonitorService : Service() {
                 playG2FallbackAlertAwait(
                     SignalStateAnnouncement.formatG2CampedAnnouncement(
                         stats.networkOperatorName,
-                        volumes.speakOperatorNameEnabled,
-                        volumes.speakTechnologyEnabled
+                        phrases = volumes.technologyChangeTo2gPhrases,
+                        lteEarfcn = stats.lteEarfcn,
+                        nrBand = stats.nrBand
                     )
                 )
             }
@@ -599,11 +613,17 @@ class ConnectivityMonitorService : Service() {
 
     private suspend fun playLimitedServiceAlertAwait(announcement: String?) {
         val volumes = MonitorState.audioVolumes.value.normalized()
+        val toneMs = MonitorState.passiveSignalSettings.value.normalized().limitedServiceTierPulseDurationMs
         playAlertWithVoiceAwait(
             onPlayTone = {
-                geigerPlayer.previewLimitedServiceTone(volumes.limitedServiceToneVolume)
+                geigerPlayer.previewLimitedServiceTone(
+                    volume = volumes.limitedServiceToneVolume,
+                    lowFrequencyHz = volumes.limitedServiceTierPulseFrequencyHz,
+                    highFrequencyHz = volumes.limitedServiceTwoToneHighFrequencyHz(),
+                    toneMs = toneMs
+                )
             },
-            toneDurationMs = GeigerCounterPlayer.LIMITED_SERVICE_ALERT_TONE_DURATION_MS,
+            toneDurationMs = GeigerCounterPlayer.limitedServiceAlertToneDurationMs(toneMs),
             announcement = announcement,
             voiceEnabled = volumes.limitedServiceVoiceEnabled,
             voiceVolume = volumes.limitedServiceVoiceVolume
@@ -707,6 +727,8 @@ class ConnectivityMonitorService : Service() {
         tier5PeriodicAnnouncementJob = null
         searching2gAnnouncementJob?.cancel()
         searching2gAnnouncementJob = null
+        rsrpHistogramSampleJob?.cancel()
+        rsrpHistogramSampleJob = null
         pingMonitor.stop()
         passiveSignalMonitor.stop()
         geigerPlayer.stop()

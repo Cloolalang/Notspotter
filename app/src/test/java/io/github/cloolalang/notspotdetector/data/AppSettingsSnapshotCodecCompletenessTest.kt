@@ -8,9 +8,11 @@ import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.PassiveMockSettings
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
 import io.github.cloolalang.notspotdetector.model.PingSettings
+import io.github.cloolalang.notspotdetector.model.RsrpHistogramBinningMode
 import io.github.cloolalang.notspotdetector.model.SettingsProfile
 import io.github.cloolalang.notspotdetector.model.ThresholdSettings
 import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerChoice
+import io.github.cloolalang.notspotdetector.model.VoicePhraseOptions
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -111,7 +113,11 @@ class AppSettingsSnapshotCodecCompletenessTest {
                 subscriptionId = 3,
                 passiveQuietUntilCritical = true,
                 passiveMeasurementIntervalMs = 4_000L,
-                rsrpHistogramWindowMs = 90_000L
+                rsrpHistogramWindowMs = 90_000L,
+                rsrpHistogramBinningMode = RsrpHistogramBinningMode.THRESHOLD,
+                rsrpHistogramThreshold1Dbm = -90,
+                rsrpHistogramThreshold2Dbm = -100,
+                rsrpHistogramThreshold3Dbm = -120
             ),
             passiveSignalSettings = PassiveSignalSettings(
                 poorRsrpMinDbm = -118,
@@ -182,6 +188,7 @@ class AppSettingsSnapshotCodecCompletenessTest {
                 signalPulseFrequencyHz = 720,
                 noSignalTierPulseFrequencyHz = 540,
                 limitedServiceTierPulseFrequencyHz = 475,
+                limitedServiceTwoToneSpreadPercent = 22,
                 levelRangeBcdPulseFrequencyHz = 680,
                 veryStrongTierPulseFrequencyHz = 860,
                 g2StrongTierPulseFrequencyHz = 630,
@@ -215,7 +222,14 @@ class AppSettingsSnapshotCodecCompletenessTest {
                 limitedServiceVoiceEnabled = true,
                 limitedServiceVoiceVolume = 0.53f,
                 speakOperatorNameEnabled = false,
-                speakTechnologyEnabled = false
+                speakTechnologyEnabled = false,
+                cellChangePhrases = VoicePhraseOptions(speakOperatorName = false, speakTechnology = true, speakBand = true),
+                technologyChangeTo2gPhrases = VoicePhraseOptions(speakOperatorName = true, speakTechnology = false, speakBand = true),
+                technologyChangeTo4gPhrases = VoicePhraseOptions(speakOperatorName = false, speakTechnology = false, speakBand = false),
+                technologyChangeTo5gEndcPhrases = VoicePhraseOptions(speakOperatorName = true, speakTechnology = true, speakBand = true),
+                signalLowPhrases = VoicePhraseOptions(speakOperatorName = false, speakTechnology = true, speakBand = false),
+                noSignalPhrases = VoicePhraseOptions(speakOperatorName = true, speakTechnology = false, speakBand = true),
+                limitedServicePhrases = VoicePhraseOptions(speakOperatorName = false, speakTechnology = false, speakBand = true)
             )
         )
     }
@@ -242,7 +256,12 @@ class AppSettingsSnapshotCodecCompletenessTest {
             "subscriptionId",
             "passiveQuietUntilCritical",
             "passiveMeasurementIntervalMs",
-            "rsrpHistogramWindowMs"
+            "rsrpHistogramWindowMs",
+            "rsrpHistogramBinningMode",
+            "rsrpHistogramThreshold1Dbm",
+            "rsrpHistogramThreshold2Dbm",
+            "rsrpHistogramThreshold3Dbm",
+            "fiveGFeaturesEnabled"
         )
 
         private val PASSIVE_MOCK_KEYS = setOf(
@@ -321,6 +340,7 @@ class AppSettingsSnapshotCodecCompletenessTest {
             "signalPulseFrequencyHz",
             "noSignalTierPulseFrequencyHz",
             "limitedServiceTierPulseFrequencyHz",
+            "limitedServiceTwoToneSpreadPercent",
             "levelRangeBcdPulseFrequencyHz",
             "veryStrongTierPulseFrequencyHz",
             "g2StrongTierPulseFrequencyHz",
@@ -354,7 +374,28 @@ class AppSettingsSnapshotCodecCompletenessTest {
             "limitedServiceVoiceEnabled",
             "limitedServiceVoiceVolume",
             "speakOperatorNameEnabled",
-            "speakTechnologyEnabled"
+            "speakTechnologyEnabled",
+            "cellChangeSpeakOperatorName",
+            "cellChangeSpeakTechnology",
+            "cellChangeSpeakBand",
+            "technologyChangeTo2gSpeakOperatorName",
+            "technologyChangeTo2gSpeakTechnology",
+            "technologyChangeTo2gSpeakBand",
+            "technologyChangeTo4gSpeakOperatorName",
+            "technologyChangeTo4gSpeakTechnology",
+            "technologyChangeTo4gSpeakBand",
+            "technologyChangeTo5gEndcSpeakOperatorName",
+            "technologyChangeTo5gEndcSpeakTechnology",
+            "technologyChangeTo5gEndcSpeakBand",
+            "signalLowSpeakOperatorName",
+            "signalLowSpeakTechnology",
+            "signalLowSpeakBand",
+            "noSignalSpeakOperatorName",
+            "noSignalSpeakTechnology",
+            "noSignalSpeakBand",
+            "limitedServiceSpeakOperatorName",
+            "limitedServiceSpeakTechnology",
+            "limitedServiceSpeakBand"
         )
     }
 }

@@ -10,7 +10,7 @@ package io.github.cloolalang.notspotdetector.model
  * RSRQ uses a single fair boundary: below triggers tier 14 (RSRQ poor) and poor reception.
  */
 data class PassiveSignalSettings(
-    /** Fixed at [DEFAULT_NO_SIGNAL_RSRP_DBM] — lower bound for RXSS 6 (not user-configurable). */
+    /** RXSS 6 lower bound — no-signal RSRP, configurable in [MIN_NO_SIGNAL_RSRP_DBM]..[MAX_NO_SIGNAL_RSRP_DBM]. */
     val noSignalRsrpDbm: Int = DEFAULT_NO_SIGNAL_RSRP_DBM,
     val poorRsrpMinDbm: Int = DEFAULT_POOR_RSRP_MIN_DBM,
     val fairRsrpMinDbm: Int = DEFAULT_FAIR_RSRP_MIN_DBM,
@@ -108,7 +108,7 @@ data class PassiveSignalSettings(
         var veryStrong = veryStrongRsrpMinDbm.coerceIn(MIN_VERY_STRONG_RSRP_DBM, MAX_VERY_STRONG_RSRP_DBM)
         val maxMild = veryStrong - gap
 
-        val noSignal = DEFAULT_NO_SIGNAL_RSRP_DBM
+        val noSignal = noSignalRsrpDbm.coerceIn(MIN_NO_SIGNAL_RSRP_DBM, MAX_NO_SIGNAL_RSRP_DBM)
         var poor = poorRsrpMinDbm.coerceIn(noSignal + gap, maxMild - 3 * gap)
         var fair = fairRsrpMinDbm.coerceIn(poor + gap, maxMild - 2 * gap)
         var good = goodRsrpMinDbm.coerceIn(fair + gap, maxMild - gap)
@@ -177,8 +177,10 @@ data class PassiveSignalSettings(
     }
 
     companion object {
-        const val MIN_RSRP_DBM = -126
+        const val MIN_RSRP_DBM = -130
         const val MAX_RSRP_DBM = -50
+        const val MIN_NO_SIGNAL_RSRP_DBM = -130
+        const val MAX_NO_SIGNAL_RSRP_DBM = -118
         const val MIN_VERY_STRONG_RSRP_DBM = -90
         const val MAX_VERY_STRONG_RSRP_DBM = -30
         const val DEFAULT_VERY_STRONG_RSRP_MIN_DBM = -80
@@ -196,7 +198,7 @@ data class PassiveSignalSettings(
         const val MIN_RSRQ_TIER_WHITE_NOISE_VOLUME = 0.05f
         const val MAX_RSRQ_TIER_WHITE_NOISE_VOLUME = 1f
         const val DEFAULT_RSRQ_TIER_CLICK_INTERVAL_MS = 800
-        const val MAX_RSRQ_TIER_CLICK_INTERVAL_MS = 5_000
+        const val MAX_RSRQ_TIER_CLICK_INTERVAL_MS = 20_000
         const val DEFAULT_RSRQ_TIER_PULSE_DURATION_MS = 150
         const val DEFAULT_QUIET_ALERT_RSRQ_DB = -20
         const val DEFAULT_QUIET_ALERT_RSRP_MAX_DBM = -105
@@ -218,7 +220,7 @@ data class PassiveSignalSettings(
         const val MIN_RSRQ_DB = -30
         const val MAX_RSRQ_DB = -1
 
-        const val MIN_TIER_CLICK_INTERVAL_MS = 10
+        const val MIN_TIER_CLICK_INTERVAL_MS = 30
         const val MAX_TIER_CLICK_INTERVAL_MS = 20_000
         const val TIER_CLICK_INTERVAL_STEP_MS = 10
 

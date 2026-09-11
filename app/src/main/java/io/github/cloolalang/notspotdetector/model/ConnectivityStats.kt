@@ -68,3 +68,20 @@ data class ConnectivityStats(
      */
     val lteLayerResilience: LteLayerResilienceReading? = null
 )
+
+fun ConnectivityStats.hidingFiveGIfDisabled(fiveGFeaturesEnabled: Boolean): ConnectivityStats {
+    if (fiveGFeaturesEnabled) return this
+    val isFiveG = radioAccessType == io.github.cloolalang.notspotdetector.network.CellularSignalReader.RADIO_5G ||
+        radioAccessType == io.github.cloolalang.notspotdetector.network.CellularSignalReader.RADIO_5G_ENDC
+    if (!isFiveG && nrEarfcn == null && nrPci == null && nrBand == null) return this
+    return copy(
+        radioAccessType = if (isFiveG) {
+            io.github.cloolalang.notspotdetector.network.CellularSignalReader.RADIO_4G
+        } else {
+            radioAccessType
+        },
+        nrEarfcn = null,
+        nrPci = null,
+        nrBand = null
+    )
+}

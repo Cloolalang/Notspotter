@@ -33,6 +33,7 @@ import kotlin.math.roundToInt
 fun MockNetworkStateCard(
     mockSettings: PassiveMockSettings,
     onMockSettingsChange: (PassiveMockSettings) -> Unit,
+    fiveGFeaturesEnabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
@@ -75,7 +76,8 @@ fun MockNetworkStateCard(
                 ) {
                     Checkbox(
                         checked = mockSettings.enabled,
-                        onCheckedChange = { onMockSettingsChange(mockSettings.copy(enabled = it)) }
+                        onCheckedChange = { onMockSettingsChange(mockSettings.copy(enabled = it)) },
+                        enabled = settingsControlsEnabled()
                     )
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
@@ -104,7 +106,9 @@ fun MockNetworkStateCard(
                     )
 
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        MockNetworkScenario.entries.forEach { scenario ->
+                        MockNetworkScenario.entries
+                            .filter { fiveGFeaturesEnabled || it != MockNetworkScenario.HOME_5G_ENDC }
+                            .forEach { scenario ->
                             MockScenarioRadioOption(
                                 selected = mockSettings.scenario == scenario,
                                 label = mockScenarioLabel(scenario),
@@ -171,10 +175,14 @@ private fun MockScenarioRadioOption(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onSelect),
+            .clickable(enabled = settingsControlsEnabled(), onClick = onSelect),
         verticalAlignment = Alignment.Top
     ) {
-        RadioButton(selected = selected, onClick = onSelect)
+        RadioButton(
+            selected = selected,
+            onClick = onSelect,
+            enabled = settingsControlsEnabled()
+        )
         Column(modifier = Modifier.weight(1f)) {
             Text(text = label, style = MaterialTheme.typography.bodyMedium)
             Text(
@@ -249,6 +257,7 @@ private fun MockSignalSlider(
             )
         }
         Slider(
+            enabled = settingsControlsEnabled(),
             value = sliderValue,
             onValueChange = { newValue -> onValueChange(newValue.roundToInt()) },
             valueRange = valueRange.first.toFloat()..valueRange.last.toFloat(),

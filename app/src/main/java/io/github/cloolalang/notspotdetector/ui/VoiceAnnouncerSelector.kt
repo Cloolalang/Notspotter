@@ -81,12 +81,13 @@ private fun VoiceRadioOption(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onSelect),
+            .clickable(enabled = settingsControlsEnabled(), onClick = onSelect),
         verticalAlignment = Alignment.CenterVertically
     ) {
         RadioButton(
             selected = selected,
-            onClick = onSelect
+            onClick = onSelect,
+            enabled = settingsControlsEnabled()
         )
         Text(
             text = label,

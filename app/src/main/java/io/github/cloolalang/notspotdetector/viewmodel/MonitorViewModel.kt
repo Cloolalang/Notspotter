@@ -26,11 +26,18 @@ import io.github.cloolalang.notspotdetector.model.CellReselectBandNamingStyle
 import io.github.cloolalang.notspotdetector.model.TechnologyChangeTarget
 import io.github.cloolalang.notspotdetector.model.SettingsProfileSummary
 import io.github.cloolalang.notspotdetector.model.PingSettings
+import io.github.cloolalang.notspotdetector.model.RsrpHistogramBinningMode
 import io.github.cloolalang.notspotdetector.model.SimSubscriptionOption
 import io.github.cloolalang.notspotdetector.model.ThresholdSettings
 import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerChoice
 import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerOption
 import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerSelection
+import io.github.cloolalang.notspotdetector.model.VoicePhraseFragment
+import io.github.cloolalang.notspotdetector.model.VoicePhraseGroup
+import io.github.cloolalang.notspotdetector.model.VoicePhraseOptions
+import io.github.cloolalang.notspotdetector.model.NetworkOperatorSpeech
+import io.github.cloolalang.notspotdetector.model.CellIdentityAnnouncement
+import io.github.cloolalang.notspotdetector.model.SignalStateAnnouncement
 import io.github.cloolalang.notspotdetector.R
 import java.io.File
 import io.github.cloolalang.notspotdetector.network.CarrierConfigReader
@@ -39,8 +46,6 @@ import io.github.cloolalang.notspotdetector.network.SimSubscriptionHelper
 import io.github.cloolalang.notspotdetector.audio.CellVoiceAnnouncer
 import io.github.cloolalang.notspotdetector.audio.AlertVibrator
 import io.github.cloolalang.notspotdetector.audio.GeigerCounterPlayer
-import io.github.cloolalang.notspotdetector.model.CellIdentityAnnouncement
-import io.github.cloolalang.notspotdetector.model.SignalStateAnnouncement
 import io.github.cloolalang.notspotdetector.service.ConnectivityMonitorService
 import io.github.cloolalang.notspotdetector.util.BackgroundHelper
 import kotlinx.coroutines.Dispatchers
@@ -230,8 +235,39 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         updateMonitoringSettings(monitoringSettings.value.copy(passiveMeasurementIntervalMs = value))
     }
 
+    fun updateFiveGFeaturesEnabled(enabled: Boolean) {
+        updateMonitoringSettings(monitoringSettings.value.copy(fiveGFeaturesEnabled = enabled))
+        if (!enabled && passiveMockSettings.value.scenario == io.github.cloolalang.notspotdetector.model.MockNetworkScenario.HOME_5G_ENDC) {
+            updatePassiveMockSettings(
+                passiveMockSettings.value.copy(
+                    scenario = io.github.cloolalang.notspotdetector.model.MockNetworkScenario.HOME_4G
+                )
+            )
+        }
+        refreshCellularSignal()
+    }
+
+    fun clearRsrpHistogram() {
+        MonitorState.clearRsrpHistogram()
+    }
+
     fun updateRsrpHistogramWindowMs(value: Long) {
         updateMonitoringSettings(monitoringSettings.value.copy(rsrpHistogramWindowMs = value))
+    }
+
+    fun updateRsrpHistogramBinningMode(mode: RsrpHistogramBinningMode) {
+        updateMonitoringSettings(monitoringSettings.value.copy(rsrpHistogramBinningMode = mode))
+    }
+
+    fun updateRsrpHistogramThresholdDbm(index: Int, dbm: Int) {
+        val current = monitoringSettings.value
+        val updated = when (index) {
+            0 -> current.copy(rsrpHistogramThreshold1Dbm = dbm)
+            1 -> current.copy(rsrpHistogramThreshold2Dbm = dbm)
+            2 -> current.copy(rsrpHistogramThreshold3Dbm = dbm)
+            else -> current
+        }
+        updateMonitoringSettings(updated)
     }
 
     fun updateSelectedSubscription(subscriptionId: Int) {
@@ -305,6 +341,10 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
 
     fun updateSpeakTechnologyEnabled(enabled: Boolean) {
         updateAudioVolumes(audioVolumes.value.copy(speakTechnologyEnabled = enabled))
+    }
+
+    fun updateVoicePhrases(group: VoicePhraseGroup, phrases: VoicePhraseOptions) {
+        updateAudioVolumes(audioVolumes.value.withPhrases(group, phrases))
     }
 
     fun updateCellChangeBellVolume(value: Float) {
@@ -399,6 +439,10 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         updateAudioVolumes(audioVolumes.value.copy(limitedServiceTierPulseFrequencyHz = value))
     }
 
+    fun updateLimitedServiceTwoToneSpreadPercent(value: Int) {
+        updateAudioVolumes(audioVolumes.value.copy(limitedServiceTwoToneSpreadPercent = value))
+    }
+
     fun updateLimitedServiceToneVolume(value: Float) {
         updateAudioVolumes(audioVolumes.value.copy(limitedServiceToneVolume = value))
     }
@@ -458,8 +502,7 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
                 readCurrentOperatorName(),
                 speakBandEnabled = volumes.cellChangeSpeakBandEnabled,
                 bandNamingStyle = volumes.cellChangeBandNamingStyle,
-                speakOperatorNameEnabled = volumes.speakOperatorNameEnabled,
-                speakTechnologyEnabled = volumes.speakTechnologyEnabled
+                prefixPhrases = volumes.cellChangePhrases
             ),
             voiceVolume = volumes.cellChangeVoiceVolume
         )
@@ -479,8 +522,7 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
             announcement = SignalStateAnnouncement.previewTechnologyChange(
                 readCurrentOperatorName(),
                 target,
-                volumes.speakOperatorNameEnabled,
-                volumes.speakTechnologyEnabled
+                phrases = volumes.phrasesForTechnologyChange(target)
             ),
             voiceVolume = alertVolumes.voiceVolume
         )
@@ -492,8 +534,7 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         if (volumes.tier5AnnouncerVolume <= 0f) return
         val announcement = SignalStateAnnouncement.previewTier5SignalLow(
             readCurrentOperatorName(),
-            volumes.speakOperatorNameEnabled,
-            volumes.speakTechnologyEnabled
+            phrases = volumes.signalLowPhrases
         )
         if (announcement.isBlank()) return
         viewModelScope.launch {
@@ -528,8 +569,7 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         previewVoiceOnly(
             announcement = SignalStateAnnouncement.previewNoSignal(
                 readCurrentOperatorName(),
-                volumes.speakOperatorNameEnabled,
-                volumes.speakTechnologyEnabled
+                phrases = volumes.noSignalPhrases
             ),
             voiceVolume = volumes.noSignalVoiceVolume
         )
@@ -548,7 +588,14 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
 
     fun previewLimitedServiceToneSound() {
         if (isRunning.value) return
-        alertSoundPreview.previewLimitedServiceTone(audioVolumes.value.normalized().limitedServiceToneVolume)
+        val volumes = audioVolumes.value.normalized()
+        val toneMs = passiveSignalSettings.value.normalized().limitedServiceTierPulseDurationMs
+        alertSoundPreview.previewLimitedServiceTone(
+            volume = volumes.limitedServiceToneVolume,
+            lowFrequencyHz = volumes.limitedServiceTierPulseFrequencyHz,
+            highFrequencyHz = volumes.limitedServiceTwoToneHighFrequencyHz(),
+            toneMs = toneMs
+        )
     }
 
     fun previewLimitedServiceVoiceSound() {
@@ -558,11 +605,60 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         previewVoiceOnly(
             announcement = SignalStateAnnouncement.previewLimitedService(
                 readCurrentOperatorName(),
-                volumes.speakOperatorNameEnabled,
-                volumes.speakTechnologyEnabled
+                phrases = volumes.limitedServicePhrases
             ),
             voiceVolume = volumes.limitedServiceVoiceVolume
         )
+    }
+
+    fun previewVoicePhrase(group: VoicePhraseGroup, fragment: VoicePhraseFragment) {
+        if (isRunning.value) return
+        val volumes = audioVolumes.value.normalized()
+        val volume = voiceVolumeForPhraseGroup(volumes, group)
+        previewVoiceOnly(
+            announcement = voicePhrasePreviewText(group, fragment),
+            voiceVolume = volume
+        )
+    }
+
+    private fun voiceVolumeForPhraseGroup(
+        volumes: AudioVolumeSettings,
+        group: VoicePhraseGroup
+    ): Float {
+        return when (group) {
+            VoicePhraseGroup.CELL_CHANGE -> volumes.cellChangeVoiceVolume
+            VoicePhraseGroup.TECH_CHANGE_TO_2G -> volumes.technologyChangeTo2gVoiceVolume
+            VoicePhraseGroup.TECH_CHANGE_TO_4G -> volumes.technologyChangeTo4gVoiceVolume
+            VoicePhraseGroup.TECH_CHANGE_TO_5G_ENDC -> volumes.technologyChangeTo5gEndcVoiceVolume
+            VoicePhraseGroup.SIGNAL_LOW -> volumes.tier5AnnouncerVolume
+            VoicePhraseGroup.NO_SIGNAL -> volumes.noSignalVoiceVolume
+            VoicePhraseGroup.LIMITED_SERVICE -> volumes.limitedServiceVoiceVolume
+        }
+    }
+
+    private fun voicePhrasePreviewText(
+        group: VoicePhraseGroup,
+        fragment: VoicePhraseFragment
+    ): String {
+        val operator = readCurrentOperatorName()
+        val stats = stats.value
+        return when (fragment) {
+            VoicePhraseFragment.OPERATOR ->
+                NetworkOperatorSpeech.formatForSpeech(operator) ?: "operator"
+            VoicePhraseFragment.TECHNOLOGY -> {
+                val radio = when (group) {
+                    VoicePhraseGroup.TECH_CHANGE_TO_2G -> CellularSignalReader.RADIO_2G
+                    VoicePhraseGroup.TECH_CHANGE_TO_5G_ENDC -> CellularSignalReader.RADIO_5G_ENDC
+                    VoicePhraseGroup.TECH_CHANGE_TO_4G -> CellularSignalReader.RADIO_4G
+                    else -> stats.radioAccessType ?: CellularSignalReader.RADIO_4G
+                }
+                SignalStateAnnouncement.formatTechnologyForSpeech(radio)
+            }
+            VoicePhraseFragment.BAND ->
+                CellIdentityAnnouncement.prefixBandPhrase(stats.lteEarfcn, stats.nrBand)
+                    ?: CellIdentityAnnouncement.prefixBandPhrase(6400)
+                    ?: "band"
+        }
     }
 
     private fun previewVoiceOnly(

@@ -4,6 +4,7 @@ import android.content.Context
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
 import io.github.cloolalang.notspotdetector.model.CellReselectBandNamingStyle
 import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerChoice
+import io.github.cloolalang.notspotdetector.model.VoicePhraseOptions
 import kotlin.math.roundToInt
 
 class AudioVolumeSettingsRepository(context: Context) {
@@ -95,6 +96,10 @@ class AudioVolumeSettingsRepository(context: Context) {
             signalPulseFrequencyHz = signalPulseFrequencyHz,
             noSignalTierPulseFrequencyHz = noSignalTierPulseFrequencyHz,
             limitedServiceTierPulseFrequencyHz = limitedServiceTierPulseFrequencyHz,
+            limitedServiceTwoToneSpreadPercent = prefs.getInt(
+                KEY_LIMITED_SERVICE_TWO_TONE_SPREAD,
+                AudioVolumeSettings.DEFAULT_LIMITED_SERVICE_TWO_TONE_SPREAD_PERCENT
+            ),
             levelRangeBcdPulseFrequencyHz = levelRangeBcdPulseFrequencyHz,
             veryStrongTierPulseFrequencyHz = veryStrongTierPulseFrequencyHz,
             g2StrongTierPulseFrequencyHz = g2StrongTierPulseFrequencyHz,
@@ -201,8 +206,71 @@ class AudioVolumeSettingsRepository(context: Context) {
             speakTechnologyEnabled = prefs.getBoolean(
                 KEY_SPEAK_TECHNOLOGY_ENABLED,
                 AudioVolumeSettings.DEFAULT_SPEAK_TECHNOLOGY_ENABLED
+            ),
+            cellChangePhrases = loadPhrases(
+                KEY_CELL_CHANGE_SPEAK_OPERATOR,
+                KEY_CELL_CHANGE_SPEAK_TECHNOLOGY,
+                KEY_CELL_CHANGE_PHRASE_SPEAK_BAND
+            ),
+            technologyChangeTo2gPhrases = loadPhrases(
+                KEY_TECH_CHANGE_2G_SPEAK_OPERATOR,
+                KEY_TECH_CHANGE_2G_SPEAK_TECHNOLOGY,
+                KEY_TECH_CHANGE_2G_SPEAK_BAND
+            ),
+            technologyChangeTo4gPhrases = loadPhrases(
+                KEY_TECH_CHANGE_4G_SPEAK_OPERATOR,
+                KEY_TECH_CHANGE_4G_SPEAK_TECHNOLOGY,
+                KEY_TECH_CHANGE_4G_SPEAK_BAND
+            ),
+            technologyChangeTo5gEndcPhrases = loadPhrases(
+                KEY_TECH_CHANGE_5G_SPEAK_OPERATOR,
+                KEY_TECH_CHANGE_5G_SPEAK_TECHNOLOGY,
+                KEY_TECH_CHANGE_5G_SPEAK_BAND
+            ),
+            signalLowPhrases = loadPhrases(
+                KEY_SIGNAL_LOW_SPEAK_OPERATOR,
+                KEY_SIGNAL_LOW_SPEAK_TECHNOLOGY,
+                KEY_SIGNAL_LOW_SPEAK_BAND
+            ),
+            noSignalPhrases = loadPhrases(
+                KEY_NO_SIGNAL_SPEAK_OPERATOR,
+                KEY_NO_SIGNAL_SPEAK_TECHNOLOGY,
+                KEY_NO_SIGNAL_SPEAK_BAND
+            ),
+            limitedServicePhrases = loadPhrases(
+                KEY_LIMITED_SERVICE_SPEAK_OPERATOR,
+                KEY_LIMITED_SERVICE_SPEAK_TECHNOLOGY,
+                KEY_LIMITED_SERVICE_SPEAK_BAND
             )
         ).normalized()
+    }
+
+    private fun loadPhrases(
+        operatorKey: String,
+        technologyKey: String,
+        bandKey: String
+    ): VoicePhraseOptions {
+        val fallbackOperator = prefs.getBoolean(
+            KEY_SPEAK_OPERATOR_NAME_ENABLED,
+            AudioVolumeSettings.DEFAULT_SPEAK_OPERATOR_NAME_ENABLED
+        )
+        val fallbackTechnology = prefs.getBoolean(
+            KEY_SPEAK_TECHNOLOGY_ENABLED,
+            AudioVolumeSettings.DEFAULT_SPEAK_TECHNOLOGY_ENABLED
+        )
+        return VoicePhraseOptions(
+            speakOperatorName = if (prefs.contains(operatorKey)) {
+                prefs.getBoolean(operatorKey, VoicePhraseOptions.DEFAULT_SPEAK_OPERATOR_NAME)
+            } else {
+                fallbackOperator
+            },
+            speakTechnology = if (prefs.contains(technologyKey)) {
+                prefs.getBoolean(technologyKey, VoicePhraseOptions.DEFAULT_SPEAK_TECHNOLOGY)
+            } else {
+                fallbackTechnology
+            },
+            speakBand = prefs.getBoolean(bandKey, VoicePhraseOptions.DEFAULT_SPEAK_BAND)
+        )
     }
 
     fun save(settings: AudioVolumeSettings) {
@@ -214,6 +282,7 @@ class AudioVolumeSettingsRepository(context: Context) {
             .putInt(KEY_SIGNAL_PULSE_FREQUENCY, normalized.signalPulseFrequencyHz)
             .putInt(KEY_NO_SIGNAL_TIER_PULSE_FREQUENCY, normalized.noSignalTierPulseFrequencyHz)
             .putInt(KEY_LIMITED_SERVICE_TIER_PULSE_FREQUENCY, normalized.limitedServiceTierPulseFrequencyHz)
+            .putInt(KEY_LIMITED_SERVICE_TWO_TONE_SPREAD, normalized.limitedServiceTwoToneSpreadPercent)
             .putInt(KEY_LEVEL_RANGE_BCD_PULSE_FREQUENCY, normalized.levelRangeBcdPulseFrequencyHz)
             .putInt(KEY_VERY_STRONG_TIER_PULSE_FREQUENCY, normalized.veryStrongTierPulseFrequencyHz)
             .putInt(KEY_G2_STRONG_TIER_PULSE_FREQUENCY, normalized.g2StrongTierPulseFrequencyHz)
@@ -248,6 +317,27 @@ class AudioVolumeSettingsRepository(context: Context) {
             .putFloat(KEY_LIMITED_SERVICE_VOICE, normalized.limitedServiceVoiceVolume)
             .putBoolean(KEY_SPEAK_OPERATOR_NAME_ENABLED, normalized.speakOperatorNameEnabled)
             .putBoolean(KEY_SPEAK_TECHNOLOGY_ENABLED, normalized.speakTechnologyEnabled)
+            .putBoolean(KEY_CELL_CHANGE_SPEAK_OPERATOR, normalized.cellChangePhrases.speakOperatorName)
+            .putBoolean(KEY_CELL_CHANGE_SPEAK_TECHNOLOGY, normalized.cellChangePhrases.speakTechnology)
+            .putBoolean(KEY_CELL_CHANGE_PHRASE_SPEAK_BAND, normalized.cellChangePhrases.speakBand)
+            .putBoolean(KEY_TECH_CHANGE_2G_SPEAK_OPERATOR, normalized.technologyChangeTo2gPhrases.speakOperatorName)
+            .putBoolean(KEY_TECH_CHANGE_2G_SPEAK_TECHNOLOGY, normalized.technologyChangeTo2gPhrases.speakTechnology)
+            .putBoolean(KEY_TECH_CHANGE_2G_SPEAK_BAND, normalized.technologyChangeTo2gPhrases.speakBand)
+            .putBoolean(KEY_TECH_CHANGE_4G_SPEAK_OPERATOR, normalized.technologyChangeTo4gPhrases.speakOperatorName)
+            .putBoolean(KEY_TECH_CHANGE_4G_SPEAK_TECHNOLOGY, normalized.technologyChangeTo4gPhrases.speakTechnology)
+            .putBoolean(KEY_TECH_CHANGE_4G_SPEAK_BAND, normalized.technologyChangeTo4gPhrases.speakBand)
+            .putBoolean(KEY_TECH_CHANGE_5G_SPEAK_OPERATOR, normalized.technologyChangeTo5gEndcPhrases.speakOperatorName)
+            .putBoolean(KEY_TECH_CHANGE_5G_SPEAK_TECHNOLOGY, normalized.technologyChangeTo5gEndcPhrases.speakTechnology)
+            .putBoolean(KEY_TECH_CHANGE_5G_SPEAK_BAND, normalized.technologyChangeTo5gEndcPhrases.speakBand)
+            .putBoolean(KEY_SIGNAL_LOW_SPEAK_OPERATOR, normalized.signalLowPhrases.speakOperatorName)
+            .putBoolean(KEY_SIGNAL_LOW_SPEAK_TECHNOLOGY, normalized.signalLowPhrases.speakTechnology)
+            .putBoolean(KEY_SIGNAL_LOW_SPEAK_BAND, normalized.signalLowPhrases.speakBand)
+            .putBoolean(KEY_NO_SIGNAL_SPEAK_OPERATOR, normalized.noSignalPhrases.speakOperatorName)
+            .putBoolean(KEY_NO_SIGNAL_SPEAK_TECHNOLOGY, normalized.noSignalPhrases.speakTechnology)
+            .putBoolean(KEY_NO_SIGNAL_SPEAK_BAND, normalized.noSignalPhrases.speakBand)
+            .putBoolean(KEY_LIMITED_SERVICE_SPEAK_OPERATOR, normalized.limitedServicePhrases.speakOperatorName)
+            .putBoolean(KEY_LIMITED_SERVICE_SPEAK_TECHNOLOGY, normalized.limitedServicePhrases.speakTechnology)
+            .putBoolean(KEY_LIMITED_SERVICE_SPEAK_BAND, normalized.limitedServicePhrases.speakBand)
             .apply()
     }
 
@@ -259,6 +349,7 @@ class AudioVolumeSettingsRepository(context: Context) {
         private const val KEY_SIGNAL_PULSE_FREQUENCY = "signal_pulse_frequency_hz"
         private const val KEY_NO_SIGNAL_TIER_PULSE_FREQUENCY = "no_signal_tier_pulse_frequency_hz"
         private const val KEY_LIMITED_SERVICE_TIER_PULSE_FREQUENCY = "limited_service_tier_pulse_frequency_hz"
+        private const val KEY_LIMITED_SERVICE_TWO_TONE_SPREAD = "limited_service_two_tone_spread_percent"
         private const val KEY_LEVEL_RANGE_BCD_PULSE_FREQUENCY = "level_range_bcd_pulse_frequency_hz"
         private const val KEY_VERY_STRONG_TIER_PULSE_FREQUENCY = "very_strong_tier_pulse_frequency_hz"
         private const val KEY_G2_STRONG_TIER_PULSE_FREQUENCY = "g2_strong_tier_pulse_frequency_hz"
@@ -296,5 +387,26 @@ class AudioVolumeSettingsRepository(context: Context) {
         private const val KEY_LIMITED_SERVICE_VOICE = "limited_service_voice_volume"
         private const val KEY_SPEAK_OPERATOR_NAME_ENABLED = "speak_operator_name_enabled"
         private const val KEY_SPEAK_TECHNOLOGY_ENABLED = "speak_technology_enabled"
+        private const val KEY_CELL_CHANGE_SPEAK_OPERATOR = "cell_change_phrase_speak_operator"
+        private const val KEY_CELL_CHANGE_SPEAK_TECHNOLOGY = "cell_change_phrase_speak_technology"
+        private const val KEY_CELL_CHANGE_PHRASE_SPEAK_BAND = "cell_change_phrase_speak_band"
+        private const val KEY_TECH_CHANGE_2G_SPEAK_OPERATOR = "tech_change_2g_phrase_speak_operator"
+        private const val KEY_TECH_CHANGE_2G_SPEAK_TECHNOLOGY = "tech_change_2g_phrase_speak_technology"
+        private const val KEY_TECH_CHANGE_2G_SPEAK_BAND = "tech_change_2g_phrase_speak_band"
+        private const val KEY_TECH_CHANGE_4G_SPEAK_OPERATOR = "tech_change_4g_phrase_speak_operator"
+        private const val KEY_TECH_CHANGE_4G_SPEAK_TECHNOLOGY = "tech_change_4g_phrase_speak_technology"
+        private const val KEY_TECH_CHANGE_4G_SPEAK_BAND = "tech_change_4g_phrase_speak_band"
+        private const val KEY_TECH_CHANGE_5G_SPEAK_OPERATOR = "tech_change_5g_phrase_speak_operator"
+        private const val KEY_TECH_CHANGE_5G_SPEAK_TECHNOLOGY = "tech_change_5g_phrase_speak_technology"
+        private const val KEY_TECH_CHANGE_5G_SPEAK_BAND = "tech_change_5g_phrase_speak_band"
+        private const val KEY_SIGNAL_LOW_SPEAK_OPERATOR = "signal_low_phrase_speak_operator"
+        private const val KEY_SIGNAL_LOW_SPEAK_TECHNOLOGY = "signal_low_phrase_speak_technology"
+        private const val KEY_SIGNAL_LOW_SPEAK_BAND = "signal_low_phrase_speak_band"
+        private const val KEY_NO_SIGNAL_SPEAK_OPERATOR = "no_signal_phrase_speak_operator"
+        private const val KEY_NO_SIGNAL_SPEAK_TECHNOLOGY = "no_signal_phrase_speak_technology"
+        private const val KEY_NO_SIGNAL_SPEAK_BAND = "no_signal_phrase_speak_band"
+        private const val KEY_LIMITED_SERVICE_SPEAK_OPERATOR = "limited_service_phrase_speak_operator"
+        private const val KEY_LIMITED_SERVICE_SPEAK_TECHNOLOGY = "limited_service_phrase_speak_technology"
+        private const val KEY_LIMITED_SERVICE_SPEAK_BAND = "limited_service_phrase_speak_band"
     }
 }

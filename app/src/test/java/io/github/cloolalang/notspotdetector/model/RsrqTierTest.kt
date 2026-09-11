@@ -55,9 +55,10 @@ class RsrqTierTest {
     }
 
     @Test
-    fun rsrqTierClickInterval_capsAtFiveSeconds() {
-        val capped = settings.copy(rsrqTierClickIntervalMs = 10_000).normalized()
+    fun rsrqTierClickInterval_capsAtTwentySeconds() {
+        val capped = settings.copy(rsrqTierClickIntervalMs = 30_000).normalized()
         assertEquals(PassiveSignalSettings.MAX_RSRQ_TIER_CLICK_INTERVAL_MS, capped.rsrqTierClickIntervalMs)
+        assertEquals(20_000, capped.rsrqTierClickIntervalMs)
     }
 
     @Test
