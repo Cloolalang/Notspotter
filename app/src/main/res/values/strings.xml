@@ -45,7 +45,6 @@
     <string name="passive_only_idle_hint">Passive-only monitoring — RSRP, EARFCN, and PCI continue updating. Tap Stop to end monitoring.</string>
     <string name="notification_passive_only">Signal monitoring — no pings</string>
     <string name="passive_signal_settings_title">Passive signal thresholds and alert settings</string>
-    <string name="passive_signal_settings_summary">Tap to set RXSS tier boundaries, signal pulse sounds, and per-state voice and alert tones for passive monitoring.</string>
     <string name="passive_signal_rxss_signal_pulse_subsection">Standard sound (signal pulses)</string>
     <string name="passive_signal_rxss_voice_alert_subsection">Voice and alert tone</string>
     <string name="passive_signal_rxss5_voice_hint">Speaks “signal low” on entry and every 30 s while in RXSS 5 on LTE/NR. Same setting as RXSS 6 and 2G weak (RXSS 8). Voice only — no alert tone.</string>
@@ -85,7 +84,6 @@
     <string name="passive_signal_rxss31_voice_shared_hint">Tone and voice settings are shared with LTE/NR no signal (RXSS 10), dead zone (RXSS 0), searching 2G (RXSS 11), and home 2G no signal (RXSS 15).</string>
     <string name="passive_measurement_interval_label">Measurement cycle</string>
     <string name="passive_measurement_interval_value">%1$d s</string>
-    <string name="passive_measurement_interval_hint">How often RSRP, RSRQ, and cell identity are refreshed during passive monitoring (1–10 s).</string>
     <string name="passive_signal_tier_section">RXSS %1$d · %2$s</string>
     <string name="passive_signal_tier_section_fallback">RXSS %1$d</string>
     <string name="rxss_state_deadzone">Dead zone</string>
@@ -94,9 +92,9 @@
     <string name="rxss_state_level_range_b">High RSRP band</string>
     <string name="rxss_state_level_range_c">Moderate RSRP band</string>
     <string name="rxss_state_level_range_d">Lowest RSRP band</string>
-    <string name="rxss_state_signal_low">Signal low</string>
+    <string name="rxss_state_signal_low">4G signal low</string>
     <string name="rxss_state_g2_good">2G good signal</string>
-    <string name="rxss_state_g2_weak">2G weak</string>
+    <string name="rxss_state_g2_weak">2G signal low</string>
     <string name="rxss_state_cell_change">Cell change</string>
     <string name="rxss_state_tech_change_to_2g">Technology change to 2G</string>
     <string name="rxss_state_tech_change_to_4g">Technology change to 4G</string>
@@ -171,6 +169,7 @@
     <string name="passive_signal_deadzone_tier_threshold">Complete dead zone — no signal on any technology</string>
     <string name="passive_signal_rsrp_section_hint">Signal range is fixed from %1$d to %2$d dBm. Drag each boundary to divide the tiers.</string>
     <string name="passive_signal_rsrq_section">RSRQ</string>
+    <string name="passive_signal_technology_change_section">Technology change</string>
     <string name="passive_signal_rsrq_section_hint">Fair boundary range is %1$d to %2$d dB. One boundary splits poor/critical from fair.</string>
     <string name="passive_signal_boundary_no_signal">No signal at or below</string>
     <string name="passive_signal_boundary_tier_above">RXSS %1$d above</string>

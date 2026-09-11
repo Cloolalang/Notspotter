@@ -132,12 +132,6 @@ fun PassiveSignalSettingsCard(
             }
 
             if (expanded) {
-                Text(
-                    text = stringResource(R.string.passive_signal_settings_summary),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
                 if (!previewEnabled) {
                     Text(
                         text = stringResource(R.string.audio_volume_test_disabled_hint),
@@ -262,6 +256,12 @@ fun PassiveSignalSettingsCard(
                     passiveMeasurementIntervalMs = passiveMeasurementIntervalMs,
                     onSettingsChange = onSettingsChange,
                     onPreviewRsrqWhiteNoise = onPreviewRsrqWhiteNoise
+                )
+
+                Text(
+                    text = stringResource(R.string.passive_signal_technology_change_section),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium
                 )
 
                 TechnologyChangeTierSettings(
@@ -565,11 +565,6 @@ private fun PassiveMeasurementIntervalSlider(
                 fontWeight = FontWeight.Medium
             )
         }
-        Text(
-            text = stringResource(R.string.passive_measurement_interval_hint),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
         Slider(
             value = valueSeconds.toFloat(),
             onValueChange = { onIntervalChange(it.roundToInt() * 1_000L) },

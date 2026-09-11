@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Documentation** — [MOCK_NETWORK_SCENARIOS.md](MOCK_NETWORK_SCENARIOS.md) (agreed mock trigger states per scenario) and [SETTINGS_PROFILES.md](SETTINGS_PROFILES.md) (profile JSON capture scope, including full `passiveMock` block). Updated [RXSS_CATALOGUE.md](RXSS_CATALOGUE.md), [VOICE_ANNOUNCEMENTS.md](VOICE_ANNOUNCEMENTS.md), and [README.md](README.md) cross-links; RXSS **0**, **11**, **12**, **20**, **23** rows reflect current voice implementation.
 
+## [2.21.1] - 2026-09-11
+
+### Changed
+
+- Removed the "Tap to set RXSS tier boundaries…" summary and the "How often RSRP…" hint from "Passive signal thresholds and alert settings" — the "Measurement cycle" control now shows just its title and value.
+- Renamed the RXSS 6 tier name from "Signal low" to "4G signal low", and RXSS 8 from "2G weak" to "2G signal low", for clarity.
+- RXSS 28/29/30 (technology change tiers) now sit under their own "Technology change" group heading instead of appearing directly under "RSRQ".
+
 ## [2.21.0] - 2026-09-11
 
 ### Added
