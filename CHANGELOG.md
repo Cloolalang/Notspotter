@@ -11,6 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Documentation** — [MOCK_NETWORK_SCENARIOS.md](MOCK_NETWORK_SCENARIOS.md) (agreed mock trigger states per scenario) and [SETTINGS_PROFILES.md](SETTINGS_PROFILES.md) (profile JSON capture scope, including full `passiveMock` block). Updated [RXSS_CATALOGUE.md](RXSS_CATALOGUE.md), [VOICE_ANNOUNCEMENTS.md](VOICE_ANNOUNCEMENTS.md), and [README.md](README.md) cross-links; RXSS **0**, **11**, **12**, **20**, **23** rows reflect current voice implementation.
 
+## [2.22.0] - 2026-09-11
+
+### Changed
+
+- Renamed "Passive signal thresholds and alert settings" to **Alert settings**.
+- Moved the **Measurement cycle** control from Alert settings into **Monitoring options**.
+- Simplified RXSS control labels: volume sliders now read "Volume"; duration/interval/frequency are "Alert pulse duration/interval/frequency"; voice toggles are simply "Voice announcement".
+- Removed RXSS voice-announcement descriptions, vibration descriptions, "tone and voice settings are shared…" hints, the "With ping monitoring" line, and the pink "Complete dead zone — no signal" text.
+
 ## [2.21.1] - 2026-09-11
 
 ### Changed

@@ -268,7 +268,8 @@ fun MonitorScreen(
                 onMonitor2gFallbackChange = onMonitor2gFallbackChange,
                 onPassiveQuietUntilCriticalChange = onPassiveQuietUntilCriticalChange,
                 onPassiveSignalSettingsChange = onPassiveSignalSettingsChange,
-                onSubscriptionChange = onSubscriptionChange
+                onSubscriptionChange = onSubscriptionChange,
+                onPassiveMeasurementIntervalChange = onPassiveMeasurementIntervalChange
             )
 
             PassiveSignalSettingsCard(
@@ -284,7 +285,6 @@ fun MonitorScreen(
                 onVeryStrongTierPulseFrequencyChange = onVeryStrongTierPulseFrequencyChange,
                 onG2StrongTierPulseFrequencyChange = onG2StrongTierPulseFrequencyChange,
                 onG2WeakTierPulseFrequencyChange = onG2WeakTierPulseFrequencyChange,
-                onPassiveMeasurementIntervalChange = onPassiveMeasurementIntervalChange,
                 onTechnologyChangeToneVolumeChange = onTechnologyChangeToneVolumeChange,
                 onTechnologyChangeVoiceEnabledChange = onTechnologyChangeVoiceEnabledChange,
                 onTechnologyChangeVoiceVolumeChange = onTechnologyChangeVoiceVolumeChange,

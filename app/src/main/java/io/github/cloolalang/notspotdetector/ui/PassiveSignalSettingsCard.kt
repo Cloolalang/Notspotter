@@ -27,7 +27,6 @@ import androidx.compose.ui.unit.dp
 import io.github.cloolalang.notspotdetector.R
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
 import io.github.cloolalang.notspotdetector.model.CellReselectBandNamingStyle
-import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
 import io.github.cloolalang.notspotdetector.model.Rxss
 import io.github.cloolalang.notspotdetector.model.SettingsCompatibility
@@ -63,7 +62,6 @@ fun PassiveSignalSettingsCard(
     onVeryStrongTierPulseFrequencyChange: (Int) -> Unit,
     onG2StrongTierPulseFrequencyChange: (Int) -> Unit,
     onG2WeakTierPulseFrequencyChange: (Int) -> Unit,
-    onPassiveMeasurementIntervalChange: (Long) -> Unit,
     onTechnologyChangeToneVolumeChange: (TechnologyChangeTarget, Float) -> Unit,
     onTechnologyChangeVoiceEnabledChange: (TechnologyChangeTarget, Boolean) -> Unit,
     onTechnologyChangeVoiceVolumeChange: (TechnologyChangeTarget, Float) -> Unit,
@@ -139,11 +137,6 @@ fun PassiveSignalSettingsCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-
-                PassiveMeasurementIntervalSlider(
-                    intervalMs = passiveMeasurementIntervalMs,
-                    onIntervalChange = onPassiveMeasurementIntervalChange
-                )
 
                 DeadzoneTierSettings(
                     settings = settings,
@@ -458,11 +451,6 @@ private fun TierClickSpeedSlider(
         signalPulseDurationMs = signalPulseDurationMs,
         isPassiveOnlySession = true
     )
-    val pingAndPassiveEffectiveMs = SettingsCompatibility.resolveTierClickIntervalMs(
-        configuredMs = coercedIntervalMs.toLong(),
-        signalPulseDurationMs = signalPulseDurationMs,
-        isPassiveOnlySession = false
-    )
     val showPulseDurationNote = intervalMs < minUiMs
     val showMeasurementWarning = SettingsCompatibility.isTierIntervalMuchSlowerThanMeasurement(
         tierIntervalMs = coercedIntervalMs,
@@ -502,14 +490,6 @@ private fun TierClickSpeedSlider(
                 color = MaterialTheme.colorScheme.tertiary
             )
         }
-        Text(
-            text = stringResource(
-                R.string.passive_signal_tier_click_ping_mode,
-                pingAndPassiveEffectiveMs
-            ),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
         if (showMeasurementWarning) {
             Text(
                 text = stringResource(
@@ -534,42 +514,6 @@ private fun TierClickSpeedSlider(
             valueRange = 0f..maxStep.toFloat(),
             steps = sliderSteps,
             colors = tierSliderColors(accentColor)
-        )
-    }
-}
-
-@Composable
-private fun PassiveMeasurementIntervalSlider(
-    intervalMs: Long,
-    onIntervalChange: (Long) -> Unit
-) {
-    val minSeconds = (MonitoringSettings.MIN_PASSIVE_MEASUREMENT_INTERVAL_MS / 1_000).toInt()
-    val maxSeconds = (MonitoringSettings.MAX_PASSIVE_MEASUREMENT_INTERVAL_MS / 1_000).toInt()
-    val valueSeconds = (intervalMs / 1_000L).toInt().coerceIn(minSeconds, maxSeconds)
-
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = stringResource(R.string.passive_measurement_interval_label),
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium
-            )
-            Text(
-                text = stringResource(R.string.passive_measurement_interval_value, valueSeconds),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Medium
-            )
-        }
-        Slider(
-            value = valueSeconds.toFloat(),
-            onValueChange = { onIntervalChange(it.roundToInt() * 1_000L) },
-            valueRange = minSeconds.toFloat()..maxSeconds.toFloat(),
-            steps = maxSeconds - minSeconds - 1
         )
     }
 }
@@ -1008,7 +952,6 @@ private fun RsrpTierSettings(
                         onTier5AnnouncerVolumeChange = onTier5AnnouncerVolumeChange,
                         onPreviewTier5Announcer = onPreviewTier5Announcer,
                         enabledTitle = stringResource(R.string.passive_signal_rxss6_voice_enabled),
-                        enabledHint = stringResource(R.string.passive_signal_rxss6_voice_hint),
                         volumeLabel = stringResource(R.string.passive_signal_rxss6_voice_volume)
                     )
                 }
@@ -1073,7 +1016,6 @@ private fun TechnologyChangeTierSettings(
                     accentColor = accent,
                     sectionHint = technologyChangeSectionHint(target),
                     voiceEnabledTitle = technologyChangeVoiceEnabledTitle(target),
-                    voiceHint = technologyChangeVoiceHint(target),
                     voiceVolumeLabel = stringResource(R.string.audio_volume_technology_change_voice),
                     onToneVolumeChange = { onTechnologyChangeToneVolumeChange(target, it) },
                     onVoiceEnabledChange = { onTechnologyChangeVoiceEnabledChange(target, it) },
@@ -1101,15 +1043,6 @@ private fun technologyChangeVoiceEnabledTitle(target: TechnologyChangeTarget): S
         TechnologyChangeTarget.TO_2G -> stringResource(R.string.passive_signal_rxss28_voice_enabled)
         TechnologyChangeTarget.TO_4G -> stringResource(R.string.passive_signal_rxss29_voice_enabled)
         TechnologyChangeTarget.TO_5G_ENDC -> stringResource(R.string.passive_signal_rxss30_voice_enabled)
-    }
-}
-
-@Composable
-private fun technologyChangeVoiceHint(target: TechnologyChangeTarget): String {
-    return when (target) {
-        TechnologyChangeTarget.TO_2G -> stringResource(R.string.passive_signal_rxss28_voice_hint)
-        TechnologyChangeTarget.TO_4G -> stringResource(R.string.passive_signal_rxss29_voice_hint)
-        TechnologyChangeTarget.TO_5G_ENDC -> stringResource(R.string.passive_signal_rxss30_voice_hint)
     }
 }
 
@@ -1291,7 +1224,6 @@ private fun G2TierSettings(
                         onTier5AnnouncerVolumeChange = onTier5AnnouncerVolumeChange,
                         onPreviewTier5Announcer = onPreviewTier5Announcer,
                         enabledTitle = stringResource(R.string.passive_signal_rxss8_voice_enabled),
-                        enabledHint = stringResource(R.string.passive_signal_rxss8_voice_hint),
                         volumeLabel = stringResource(R.string.passive_signal_rxss8_voice_volume)
                     )
                 }
@@ -1441,13 +1373,6 @@ private fun DeadzoneTierSettings(
                         onEnabledChange = { onSettingsChange(settings.copy(deadzoneTierSoundEnabled = it)) }
                     )
                 },
-                rangeControls = {
-                    Text(
-                        text = stringResource(R.string.passive_signal_deadzone_tier_threshold),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = accent
-                    )
-                },
                 volumeControls = {
                     CampSignalPulseVolumeControl(
                         label = stringResource(R.string.audio_volume_no_signal),
@@ -1496,10 +1421,6 @@ private fun DeadzoneTierSettings(
                         onNoSignalVoiceEnabledChange = onNoSignalVoiceEnabledChange,
                         onNoSignalVoiceVolumeChange = onNoSignalVoiceVolumeChange,
                         onPreviewNoSignalVoice = onPreviewNoSignalVoice
-                    )
-                    RxssSharedAlertHint(
-                        text = stringResource(R.string.passive_signal_rxss0_voice_shared_hint),
-                        accentColor = accent
                     )
                 }
             )
@@ -1716,10 +1637,6 @@ private fun NoSignalCampTierBlock(
                     onNoSignalVoiceVolumeChange = onNoSignalVoiceVolumeChange,
                     onPreviewNoSignalVoice = onPreviewNoSignalVoice
                 )
-                RxssSharedAlertHint(
-                    text = stringResource(R.string.passive_signal_rxss10_voice_shared_hint),
-                    accentColor = accentColor
-                )
             }
         )
     }
@@ -1808,10 +1725,6 @@ private fun WifiCallingCampTierBlock(
                     onNoSignalVoiceEnabledChange = onNoSignalVoiceEnabledChange,
                     onNoSignalVoiceVolumeChange = onNoSignalVoiceVolumeChange,
                     onPreviewNoSignalVoice = onPreviewNoSignalVoice
-                )
-                RxssSharedAlertHint(
-                    text = stringResource(R.string.passive_signal_rxss31_voice_shared_hint),
-                    accentColor = accentColor
                 )
             }
         )
@@ -1902,10 +1815,6 @@ private fun G2NoSignalCampTierBlock(
                     onNoSignalVoiceVolumeChange = onNoSignalVoiceVolumeChange,
                     onPreviewNoSignalVoice = onPreviewNoSignalVoice
                 )
-                RxssSharedAlertHint(
-                    text = stringResource(R.string.passive_signal_rxss15_voice_shared_hint),
-                    accentColor = accentColor
-                )
             }
         )
     }
@@ -1994,10 +1903,6 @@ private fun Searching2gCampTierBlock(
                     onNoSignalVoiceVolumeChange = onNoSignalVoiceVolumeChange,
                     onPreviewNoSignalVoice = onPreviewNoSignalVoice
                 )
-                RxssSharedAlertHint(
-                    text = stringResource(R.string.passive_signal_rxss11_voice_shared_hint),
-                    accentColor = accentColor
-                )
             }
         )
     }
@@ -2085,10 +1990,6 @@ private fun LimitedServiceCampTierBlock(
                     onLimitedServiceVoiceVolumeChange = onLimitedServiceVoiceVolumeChange,
                     onPreviewLimitedServiceVoice = onPreviewLimitedServiceVoice
                 )
-                RxssSharedAlertHint(
-                    text = stringResource(R.string.passive_signal_rxss12_voice_shared_hint),
-                    accentColor = accentColor
-                )
             }
         )
     }
@@ -2175,10 +2076,6 @@ private fun LimitedAlt2gCampTierBlock(
                     onLimitedServiceVoiceEnabledChange = onLimitedServiceVoiceEnabledChange,
                     onLimitedServiceVoiceVolumeChange = onLimitedServiceVoiceVolumeChange,
                     onPreviewLimitedServiceVoice = onPreviewLimitedServiceVoice
-                )
-                RxssSharedAlertHint(
-                    text = stringResource(R.string.passive_signal_rxss13_voice_shared_hint),
-                    accentColor = accentColor
                 )
             }
         )

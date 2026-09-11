@@ -40,6 +40,7 @@ fun MonitoringSettingsCard(
     onPassiveQuietUntilCriticalChange: (Boolean) -> Unit,
     onPassiveSignalSettingsChange: (PassiveSignalSettings) -> Unit,
     onSubscriptionChange: (Int) -> Unit,
+    onPassiveMeasurementIntervalChange: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
@@ -81,6 +82,11 @@ fun MonitoringSettingsCard(
                     simSubscriptions = simSubscriptions,
                     phoneStatePermissionGranted = phoneStatePermissionGranted,
                     onSubscriptionChange = onSubscriptionChange
+                )
+
+                PassiveMeasurementIntervalSlider(
+                    intervalMs = monitoringSettings.passiveMeasurementIntervalMs,
+                    onIntervalChange = onPassiveMeasurementIntervalChange
                 )
 
                 Row(
@@ -270,6 +276,42 @@ private fun SimRadioOption(
             text = label,
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+private fun PassiveMeasurementIntervalSlider(
+    intervalMs: Long,
+    onIntervalChange: (Long) -> Unit
+) {
+    val minSeconds = (MonitoringSettings.MIN_PASSIVE_MEASUREMENT_INTERVAL_MS / 1_000).toInt()
+    val maxSeconds = (MonitoringSettings.MAX_PASSIVE_MEASUREMENT_INTERVAL_MS / 1_000).toInt()
+    val valueSeconds = (intervalMs / 1_000L).toInt().coerceIn(minSeconds, maxSeconds)
+
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.passive_measurement_interval_label),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = stringResource(R.string.passive_measurement_interval_value, valueSeconds),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Medium
+            )
+        }
+        Slider(
+            value = valueSeconds.toFloat(),
+            onValueChange = { onIntervalChange(it.roundToInt() * 1_000L) },
+            valueRange = minSeconds.toFloat()..maxSeconds.toFloat(),
+            steps = maxSeconds - minSeconds - 1
         )
     }
 }

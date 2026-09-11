@@ -156,7 +156,7 @@ fun RxssVoiceAnnouncementOption(
     enabled: Boolean,
     onEnabledChange: (Boolean) -> Unit,
     title: String,
-    hint: String,
+    hint: String? = null,
     volumeLabel: String,
     volume: Float,
     onVolumeChange: (Float) -> Unit,
@@ -181,11 +181,13 @@ fun RxssVoiceAnnouncementOption(
                 fontWeight = FontWeight.Medium,
                 color = accentColor
             )
-            Text(
-                text = hint,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            if (!hint.isNullOrBlank()) {
+                Text(
+                    text = hint,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
     if (enabled || showVolumeControlsWhenDisabled) {
@@ -236,7 +238,6 @@ fun NoSignalVoiceAnnouncementControls(
         enabled = audioVolumes.noSignalVoiceEnabled,
         onEnabledChange = onNoSignalVoiceEnabledChange,
         title = stringResource(R.string.audio_no_signal_voice_enabled),
-        hint = stringResource(R.string.audio_no_signal_voice_enabled_hint),
         volumeLabel = stringResource(R.string.audio_volume_no_signal_voice),
         volume = audioVolumes.noSignalVoiceVolume,
         onVolumeChange = onNoSignalVoiceVolumeChange,
@@ -258,11 +259,6 @@ fun NoSignalVoiceAnnouncementControls(
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.Medium,
                 color = accentColor
-            )
-            Text(
-                text = stringResource(R.string.audio_no_signal_vibration_enabled_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -307,7 +303,6 @@ fun Tier5SignalLowVoiceControls(
     onTier5AnnouncerVolumeChange: (Float) -> Unit,
     onPreviewTier5Announcer: () -> Unit,
     enabledTitle: String = stringResource(R.string.audio_tier5_announcer_enabled),
-    enabledHint: String = stringResource(R.string.passive_signal_rxss5_voice_hint),
     volumeLabel: String = stringResource(R.string.audio_volume_tier5_announcer)
 ) {
     RxssAlertSubsectionTitle(accentColor = accentColor)
@@ -315,7 +310,6 @@ fun Tier5SignalLowVoiceControls(
         enabled = audioVolumes.tier5AnnouncerEnabled,
         onEnabledChange = onTier5AnnouncerEnabledChange,
         title = enabledTitle,
-        hint = enabledHint,
         volumeLabel = volumeLabel,
         volume = audioVolumes.tier5AnnouncerVolume,
         onVolumeChange = onTier5AnnouncerVolumeChange,
@@ -351,7 +345,6 @@ fun CellChangeAlertControls(
         enabled = audioVolumes.cellChangeVoiceEnabled,
         onEnabledChange = onCellChangeVoiceEnabledChange,
         title = stringResource(R.string.audio_cell_change_voice_enabled),
-        hint = stringResource(R.string.passive_signal_rxss9_voice_hint),
         volumeLabel = stringResource(R.string.audio_volume_cell_change_voice),
         volume = audioVolumes.cellChangeVoiceVolume,
         onVolumeChange = onCellChangeVoiceVolumeChange,
@@ -435,7 +428,6 @@ fun TechnologyChangeAlertControls(
     accentColor: Color,
     sectionHint: String,
     voiceEnabledTitle: String,
-    voiceHint: String,
     voiceVolumeLabel: String,
     onToneVolumeChange: (Float) -> Unit,
     onVoiceEnabledChange: (Boolean) -> Unit,
@@ -462,7 +454,6 @@ fun TechnologyChangeAlertControls(
         enabled = alertVolumes.voiceEnabled,
         onEnabledChange = onVoiceEnabledChange,
         title = voiceEnabledTitle,
-        hint = voiceHint,
         volumeLabel = voiceVolumeLabel,
         volume = alertVolumes.voiceVolume,
         onVolumeChange = onVoiceVolumeChange,
@@ -504,7 +495,6 @@ fun LimitedServiceVoiceAnnouncementControls(
         enabled = audioVolumes.limitedServiceVoiceEnabled,
         onEnabledChange = onLimitedServiceVoiceEnabledChange,
         title = stringResource(R.string.audio_limited_service_voice_enabled),
-        hint = stringResource(R.string.audio_limited_service_voice_enabled_hint),
         volumeLabel = stringResource(R.string.audio_volume_limited_service_voice),
         volume = audioVolumes.limitedServiceVoiceVolume,
         onVolumeChange = onLimitedServiceVoiceVolumeChange,
