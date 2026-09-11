@@ -8,84 +8,97 @@ import org.junit.Test
 
 class LteLayerResilienceDebouncerTest {
 
-    @Test
-    fun requiresTwoPollsToConfirmANewLayerCount() {
-        val debouncer = LteLayerResilienceDebouncer()
+    private fun reading(primary: Int, alternateLayers: Int, alternateCells: Int) =
+        LteLayerResilienceReading(
+            primaryLayerCellCount = primary,
+            alternateLayerCount = alternateLayers,
+            alternateLayerCellCount = alternateCells
+        )
 
-        val firstPoll = debouncer.update(3)
-        assertNull(firstPoll.confirmedLayerCount)
+    @Test
+    fun requiresTwoPollsToConfirmANewReading() {
+        val debouncer = LteLayerResilienceDebouncer()
+        val candidate = reading(2, 2, 3)
+
+        val firstPoll = debouncer.update(candidate)
+        assertNull(firstPoll.confirmedReading)
         assertFalse(firstPoll.transitioned)
 
-        val result = debouncer.update(3)
-        assertEquals(3, result.confirmedLayerCount)
+        val result = debouncer.update(candidate)
+        assertEquals(candidate, result.confirmedReading)
         assertTrue(result.transitioned)
     }
 
     @Test
-    fun requiresTwoMatchingPollsToChangeAnAlreadyConfirmedCount() {
+    fun requiresTwoMatchingPollsToChangeAnAlreadyConfirmedReading() {
         val debouncer = LteLayerResilienceDebouncer()
-        debouncer.update(2)
-        debouncer.update(2)
+        val original = reading(1, 1, 1)
+        debouncer.update(original)
+        debouncer.update(original)
 
-        val firstDropPoll = debouncer.update(1)
-        assertEquals(2, firstDropPoll.confirmedLayerCount)
-        assertFalse(firstDropPoll.transitioned)
+        val updated = reading(2, 2, 3)
+        val firstChangePoll = debouncer.update(updated)
+        assertEquals(original, firstChangePoll.confirmedReading)
+        assertFalse(firstChangePoll.transitioned)
 
-        val result = debouncer.update(1)
-        assertEquals(1, result.confirmedLayerCount)
+        val result = debouncer.update(updated)
+        assertEquals(updated, result.confirmedReading)
         assertTrue(result.transitioned)
     }
 
     @Test
-    fun singlePollFlickerDoesNotChangeConfirmedCount() {
+    fun partialChangeIsTreatedAsADifferentReadingAsAWhole() {
         val debouncer = LteLayerResilienceDebouncer()
-        debouncer.update(2)
-        debouncer.update(2)
+        val original = reading(2, 2, 3)
+        debouncer.update(original)
+        debouncer.update(original)
 
-        debouncer.update(3)
-        debouncer.update(2)
-
-        assertEquals(2, debouncer.confirmedLayerCount)
+        // Only alternateLayerCellCount differs — still a distinct reading, needs full confirmation.
+        val partiallyChanged = reading(2, 2, 4)
+        val firstPoll = debouncer.update(partiallyChanged)
+        assertEquals(original, firstPoll.confirmedReading)
+        assertFalse(firstPoll.transitioned)
     }
 
     @Test
-    fun differingPendingTargetsResetTheConfirmationCount() {
+    fun singlePollFlickerDoesNotChangeConfirmedReading() {
         val debouncer = LteLayerResilienceDebouncer()
-        debouncer.update(2)
-        debouncer.update(2)
+        val stable = reading(2, 2, 3)
+        debouncer.update(stable)
+        debouncer.update(stable)
 
-        debouncer.update(3)
-        // A different candidate (4) restarts confirmation rather than counting toward 3.
-        val result = debouncer.update(4)
+        debouncer.update(reading(2, 3, 4))
+        debouncer.update(stable)
 
-        assertEquals(2, result.confirmedLayerCount)
-        assertFalse(result.transitioned)
+        assertEquals(stable, debouncer.confirmedReading)
     }
 
     @Test
     fun nullReadingIsTreatedAsItsOwnDistinctValue() {
         val debouncer = LteLayerResilienceDebouncer()
-        debouncer.update(2)
-        debouncer.update(2)
+        val stable = reading(2, 2, 3)
+        debouncer.update(stable)
+        debouncer.update(stable)
 
         val firstNullPoll = debouncer.update(null)
-        assertEquals(2, firstNullPoll.confirmedLayerCount)
+        assertEquals(stable, firstNullPoll.confirmedReading)
         assertFalse(firstNullPoll.transitioned)
 
         val result = debouncer.update(null)
-        assertNull(result.confirmedLayerCount)
+        assertNull(result.confirmedReading)
         assertTrue(result.transitioned)
     }
 
     @Test
     fun resetClearsConfirmedState() {
         val debouncer = LteLayerResilienceDebouncer()
-        debouncer.update(3)
-        debouncer.update(3)
+        val stable = reading(2, 2, 3)
+        debouncer.update(stable)
+        debouncer.update(stable)
 
         debouncer.reset()
 
-        assertNull(debouncer.confirmedLayerCount)
-        assertNull(debouncer.update(3).confirmedLayerCount)
+        assertNull(debouncer.confirmedReading)
+        assertNull(debouncer.update(stable).confirmedReading)
     }
 }

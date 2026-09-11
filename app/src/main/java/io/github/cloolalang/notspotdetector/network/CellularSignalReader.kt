@@ -23,6 +23,7 @@ import android.telephony.SignalStrength
 import android.telephony.TelephonyManager
 import androidx.core.content.ContextCompat
 import io.github.cloolalang.notspotdetector.model.CellularRadioMetrics
+import io.github.cloolalang.notspotdetector.model.LteLayerResilienceReading
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.NetworkModePreference
 import io.github.cloolalang.notspotdetector.model.NetworkServiceMode
@@ -93,11 +94,12 @@ object CellularSignalReader {
             networkReports2g = networkReports2g,
             isDualSimActive = isDualSimActive
         )
-        val lteLayerResilienceLayerCount = readLteLayerResilience(
+        val lteLayerResilience = readLteLayerResilience(
             telephonyManager = telephonyManager,
             cellIdentityPermissionGranted = cellIdentityPermissionGranted,
             expectedPlmn = plmn,
-            isDualSimActive = isDualSimActive
+            isDualSimActive = isDualSimActive,
+            primaryLteEarfcn = servingCell.lteEarfcn
         )
 
         var metrics = signalMetrics.copy(
@@ -126,7 +128,7 @@ object CellularSignalReader {
             },
             simSlotIndex = simSlotIndex,
             simDisplayName = simDisplayName,
-            lteLayerResilienceLayerCount = lteLayerResilienceLayerCount
+            lteLayerResilience = lteLayerResilience
         )
 
         if (isOn2g && !monitor2gFallback) {
@@ -516,21 +518,21 @@ object CellularSignalReader {
     }
 
     /**
-     * "4G layer resilience" — counts the number of *distinct* LTE frequency layers (unique
-     * EARFCNs) currently visible to the UE for the expected PLMN: the serving cell plus any
-     * neighbours reported by [TelephonyManager.getAllCellInfo]. A count of 1 means no fallback
-     * layer is currently detected (single point of failure); higher counts mean the UE has
-     * spotted alternative carriers it could reselect to if the serving layer degrades.
+     * "4G layers detected" — splits currently visible LTE frequency layers (grouped by EARFCN)
+     * into the primary channel (the one matching [primaryLteEarfcn], i.e. the serving/anchor
+     * layer this device is actually camped on) and every other, "alternate", layer:
+     *
+     * - `primaryLayerCellCount`: number of detected cells (sectors) sharing the primary EARFCN.
+     * - `alternateLayerCount`: number of distinct *other* EARFCNs detected.
+     * - `alternateLayerCellCount`: total cells across all of those alternate EARFCNs combined.
      *
      * Deliberately uses whatever the modem/UE already reports with no additional signal-quality
      * floor — any [CellInfoLte] entry with a valid EARFCN counts, regardless of its RSRP/RSRQ.
-     * Multiple sectors broadcasting the same EARFCN (different PCI) are deduplicated to one
-     * layer, since they're the same spectral resource, not independent fallback options.
      *
      * Idle-mode neighbour visibility is inherently limited by 3GPP TS 36.304 measurement rules —
      * the UE only measures/reports frequency layers its serving cell's SIB4/SIB5 neighbour lists
      * reference, typically only once its own signal degrades — so this reflects *currently
-     * detected* layers, not an exhaustive survey of every LTE carrier physically present.
+     * detected* layers/cells, not an exhaustive survey of every LTE carrier physically present.
      *
      * Returns null when the cell-identity permission isn't granted or the read fails.
      */
@@ -539,22 +541,32 @@ object CellularSignalReader {
         telephonyManager: TelephonyManager,
         cellIdentityPermissionGranted: Boolean,
         expectedPlmn: String?,
-        isDualSimActive: Boolean
-    ): Int? {
+        isDualSimActive: Boolean,
+        primaryLteEarfcn: Int?
+    ): LteLayerResilienceReading? {
         if (!cellIdentityPermissionGranted) return null
 
         return try {
             val cellInfoList = telephonyManager.allCellInfo ?: return null
             val hasExplicitLtePlmnMatches = hasExplicitPlmnMatchForRat(cellInfoList, expectedPlmn) { it is CellInfoLte }
 
-            cellInfoList
+            val earfcnsByLayer = cellInfoList
                 .filterIsInstance<CellInfoLte>()
                 .filter { info ->
                     shouldUseCellIdentity(info.cellIdentity, expectedPlmn, hasExplicitLtePlmnMatches, isDualSimActive)
                 }
                 .mapNotNull { info -> info.cellIdentity.earfcn.takeIf { isValidCellIdentityValue(it) } }
-                .distinct()
-                .size
+                .groupingBy { it }
+                .eachCount()
+
+            val primaryLayerCellCount = primaryLteEarfcn?.let { earfcnsByLayer[it] } ?: 0
+            val alternateLayers = earfcnsByLayer.filterKeys { it != primaryLteEarfcn }
+
+            LteLayerResilienceReading(
+                primaryLayerCellCount = primaryLayerCellCount,
+                alternateLayerCount = alternateLayers.size,
+                alternateLayerCellCount = alternateLayers.values.sum()
+            )
         } catch (_: SecurityException) {
             null
         } catch (_: RuntimeException) {

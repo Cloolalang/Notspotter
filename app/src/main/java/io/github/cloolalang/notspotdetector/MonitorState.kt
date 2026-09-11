@@ -225,14 +225,14 @@ object MonitorState {
             val passiveSettings = _passiveSignalSettings.value
             val previous = _stats.value
             // CellularPingMonitor/CellularPassiveSignalMonitor build ConnectivityStats directly
-            // from a fresh CellularRadioMetrics reading each poll — debounce the raw layer count
+            // from a fresh CellularRadioMetrics reading each poll — debounce the raw reading
             // here (the single funnel point for the actual running-monitor path) rather than in
             // those readers, so a single flickering neighbour reading doesn't make the displayed
-            // "4G layer resilience" value jump around.
+            // "4G layers detected" values jump around.
             val stats = rawStats.copy(
-                lteLayerResilienceLayerCount = lteLayerResilienceDebouncer.update(
-                    rawStats.lteLayerResilienceLayerCount
-                ).confirmedLayerCount
+                lteLayerResilience = lteLayerResilienceDebouncer.update(
+                    rawStats.lteLayerResilience
+                ).confirmedReading
             )
             val (displayStats, updatedIdentity) = stats.withStabilizedCellIdentity(stableCellIdentity)
             stableCellIdentity = updatedIdentity
@@ -307,9 +307,9 @@ object MonitorState {
         val monitor2gFallback = _monitoringSettings.value.monitor2gFallback
         val passiveSettings = _passiveSignalSettings.value
         val hasSignal = metrics.hasUsableSignalForMonitoring(monitor2gFallback, passiveSettings)
-        val lteLayerResilienceLayerCount = lteLayerResilienceDebouncer.update(
-            metrics.lteLayerResilienceLayerCount
-        ).confirmedLayerCount
+        val lteLayerResilience = lteLayerResilienceDebouncer.update(
+            metrics.lteLayerResilience
+        ).confirmedReading
         val merged = _stats.value.copy(
             isMonitoring = false,
             cellularAvailable = hasSignal,
@@ -344,7 +344,7 @@ object MonitorState {
             simDisplayName = metrics.simDisplayName,
             signalPermissionGranted = metrics.permissionGranted,
             cellIdentityPermissionGranted = metrics.cellIdentityPermissionGranted,
-            lteLayerResilienceLayerCount = lteLayerResilienceLayerCount
+            lteLayerResilience = lteLayerResilience
         )
         val (display, updatedIdentity) = merged.withStabilizedCellIdentity(stableCellIdentity)
         stableCellIdentity = updatedIdentity
@@ -362,9 +362,9 @@ object MonitorState {
 
         val monitor2gFallback = _monitoringSettings.value.monitor2gFallback
         val passiveSettings = _passiveSignalSettings.value
-        val lteLayerResilienceLayerCount = lteLayerResilienceDebouncer.update(
-            metrics.lteLayerResilienceLayerCount
-        ).confirmedLayerCount
+        val lteLayerResilience = lteLayerResilienceDebouncer.update(
+            metrics.lteLayerResilience
+        ).confirmedReading
         val merged = _stats.value.copy(
             rsrpDbm = metrics.rsrpDbm,
             rsrqDb = metrics.rsrqDb,
@@ -397,7 +397,7 @@ object MonitorState {
             simDisplayName = metrics.simDisplayName,
             signalPermissionGranted = metrics.permissionGranted,
             cellIdentityPermissionGranted = metrics.cellIdentityPermissionGranted,
-            lteLayerResilienceLayerCount = lteLayerResilienceLayerCount
+            lteLayerResilience = lteLayerResilience
         )
         val (stabilized, updatedIdentity) = merged.withStabilizedCellIdentity(stableCellIdentity)
         stableCellIdentity = updatedIdentity

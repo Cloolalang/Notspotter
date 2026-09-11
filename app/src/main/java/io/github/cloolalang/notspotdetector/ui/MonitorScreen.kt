@@ -664,12 +664,27 @@ private fun CellIdentityMetrics(
     }
 
     // Unlike EARFCN/PCI above, this isn't run through CellIdentityStabilizer's stale-value
-    // coalescing — it's always the latest debounced reading (see MonitorState.applyIdleSignalMetrics
-    // / updateMonitoringSignalMetrics), so it's meaningful even during a no-signal RXSS state
-    // (e.g. "0 layers" while searching in a dead zone is itself useful information).
+    // coalescing — it's always the latest debounced reading (see MonitorState.updateStats /
+    // applyIdleSignalMetrics / updateMonitoringSignalMetrics), so it's meaningful even during a
+    // no-signal RXSS state (e.g. "0" while searching in a dead zone is itself useful information).
+    val lteLayerResilience = stats.lteLayerResilience
     MetricRow(
-        label = stringResource(R.string.metric_lte_layer_resilience),
-        value = formatCellIdentityValue(stats.lteLayerResilienceLayerCount, permissionGranted)
+        label = stringResource(R.string.metric_primary_layer_resilience),
+        value = formatCellIdentityValue(lteLayerResilience?.primaryLayerCellCount, permissionGranted)
+    )
+    MetricRow(
+        label = stringResource(R.string.metric_alternate_layer_resilience),
+        value = if (!permissionGranted) {
+            stringResource(R.string.cell_identity_permission_required)
+        } else if (lteLayerResilience == null) {
+            "—"
+        } else {
+            stringResource(
+                R.string.metric_alternate_layer_resilience_value,
+                lteLayerResilience.alternateLayerCellCount,
+                lteLayerResilience.alternateLayerCount
+            )
+        }
     )
 }
 

@@ -61,10 +61,10 @@ data class ConnectivityStats(
     /** Debounced no-signal state (two consecutive polls to enter/exit). */
     val noSignalActive: Boolean = false,
     /**
-     * Debounced "4G layer resilience" — see [CellularRadioMetrics.lteLayerResilienceLayerCount].
+     * Debounced "4G layers detected" reading — see [CellularRadioMetrics.lteLayerResilience].
      * Smoothed via [LteLayerResilienceDebouncer] (two consecutive matching polls before the
-     * displayed count changes) so a single flickering neighbour reading doesn't cause the value
+     * displayed values change) so a single flickering neighbour reading doesn't cause the values
      * shown to the user to jump around.
      */
-    val lteLayerResilienceLayerCount: Int? = null
+    val lteLayerResilience: LteLayerResilienceReading? = null
 )

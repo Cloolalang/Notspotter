@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Documentation** — [MOCK_NETWORK_SCENARIOS.md](MOCK_NETWORK_SCENARIOS.md) (agreed mock trigger states per scenario) and [SETTINGS_PROFILES.md](SETTINGS_PROFILES.md) (profile JSON capture scope, including full `passiveMock` block). Updated [RXSS_CATALOGUE.md](RXSS_CATALOGUE.md), [VOICE_ANNOUNCEMENTS.md](VOICE_ANNOUNCEMENTS.md), and [README.md](README.md) cross-links; RXSS **0**, **11**, **12**, **20**, **23** rows reflect current voice implementation.
 
+## [2.13.0] - 2026-09-11
+
+### Changed
+
+- Split the "4G layers detected" cellular metric into two separate rows: **"Primary layer resilience"** (number of detected cells/sectors sharing the same EARFCN as the current serving/primary LTE channel) and **"Alternate layer(s) resilience"** (total detected cells across all *other* EARFCNs, plus how many distinct alternate layers those cells span, shown as "N cells / M layers"). This replaces the previous single combined count, which conflated the primary channel's own sectors with genuinely alternate frequency layers and could look inflated compared to per-channel breakdowns from other apps.
+
 ## [2.12.2] - 2026-09-11
 
 ### Changed

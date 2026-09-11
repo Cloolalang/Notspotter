@@ -108,7 +108,7 @@ class CellularPassiveSignalMonitor(
                 simDisplayName = radio.simDisplayName,
                 signalPermissionGranted = radio.permissionGranted,
                 cellIdentityPermissionGranted = radio.cellIdentityPermissionGranted,
-                lteLayerResilienceLayerCount = radio.lteLayerResilienceLayerCount
+                lteLayerResilience = radio.lteLayerResilience
             )
         )
     }
