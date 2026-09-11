@@ -1,7 +1,12 @@
 package io.github.cloolalang.notspotdetector.model
 
+/**
+ * A single histogram bar. [labelDbm] is null for the special "no signal" bin, which tallies
+ * [RsrpSample]s whose `rsrpDbm` was null (e.g. recorded during a no-signal state) rather than
+ * discarding them — see [RsrpHistogram.buildBins].
+ */
 data class RsrpHistogramBin(
-    val labelDbm: Int,
+    val labelDbm: Int?,
     val count: Int
 )
 
@@ -31,6 +36,11 @@ object RsrpHistogram {
         return MAX_RSRP_DBM - index * BIN_SIZE_DB
     }
 
+    /**
+     * Builds the signal-strength bins plus a trailing "no signal" bin (`labelDbm = null`) for
+     * samples recorded with a null RSRP (e.g. during a no-signal state) — those are binned
+     * alongside the normal samples rather than being excluded from the histogram entirely.
+     */
     fun buildBins(
         samples: List<RsrpSample>,
         nowMs: Long,
@@ -38,16 +48,23 @@ object RsrpHistogram {
     ): List<RsrpHistogramBin> {
         val cutoff = nowMs - windowMs
         val counts = IntArray(BIN_COUNT)
+        var nullCount = 0
         for (sample in samples) {
             if (sample.timestampMs < cutoff) continue
-            counts[binIndexForRsrp(sample.rsrpDbm)]++
+            val rsrpDbm = sample.rsrpDbm
+            if (rsrpDbm == null) {
+                nullCount++
+            } else {
+                counts[binIndexForRsrp(rsrpDbm)]++
+            }
         }
-        return List(BIN_COUNT) { index ->
+        val signalBins = List(BIN_COUNT) { index ->
             RsrpHistogramBin(
                 labelDbm = labelDbmForBin(index),
                 count = counts[index]
             )
         }
+        return signalBins + RsrpHistogramBin(labelDbm = null, count = nullCount)
     }
 
     fun totalSamples(
@@ -65,8 +82,13 @@ object RsrpHistogram {
             .map { (index, bin) -> IndexedValue(index, bin) }
     }
 
-    /** Maps a bin label (upper edge dBm) to a fixed signal-strength band. */
-    fun bandForLabelDbm(labelDbm: Int): RsrpHistogramBand {
+    /**
+     * Maps a bin label (upper edge dBm) to a fixed signal-strength band, or null for the
+     * "no signal" bin (see [buildBins]) — callers should render that bin in a neutral/grey
+     * color rather than one of the signal-strength bands.
+     */
+    fun bandForLabelDbm(labelDbm: Int?): RsrpHistogramBand? {
+        if (labelDbm == null) return null
         return when {
             labelDbm > -80 -> RsrpHistogramBand.EXCELLENT
             labelDbm >= -95 -> RsrpHistogramBand.GOOD

@@ -267,7 +267,10 @@ object MonitorState {
     }
 
     private fun recordRsrpSample(rsrpDbm: Int?, isMonitoring: Boolean) {
-        if (!_isRunning.value || !isMonitoring || rsrpDbm == null) return
+        // rsrpDbm may be null (e.g. a no-signal state) — still recorded so the histogram's
+        // "no signal" bin reflects how often that happened within the window, rather than
+        // silently dropping those polls.
+        if (!_isRunning.value || !isMonitoring) return
         val timestampMs = System.currentTimeMillis()
         val cutoff = timestampMs - RSRP_HISTORY_RETENTION_MS
         _rsrpHistory.value = (_rsrpHistory.value + RsrpSample(timestampMs, rsrpDbm))

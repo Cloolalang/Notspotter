@@ -74,10 +74,8 @@ fun MonitorApp(
             rsrpHistory = rsrpHistory,
             isRunning = isRunning,
             onStart = {
-                ensureBackgroundMonitoringEnabled()
-                viewModel.startMonitoring()
-            },
-            onStartPassiveOnly = {
+                // "Start monitoring" starts passive (signal-only) monitoring — see
+                // MonitoringControlButtons for the disabled active-mode-testing placeholder.
                 ensureBackgroundMonitoringEnabled()
                 viewModel.startPassiveOnlyMonitoring()
             },

@@ -125,17 +125,21 @@ fun RsrpHistogramCard(
                 )
             }
 
-            RsrpHistogramWindowSlider(
-                windowMs = coercedWindowMs,
-                onWindowChange = onWindowChange
-            )
+            // The sample-window control only makes sense while samples are actively being
+            // collected; hide it when monitoring/testing isn't running.
+            if (isActive) {
+                RsrpHistogramWindowSlider(
+                    windowMs = coercedWindowMs,
+                    onWindowChange = onWindowChange
+                )
+            }
         }
     }
 }
 
 @Composable
 private fun RsrpHistogramBarColumn(
-    labelDbm: Int,
+    labelDbm: Int?,
     count: Int,
     totalSamples: Int,
     maxCount: Int,
@@ -202,7 +206,7 @@ private fun RsrpHistogramBarColumn(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = labelDbm.toString(),
+                    text = labelDbm?.toString() ?: stringResource(R.string.rsrp_histogram_null_bin_label),
                     style = MaterialTheme.typography.labelSmall,
                     fontFamily = FontFamily.Monospace,
                     fontSize = 10.sp,
@@ -216,8 +220,12 @@ private fun RsrpHistogramBarColumn(
     }
 }
 
-private fun histogramBarColor(labelDbm: Int): Color {
+/** Grey — used for the "no signal" bin (null label), distinct from any signal-strength band. */
+private val NullBinColor = Color(0xFF9E9E9E)
+
+private fun histogramBarColor(labelDbm: Int?): Color {
     return when (RsrpHistogram.bandForLabelDbm(labelDbm)) {
+        null -> NullBinColor
         RsrpHistogramBand.EXCELLENT -> Color(0xFF81D4FA)
         RsrpHistogramBand.GOOD -> Color(0xFF66BB6A)
         RsrpHistogramBand.FAIR -> Color(0xFFFFEB3B)

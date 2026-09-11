@@ -64,6 +64,7 @@ import io.github.cloolalang.notspotdetector.model.isInNoSignalRxss
 import io.github.cloolalang.notspotdetector.model.isRsrqPoor
 import io.github.cloolalang.notspotdetector.model.resolveLimitedServiceSignalOverlayRxss
 import io.github.cloolalang.notspotdetector.model.resolveSignalMeasurementTier
+import io.github.cloolalang.notspotdetector.ui.theme.BondiBlue
 import io.github.cloolalang.notspotdetector.ui.theme.Sushi
 
 @Composable
@@ -83,7 +84,6 @@ fun MonitorScreen(
     rsrpHistory: List<RsrpSample>,
     isRunning: Boolean,
     onStart: () -> Unit,
-    onStartPassiveOnly: () -> Unit,
     onStop: () -> Unit,
     onGoodRttChange: (Long) -> Unit,
     onPoorRttChange: (Long) -> Unit,
@@ -196,9 +196,7 @@ fun MonitorScreen(
 
         MonitoringControlButtons(
             isRunning = isRunning,
-            passiveMockEnabled = passiveMockSettings.enabled,
             onStart = onStart,
-            onStartPassiveOnly = onStartPassiveOnly,
             onStop = onStop
         )
 
@@ -444,9 +442,7 @@ private fun MasterVoiceAnnouncementsToggle(
 @Composable
 private fun MonitoringControlButtons(
     isRunning: Boolean,
-    passiveMockEnabled: Boolean,
     onStart: () -> Unit,
-    onStartPassiveOnly: () -> Unit,
     onStop: () -> Unit
 ) {
     if (isRunning) {
@@ -460,6 +456,9 @@ private fun MonitoringControlButtons(
             Text(text = stringResource(R.string.stop_monitoring))
         }
     } else {
+        // "Start monitoring" now starts passive (signal-only) monitoring — active ping-based
+        // testing is being reworked and is temporarily surfaced only as the disabled placeholder
+        // button below.
         Button(
             onClick = onStart,
             modifier = Modifier.fillMaxWidth()
@@ -467,18 +466,11 @@ private fun MonitoringControlButtons(
             Text(text = stringResource(R.string.start_monitoring))
         }
         OutlinedButton(
-            onClick = onStartPassiveOnly,
+            onClick = {},
+            enabled = false,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(
-                text = stringResource(
-                    if (passiveMockEnabled) {
-                        R.string.start_passive_mock
-                    } else {
-                        R.string.start_passive_only
-                    }
-                )
-            )
+            Text(text = stringResource(R.string.start_active_mode_testing))
         }
     }
 }
@@ -671,6 +663,13 @@ private fun CellIdentityMetrics(
     // applyIdleSignalMetrics / updateMonitoringSignalMetrics), so it's meaningful even during a
     // no-signal RXSS state (e.g. "0" while searching in a dead zone is itself useful information).
     val lteLayerResilience = stats.lteLayerResilience
+    // RSRP gap between the primary sector and the next-strongest sector on the *same* EARFCN
+    // (see LteLayerResilienceReading.primaryLayerDominanceDb) — undefined ("—") when there's no
+    // competing intra-channel sector detected to compare against.
+    MetricRow(
+        label = stringResource(R.string.metric_primary_layer_dominance),
+        value = formatPrimaryLayerDominanceValue(lteLayerResilience, permissionGranted)
+    )
     MetricRow(
         label = stringResource(R.string.metric_primary_layer_resilience),
         value = formatCellIdentityValue(lteLayerResilience?.primaryLayerCellCount, permissionGranted)
@@ -688,13 +687,6 @@ private fun CellIdentityMetrics(
                 lteLayerResilience.alternateLayerCount
             )
         }
-    )
-    // RSRP gap between the primary sector and the next-strongest sector on the *same* EARFCN
-    // (see LteLayerResilienceReading.primaryLayerDominanceDb) — undefined ("—") when there's no
-    // competing intra-channel sector detected to compare against.
-    MetricRow(
-        label = stringResource(R.string.metric_primary_layer_dominance),
-        value = formatPrimaryLayerDominanceValue(lteLayerResilience, permissionGranted)
     )
 }
 
@@ -877,7 +869,7 @@ private fun MetricRow(
         Text(
             text = label,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = BondiBlue,
             modifier = Modifier.padding(end = 8.dp)
         )
         Text(

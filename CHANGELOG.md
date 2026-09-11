@@ -11,6 +11,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Documentation** — [MOCK_NETWORK_SCENARIOS.md](MOCK_NETWORK_SCENARIOS.md) (agreed mock trigger states per scenario) and [SETTINGS_PROFILES.md](SETTINGS_PROFILES.md) (profile JSON capture scope, including full `passiveMock` block). Updated [RXSS_CATALOGUE.md](RXSS_CATALOGUE.md), [VOICE_ANNOUNCEMENTS.md](VOICE_ANNOUNCEMENTS.md), and [README.md](README.md) cross-links; RXSS **0**, **11**, **12**, **20**, **23** rows reflect current voice implementation.
 
+## [2.15.0] - 2026-09-11
+
+### Changed
+
+- Renamed the "Primary layer resilience" cellular metric to **"Primary intra-cells"** and moved **"Primary layer dominance"** above it in the metrics panel.
+- Metrics panel labels (SIM, operator, EARFCN, PCI, etc.) are now teal (brand cyan) instead of the default muted grey, for better visual separation from their values.
+- The **"Start monitoring"** button now starts passive (signal-only) monitoring — its label is unchanged, but it does what the old "Passive only" button used to do. The old separate "Passive only" button has been removed.
+- Added a disabled, greyed-out **"Start active mode testing"** placeholder button below "Start monitoring" — active (ping-based) mode testing is being reworked and will be re-enabled in a future update.
+- The RSRP histogram's "Sample window" slider is now hidden unless monitoring/testing is actively running (it has no effect otherwise).
+
+### Fixed
+
+- The RSRP histogram now records and bins null RSRP readings (e.g. during no-signal states) instead of silently discarding them, displaying them as a grey "N/A" bar alongside the normal signal-strength bars.
+
 ## [2.14.0] - 2026-09-11
 
 ### Added

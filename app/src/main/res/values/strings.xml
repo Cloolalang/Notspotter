@@ -4,8 +4,7 @@
     <string name="app_version">v%1$s</string>
     <string name="tagline">Geiger counter for poor mobile data. Pings run on cellular only. Tune each alert sound below; media volume buttons still apply.</string>
     <string name="start_monitoring">Start monitoring</string>
-    <string name="start_passive_only">Passive only (signal)</string>
-    <string name="start_passive_mock">Passive only (mock signal)</string>
+    <string name="start_active_mode_testing">Start active mode testing</string>
     <string name="stop_monitoring">Stop</string>
     <string name="metrics_title">Cellular metrics</string>
     <string name="metric_rtt">RTT</string>
@@ -228,7 +227,7 @@
     <string name="metric_rsrp_lte">RSRP (4G)</string>
     <string name="metric_rsrq_lte">RSRQ (4G)</string>
     <string name="metric_pci">PCI</string>
-    <string name="metric_primary_layer_resilience">Primary layer resilience</string>
+    <string name="metric_primary_layer_resilience">Primary intra-cells</string>
     <string name="metric_alternate_layer_resilience">Alternate layer(s) resilience</string>
     <string name="metric_alternate_layer_resilience_value">%1$d cells / %2$d layers</string>
     <string name="metric_primary_layer_dominance">Primary layer dominance</string>
@@ -294,6 +293,7 @@
     <string name="rsrp_histogram_sample_count">%1$d samples in window</string>
     <string name="rsrp_histogram_sample_count_active">%1$d samples · %2$d active bins</string>
     <string name="rsrp_histogram_bin_percent">%1$d%%</string>
+    <string name="rsrp_histogram_null_bin_label">N/A</string>
     <string name="audio_volume_title">Global alert sound settings</string>
     <string name="audio_volume_summary">Voice announcer, connection-test clicks, shared signal-pulse loudness, and cell-change alerts. Per-RXSS voice and tones are under Passive signal thresholds and alert settings.</string>
     <string name="audio_volume_test">Test</string>
