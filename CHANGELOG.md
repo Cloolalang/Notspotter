@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Documentation** — [MOCK_NETWORK_SCENARIOS.md](MOCK_NETWORK_SCENARIOS.md) (agreed mock trigger states per scenario) and [SETTINGS_PROFILES.md](SETTINGS_PROFILES.md) (profile JSON capture scope, including full `passiveMock` block). Updated [RXSS_CATALOGUE.md](RXSS_CATALOGUE.md), [VOICE_ANNOUNCEMENTS.md](VOICE_ANNOUNCEMENTS.md), and [README.md](README.md) cross-links; RXSS **0**, **11**, **12**, **20**, **23** rows reflect current voice implementation.
 
+## [2.19.2] - 2026-09-11
+
+### Fixed
+
+- "Passive signal thresholds and alert settings" panel was only visible while monitoring/testing was running. It's now always accessible inside **Passive mode monitoring** (its Test/preview buttons remain disabled while running, same as other settings panels).
+
 ## [2.19.1] - 2026-09-11
 
 ### Fixed
