@@ -46,5 +46,17 @@ data class CellularRadioMetrics(
     val simSlotIndex: Int? = null,
     val simDisplayName: String? = null,
     val permissionGranted: Boolean = false,
-    val cellIdentityPermissionGranted: Boolean = false
+    val cellIdentityPermissionGranted: Boolean = false,
+    /**
+     * "4G layer resilience" — the number of *distinct* LTE frequency layers (unique EARFCNs) the
+     * UE currently reports as viable camp/reselection candidates for the current PLMN: the
+     * serving cell plus any neighbours from [android.telephony.TelephonyManager.getAllCellInfo].
+     * A count of 1 means no fallback layer is currently visible (single point of failure). Uses
+     * whatever the modem already reports with no extra signal-quality floor, and reflects only
+     * currently *detected* layers — idle-mode neighbour measurement is inherently limited by the
+     * serving cell's SIB4/SIB5 configuration (3GPP TS 36.304), so this can under-count layers
+     * that physically exist but haven't been measured/reported. Null when the cell-identity
+     * permission isn't granted or the read failed; see [io.github.cloolalang.notspotdetector.network.CellularSignalReader].
+     */
+    val lteLayerResilienceLayerCount: Int? = null
 )

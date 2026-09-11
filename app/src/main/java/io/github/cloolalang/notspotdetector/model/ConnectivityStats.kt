@@ -59,5 +59,12 @@ data class ConnectivityStats(
     val signalPermissionGranted: Boolean = false,
     val cellIdentityPermissionGranted: Boolean = false,
     /** Debounced no-signal state (two consecutive polls to enter/exit). */
-    val noSignalActive: Boolean = false
+    val noSignalActive: Boolean = false,
+    /**
+     * Debounced "4G layer resilience" — see [CellularRadioMetrics.lteLayerResilienceLayerCount].
+     * Smoothed via [LteLayerResilienceDebouncer] (two consecutive matching polls before the
+     * displayed count changes) so a single flickering neighbour reading doesn't cause the value
+     * shown to the user to jump around.
+     */
+    val lteLayerResilienceLayerCount: Int? = null
 )

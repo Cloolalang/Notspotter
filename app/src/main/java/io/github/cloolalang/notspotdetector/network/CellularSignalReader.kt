@@ -93,6 +93,12 @@ object CellularSignalReader {
             networkReports2g = networkReports2g,
             isDualSimActive = isDualSimActive
         )
+        val lteLayerResilienceLayerCount = readLteLayerResilience(
+            telephonyManager = telephonyManager,
+            cellIdentityPermissionGranted = cellIdentityPermissionGranted,
+            expectedPlmn = plmn,
+            isDualSimActive = isDualSimActive
+        )
 
         var metrics = signalMetrics.copy(
             networkOperatorName = operatorInfo.displayOperatorName,
@@ -119,7 +125,8 @@ object CellularSignalReader {
                 it != MonitoringSettings.DEFAULT_SUBSCRIPTION_ID
             },
             simSlotIndex = simSlotIndex,
-            simDisplayName = simDisplayName
+            simDisplayName = simDisplayName,
+            lteLayerResilienceLayerCount = lteLayerResilienceLayerCount
         )
 
         if (isOn2g && !monitor2gFallback) {
@@ -506,6 +513,53 @@ object CellularSignalReader {
             return null
         }
         return -113 + 2 * asu
+    }
+
+    /**
+     * "4G layer resilience" — counts the number of *distinct* LTE frequency layers (unique
+     * EARFCNs) currently visible to the UE for the expected PLMN: the serving cell plus any
+     * neighbours reported by [TelephonyManager.getAllCellInfo]. A count of 1 means no fallback
+     * layer is currently detected (single point of failure); higher counts mean the UE has
+     * spotted alternative carriers it could reselect to if the serving layer degrades.
+     *
+     * Deliberately uses whatever the modem/UE already reports with no additional signal-quality
+     * floor — any [CellInfoLte] entry with a valid EARFCN counts, regardless of its RSRP/RSRQ.
+     * Multiple sectors broadcasting the same EARFCN (different PCI) are deduplicated to one
+     * layer, since they're the same spectral resource, not independent fallback options.
+     *
+     * Idle-mode neighbour visibility is inherently limited by 3GPP TS 36.304 measurement rules —
+     * the UE only measures/reports frequency layers its serving cell's SIB4/SIB5 neighbour lists
+     * reference, typically only once its own signal degrades — so this reflects *currently
+     * detected* layers, not an exhaustive survey of every LTE carrier physically present.
+     *
+     * Returns null when the cell-identity permission isn't granted or the read fails.
+     */
+    @SuppressLint("MissingPermission")
+    private fun readLteLayerResilience(
+        telephonyManager: TelephonyManager,
+        cellIdentityPermissionGranted: Boolean,
+        expectedPlmn: String?,
+        isDualSimActive: Boolean
+    ): Int? {
+        if (!cellIdentityPermissionGranted) return null
+
+        return try {
+            val cellInfoList = telephonyManager.allCellInfo ?: return null
+            val hasExplicitLtePlmnMatches = hasExplicitPlmnMatchForRat(cellInfoList, expectedPlmn) { it is CellInfoLte }
+
+            cellInfoList
+                .filterIsInstance<CellInfoLte>()
+                .filter { info ->
+                    shouldUseCellIdentity(info.cellIdentity, expectedPlmn, hasExplicitLtePlmnMatches, isDualSimActive)
+                }
+                .mapNotNull { info -> info.cellIdentity.earfcn.takeIf { isValidCellIdentityValue(it) } }
+                .distinct()
+                .size
+        } catch (_: SecurityException) {
+            null
+        } catch (_: RuntimeException) {
+            null
+        }
     }
 
     @SuppressLint("MissingPermission")

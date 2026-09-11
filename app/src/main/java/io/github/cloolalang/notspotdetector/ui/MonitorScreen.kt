@@ -662,6 +662,15 @@ private fun CellIdentityMetrics(
             )
         }
     }
+
+    // Unlike EARFCN/PCI above, this isn't run through CellIdentityStabilizer's stale-value
+    // coalescing — it's always the latest debounced reading (see MonitorState.applyIdleSignalMetrics
+    // / updateMonitoringSignalMetrics), so it's meaningful even during a no-signal RXSS state
+    // (e.g. "0 layers" while searching in a dead zone is itself useful information).
+    MetricRow(
+        label = stringResource(R.string.metric_lte_layer_resilience),
+        value = formatCellIdentityValue(stats.lteLayerResilienceLayerCount, permissionGranted)
+    )
 }
 
 @Composable

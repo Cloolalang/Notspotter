@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Documentation** — [MOCK_NETWORK_SCENARIOS.md](MOCK_NETWORK_SCENARIOS.md) (agreed mock trigger states per scenario) and [SETTINGS_PROFILES.md](SETTINGS_PROFILES.md) (profile JSON capture scope, including full `passiveMock` block). Updated [RXSS_CATALOGUE.md](RXSS_CATALOGUE.md), [VOICE_ANNOUNCEMENTS.md](VOICE_ANNOUNCEMENTS.md), and [README.md](README.md) cross-links; RXSS **0**, **11**, **12**, **20**, **23** rows reflect current voice implementation.
 
+## [2.12.0] - 2026-09-11
+
+### Added
+
+- **"4G layer resilience" metric** — a new "4G layer resilience" reading on the main signal screen showing the number of *distinct* LTE frequency layers (unique EARFCNs) the UE currently detects as viable camp/reselection candidates for the current PLMN: the serving cell plus any neighbours reported by `TelephonyManager.getAllCellInfo()`, deduplicated so multiple sectors on the same EARFCN count once. A reading of 1 means no fallback layer is currently visible (single point of failure). Uses whatever the modem reports with no extra signal-quality floor, and is smoothed by a new two-poll `LteLayerResilienceDebouncer` so a single flickering neighbour reading doesn't make the displayed count jump around. Note this reflects only *currently detected* layers — idle-mode neighbour measurement is inherently limited by the serving cell's SIB4/SIB5 configuration (3GPP TS 36.304), so it can under-count layers that physically exist but haven't been measured/reported yet.
+
 ## [2.11.1] - 2026-09-10
 
 ### Added

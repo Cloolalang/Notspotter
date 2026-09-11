@@ -17,6 +17,7 @@ import io.github.cloolalang.notspotdetector.model.RsrpSample
 import io.github.cloolalang.notspotdetector.model.ThresholdSettings
 import io.github.cloolalang.notspotdetector.model.SignalStateAnnouncement
 import io.github.cloolalang.notspotdetector.model.hasUsableSignalForMonitoring
+import io.github.cloolalang.notspotdetector.model.LteLayerResilienceDebouncer
 import io.github.cloolalang.notspotdetector.model.NoSignalDebouncer
 import io.github.cloolalang.notspotdetector.model.MockNetworkScenario
 import io.github.cloolalang.notspotdetector.model.computeSearching2gFallbackActive
@@ -80,6 +81,7 @@ object MonitorState {
     private var limitedServiceBaselineReady = false
     private var stableCellIdentity = CellIdentitySnapshot()
     private val noSignalDebouncer = NoSignalDebouncer()
+    private val lteLayerResilienceDebouncer = LteLayerResilienceDebouncer()
     private var lastKnownRadioAccessType: String? = null
     private var lteRatBeforeNoSignalEpisode: String? = null
     private var searching2gAnnounced = false
@@ -295,6 +297,9 @@ object MonitorState {
         val monitor2gFallback = _monitoringSettings.value.monitor2gFallback
         val passiveSettings = _passiveSignalSettings.value
         val hasSignal = metrics.hasUsableSignalForMonitoring(monitor2gFallback, passiveSettings)
+        val lteLayerResilienceLayerCount = lteLayerResilienceDebouncer.update(
+            metrics.lteLayerResilienceLayerCount
+        ).confirmedLayerCount
         val merged = _stats.value.copy(
             isMonitoring = false,
             cellularAvailable = hasSignal,
@@ -328,7 +333,8 @@ object MonitorState {
             simSlotIndex = metrics.simSlotIndex,
             simDisplayName = metrics.simDisplayName,
             signalPermissionGranted = metrics.permissionGranted,
-            cellIdentityPermissionGranted = metrics.cellIdentityPermissionGranted
+            cellIdentityPermissionGranted = metrics.cellIdentityPermissionGranted,
+            lteLayerResilienceLayerCount = lteLayerResilienceLayerCount
         )
         val (display, updatedIdentity) = merged.withStabilizedCellIdentity(stableCellIdentity)
         stableCellIdentity = updatedIdentity
@@ -346,6 +352,9 @@ object MonitorState {
 
         val monitor2gFallback = _monitoringSettings.value.monitor2gFallback
         val passiveSettings = _passiveSignalSettings.value
+        val lteLayerResilienceLayerCount = lteLayerResilienceDebouncer.update(
+            metrics.lteLayerResilienceLayerCount
+        ).confirmedLayerCount
         val merged = _stats.value.copy(
             rsrpDbm = metrics.rsrpDbm,
             rsrqDb = metrics.rsrqDb,
@@ -377,7 +386,8 @@ object MonitorState {
             simSlotIndex = metrics.simSlotIndex,
             simDisplayName = metrics.simDisplayName,
             signalPermissionGranted = metrics.permissionGranted,
-            cellIdentityPermissionGranted = metrics.cellIdentityPermissionGranted
+            cellIdentityPermissionGranted = metrics.cellIdentityPermissionGranted,
+            lteLayerResilienceLayerCount = lteLayerResilienceLayerCount
         )
         val (stabilized, updatedIdentity) = merged.withStabilizedCellIdentity(stableCellIdentity)
         stableCellIdentity = updatedIdentity
@@ -862,6 +872,7 @@ object MonitorState {
         tier5BaselineReady = false
         stableCellIdentity = CellIdentitySnapshot()
         noSignalDebouncer.reset()
+        lteLayerResilienceDebouncer.reset()
         lastKnownRadioAccessType = null
         lteRatBeforeNoSignalEpisode = null
         searching2gAnnounced = false
