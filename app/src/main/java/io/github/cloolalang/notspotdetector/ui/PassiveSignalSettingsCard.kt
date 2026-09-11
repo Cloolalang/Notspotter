@@ -233,15 +233,6 @@ fun PassiveSignalSettingsCard(
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium
                 )
-                Text(
-                    text = stringResource(
-                        R.string.passive_signal_rsrq_section_hint,
-                        PassiveSignalSettings.RSRQ_FAIR_MIN_DB,
-                        PassiveSignalSettings.RSRQ_FAIR_MAX_DB
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
 
                 RsrqTierSettings(
                     settings = settings,
@@ -285,7 +276,6 @@ fun PassiveSignalSettingsCard(
 @Composable
 private fun RxssSectionControlsOrdered(
     accentColor: Color,
-    showSignalPulseSubsection: Boolean = false,
     soundToggle: @Composable () -> Unit,
     rangeControls: @Composable () -> Unit = {},
     volumeControls: @Composable () -> Unit = {},
@@ -295,9 +285,6 @@ private fun RxssSectionControlsOrdered(
     voiceControls: @Composable () -> Unit = {}
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (showSignalPulseSubsection) {
-            RxssSignalPulseSubsectionTitle(accentColor = accentColor)
-        }
         soundToggle()
         rangeControls()
         volumeControls()
@@ -657,7 +644,7 @@ private fun RsrpTierSettings(
         ) {
             RxssSectionControlsOrdered(
                 accentColor = rxss1Accent,
-                showSignalPulseSubsection = true,
+               
                 soundToggle = {
                     TierSoundEnabledOption(
                         tierNumber = VERY_STRONG_TIER_NUMBER,
@@ -698,11 +685,6 @@ private fun RsrpTierSettings(
                         ),
                         accentColor = rxss1Accent
                     )
-                    Text(
-                        text = stringResource(R.string.passive_signal_rxss1_click_volume_hint),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
                 },
                 durationControls = {
                     TierPulseDurationSlider(
@@ -710,11 +692,6 @@ private fun RsrpTierSettings(
                         durationMs = signalPulseDurationMs,
                         accentColor = rxss1Accent,
                         onDurationChange = onSignalPulseDurationChange
-                    )
-                    Text(
-                        text = stringResource(R.string.passive_signal_rxss1_pulse_duration_hint),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 },
                 intervalControls = {
@@ -975,11 +952,6 @@ private fun CellChangeTierSettings(
 ) {
     val accent = SignalTierColors.forRxssNumber(CELL_CHANGE_RXSS_NUMBER)
     TierSettingSection(tierNumber = CELL_CHANGE_RXSS_NUMBER, accentColor = accent) {
-        Text(
-            text = stringResource(R.string.passive_signal_rxss9_section_hint),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
         CellChangeAlertControls(
             audioVolumes = audioVolumes,
             previewEnabled = previewEnabled,
@@ -1014,7 +986,6 @@ private fun TechnologyChangeTierSettings(
                     audioVolumes = audioVolumes,
                     previewEnabled = previewEnabled,
                     accentColor = accent,
-                    sectionHint = technologyChangeSectionHint(target),
                     voiceEnabledTitle = technologyChangeVoiceEnabledTitle(target),
                     voiceVolumeLabel = stringResource(R.string.audio_volume_technology_change_voice),
                     onToneVolumeChange = { onTechnologyChangeToneVolumeChange(target, it) },
@@ -1025,15 +996,6 @@ private fun TechnologyChangeTierSettings(
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun technologyChangeSectionHint(target: TechnologyChangeTarget): String {
-    return when (target) {
-        TechnologyChangeTarget.TO_2G -> stringResource(R.string.passive_signal_rxss28_section_hint)
-        TechnologyChangeTarget.TO_4G -> stringResource(R.string.passive_signal_rxss29_section_hint)
-        TechnologyChangeTarget.TO_5G_ENDC -> stringResource(R.string.passive_signal_rxss30_section_hint)
     }
 }
 
@@ -1069,17 +1031,8 @@ private fun G2TierSettings(
             accentColor = SignalTierColors.forTierNumber(G2_STRONG_TIER_NUMBER)
         ) {
             val accent = SignalTierColors.forTierNumber(G2_STRONG_TIER_NUMBER)
-            Text(
-                text = stringResource(
-                    R.string.passive_signal_g2_section_hint,
-                    PassiveSignalSettings.G2_TIER_RX_LEVEL_SPLIT_DBM
-                ),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
             RxssSectionControlsOrdered(
                 accentColor = accent,
-                showSignalPulseSubsection = true,
                 soundToggle = {
                     TierSoundEnabledOption(
                         tierNumber = G2_STRONG_TIER_NUMBER,
@@ -1152,7 +1105,7 @@ private fun G2TierSettings(
             val accent = SignalTierColors.forTierNumber(G2_WEAK_TIER_NUMBER)
             RxssSectionControlsOrdered(
                 accentColor = accent,
-                showSignalPulseSubsection = true,
+               
                 soundToggle = {
                     TierSoundEnabledOption(
                         tierNumber = G2_WEAK_TIER_NUMBER,
@@ -1282,26 +1235,6 @@ private fun LevelRangeBcdSharedSoundControls(
             }
 
             if (expanded) {
-                Text(
-                    text = stringResource(
-                        R.string.passive_signal_rsrp_section_hint,
-                        PassiveSignalSettings.MIN_RSRP_DBM,
-                        PassiveSignalSettings.MAX_RSRP_DBM
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = stringResource(R.string.passive_signal_rsrp_order_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = stringResource(R.string.passive_signal_level_range_bcd_section_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                RxssSignalPulseSubsectionTitle(accentColor = accentColor)
                 RxssVolumeSlider(
                     label = stringResource(R.string.passive_signal_level_range_bcd_volume),
                     value = audioVolumes.levelRangeBcdClickVolume,
@@ -1328,16 +1261,6 @@ private fun LevelRangeBcdSharedSoundControls(
 }
 
 @Composable
-private fun RxssSignalPulseSubsectionTitle(accentColor: Color) {
-    Text(
-        text = stringResource(R.string.passive_signal_rxss_signal_pulse_subsection),
-        style = MaterialTheme.typography.bodySmall,
-        fontWeight = FontWeight.SemiBold,
-        color = accentColor
-    )
-}
-
-@Composable
 private fun DeadzoneTierSettings(
     settings: PassiveSignalSettings,
     audioVolumes: AudioVolumeSettings,
@@ -1358,14 +1281,8 @@ private fun DeadzoneTierSettings(
             accentColor = SignalTierColors.forTierNumber(DEADZONE_TIER_NUMBER)
         ) {
             val accent = SignalTierColors.forTierNumber(DEADZONE_TIER_NUMBER)
-            Text(
-                text = stringResource(R.string.passive_signal_deadzone_section_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
             RxssSectionControlsOrdered(
                 accentColor = accent,
-                showSignalPulseSubsection = true,
                 soundToggle = {
                     TierSoundEnabledOption(
                         tierNumber = DEADZONE_TIER_NUMBER,
@@ -1453,17 +1370,6 @@ private fun CampStateTierSettings(
     onPreviewSignalPulse: (volume: Float, frequencyHz: Int, pulseDurationMs: Int) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text(
-            text = stringResource(R.string.passive_signal_camp_tiers_section),
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium
-        )
-        Text(
-            text = stringResource(R.string.passive_signal_camp_tiers_section_hint),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
         NoSignalCampTierBlock(
             settings = settings,
             audioVolumes = audioVolumes,
@@ -1573,7 +1479,7 @@ private fun NoSignalCampTierBlock(
     TierSettingSection(tierNumber = NO_SIGNAL_TIER_NUMBER, accentColor = accentColor) {
         RxssSectionControlsOrdered(
             accentColor = accentColor,
-            showSignalPulseSubsection = true,
+           
             soundToggle = {
                 TierSoundEnabledOption(
                     tierNumber = NO_SIGNAL_TIER_NUMBER,
@@ -1662,7 +1568,7 @@ private fun WifiCallingCampTierBlock(
     TierSettingSection(tierNumber = tierNumber, accentColor = accentColor) {
         RxssSectionControlsOrdered(
             accentColor = accentColor,
-            showSignalPulseSubsection = true,
+           
             soundToggle = {
                 TierSoundEnabledOption(
                     tierNumber = tierNumber,
@@ -1751,7 +1657,7 @@ private fun G2NoSignalCampTierBlock(
     TierSettingSection(tierNumber = G2_NO_SIGNAL_TIER_NUMBER, accentColor = accentColor) {
         RxssSectionControlsOrdered(
             accentColor = accentColor,
-            showSignalPulseSubsection = true,
+           
             soundToggle = {
                 TierSoundEnabledOption(
                     tierNumber = G2_NO_SIGNAL_TIER_NUMBER,
@@ -1839,7 +1745,7 @@ private fun Searching2gCampTierBlock(
     TierSettingSection(tierNumber = SEARCHING_2G_TIER_NUMBER, accentColor = accentColor) {
         RxssSectionControlsOrdered(
             accentColor = accentColor,
-            showSignalPulseSubsection = true,
+           
             soundToggle = {
                 TierSoundEnabledOption(
                     tierNumber = SEARCHING_2G_TIER_NUMBER,
@@ -1927,7 +1833,7 @@ private fun LimitedServiceCampTierBlock(
     TierSettingSection(tierNumber = LIMITED_SERVICE_TIER_NUMBER, accentColor = accentColor) {
         RxssSectionControlsOrdered(
             accentColor = accentColor,
-            showSignalPulseSubsection = true,
+           
             soundToggle = {
                 TierSoundEnabledOption(
                     tierNumber = LIMITED_SERVICE_TIER_NUMBER,
@@ -2014,7 +1920,7 @@ private fun LimitedAlt2gCampTierBlock(
     TierSettingSection(tierNumber = LIMITED_ALT_2G_TIER_NUMBER, accentColor = accentColor) {
         RxssSectionControlsOrdered(
             accentColor = accentColor,
-            showSignalPulseSubsection = true,
+           
             soundToggle = {
                 TierSoundEnabledOption(
                     tierNumber = LIMITED_ALT_2G_TIER_NUMBER,
@@ -2100,7 +2006,7 @@ private fun CampTierSignalPulseControls(
     val accentColor = SignalTierColors.forTierNumber(tierNumber)
     RxssSectionControlsOrdered(
         accentColor = accentColor,
-        showSignalPulseSubsection = true,
+        
         soundToggle = {
             TierSoundEnabledOption(
                 tierNumber = tierNumber,
@@ -2243,26 +2149,8 @@ private fun RsrqTierSettings(
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Medium
                 )
-                Text(
-                    text = stringResource(R.string.passive_signal_rsrq_tier_coupled_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
         }
-        Text(
-            text = stringResource(
-                R.string.passive_signal_rsrq_tier_threshold,
-                settings.rsrqFairMinDb
-            ),
-            style = MaterialTheme.typography.bodySmall,
-            color = accentColor
-        )
-        Text(
-            text = stringResource(R.string.passive_signal_rsrq_tier_passive_only_hint),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
         TierWhiteNoiseVolumeSlider(
             volume = settings.rsrqTierWhiteNoiseVolume,
             accentColor = accentColor,

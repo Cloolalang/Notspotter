@@ -36,20 +36,6 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 
 @Composable
-fun RxssAlertSubsectionTitle(
-    modifier: Modifier = Modifier,
-    accentColor: Color = MaterialTheme.colorScheme.onSurface
-) {
-    Text(
-        text = stringResource(R.string.passive_signal_rxss_voice_alert_subsection),
-        style = MaterialTheme.typography.bodySmall,
-        fontWeight = FontWeight.SemiBold,
-        color = accentColor,
-        modifier = modifier.padding(top = 4.dp)
-    )
-}
-
-@Composable
 fun RxssSharedAlertHint(
     text: String,
     accentColor: Color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -233,7 +219,6 @@ fun NoSignalVoiceAnnouncementControls(
     onNoSignalVoiceVolumeChange: (Float) -> Unit,
     onPreviewNoSignalVoice: () -> Unit
 ) {
-    RxssAlertSubsectionTitle(accentColor = accentColor)
     RxssVoiceAnnouncementOption(
         enabled = audioVolumes.noSignalVoiceEnabled,
         onEnabledChange = onNoSignalVoiceEnabledChange,
@@ -305,7 +290,6 @@ fun Tier5SignalLowVoiceControls(
     enabledTitle: String = stringResource(R.string.audio_tier5_announcer_enabled),
     volumeLabel: String = stringResource(R.string.audio_volume_tier5_announcer)
 ) {
-    RxssAlertSubsectionTitle(accentColor = accentColor)
     RxssVoiceAnnouncementOption(
         enabled = audioVolumes.tier5AnnouncerEnabled,
         onEnabledChange = onTier5AnnouncerEnabledChange,
@@ -332,7 +316,6 @@ fun CellChangeAlertControls(
     onCellChangeSpeakBandEnabledChange: (Boolean) -> Unit = {},
     onCellChangeBandNamingStyleChange: (CellReselectBandNamingStyle) -> Unit = {}
 ) {
-    RxssAlertSubsectionTitle(accentColor = accentColor)
     RxssVolumeSlider(
         label = stringResource(R.string.audio_volume_cell_change_bell),
         value = audioVolumes.cellChangeBellVolume,
@@ -368,11 +351,6 @@ fun CellChangeAlertControls(
                     fontWeight = FontWeight.Medium,
                     color = accentColor
                 )
-                Text(
-                    text = stringResource(R.string.audio_cell_change_speak_band_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
         }
         if (audioVolumes.cellChangeSpeakBandEnabled) {
@@ -380,14 +358,12 @@ fun CellChangeAlertControls(
                 selected = CellReselectBandNamingStyle.BAND_NUMBER,
                 current = audioVolumes.cellChangeBandNamingStyle,
                 label = stringResource(R.string.audio_cell_change_band_naming_number),
-                hint = stringResource(R.string.audio_cell_change_band_naming_number_hint),
                 onSelect = onCellChangeBandNamingStyleChange
             )
             CellChangeBandNamingStyleOption(
                 selected = CellReselectBandNamingStyle.MHZ_NICKNAME,
                 current = audioVolumes.cellChangeBandNamingStyle,
                 label = stringResource(R.string.audio_cell_change_band_naming_mhz),
-                hint = stringResource(R.string.audio_cell_change_band_naming_mhz_hint),
                 onSelect = onCellChangeBandNamingStyleChange
             )
         }
@@ -399,7 +375,6 @@ private fun CellChangeBandNamingStyleOption(
     selected: CellReselectBandNamingStyle,
     current: CellReselectBandNamingStyle,
     label: String,
-    hint: String,
     onSelect: (CellReselectBandNamingStyle) -> Unit
 ) {
     Row(
@@ -411,11 +386,6 @@ private fun CellChangeBandNamingStyleOption(
         RadioButton(selected = current == selected, onClick = { onSelect(selected) })
         Column(modifier = Modifier.weight(1f)) {
             Text(text = label, style = MaterialTheme.typography.bodyMedium)
-            Text(
-                text = hint,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }
@@ -426,7 +396,6 @@ fun TechnologyChangeAlertControls(
     audioVolumes: AudioVolumeSettings,
     previewEnabled: Boolean,
     accentColor: Color,
-    sectionHint: String,
     voiceEnabledTitle: String,
     voiceVolumeLabel: String,
     onToneVolumeChange: (Float) -> Unit,
@@ -436,12 +405,6 @@ fun TechnologyChangeAlertControls(
     onPreviewVoice: () -> Unit
 ) {
     val alertVolumes = audioVolumes.technologyChangeAlertVolumes(target)
-    RxssAlertSubsectionTitle(accentColor = accentColor)
-    Text(
-        text = sectionHint,
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
     RxssVolumeSlider(
         label = stringResource(R.string.audio_volume_technology_change),
         value = alertVolumes.toneVolume,
@@ -490,7 +453,6 @@ fun LimitedServiceVoiceAnnouncementControls(
     onLimitedServiceVoiceVolumeChange: (Float) -> Unit,
     onPreviewLimitedServiceVoice: () -> Unit
 ) {
-    RxssAlertSubsectionTitle(accentColor = accentColor)
     RxssVoiceAnnouncementOption(
         enabled = audioVolumes.limitedServiceVoiceEnabled,
         onEnabledChange = onLimitedServiceVoiceEnabledChange,

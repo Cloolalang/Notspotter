@@ -44,7 +44,6 @@ import io.github.cloolalang.notspotdetector.model.SignalStateAnnouncement
 import io.github.cloolalang.notspotdetector.service.ConnectivityMonitorService
 import io.github.cloolalang.notspotdetector.util.BackgroundHelper
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -454,9 +453,7 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         if (isRunning.value) return
         val volumes = audioVolumes.value.normalized()
         if (!volumes.cellChangeVoiceEnabled) return
-        previewAlertWithVoice(
-            onPlayTone = { alertSoundPreview.playCellChangeBell(volumes.cellChangeBellVolume) },
-            toneDurationMs = GeigerCounterPlayer.CELL_CHANGE_BELL_DURATION_MS,
+        previewVoiceOnly(
             announcement = CellIdentityAnnouncement.previewText(
                 readCurrentOperatorName(),
                 speakBandEnabled = volumes.cellChangeSpeakBandEnabled,
@@ -478,9 +475,7 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         if (isRunning.value) return
         val volumes = audioVolumes.value.normalized()
         val alertVolumes = volumes.technologyChangeAlertVolumes(target)
-        previewAlertWithVoice(
-            onPlayTone = { alertSoundPreview.playTechnologyChangeTone(alertVolumes.toneVolume) },
-            toneDurationMs = GeigerCounterPlayer.TECHNOLOGY_CHANGE_TONE_DURATION_MS,
+        previewVoiceOnly(
             announcement = SignalStateAnnouncement.previewTechnologyChange(
                 readCurrentOperatorName(),
                 target,
@@ -530,12 +525,7 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         if (isRunning.value) return
         val volumes = audioVolumes.value.normalized()
         if (!volumes.noSignalVoiceEnabled) return
-        if (volumes.noSignalVibrationEnabled) {
-            AlertVibrator.buzzNoSignal(getApplication())
-        }
-        previewAlertWithVoice(
-            onPlayTone = { alertSoundPreview.previewNoSignalTone(volumes.noSignalToneVolume) },
-            toneDurationMs = GeigerCounterPlayer.NO_SIGNAL_ALERT_TONE_DURATION_MS,
+        previewVoiceOnly(
             announcement = SignalStateAnnouncement.previewNoSignal(
                 readCurrentOperatorName(),
                 volumes.speakOperatorNameEnabled,
@@ -565,9 +555,7 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         if (isRunning.value) return
         val volumes = audioVolumes.value.normalized()
         if (!volumes.limitedServiceVoiceEnabled) return
-        previewAlertWithVoice(
-            onPlayTone = { alertSoundPreview.previewLimitedServiceTone(volumes.limitedServiceToneVolume) },
-            toneDurationMs = GeigerCounterPlayer.LIMITED_SERVICE_ALERT_TONE_DURATION_MS,
+        previewVoiceOnly(
             announcement = SignalStateAnnouncement.previewLimitedService(
                 readCurrentOperatorName(),
                 volumes.speakOperatorNameEnabled,
@@ -577,16 +565,12 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         )
     }
 
-    private fun previewAlertWithVoice(
-        onPlayTone: () -> Unit,
-        toneDurationMs: Int,
+    private fun previewVoiceOnly(
         announcement: String,
         voiceVolume: Float
     ) {
-        onPlayTone()
         if (announcement.isBlank() || voiceVolume <= 0f) return
         viewModelScope.launch {
-            delay(AudioVolumeSettings.voiceDelayAfterAlertTone(toneDurationMs))
             cellVoiceAnnouncer.speak(announcement, voiceVolume)
         }
     }

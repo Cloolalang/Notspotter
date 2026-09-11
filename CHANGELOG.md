@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Documentation** — [MOCK_NETWORK_SCENARIOS.md](MOCK_NETWORK_SCENARIOS.md) (agreed mock trigger states per scenario) and [SETTINGS_PROFILES.md](SETTINGS_PROFILES.md) (profile JSON capture scope, including full `passiveMock` block). Updated [RXSS_CATALOGUE.md](RXSS_CATALOGUE.md), [VOICE_ANNOUNCEMENTS.md](VOICE_ANNOUNCEMENTS.md), and [README.md](README.md) cross-links; RXSS **0**, **11**, **12**, **20**, **23** rows reflect current voice implementation.
 
+## [2.23.0] - 2026-09-11
+
+### Changed
+
+- RXSS pulse controls now use consistent wording across all tiers: **Alert pulse** (enable toggle), **Alert pulse volume**, plus the existing duration/interval/frequency labels.
+- Voice Test buttons now preview **voice only** — they no longer play the alert pulse/tone (or vibration) first. Pulse Test buttons still preview the pulse.
+- Removed leftover RXSS panel descriptions (“Voice and alert tone”, shared-hint copy, section intros). Interval/duration clash warnings remain.
+
 ## [2.22.0] - 2026-09-11
 
 ### Changed
