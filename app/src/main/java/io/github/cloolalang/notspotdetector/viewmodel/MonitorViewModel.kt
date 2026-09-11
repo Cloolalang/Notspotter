@@ -655,7 +655,11 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
                 SignalStateAnnouncement.formatTechnologyForSpeech(radio)
             }
             VoicePhraseFragment.BAND ->
-                CellIdentityAnnouncement.prefixBandPhrase(stats.lteEarfcn, stats.nrBand)
+                CellIdentityAnnouncement.prefixBandPhrase(
+                    lteEarfcn = stats.lteEarfcn,
+                    nrBand = stats.nrBand,
+                    gsmEarfcn = stats.gsmEarfcn
+                )
                     ?: CellIdentityAnnouncement.prefixBandPhrase(6400)
                     ?: "band"
         }
@@ -690,7 +694,7 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         }
         val snapshot = captureCurrentSettingsSnapshot()
         if (snapshot.isDefault()) return ProfileSaveResult.MatchesDefaults
-        if (!settingsProfilesRepository.saveProfile(trimmed, snapshot)) {
+        if (settingsProfilesRepository.saveProfile(trimmed, snapshot) == null) {
             return ProfileSaveResult.Failed
         }
         refreshSettingsProfiles()
@@ -759,12 +763,14 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         val normalized = settings.normalized()
         passiveMockSettingsRepository.save(normalized)
         MonitorState.setPassiveMockSettings(normalized)
+        if (!normalized.enabled) {
+            refreshCellularSignal()
+        }
     }
 
     fun refreshCellularSignal() {
         refreshSimSubscriptions()
         if (applyMockSignalIfActive()) return
-        if (MonitorState.isRunning.value) return
 
         viewModelScope.launch(Dispatchers.IO) {
             val metrics = CellularSignalReader.read(

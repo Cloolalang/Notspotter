@@ -25,7 +25,7 @@ class CellReselectBandNamingStyleTest {
     }
 
     @Test
-    fun default_isBandNumber() {
-        assertEquals(CellReselectBandNamingStyle.BAND_NUMBER, CellReselectBandNamingStyle.DEFAULT)
+    fun default_isMhzNickname() {
+        assertEquals(CellReselectBandNamingStyle.MHZ_NICKNAME, CellReselectBandNamingStyle.DEFAULT)
     }
 }

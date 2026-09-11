@@ -69,7 +69,7 @@ class MonitorStateDeadzoneToTier5Test {
         )
         assertTrue(
             (firstDeadzonePoll.deadzoneAnnouncement ?: secondDeadzonePoll.deadzoneAnnouncement)!!
-                .contains("deadzone")
+                .contains("dead zone")
         )
     }
 

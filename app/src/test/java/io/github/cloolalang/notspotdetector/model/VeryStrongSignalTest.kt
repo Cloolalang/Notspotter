@@ -58,8 +58,8 @@ class VeryStrongSignalTest {
     }
 
     @Test
-    fun veryStrongTierPulseFrequencyDefaultsTo750Hz() {
-        assertEquals(750, AudioVolumeSettings.DEFAULT_VERY_STRONG_TIER_PULSE_FREQUENCY_HZ)
+    fun veryStrongTierPulseFrequencyDefaultsTo4140Hz() {
+        assertEquals(4_140, AudioVolumeSettings.DEFAULT_VERY_STRONG_TIER_PULSE_FREQUENCY_HZ)
     }
 
     @Test

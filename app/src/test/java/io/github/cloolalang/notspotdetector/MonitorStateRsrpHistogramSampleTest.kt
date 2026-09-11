@@ -51,6 +51,7 @@ class MonitorStateRsrpHistogramSampleTest {
         MonitorState.tickRsrpHistogramSample()
         assertEquals(2, MonitorState.rsrpHistory.value.size)
 
+        MonitorState.setMonitoringSettings(MonitoringSettings(fiveGFeaturesEnabled = true))
         MonitorState.updateStats(lteStats(-80, CellularSignalReader.RADIO_5G))
 
         assertTrue(MonitorState.rsrpHistory.value.isEmpty())

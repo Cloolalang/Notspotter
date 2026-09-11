@@ -16,6 +16,7 @@ class SettingsProfilesRepository(context: Context) {
 
     private val appContext = context.applicationContext
     private val legacyPrefs = appContext.getSharedPreferences(LEGACY_PREFS_NAME, Context.MODE_PRIVATE)
+    private val sourcePrefs = appContext.getSharedPreferences(SOURCE_PREFS_NAME, Context.MODE_PRIVATE)
     private val profilesDir: File = resolveProfilesDir()
 
     init {
@@ -52,7 +53,7 @@ class SettingsProfilesRepository(context: Context) {
 
     fun profileFile(id: String): File = File(profilesDir, "$id$PROFILE_FILE_EXTENSION")
 
-    fun saveProfile(name: String, settings: AppSettingsSnapshot): Boolean {
+    fun saveProfile(name: String, settings: AppSettingsSnapshot): SettingsProfile? {
         val trimmedName = name.trim()
         val profile = SettingsProfile(
             id = UUID.randomUUID().toString(),
@@ -60,7 +61,15 @@ class SettingsProfilesRepository(context: Context) {
             savedAtMs = System.currentTimeMillis(),
             settings = settings.normalized()
         )
-        return writeProfileFile(profile)
+        return if (writeProfileFile(profile)) profile else null
+    }
+
+    fun activeProfileId(): String? {
+        return sourcePrefs.getString(KEY_ACTIVE_PROFILE_ID, null)?.takeIf { it.isNotBlank() }
+    }
+
+    fun setActiveProfileId(id: String?) {
+        sourcePrefs.edit().putString(KEY_ACTIVE_PROFILE_ID, id?.takeIf { it.isNotBlank() }).apply()
     }
 
     fun deleteProfile(id: String): Boolean {
@@ -171,6 +180,8 @@ class SettingsProfilesRepository(context: Context) {
     companion object {
         private const val LEGACY_PREFS_NAME = "notspot_settings_profiles"
         private const val LEGACY_KEY_PROFILES_JSON = "profiles_json"
+        private const val SOURCE_PREFS_NAME = "notspot_settings_source"
+        private const val KEY_ACTIVE_PROFILE_ID = "active_profile_id"
         private const val PROFILES_FOLDER_NAME = "profiles"
         private const val PROFILE_FILE_EXTENSION = ".json"
 

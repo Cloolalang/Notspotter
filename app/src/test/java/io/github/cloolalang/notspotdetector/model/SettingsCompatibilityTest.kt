@@ -31,9 +31,19 @@ class SettingsCompatibilityTest {
             signalPulseDurationMs = 250
         )
         assertEquals(280, normalized.criticalTierClickIntervalMs)
-        assertEquals(280, normalized.levelRangeAbcdClickIntervalMs)
-        // poorTierClickIntervalMs is floored by its own pulse duration (default 250 ms), not the shared value.
-        assertEquals(280, normalized.poorTierClickIntervalMs)
+        // Shared A–D interval and poor interval are floored by those ranges' own pulse durations.
+        assertEquals(
+            SettingsCompatibility.minTierClickIntervalUiMs(
+                PassiveSignalSettings.DEFAULT_POOR_TIER_PULSE_DURATION_MS
+            ),
+            normalized.levelRangeAbcdClickIntervalMs
+        )
+        assertEquals(
+            SettingsCompatibility.minTierClickIntervalUiMs(
+                PassiveSignalSettings.DEFAULT_POOR_TIER_PULSE_DURATION_MS
+            ),
+            normalized.poorTierClickIntervalMs
+        )
     }
 
     @Test
@@ -72,7 +82,7 @@ class SettingsCompatibilityTest {
             PassiveSignalSettings(noSignalRsrpDbm = -140).normalized().noSignalRsrpDbm
         )
         assertEquals(
-            PassiveSignalSettings.DEFAULT_NO_SIGNAL_RSRP_DBM,
+            -125,
             PassiveSignalSettings(noSignalRsrpDbm = -125).normalized().noSignalRsrpDbm
         )
     }

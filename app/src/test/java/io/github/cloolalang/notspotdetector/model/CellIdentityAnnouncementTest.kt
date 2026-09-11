@@ -181,7 +181,7 @@ class CellIdentityAnnouncementTest {
     }
 
     @Test
-    fun format_speakBandEnabledWithNoLteEarfcn_fallsBackToNormalPhrasing() {
+    fun format_speakBandEnabledOn2g_speaksGsmBandInsteadOfChannelAndBsic() {
         val previous = CellIdentitySnapshot(gsmEarfcn = 62, gsmBsic = 12)
         val next = CellIdentitySnapshot(gsmEarfcn = 71, gsmBsic = 15)
 
@@ -193,7 +193,55 @@ class CellIdentityAnnouncementTest {
             bandNamingStyle = CellReselectBandNamingStyle.BAND_NUMBER
         )
 
-        assertEquals("2 G, cell reselect, channel 7 1, BSIC 1 5", announcement)
+        assertEquals("2 G, band, eight", announcement)
+    }
+
+    @Test
+    fun format_speakBandEnabledOn2gDcs_speaksBandThree() {
+        val previous = CellIdentitySnapshot(gsmEarfcn = 62, gsmBsic = 12)
+        val next = CellIdentitySnapshot(gsmEarfcn = 600, gsmBsic = 15)
+
+        val announcement = CellIdentityAnnouncement.format(
+            previous,
+            next,
+            CellularSignalReader.RADIO_2G,
+            speakBandEnabled = true,
+            bandNamingStyle = CellReselectBandNamingStyle.BAND_NUMBER
+        )
+
+        assertEquals("2 G, band, three", announcement)
+    }
+
+    @Test
+    fun format_speakBandMhzNicknameOn2g_speaksNineHundred() {
+        val previous = CellIdentitySnapshot(gsmEarfcn = 62, gsmBsic = 12)
+        val next = CellIdentitySnapshot(gsmEarfcn = 71, gsmBsic = 15)
+
+        val announcement = CellIdentityAnnouncement.format(
+            previous,
+            next,
+            CellularSignalReader.RADIO_2G,
+            speakBandEnabled = true,
+            bandNamingStyle = CellReselectBandNamingStyle.MHZ_NICKNAME
+        )
+
+        assertEquals("2 G, band, nine hundred", announcement)
+    }
+
+    @Test
+    fun format_speakBandMhzNicknameOn2gDcs_speaksEighteenHundred() {
+        val previous = CellIdentitySnapshot(gsmEarfcn = 62, gsmBsic = 12)
+        val next = CellIdentitySnapshot(gsmEarfcn = 600, gsmBsic = 15)
+
+        val announcement = CellIdentityAnnouncement.format(
+            previous,
+            next,
+            CellularSignalReader.RADIO_2G,
+            speakBandEnabled = true,
+            bandNamingStyle = CellReselectBandNamingStyle.MHZ_NICKNAME
+        )
+
+        assertEquals("2 G, band, eighteen hundred", announcement)
     }
 
     @Test

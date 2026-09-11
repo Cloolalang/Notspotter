@@ -1,13 +1,23 @@
 package io.github.cloolalang.notspotdetector.model
 
+/** What a histogram bar represents. */
+enum class RsrpHistogramBinKind {
+    /** A 5 dB level bin or a “stronger than” threshold floor. */
+    SIGNAL,
+    /** Measured RSRP that is not stronger than any configured threshold. */
+    OTHER,
+    /** Sample recorded with no RSRP (no signal). */
+    NO_SIGNAL
+}
+
 /**
- * A single histogram bar. [labelDbm] is null for the special "no signal" bin, which tallies
- * [RsrpSample]s whose `rsrpDbm` was null (e.g. recorded during a no-signal state) rather than
- * discarding them — see [RsrpHistogram.buildBins].
+ * A single histogram bar. [labelDbm] is the bin edge or threshold for [RsrpHistogramBinKind.SIGNAL],
+ * and null for [RsrpHistogramBinKind.OTHER] / [RsrpHistogramBinKind.NO_SIGNAL].
  */
 data class RsrpHistogramBin(
     val labelDbm: Int?,
-    val count: Int
+    val count: Int,
+    val kind: RsrpHistogramBinKind = RsrpHistogramBinKind.SIGNAL
 )
 
 /** Fixed RSRP bands for histogram bar colouring (independent of passive tier settings). */
@@ -23,11 +33,11 @@ enum class RsrpHistogramBand {
 enum class RsrpHistogramBinningMode {
     /** Existing 5 dB level bins from −70 to −126 dBm. */
     LEVEL,
-    /** Three “stronger than” floors plus a trailing no-signal (N/A) bar. */
+    /** Three “stronger than” floors plus other-samples and no-signal (N/A) bars. */
     THRESHOLD;
 
     companion object {
-        val DEFAULT = LEVEL
+        val DEFAULT = THRESHOLD
 
         fun fromStoredName(name: String?): RsrpHistogramBinningMode {
             if (name.isNullOrBlank()) return DEFAULT
@@ -40,7 +50,7 @@ object RsrpHistogram {
     const val MIN_RSRP_DBM = -126
     const val MAX_RSRP_DBM = -70
     const val BIN_SIZE_DB = 5
-    const val DEFAULT_WINDOW_MS = 30_000L
+    const val DEFAULT_WINDOW_MS = 300_000L
     /** Histogram occupancy sample rate while monitoring (one last-known RSRP per tick). */
     const val SAMPLE_INTERVAL_MS = 1_000L
     const val BIN_COUNT = (MAX_RSRP_DBM - MIN_RSRP_DBM + BIN_SIZE_DB - 1) / BIN_SIZE_DB
@@ -90,13 +100,18 @@ object RsrpHistogram {
                 count = counts[index]
             )
         }
-        return signalBins + RsrpHistogramBin(labelDbm = null, count = nullCount)
+        return signalBins + RsrpHistogramBin(
+            labelDbm = null,
+            count = nullCount,
+            kind = RsrpHistogramBinKind.NO_SIGNAL
+        )
     }
 
     /**
-     * Three cumulative bins plus a trailing "no signal" bin (`labelDbm = null`).
+     * Three cumulative bins, then an “other samples” bar, then a no-signal (N/A) bar.
      * Each threshold bar is the number of in-window samples whose RSRP is **strictly greater
-     * than** that floor. Null / no-signal samples are counted only in the trailing bar.
+     * than** that floor. Measured RSRP that is not stronger than any floor goes in other.
+     * Null / no-signal samples are counted only in the trailing N/A bar.
      */
     fun buildThresholdBins(
         samples: List<RsrpSample>,
@@ -105,23 +120,46 @@ object RsrpHistogram {
         thresholdsDbm: List<Int>
     ): List<RsrpHistogramBin> {
         val cutoff = nowMs - windowMs
+        val floors = thresholdsDbm.map { it.coerceIn(MIN_THRESHOLD_DBM, MAX_THRESHOLD_DBM) }
+        val thresholdCounts = IntArray(floors.size)
+        var otherCount = 0
         var nullCount = 0
-        val thresholdBins = thresholdsDbm.map { rawThreshold ->
-            val threshold = rawThreshold.coerceIn(MIN_THRESHOLD_DBM, MAX_THRESHOLD_DBM)
-            var count = 0
-            for (sample in samples) {
-                if (sample.timestampMs < cutoff) continue
-                val rsrpDbm = sample.rsrpDbm
-                if (rsrpDbm == null) continue
-                if (rsrpDbm > threshold) count++
-            }
-            RsrpHistogramBin(labelDbm = threshold, count = count)
-        }
         for (sample in samples) {
             if (sample.timestampMs < cutoff) continue
-            if (sample.rsrpDbm == null) nullCount++
+            val rsrpDbm = sample.rsrpDbm
+            if (rsrpDbm == null) {
+                nullCount++
+                continue
+            }
+            var inAnyThreshold = false
+            for (index in floors.indices) {
+                if (rsrpDbm > floors[index]) {
+                    thresholdCounts[index]++
+                    inAnyThreshold = true
+                }
+            }
+            if (!inAnyThreshold) {
+                otherCount++
+            }
         }
-        return thresholdBins + RsrpHistogramBin(labelDbm = null, count = nullCount)
+        val thresholdBins = floors.mapIndexed { index, floor ->
+            RsrpHistogramBin(
+                labelDbm = floor,
+                count = thresholdCounts[index],
+                kind = RsrpHistogramBinKind.SIGNAL
+            )
+        }
+        return thresholdBins +
+            RsrpHistogramBin(
+                labelDbm = null,
+                count = otherCount,
+                kind = RsrpHistogramBinKind.OTHER
+            ) +
+            RsrpHistogramBin(
+                labelDbm = null,
+                count = nullCount,
+                kind = RsrpHistogramBinKind.NO_SIGNAL
+            )
     }
 
     fun totalSamples(

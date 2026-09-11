@@ -1,10 +1,12 @@
 package io.github.cloolalang.notspotdetector
 
+import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
 import io.github.cloolalang.notspotdetector.model.MockNetworkScenario
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.MonitoringUpdateEvents
 import io.github.cloolalang.notspotdetector.model.PassiveMockSettings
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
+import io.github.cloolalang.notspotdetector.model.VoicePhraseOptions
 import io.github.cloolalang.notspotdetector.model.toConnectivityStats
 import io.github.cloolalang.notspotdetector.model.Rxss
 import io.github.cloolalang.notspotdetector.model.SignalMeasurementTier
@@ -44,6 +46,20 @@ class MonitorStateMockLimitedServiceOverlayTest {
         MonitorState.setRunning(false)
         MonitorState.setMonitoringSettings(MonitoringSettings(monitor2gFallback = true))
         MonitorState.setPassiveSignalSettings(passiveSettings)
+        MonitorState.setAudioVolumes(
+            AudioVolumeSettings(
+                noSignalPhrases = VoicePhraseOptions(
+                    speakOperatorName = true,
+                    speakTechnology = true,
+                    speakBand = false
+                ),
+                signalLowPhrases = VoicePhraseOptions(
+                    speakOperatorName = true,
+                    speakTechnology = true,
+                    speakBand = false
+                )
+            )
+        )
         MonitorState.beginPassiveOnlySession()
         MonitorState.setRunning(true)
     }
@@ -51,6 +67,7 @@ class MonitorStateMockLimitedServiceOverlayTest {
     @After
     fun tearDown() {
         MonitorState.setRunning(false)
+        MonitorState.setAudioVolumes(AudioVolumeSettings())
     }
 
     @Test

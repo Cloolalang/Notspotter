@@ -349,6 +349,11 @@ fun MonitorScreen(
         }
 
         TopLevelSectionCard(title = stringResource(R.string.top_level_general_app_settings)) {
+            SettingsLockBar(
+                unlocked = settingsUnlocked,
+                onUnlockedChange = onSettingsUnlockedChange
+            )
+
             SettingsProfilesCard(
                 profiles = settingsProfiles,
                 onSaveProfile = onSaveSettingsProfile,
@@ -422,11 +427,6 @@ fun MonitorScreen(
                 onRefresh = onRefreshCarrierConfig
             )
         }
-
-        SettingsLockBar(
-            unlocked = settingsUnlocked,
-            onUnlockedChange = onSettingsUnlockedChange
-        )
 
         if (!stats.cellularAvailable && isRunning) {
             Text(
@@ -707,11 +707,12 @@ private fun CellIdentityMetrics(
         }
     }
 
-    // Unlike EARFCN/PCI above, this isn't run through CellIdentityStabilizer's stale-value
-    // coalescing — it's always the latest debounced reading (see MonitorState.updateStats /
-    // applyIdleSignalMetrics / updateMonitoringSignalMetrics), so it's meaningful even during a
-    // no-signal RXSS state (e.g. "0" while searching in a dead zone is itself useful information).
-    val lteLayerResilience = stats.lteLayerResilience
+    // Neighbour-layer counts are not meaningful without a camped LTE cell — hide the same
+    // leftover allCellInfo readings that no-signal / dead zone / WiFi calling already blank
+    // for EARFCN/PCI.
+    val lteLayerResilience = stats.lteLayerResilience.takeUnless {
+        staleNoSignal || stats.isWifiCallingActive || stats.isCompleteNoService
+    }
     // RSRP gap between the primary sector and the next-strongest sector on the *same* EARFCN
     // (see LteLayerResilienceReading.primaryLayerDominanceDb) — undefined ("—") when there's no
     // competing intra-channel sector detected to compare against.

@@ -133,9 +133,9 @@ object CarrierConfigReader {
     }
 
     private fun wfcModeLabel(value: Int): String? = when (value) {
-        0 -> "Wi-Fi only"
+        0 -> "WiFi only"
         1 -> "prefer mobile"
-        2 -> "prefer Wi-Fi"
+        2 -> "prefer WiFi"
         else -> null
     }
 
@@ -175,7 +175,7 @@ object CarrierConfigReader {
         boolDef("WiFi calling", "WFC available", CarrierConfigManager.KEY_CARRIER_WFC_IMS_AVAILABLE_BOOL),
         boolDef(
             "WiFi calling",
-            "WFC supports Wi-Fi-only mode",
+            "WFC supports WiFi-only mode",
             CarrierConfigManager.KEY_CARRIER_WFC_SUPPORTS_WIFI_ONLY_BOOL
         ),
         boolDef(

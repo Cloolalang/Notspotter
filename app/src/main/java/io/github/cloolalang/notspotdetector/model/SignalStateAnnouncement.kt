@@ -17,10 +17,10 @@ object SignalStateAnnouncement {
     internal const val PHRASE_LIMITED_SERVICE = "limited service"
     internal const val PHRASE_HOME_OPERATOR_ROLE = "home"
     internal const val PHRASE_VISITED_OPERATOR_ROLE = "visited"
-    internal const val PHRASE_DEADZONE = "deadzone, no service, no SOS calls"
+    internal const val PHRASE_DEADZONE = "dead zone, no service, no SOS calls"
     internal const val PHRASE_SEARCHING_2G = "searching 2 G"
     /** RXSS 31 — in service via WiFi calling only, no cellular RAT/RSRP. */
-    internal const val PHRASE_WIFI_CALLING_NO_SIGNAL = "wifi calling, no cellular signal"
+    internal const val PHRASE_WIFI_CALLING_NO_SIGNAL = "W I F I calling, no cellular signal"
     internal const val PHRASE_CELLULAR_SIGNAL_RESTORED = "cellular signal restored"
 
     private const val PREVIEW_LTE_EARFCN = 6400

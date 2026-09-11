@@ -224,6 +224,7 @@ object MonitorState {
     fun updateStats(rawStats: ConnectivityStats): MonitoringUpdateEvents {
         val events = synchronized(monitorLock) {
             val remapped = rawStats.hidingFiveGIfDisabled(_monitoringSettings.value.fiveGFeaturesEnabled)
+            val previousKnownRat = lastKnownRadioAccessType
             rememberRadioAccessType(remapped)
             val passiveSettings = _passiveSignalSettings.value
             val previous = _stats.value
@@ -244,7 +245,12 @@ object MonitorState {
             } else {
                 displayStats.withQuality(_thresholds.value, passiveSettings)
             }
-            val (finalStats, events) = buildMonitoringEvents(previous, enriched, passiveSettings)
+            val (finalStats, events) = buildMonitoringEvents(
+                previous,
+                enriched,
+                passiveSettings,
+                previousKnownRat
+            )
             _stats.value = finalStats
             clearRsrpHistogramIfTechnologyChanged(finalStats.radioAccessType)
             if (!enriched.isPassiveIdleMode) {
@@ -402,6 +408,7 @@ object MonitorState {
     private fun updateMonitoringSignalMetrics(metrics: CellularRadioMetrics): MonitoringUpdateEvents {
         if (!_isRunning.value) return MonitoringUpdateEvents()
 
+        val previousKnownRat = lastKnownRadioAccessType
         rememberRadioAccessType(metrics)
 
         val monitor2gFallback = _monitoringSettings.value.monitor2gFallback
@@ -451,7 +458,12 @@ object MonitorState {
         } else {
             stabilized
         }
-        val (finalStats, events) = buildMonitoringEvents(previous, next, passiveSettings)
+        val (finalStats, events) = buildMonitoringEvents(
+            previous,
+            next,
+            passiveSettings,
+            previousKnownRat
+        )
         _stats.value = finalStats
         return events
     }
@@ -473,7 +485,8 @@ object MonitorState {
     private fun buildMonitoringEvents(
         previous: ConnectivityStats,
         next: ConnectivityStats,
-        passiveSettings: PassiveSignalSettings
+        passiveSettings: PassiveSignalSettings,
+        previousKnownRat: String?
     ): Pair<ConnectivityStats, MonitoringUpdateEvents> {
         val nextDebounced = applyNoSignalDebounce(next, passiveSettings).let { debounced ->
             debounced.copy(
@@ -530,7 +543,8 @@ object MonitorState {
             )
         val technologyChangeAnnouncement = consumeTechnologyChangeAnnouncement(
             previous = previous,
-            nextType = nextDebounced.radioAccessType,
+            next = nextDebounced,
+            previousKnownRat = previousKnownRat,
             networkOperatorName = networkOperatorName
         )
         val events = MonitoringUpdateEvents(
@@ -576,10 +590,12 @@ object MonitorState {
 
     private fun consumeTechnologyChangeAnnouncement(
         previous: ConnectivityStats,
-        nextType: String?,
+        next: ConnectivityStats,
+        previousKnownRat: String?,
         networkOperatorName: String?
     ): String? {
         if (!_isRunning.value) return null
+        val nextType = next.radioAccessType?.takeIf { it.isNotBlank() }
 
         if (!radioTechnologyBaselineReady) {
             if (!nextType.isNullOrBlank()) {
@@ -589,7 +605,7 @@ object MonitorState {
         }
 
         val previousType = previous.radioAccessType?.takeIf { it.isNotBlank() }
-            ?: if (previous.noSignalActive) lastKnownRadioAccessType else null
+            ?: previousKnownRat?.takeIf { it.isNotBlank() }
         if (previousType == nextType) return null
         if (previousType.isNullOrBlank() || nextType.isNullOrBlank()) return null
 
@@ -613,9 +629,9 @@ object MonitorState {
             nextType,
             networkOperatorName,
             phrases.speakOperatorName,
-            phrases.speakTechnology,
+            speakTechnologyEnabled = true,
             phrases.speakBand,
-            phrases.bandPhraseFor(previous.lteEarfcn, previous.nrBand)
+            phrases.bandPhraseFor(next.lteEarfcn, next.nrBand)
         )
     }
 
@@ -1037,7 +1053,7 @@ object MonitorState {
     }
 
     const val RTT_HISTORY_WINDOW_MS = 60_000L
-    const val RSRP_HISTORY_RETENTION_MS = 300_000L
+    const val RSRP_HISTORY_RETENTION_MS = MonitoringSettings.MAX_RSRP_HISTOGRAM_WINDOW_MS
 
     private fun rsrpHistoryRetentionMs(): Long {
         return maxOf(

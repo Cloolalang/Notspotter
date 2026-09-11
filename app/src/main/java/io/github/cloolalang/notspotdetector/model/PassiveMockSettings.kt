@@ -303,8 +303,8 @@ data class PassiveMockSettings(
         const val DEFAULT_ENABLED = false
         /** Mock RSRP slider floor — below tier-setting minimum so very weak values can be simulated. */
         const val MIN_MOCK_RSRP_DBM = -130
-        const val DEFAULT_RSRP_DBM = -95
-        const val DEFAULT_RSRQ_DB = -12
+        const val DEFAULT_RSRP_DBM = -115
+        const val DEFAULT_RSRQ_DB = -18
         /** Home SIM operator — real UK name for easier voice-announcement testing. */
         const val MOCK_HOME_OPERATOR = "Vodafone"
         /** Camped visited-operator PLMN during limited-service mock scenarios. */

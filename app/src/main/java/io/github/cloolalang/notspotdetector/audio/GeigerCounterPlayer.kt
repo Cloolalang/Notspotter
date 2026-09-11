@@ -44,11 +44,14 @@ import io.github.cloolalang.notspotdetector.model.computeRsrqTierClickIntervalMs
 import io.github.cloolalang.notspotdetector.model.rsrqTierWhiteNoiseMix
 import io.github.cloolalang.notspotdetector.model.shouldPlayDecoupledRsrqTier
 import io.github.cloolalang.notspotdetector.model.shouldPlayPassiveSignalAndQualityAlerts
+import io.github.cloolalang.notspotdetector.model.resolveSignalPulseScheduleKey
+import io.github.cloolalang.notspotdetector.model.SignalPulseScheduleKey
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlin.coroutines.coroutineContext
 import kotlin.math.PI
 import kotlin.math.exp
 import kotlin.math.sin
@@ -72,6 +75,7 @@ class GeigerCounterPlayer {
     private var lastHandledPingTimestampMs = 0L
     private var monitoringSettingsProvider: () -> MonitoringSettings = { MonitoringSettings() }
     private var passiveSignalSettingsProvider: () -> PassiveSignalSettings = { PassiveSignalSettings() }
+    private var statsProvider: () -> ConnectivityStats = { ConnectivityStats() }
     private val sampleRate = 44_100
     private val goodConnectionClickDurationMs = 6
     private val lowQualityClickDurationMs = 150
@@ -87,6 +91,7 @@ class GeigerCounterPlayer {
         stop()
         this.monitoringSettingsProvider = monitoringSettingsProvider
         this.passiveSignalSettingsProvider = passiveSignalSettingsProvider
+        this.statsProvider = statsProvider
         lastHandledPingTimestampMs = 0L
         rsrqTierJob = scope.launch {
             while (isActive) {
@@ -103,7 +108,10 @@ class GeigerCounterPlayer {
                         durationMs = passiveSettings.rsrqTierPulseDurationMs,
                         amplitude = amplitude
                     )
-                    delay(stats.computeRsrqTierClickIntervalMs(passiveSettings))
+                    delayForPulseInterval(
+                        stats.computeRsrqTierClickIntervalMs(passiveSettings),
+                        stats.resolveSignalPulseScheduleKey(passiveSettings)
+                    )
                 } else {
                     delay(POLL_INTERVAL_MS)
                 }
@@ -119,7 +127,7 @@ class GeigerCounterPlayer {
                 when {
                     !stats.isMonitoring -> {
                         stopAlertTones()
-                        delay(500)
+                        delayForPulseInterval(500L, stats.resolveSignalPulseScheduleKey(passiveSettings))
                     }
                     stats.shouldPlayDeadzoneTier(passiveSettings) -> {
                         stopLimitedService()
@@ -231,7 +239,7 @@ class GeigerCounterPlayer {
                         } else {
                             stopLimitedService()
                         }
-                        delay(200)
+                        delayForPulseInterval(200L, stats.resolveSignalPulseScheduleKey(passiveSettings))
                     }
                     stats.shouldPlayLimitedServiceTone() -> {
                         stopFlatline()
@@ -248,7 +256,7 @@ class GeigerCounterPlayer {
                         } else {
                             stopLimitedService()
                         }
-                        delay(200)
+                        delayForPulseInterval(200L, stats.resolveSignalPulseScheduleKey(passiveSettings))
                     }
                     stats.shouldPlayFlatline(passiveSettings) -> {
                         stopLimitedService()
@@ -257,7 +265,7 @@ class GeigerCounterPlayer {
                             continuous = stats.shouldPlayContinuousFlatline(passiveSettings),
                             passiveOnly = stats.isPassiveOnlySession
                         )
-                        delay(200)
+                        delayForPulseInterval(200L, stats.resolveSignalPulseScheduleKey(passiveSettings))
                     }
                     else -> {
                         stopAlertTones()
@@ -265,13 +273,19 @@ class GeigerCounterPlayer {
                             when {
                                 stats.shouldPlaySignalStrengthInterval(passiveSettings) ->
                                     handleSignalStrengthIntervalAudio(stats, volumes, passiveSettings)
-                                stats.isPassiveIdleMode -> delay(POLL_INTERVAL_MS)
+                                stats.isPassiveIdleMode -> delayForPulseInterval(
+                                    POLL_INTERVAL_MS,
+                                    stats.resolveSignalPulseScheduleKey(passiveSettings)
+                                )
                                 stats.quality == ConnectionQuality.GOOD && !stats.hasExtremeLatency() ->
                                     handleGoodConnectionAudio(stats, thresholds, volumes, passiveSettings)
                                 else -> handleIntervalAudio(stats, thresholds, volumes, passiveSettings)
                             }
                         } else {
-                            delay(computeClickIntervalMs(stats))
+                            delayForPulseInterval(
+                                computeClickIntervalMs(stats),
+                                stats.resolveSignalPulseScheduleKey(passiveSettings)
+                            )
                         }
                     }
                 }
@@ -321,7 +335,10 @@ class GeigerCounterPlayer {
                 stats.resolveG2SignalStrengthTier(passiveSettings) ?: SignalStrengthTier.G2_WEAK
             isVeryStrong -> SignalStrengthTier.MILD
             else -> resolvedWeakTier ?: run {
-                delay(POLL_INTERVAL_MS)
+                delayForPulseInterval(
+                    POLL_INTERVAL_MS,
+                    stats.resolveSignalPulseScheduleKey(passiveSettings)
+                )
                 return
             }
         }
@@ -357,7 +374,7 @@ class GeigerCounterPlayer {
                 clickVolume = clickVolumeForLteRsrpPlayback(volumes, isVeryStrong, resolvedWeakTier)
             )
         }
-        delay(interval)
+        delayForPulseInterval(interval, stats.resolveSignalPulseScheduleKey(passiveSettings))
     }
 
     private suspend fun handleCampTierAudio(
@@ -379,7 +396,7 @@ class GeigerCounterPlayer {
                 pulseDurationMs = pulseDurationMs
             )
         }
-        delay(interval)
+        delayForPulseInterval(interval, stats.resolveSignalPulseScheduleKey(passiveSettings))
     }
 
     private fun shouldPlayPassiveSignalAndQualityAlerts(
@@ -390,6 +407,24 @@ class GeigerCounterPlayer {
             monitoringSettingsProvider(),
             passiveSettings
         )
+    }
+
+    /**
+     * Waits up to [intervalMs] but returns as soon as the active RXSS pulse path changes so the
+     * new tier's first alert is not stuck behind the previous (possibly long) interval.
+     */
+    private suspend fun delayForPulseInterval(
+        intervalMs: Long,
+        scheduledKey: SignalPulseScheduleKey
+    ) {
+        val deadlineMs = System.currentTimeMillis() + intervalMs.coerceAtLeast(0L)
+        while (coroutineContext.isActive) {
+            val remainingMs = deadlineMs - System.currentTimeMillis()
+            if (remainingMs <= 0L) return
+            delay(minOf(POLL_INTERVAL_MS, remainingMs))
+            val current = statsProvider().resolveSignalPulseScheduleKey(passiveSignalSettingsProvider())
+            if (current != scheduledKey) return
+        }
     }
 
     private suspend fun playGoodConnectionClicks(
@@ -413,7 +448,7 @@ class GeigerCounterPlayer {
     ) {
         val interval = computeClickIntervalMs(stats)
         if (stats.shouldSuppressGeigerClicks(thresholds, passiveSettings)) {
-            delay(interval)
+            delayForPulseInterval(interval, stats.resolveSignalPulseScheduleKey(passiveSettings))
             return
         }
 
@@ -431,7 +466,7 @@ class GeigerCounterPlayer {
                     stats.resolveG2SignalStrengthTier(passiveSettings) ?: SignalStrengthTier.G2_WEAK
                 isVeryStrong -> SignalStrengthTier.MILD
                 else -> resolvedWeakTier ?: run {
-                    delay(interval)
+                    delayForPulseInterval(interval, stats.resolveSignalPulseScheduleKey(passiveSettings))
                     return
                 }
             }
@@ -454,15 +489,16 @@ class GeigerCounterPlayer {
                     clickVolume = clickVolumeForLteRsrpPlayback(volumes, isVeryStrong, resolvedWeakTier)
                 )
             }
-            delay(
+            delayForPulseInterval(
                 stats.computeSignalStrengthClickIntervalMs(
                     passiveSettings,
                     pulseDurationMs
-                )
+                ),
+                stats.resolveSignalPulseScheduleKey(passiveSettings)
             )
         } else {
             playLowQualityClick(volumes)
-            delay(interval)
+            delayForPulseInterval(interval, stats.resolveSignalPulseScheduleKey(passiveSettings))
         }
     }
 

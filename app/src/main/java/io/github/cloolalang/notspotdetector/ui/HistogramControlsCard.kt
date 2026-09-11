@@ -42,6 +42,8 @@ import io.github.cloolalang.notspotdetector.R
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.RsrpHistogram
 import io.github.cloolalang.notspotdetector.model.RsrpHistogramBand
+import io.github.cloolalang.notspotdetector.model.RsrpHistogramBin
+import io.github.cloolalang.notspotdetector.model.RsrpHistogramBinKind
 import io.github.cloolalang.notspotdetector.model.RsrpHistogramBinningMode
 import io.github.cloolalang.notspotdetector.model.RsrpSample
 import io.github.cloolalang.notspotdetector.model.coerceToHistogramWindowStep
@@ -101,12 +103,6 @@ fun HistogramControlsCard(
             }
 
             if (expanded) {
-                Text(
-                    text = stringResource(R.string.histogram_controls_summary),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
                 RsrpHistogramDisplay(
                     samples = samples,
                     windowMs = windowMs.coerceToHistogramWindowStep(),
@@ -271,13 +267,11 @@ private fun RsrpHistogramDisplay(
             ) {
                 displayedBins.forEach { indexedBin ->
                     RsrpHistogramBarColumn(
-                        labelDbm = indexedBin.value.labelDbm,
-                        count = indexedBin.value.count,
+                        bin = indexedBin.value,
                         totalSamples = totalSamples,
                         maxCount = maxCount,
-                        barColor = histogramBarColor(indexedBin.value.labelDbm),
-                        thresholdLabel = binningMode == RsrpHistogramBinningMode.THRESHOLD &&
-                            indexedBin.value.labelDbm != null,
+                        barColor = histogramBarColor(indexedBin.value),
+                        thresholdMode = binningMode == RsrpHistogramBinningMode.THRESHOLD,
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -301,14 +295,16 @@ private fun RsrpHistogramDisplay(
 
 @Composable
 private fun RsrpHistogramBarColumn(
-    labelDbm: Int?,
-    count: Int,
+    bin: RsrpHistogramBin,
     totalSamples: Int,
     maxCount: Int,
     barColor: Color,
-    thresholdLabel: Boolean = false,
+    thresholdMode: Boolean = false,
     modifier: Modifier = Modifier
 ) {
+    val thresholdLabel = thresholdMode && bin.kind == RsrpHistogramBinKind.SIGNAL
+    val wrappedLabel = thresholdLabel ||
+        bin.kind == RsrpHistogramBinKind.OTHER
     BoxWithConstraints(
         modifier = modifier.widthIn(min = 28.dp),
         contentAlignment = Alignment.BottomCenter
@@ -325,7 +321,7 @@ private fun RsrpHistogramBarColumn(
                 modifier = Modifier.padding(bottom = 4.dp)
             ) {
                 Text(
-                    text = count.toString(),
+                    text = bin.count.toString(),
                     style = MaterialTheme.typography.labelSmall,
                     fontFamily = FontFamily.Monospace,
                     fontSize = 9.sp,
@@ -336,7 +332,7 @@ private fun RsrpHistogramBarColumn(
                 Text(
                     text = stringResource(
                         R.string.rsrp_histogram_bin_percent,
-                        histogramBinPercent(count, totalSamples)
+                        histogramBinPercent(bin.count, totalSamples)
                     ),
                     style = MaterialTheme.typography.labelSmall,
                     fontFamily = FontFamily.Monospace,
@@ -357,7 +353,7 @@ private fun RsrpHistogramBarColumn(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .fillMaxHeight(count.toFloat() / maxCount.toFloat())
+                        .fillMaxHeight(bin.count.toFloat() / maxCount.toFloat())
                         .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
                         .background(barColor)
                 )
@@ -365,39 +361,56 @@ private fun RsrpHistogramBarColumn(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(if (thresholdLabel) 40.dp else HistogramLabelAreaHeight),
+                    .height(if (wrappedLabel) 40.dp else HistogramLabelAreaHeight),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = when {
-                        labelDbm == null -> stringResource(R.string.rsrp_histogram_null_bin_label)
-                        thresholdLabel -> stringResource(R.string.rsrp_histogram_threshold_bin_label, labelDbm)
-                        else -> labelDbm.toString()
+                    text = when (bin.kind) {
+                        RsrpHistogramBinKind.OTHER ->
+                            stringResource(R.string.rsrp_histogram_other_bin_label)
+                        RsrpHistogramBinKind.NO_SIGNAL ->
+                            stringResource(R.string.rsrp_histogram_null_bin_label)
+                        RsrpHistogramBinKind.SIGNAL -> if (thresholdLabel) {
+                            stringResource(
+                                R.string.rsrp_histogram_threshold_bin_label,
+                                bin.labelDbm ?: 0
+                            )
+                        } else {
+                            bin.labelDbm?.let { dbm ->
+                                stringResource(R.string.rsrp_histogram_bin_label, dbm)
+                            }.orEmpty()
+                        }
                     },
                     style = MaterialTheme.typography.labelSmall,
                     fontFamily = FontFamily.Monospace,
-                    fontSize = if (thresholdLabel) 11.sp else 10.sp,
-                    maxLines = if (thresholdLabel) 2 else 1,
-                    softWrap = thresholdLabel,
+                    fontSize = if (wrappedLabel) 11.sp else 10.sp,
+                    maxLines = if (wrappedLabel) 2 else 1,
+                    softWrap = wrappedLabel,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = if (thresholdLabel) Modifier else Modifier.rotate(-90f)
+                    modifier = if (wrappedLabel) Modifier else Modifier.rotate(-90f)
                 )
             }
         }
     }
 }
 
-/** Grey — used for the "no signal" bin (null label), distinct from any signal-strength band. */
+/** Grey — used for the "no signal" bin, distinct from any signal-strength band. */
 private val NullBinColor = Color(0xFF9E9E9E)
+/** Slate — measured RSRP that missed every threshold floor. */
+private val OtherBinColor = Color(0xFF78909C)
 
-private fun histogramBarColor(labelDbm: Int?): Color {
-    return when (RsrpHistogram.bandForLabelDbm(labelDbm)) {
-        null -> NullBinColor
-        RsrpHistogramBand.EXCELLENT -> Color(0xFF81D4FA)
-        RsrpHistogramBand.GOOD -> Color(0xFF66BB6A)
-        RsrpHistogramBand.FAIR -> Color(0xFFFFEB3B)
-        RsrpHistogramBand.POOR -> Color(0xFFFF9800)
-        RsrpHistogramBand.CRITICAL -> Color(0xFFFF1744)
+private fun histogramBarColor(bin: RsrpHistogramBin): Color {
+    return when (bin.kind) {
+        RsrpHistogramBinKind.NO_SIGNAL -> NullBinColor
+        RsrpHistogramBinKind.OTHER -> OtherBinColor
+        RsrpHistogramBinKind.SIGNAL -> when (RsrpHistogram.bandForLabelDbm(bin.labelDbm)) {
+            null -> NullBinColor
+            RsrpHistogramBand.EXCELLENT -> Color(0xFF81D4FA)
+            RsrpHistogramBand.GOOD -> Color(0xFF66BB6A)
+            RsrpHistogramBand.FAIR -> Color(0xFFFFEB3B)
+            RsrpHistogramBand.POOR -> Color(0xFFFF9800)
+            RsrpHistogramBand.CRITICAL -> Color(0xFFFF1744)
+        }
     }
 }
 
@@ -552,8 +565,8 @@ private fun RsrpHistogramWindowSlider(
 private fun formatHistogramWindow(windowMs: Long): String {
     val totalSeconds = windowMs / 1_000L
     return when {
-        totalSeconds < 60L -> "${totalSeconds}s"
-        totalSeconds % 60L == 0L -> "${totalSeconds / 60L}m"
-        else -> "${totalSeconds / 60L}m ${totalSeconds % 60L}s"
+        totalSeconds < 60L -> "${totalSeconds} s"
+        totalSeconds % 60L == 0L -> "${totalSeconds / 60L} m"
+        else -> "${totalSeconds / 60L} m ${totalSeconds % 60L} s"
     }
 }

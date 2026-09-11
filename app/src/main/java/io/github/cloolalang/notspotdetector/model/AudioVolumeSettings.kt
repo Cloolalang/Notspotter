@@ -13,18 +13,18 @@ data class AudioVolumeSettings(
      * so users can still audition a voice while announcements are globally muted.
      */
     val masterVoiceAnnouncementsEnabled: Boolean = DEFAULT_MASTER_VOICE_ANNOUNCEMENTS_ENABLED,
-    val pingClickVolume: Float = DEFAULT_VOLUME,
+    val pingClickVolume: Float = DEFAULT_PING_CLICK_VOLUME,
     val lowSignalClickVolume: Float = DEFAULT_VOLUME,
     /** RXSS 6 (signal low / critical) signal pulse frequency. */
     val signalPulseFrequencyHz: Int = DEFAULT_SIGNAL_PULSE_FREQUENCY_HZ,
     /** RXSS 10/0/11/15 no-signal camp signal pulse frequency — independent of [signalPulseFrequencyHz]. */
-    val noSignalTierPulseFrequencyHz: Int = DEFAULT_SIGNAL_PULSE_FREQUENCY_HZ,
+    val noSignalTierPulseFrequencyHz: Int = DEFAULT_NO_SIGNAL_TIER_PULSE_FREQUENCY_HZ,
     /** RXSS 12/13 limited-service lower tone (and RXSS 13 pulse) frequency. */
-    val limitedServiceTierPulseFrequencyHz: Int = DEFAULT_SIGNAL_PULSE_FREQUENCY_HZ,
+    val limitedServiceTierPulseFrequencyHz: Int = DEFAULT_LIMITED_SERVICE_TIER_PULSE_FREQUENCY_HZ,
     /** RXSS 12 two-tone: upper tone is this percent above [limitedServiceTierPulseFrequencyHz]. */
     val limitedServiceTwoToneSpreadPercent: Int = DEFAULT_LIMITED_SERVICE_TWO_TONE_SPREAD_PERCENT,
     /** Level Ranges A–D (RXSS 2–5) tone frequency — independent of [signalPulseFrequencyHz]. */
-    val levelRangeBcdPulseFrequencyHz: Int = DEFAULT_SIGNAL_PULSE_FREQUENCY_HZ,
+    val levelRangeBcdPulseFrequencyHz: Int = DEFAULT_LEVEL_RANGE_BCD_PULSE_FREQUENCY_HZ,
     /** Tier 1 (very strong RSRP) tone frequency — independent of [signalPulseFrequencyHz]. */
     val veryStrongTierPulseFrequencyHz: Int = DEFAULT_VERY_STRONG_TIER_PULSE_FREQUENCY_HZ,
     /** Tier 7 (2G strong) tone frequency — independent of [signalPulseFrequencyHz]. */
@@ -38,7 +38,7 @@ data class AudioVolumeSettings(
      * one-time migration seed for those per-range values and is no longer read during playback or
      * writable from the UI.
      */
-    val levelRangeBcdPulseDurationMs: Int = DEFAULT_SIGNAL_PULSE_DURATION_MS,
+    val levelRangeBcdPulseDurationMs: Int = DEFAULT_LEVEL_RANGE_BCD_PULSE_DURATION_MS,
     /** Level Ranges A–D (RXSS 2–5) click volume — independent of [lowSignalClickVolume]. */
     val levelRangeBcdClickVolume: Float = DEFAULT_VOLUME,
     val cellChangeBellVolume: Float = DEFAULT_VOLUME,
@@ -46,8 +46,8 @@ data class AudioVolumeSettings(
     val cellChangeVoiceVolume: Float = DEFAULT_VOLUME,
     /**
      * RXSS 9 alternative announcement — speak the E-UTRA band (derived from the LTE EARFCN)
-     * instead of "cell reselect, channel …, PCI …". Falls back to the normal phrasing when the
-     * reselected cell has no LTE EARFCN (2G-only or NR-only reselect).
+     * instead of "cell reselect, channel …, PCI …", or the GSM band (900 / 1800) instead of
+     * channel/BSIC on 2G. Falls back to the normal phrasing when the channel cannot be mapped.
      */
     val cellChangeSpeakBandEnabled: Boolean = DEFAULT_CELL_CHANGE_SPEAK_BAND_ENABLED,
     /** How [cellChangeSpeakBandEnabled] speaks the resolved band — number vs. MHz nickname. */
@@ -62,16 +62,16 @@ data class AudioVolumeSettings(
     val technologyChangeTo5gEndcVoiceEnabled: Boolean = DEFAULT_VOICE_ANNOUNCEMENT_ENABLED,
     val technologyChangeTo5gEndcVoiceVolume: Float = DEFAULT_VOLUME,
     val tier5AnnouncerEnabled: Boolean = DEFAULT_VOICE_ANNOUNCEMENT_ENABLED,
-    val tier5AnnouncerVolume: Float = DEFAULT_VOLUME,
+    val tier5AnnouncerVolume: Float = DEFAULT_TIER5_ANNOUNCER_VOLUME,
     val voiceAnnouncerChoice: VoiceAnnouncerChoice = DEFAULT_VOICE_ANNOUNCER_CHOICE,
     val voiceAnnouncerEngineId: String? = null,
     val noSignalToneVolume: Float = DEFAULT_VOLUME,
     val noSignalVibrationEnabled: Boolean = DEFAULT_NO_SIGNAL_VIBRATION_ENABLED,
     val noSignalVoiceEnabled: Boolean = DEFAULT_VOICE_ANNOUNCEMENT_ENABLED,
-    val noSignalVoiceVolume: Float = DEFAULT_VOLUME,
-    val limitedServiceToneVolume: Float = DEFAULT_VOLUME,
+    val noSignalVoiceVolume: Float = DEFAULT_NO_SIGNAL_VOICE_VOLUME,
+    val limitedServiceToneVolume: Float = DEFAULT_LIMITED_SERVICE_TONE_VOLUME,
     val limitedServiceVoiceEnabled: Boolean = DEFAULT_VOICE_ANNOUNCEMENT_ENABLED,
-    val limitedServiceVoiceVolume: Float = DEFAULT_VOLUME,
+    val limitedServiceVoiceVolume: Float = DEFAULT_LIMITED_SERVICE_VOICE_VOLUME,
     /**
      * Legacy app-wide seed for [VoicePhraseOptions.speakOperatorName]. Per-RXSS copies live in
      * [cellChangePhrases] and siblings; kept so older profiles migrate cleanly.
@@ -81,13 +81,13 @@ data class AudioVolumeSettings(
      * Legacy app-wide seed for [VoicePhraseOptions.speakTechnology].
      */
     val speakTechnologyEnabled: Boolean = DEFAULT_SPEAK_TECHNOLOGY_ENABLED,
-    val cellChangePhrases: VoicePhraseOptions = VoicePhraseOptions(),
-    val technologyChangeTo2gPhrases: VoicePhraseOptions = VoicePhraseOptions(),
-    val technologyChangeTo4gPhrases: VoicePhraseOptions = VoicePhraseOptions(),
-    val technologyChangeTo5gEndcPhrases: VoicePhraseOptions = VoicePhraseOptions(),
-    val signalLowPhrases: VoicePhraseOptions = VoicePhraseOptions(),
-    val noSignalPhrases: VoicePhraseOptions = VoicePhraseOptions(),
-    val limitedServicePhrases: VoicePhraseOptions = VoicePhraseOptions()
+    val cellChangePhrases: VoicePhraseOptions = DEFAULT_CELL_CHANGE_PHRASES,
+    val technologyChangeTo2gPhrases: VoicePhraseOptions = DEFAULT_TECH_CHANGE_TO_2G_PHRASES,
+    val technologyChangeTo4gPhrases: VoicePhraseOptions = DEFAULT_TECH_CHANGE_TO_4G_PHRASES,
+    val technologyChangeTo5gEndcPhrases: VoicePhraseOptions = DEFAULT_TECH_CHANGE_TO_5G_ENDC_PHRASES,
+    val signalLowPhrases: VoicePhraseOptions = DEFAULT_SIGNAL_LOW_PHRASES,
+    val noSignalPhrases: VoicePhraseOptions = DEFAULT_NO_SIGNAL_PHRASES,
+    val limitedServicePhrases: VoicePhraseOptions = DEFAULT_LIMITED_SERVICE_PHRASES
 ) {
     fun pulseFrequencyHzForTier(tier: SignalStrengthTier): Int {
         return when (tier) {
@@ -286,27 +286,71 @@ data class AudioVolumeSettings(
     }
 
     companion object {
-        const val DEFAULT_VOLUME = 1f
+        const val DEFAULT_VOLUME = 0.5f
+        const val DEFAULT_PING_CLICK_VOLUME = 0.45f
+        const val DEFAULT_TIER5_ANNOUNCER_VOLUME = 0.45f
+        const val DEFAULT_NO_SIGNAL_VOICE_VOLUME = 0.45f
+        const val DEFAULT_LIMITED_SERVICE_TONE_VOLUME = 0.45f
+        const val DEFAULT_LIMITED_SERVICE_VOICE_VOLUME = 0.55f
         const val MIN_VOLUME = 0f
         const val MAX_VOLUME = 1f
         const val DEFAULT_MASTER_VOICE_ANNOUNCEMENTS_ENABLED = true
-        const val DEFAULT_CELL_CHANGE_VOICE_ENABLED = false
-        const val DEFAULT_CELL_CHANGE_SPEAK_BAND_ENABLED = false
-        const val DEFAULT_VOICE_ANNOUNCEMENT_ENABLED = false
-        const val DEFAULT_NO_SIGNAL_VIBRATION_ENABLED = false
-        const val DEFAULT_SPEAK_OPERATOR_NAME_ENABLED = true
-        const val DEFAULT_SPEAK_TECHNOLOGY_ENABLED = true
+        const val DEFAULT_CELL_CHANGE_VOICE_ENABLED = true
+        const val DEFAULT_CELL_CHANGE_SPEAK_BAND_ENABLED = true
+        const val DEFAULT_VOICE_ANNOUNCEMENT_ENABLED = true
+        const val DEFAULT_NO_SIGNAL_VIBRATION_ENABLED = true
+        const val DEFAULT_SPEAK_OPERATOR_NAME_ENABLED = false
+        const val DEFAULT_SPEAK_TECHNOLOGY_ENABLED = false
         val DEFAULT_VOICE_ANNOUNCER_CHOICE = VoiceAnnouncerChoice.SYSTEM_DEFAULT
+        val DEFAULT_CELL_CHANGE_PHRASES = VoicePhraseOptions(
+            speakOperatorName = false,
+            speakTechnology = false,
+            speakBand = false
+        )
+        val DEFAULT_TECH_CHANGE_TO_2G_PHRASES = VoicePhraseOptions(
+            speakOperatorName = false,
+            speakTechnology = true,
+            speakBand = false
+        )
+        val DEFAULT_TECH_CHANGE_TO_4G_PHRASES = VoicePhraseOptions(
+            speakOperatorName = false,
+            speakTechnology = true,
+            speakBand = true
+        )
+        val DEFAULT_TECH_CHANGE_TO_5G_ENDC_PHRASES = VoicePhraseOptions(
+            speakOperatorName = false,
+            speakTechnology = false,
+            speakBand = false
+        )
+        val DEFAULT_SIGNAL_LOW_PHRASES = VoicePhraseOptions(
+            speakOperatorName = false,
+            speakTechnology = true,
+            speakBand = false
+        )
+        val DEFAULT_NO_SIGNAL_PHRASES = VoicePhraseOptions(
+            speakOperatorName = false,
+            speakTechnology = true,
+            speakBand = true
+        )
+        val DEFAULT_LIMITED_SERVICE_PHRASES = VoicePhraseOptions(
+            speakOperatorName = false,
+            speakTechnology = false,
+            speakBand = false
+        )
 
-        const val DEFAULT_SIGNAL_PULSE_DURATION_MS = 250
+        const val DEFAULT_SIGNAL_PULSE_DURATION_MS = 70
+        const val DEFAULT_LEVEL_RANGE_BCD_PULSE_DURATION_MS = 60
         const val MIN_SIGNAL_PULSE_DURATION_MS = 20
         const val MAX_SIGNAL_PULSE_DURATION_MS = 5_000
         const val SIGNAL_PULSE_DURATION_STEP_MS = 10
 
-        const val DEFAULT_SIGNAL_PULSE_FREQUENCY_HZ = 600
-        const val DEFAULT_VERY_STRONG_TIER_PULSE_FREQUENCY_HZ = 750
-        const val DEFAULT_G2_STRONG_TIER_PULSE_FREQUENCY_HZ = DEFAULT_SIGNAL_PULSE_FREQUENCY_HZ
-        const val DEFAULT_G2_WEAK_TIER_PULSE_FREQUENCY_HZ = DEFAULT_SIGNAL_PULSE_FREQUENCY_HZ
+        const val DEFAULT_SIGNAL_PULSE_FREQUENCY_HZ = 720
+        const val DEFAULT_NO_SIGNAL_TIER_PULSE_FREQUENCY_HZ = 910
+        const val DEFAULT_LIMITED_SERVICE_TIER_PULSE_FREQUENCY_HZ = 880
+        const val DEFAULT_LEVEL_RANGE_BCD_PULSE_FREQUENCY_HZ = 890
+        const val DEFAULT_VERY_STRONG_TIER_PULSE_FREQUENCY_HZ = 4_140
+        const val DEFAULT_G2_STRONG_TIER_PULSE_FREQUENCY_HZ = 740
+        const val DEFAULT_G2_WEAK_TIER_PULSE_FREQUENCY_HZ = 740
         const val MIN_SIGNAL_PULSE_FREQUENCY_HZ = 400
         const val MAX_SIGNAL_PULSE_FREQUENCY_HZ = 5_000
         const val SIGNAL_PULSE_FREQUENCY_STEP_HZ = 10

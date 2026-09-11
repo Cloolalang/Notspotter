@@ -11,6 +11,78 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Documentation** — [MOCK_NETWORK_SCENARIOS.md](MOCK_NETWORK_SCENARIOS.md) (agreed mock trigger states per scenario) and [SETTINGS_PROFILES.md](SETTINGS_PROFILES.md) (profile JSON capture scope, including full `passiveMock` block). Updated [RXSS_CATALOGUE.md](RXSS_CATALOGUE.md), [VOICE_ANNOUNCEMENTS.md](VOICE_ANNOUNCEMENTS.md), and [README.md](README.md) cross-links; RXSS **0**, **11**, **12**, **20**, **23** rows reflect current voice implementation.
 
+## [2.34.0] - 2026-09-11
+
+### Changed
+
+- **Settings lock** — Unlock and lock settings from inside **General App settings**, instead of a separate panel at the bottom of the screen.
+
+## [2.33.0] - 2026-09-11
+
+### Changed
+
+- **Factory defaults** — Reset-to-defaults and a fresh install now match the “pat” settings profile: 1 s measurement cycle, 5 min threshold histogram, 5G features off, RSRP/RXSS pulse timings and volumes, voice on with per-RXSS phrase toggles (operator off; band as MHz nickname on cell reselect), and mock slider start at −115 dBm / −18 dB. Already-saved on-device settings are unchanged until you reset them.
+
+## [2.32.0] - 2026-09-11
+
+### Changed
+
+- **UI wording** — WiFi (not Wi‑Fi/Wifi); 2G / 4G / 5G / 5G EN-DC on labels; **dead zone** (two words); **cell reselect**; **limited service**; durations use **s**. Cellular signal and mobile data stay separate. Voice keeps letter-spaced phonetics (e.g. “2 G”, “5 G E N D C”, “W I F I calling”, “dead zone”). Histogram bin labels include **dBm**. User-facing “tier” wording is now RXSS or the state name.
+- **Active mode copy** — Thresholds talk about connection-test clicks, not Geiger, and say they apply only to active mode testing.
+
+### Removed
+
+- **Unused leftover strings** — tagline, geiger/reception hints, reception quality labels, flatline/limited-service quality leftovers, background-monitoring card copy, unused “Not-spot camp tiers” heading, and unused Searching 2G / Limited service metric fallbacks (the live metric shows `RXSS n` only).
+- **Stale panel cross-links** — Dropped hints that pointed at “Global alert sound settings” and “Passive signal thresholds and alert settings” (those panel titles no longer exist). To restore the old cross-links, revert the `passive_signal_rxss1_*_hint`, `audio_volume_summary`, and `audio_signal_pulse_duration_hint` strings from 2.31.2.
+
+## [2.31.2] - 2026-09-11
+
+### Changed
+
+- **Cellular metrics in no service** — Primary layer dominance, primary intra-cells, and alternate layer(s) are blank in no signal, dead zone, and WiFi calling, instead of leftover neighbour counts.
+
+## [2.31.1] - 2026-09-11
+
+### Changed
+
+- **2G band numbers** — With **Band number** selected, 2G 900 MHz is spoken as **band 8** and 1800 MHz as **band 3** (same E-UTRA numbers as LTE). **MHz nickname** is still “nine hundred” / “eighteen hundred”.
+
+## [2.31.0] - 2026-09-11
+
+### Added
+
+- **2G cell-reselect band** — **Speak band** on RXSS 9 now works on 2G. A 2G reselect speaks the GSM band (for example “band, nine hundred” or “band, eighteen hundred”) instead of channel and BSIC.
+
+## [2.30.1] - 2026-09-11
+
+### Fixed
+
+- **2G mock → live 4G voice** — Leaving a 2G mock for live 4G now speaks the 4G technology-change announcement. A brief blank radio reading no longer overwrites the last known RAT before the comparison, which had skipped “4 G”.
+
+## [2.30.0] - 2026-09-11
+
+### Added
+
+- **Threshold histogram other samples** — Threshold bins now include an **other samples** bar for measured RSRP that is not stronger than any of the three floors. N/A is still only no-signal samples.
+
+## [2.29.0] - 2026-09-11
+
+### Changed
+
+- **Histogram sample window** — The slider now goes up to 60 minutes (was 5). Samples from the last hour are kept so widening the window can fill from history.
+
+## [2.28.2] - 2026-09-11
+
+### Changed
+
+- **Level histogram** — Removed the “Live RSRP histogram…” explanation so the chart is the first thing in the panel.
+
+## [2.28.1] - 2026-09-11
+
+### Fixed
+
+- **RXSS alert timing** — Changing RXSS no longer waits out the previous tier’s pulse interval. The new RXSS pulse plays immediately and then follows that tier’s own interval.
+
 ## [2.28.0] - 2026-09-11
 
 ### Added

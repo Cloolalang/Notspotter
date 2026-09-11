@@ -50,7 +50,12 @@ object CellIdentityAnnouncement {
     ): String {
         if (previous == next) return ""
 
-        val bandPhrase = if (speakBandEnabled) formatBandPhrase(next.lteEarfcn, bandNamingStyle) else null
+        val bandPhrase = if (speakBandEnabled) {
+            formatBandPhrase(next.lteEarfcn, bandNamingStyle)
+                ?: formatGsmBandPhrase(next.gsmEarfcn, bandNamingStyle)
+        } else {
+            null
+        }
         if (bandPhrase != null) {
             return formatAnnouncementBody(
                 networkOperatorName = networkOperatorName,
@@ -61,7 +66,11 @@ object CellIdentityAnnouncement {
                 speakOperatorNameEnabled = prefixPhrases.speakOperatorName,
                 speakTechnologyEnabled = prefixPhrases.speakTechnology,
                 prefixSpeakBandEnabled = prefixPhrases.speakBand,
-                prefixBandPhrase = prefixPhrases.bandPhraseFor(next.lteEarfcn, next.nrBand)
+                prefixBandPhrase = prefixPhrases.bandPhraseFor(
+                    next.lteEarfcn,
+                    next.nrBand,
+                    next.gsmEarfcn
+                )
             )
         }
 
@@ -94,7 +103,11 @@ object CellIdentityAnnouncement {
             speakOperatorNameEnabled = prefixPhrases.speakOperatorName,
             speakTechnologyEnabled = prefixPhrases.speakTechnology,
             prefixSpeakBandEnabled = prefixPhrases.speakBand,
-            prefixBandPhrase = prefixPhrases.bandPhraseFor(next.lteEarfcn, next.nrBand)
+            prefixBandPhrase = prefixPhrases.bandPhraseFor(
+                next.lteEarfcn,
+                next.nrBand,
+                next.gsmEarfcn
+            )
         )
     }
 
@@ -105,8 +118,8 @@ object CellIdentityAnnouncement {
      * spoken as whole words (not digit-by-digit) so they read naturally, and a comma after "band"
      * forces a short TTS pause — without it, "band" run straight into a number can be
      * clipped/mumbled by some TTS engines (e.g. sounding like "bunt"). Returns null when there is
-     * no LTE EARFCN to map (2G-only or NR-only reselect), so callers fall back to the normal
-     * channel/PCI phrasing.
+     * no LTE EARFCN to map; callers should then try [formatGsmBandPhrase] before falling back to
+     * channel/PCI or channel/BSIC.
      */
     fun formatBandPhrase(
         lteEarfcn: Int?,
@@ -122,15 +135,38 @@ object CellIdentityAnnouncement {
     }
 
     /**
-     * Prefix band phrase spoken after operator and technology: "band, twenty" (LTE EARFCN) or
-     * "band, seventy eight" (NR operating band).
+     * 2G alternative phrasing from the GSM ARFCN.
+     * Band number uses the matching E-UTRA index (900 → 8, 1800 → 3).
+     * MHz nickname uses the frequency in words (“nine hundred”, “eighteen hundred”).
+     */
+    fun formatGsmBandPhrase(
+        gsmEarfcn: Int?,
+        namingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.DEFAULT
+    ): String? {
+        val arfcn = gsmEarfcn ?: return null
+        val bandInfo = GsmBand.forArfcn(arfcn) ?: return null
+        val spokenBand = when (namingStyle) {
+            CellReselectBandNamingStyle.BAND_NUMBER ->
+                bandInfo.eutraBand?.let(NumberWords::toWords)
+                    ?: NumberWords.toHundredsWords(bandInfo.mhz)
+            CellReselectBandNamingStyle.MHZ_NICKNAME ->
+                NumberWords.toHundredsWords(bandInfo.mhz)
+        }
+        return "band, $spokenBand"
+    }
+
+    /**
+     * Prefix band phrase spoken after operator and technology: "band, twenty" (LTE EARFCN),
+     * "band, nine hundred" (GSM ARFCN), or "band, seventy eight" (NR operating band).
      */
     fun prefixBandPhrase(
         lteEarfcn: Int?,
         nrBand: Int? = null,
-        namingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.BAND_NUMBER
+        namingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.BAND_NUMBER,
+        gsmEarfcn: Int? = null
     ): String? {
         formatBandPhrase(lteEarfcn, namingStyle)?.let { return it }
+        formatGsmBandPhrase(gsmEarfcn, namingStyle)?.let { return it }
         val band = nrBand ?: return null
         return "band, ${NumberWords.toWords(band)}"
     }

@@ -48,7 +48,7 @@ class MonitoringAnnouncementPlaybackOrderTest {
     @Test
     fun deadzoneDoesNotQueueNoSignalOnSamePoll() {
         val events = MonitoringUpdateEvents(
-            deadzoneAnnouncement = "Vodafone, deadzone, no service, no SOS calls",
+            deadzoneAnnouncement = "Vodafone, dead zone, no service, no SOS calls",
             limitedServiceStateAnnouncement = "Vodafone, Full service, 4 G"
         )
 

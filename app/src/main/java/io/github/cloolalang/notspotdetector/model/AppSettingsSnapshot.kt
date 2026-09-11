@@ -64,6 +64,27 @@ enum class ProfileSaveResult {
     Failed
 }
 
+/** Which settings bundle the app is currently running. */
+data class ActiveSettingsSource(
+    val profileId: String? = null,
+    val profileName: String? = null
+) {
+    val isLoadedProfile: Boolean get() = !profileId.isNullOrBlank()
+}
+
+/**
+ * After a settings mutation, keep the loaded profile only while the live snapshot still matches
+ * the baseline captured when that profile was loaded or saved.
+ */
+fun activeProfileIdAfterSettingsChange(
+    activeProfileId: String?,
+    baseline: AppSettingsSnapshot?,
+    current: AppSettingsSnapshot
+): String? {
+    if (activeProfileId.isNullOrBlank() || baseline == null) return null
+    return if (current.normalized() == baseline.normalized()) activeProfileId else null
+}
+
 enum class ProfileImportResult {
     Imported,
     InvalidFile,

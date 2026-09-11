@@ -1,5 +1,6 @@
 package io.github.cloolalang.notspotdetector
 
+import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
 import io.github.cloolalang.notspotdetector.model.ConnectivityStats
 import io.github.cloolalang.notspotdetector.model.MockNetworkScenario
 import io.github.cloolalang.notspotdetector.model.MonitoringAnnouncementKind
@@ -27,6 +28,9 @@ class MonitorStateTechnologyAnnouncementTest {
         MonitorState.setRunning(false)
         MonitorState.setMonitoringSettings(monitor2gFallback)
         MonitorState.setPassiveSignalSettings(passiveSettings)
+        MonitorState.setAudioVolumes(
+            AudioVolumeSettings(cellChangeSpeakBandEnabled = false)
+        )
         MonitorState.beginPassiveOnlySession()
         MonitorState.setRunning(true)
     }
@@ -34,6 +38,7 @@ class MonitorStateTechnologyAnnouncementTest {
     @After
     fun tearDown() {
         MonitorState.setRunning(false)
+        MonitorState.setAudioVolumes(AudioVolumeSettings())
     }
 
     @Test
@@ -211,5 +216,76 @@ class MonitorStateTechnologyAnnouncementTest {
 
         assertFalse(events.limitedServiceStateChanged)
         assertNull(events.limitedServiceStateAnnouncement)
+    }
+
+    @Test
+    fun mockHome2gThenLive4g_announcesTechnologyChange() {
+        val mock = PassiveMockSettings(enabled = true, scenario = MockNetworkScenario.HOME_2G)
+        MonitorState.updateStats(
+            mock.toConnectivityStats(
+                monitor2gFallback = true,
+                passiveSettings = passiveSettings,
+                passiveIdleMode = false,
+                passiveOnlySession = true
+            )
+        )
+
+        val events = MonitorState.updateStats(live4gStats())
+
+        assertTrue(events.radioTechnologyChanged)
+        assertNotNull(events.technologyChangeAnnouncement)
+        assertTrue(events.technologyChangeAnnouncement!!.contains("4 G"))
+        assertEquals(CellularSignalReader.RADIO_4G, events.technologyChangeTargetRadioAccessType)
+    }
+
+    @Test
+    fun mockHome2gThenBlankThenLive4g_announcesTechnologyChange() {
+        val mock = PassiveMockSettings(enabled = true, scenario = MockNetworkScenario.HOME_2G)
+        MonitorState.updateStats(
+            mock.toConnectivityStats(
+                monitor2gFallback = true,
+                passiveSettings = passiveSettings,
+                passiveIdleMode = false,
+                passiveOnlySession = true
+            )
+        )
+
+        val blank = ConnectivityStats(
+            isMonitoring = true,
+            isPassiveOnlySession = true,
+            monitor2gFallbackEnabled = true,
+            cellularAvailable = false,
+            radioAccessType = null,
+            isOn2g = false,
+            networkOperatorName = PassiveMockSettings.MOCK_HOME_OPERATOR
+        )
+        MonitorState.updateStats(blank)
+        MonitorState.updateStats(blank)
+
+        val events = MonitorState.updateStats(live4gStats())
+
+        assertTrue(events.radioTechnologyChanged)
+        assertNotNull(events.technologyChangeAnnouncement)
+        assertTrue(events.technologyChangeAnnouncement!!.contains("4 G"))
+        assertEquals(CellularSignalReader.RADIO_4G, events.technologyChangeTargetRadioAccessType)
+    }
+
+    private fun live4gStats(): ConnectivityStats {
+        return ConnectivityStats(
+            isMonitoring = true,
+            isPassiveOnlySession = true,
+            monitor2gFallbackEnabled = true,
+            cellularAvailable = true,
+            rsrpDbm = -85,
+            rsrqDb = -10,
+            radioAccessType = CellularSignalReader.RADIO_4G,
+            lteEarfcn = 1800,
+            ltePci = 42,
+            isOn2g = false,
+            hasLteNrSignal = true,
+            networkOperatorName = "EE",
+            homeNetworkOperatorName = "EE",
+            servingNetworkOperatorName = "EE"
+        )
     }
 }

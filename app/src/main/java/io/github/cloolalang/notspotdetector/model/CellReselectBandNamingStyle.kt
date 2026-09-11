@@ -12,7 +12,7 @@ enum class CellReselectBandNamingStyle(val id: String) {
     MHZ_NICKNAME("mhz_nickname");
 
     companion object {
-        val DEFAULT = BAND_NUMBER
+        val DEFAULT = MHZ_NICKNAME
 
         fun fromId(id: String?): CellReselectBandNamingStyle {
             if (id.isNullOrBlank()) return DEFAULT

@@ -27,7 +27,7 @@ data class PingSettings(
         const val DEFAULT_HOST = "8.8.8.8"
         const val DEFAULT_PORT = 443
         const val DEFAULT_PINGS_PER_TEST = 2
-        const val DEFAULT_TEST_INTERVAL_MS = 15_000L
+        const val DEFAULT_TEST_INTERVAL_MS = 10_000L
 
         const val MIN_PINGS_PER_TEST = 1
         const val MAX_PINGS_PER_TEST = 10

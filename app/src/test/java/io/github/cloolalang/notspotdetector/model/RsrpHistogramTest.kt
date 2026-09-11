@@ -101,19 +101,21 @@ class RsrpHistogramTest {
             thresholdsDbm = listOf(-95, -105, -115)
         )
 
-        assertEquals(4, bins.size)
+        assertEquals(5, bins.size)
         assertEquals(-95, bins[0].labelDbm)
         assertEquals(1, bins[0].count)
         assertEquals(-105, bins[1].labelDbm)
         assertEquals(3, bins[1].count)
         assertEquals(-115, bins[2].labelDbm)
         assertEquals(4, bins[2].count)
-        assertEquals(null, bins[3].labelDbm)
-        assertEquals(1, bins[3].count)
+        assertEquals(RsrpHistogramBinKind.OTHER, bins[3].kind)
+        assertEquals(0, bins[3].count)
+        assertEquals(RsrpHistogramBinKind.NO_SIGNAL, bins[4].kind)
+        assertEquals(1, bins[4].count)
     }
 
     @Test
-    fun buildThresholdBins_equalToThresholdDoesNotCount() {
+    fun buildThresholdBins_equalToThresholdGoesInOtherSamples() {
         val nowMs = 10_000L
         val samples = listOf(
             RsrpSample(timestampMs = 9_000L, rsrpDbm = -105)
@@ -127,8 +129,34 @@ class RsrpHistogramTest {
         )
 
         assertEquals(0, bins[0].count)
-        assertEquals(null, bins[1].labelDbm)
-        assertEquals(0, bins[1].count)
+        assertEquals(RsrpHistogramBinKind.OTHER, bins[1].kind)
+        assertEquals(1, bins[1].count)
+        assertEquals(RsrpHistogramBinKind.NO_SIGNAL, bins[2].kind)
+        assertEquals(0, bins[2].count)
+    }
+
+    @Test
+    fun buildThresholdBins_weakMeasuredSamplesGoInOther() {
+        val nowMs = 10_000L
+        val samples = listOf(
+            RsrpSample(timestampMs = 9_000L, rsrpDbm = -120),
+            RsrpSample(timestampMs = 8_500L, rsrpDbm = -126),
+            RsrpSample(timestampMs = 8_000L, rsrpDbm = -90)
+        )
+
+        val bins = RsrpHistogram.buildThresholdBins(
+            samples,
+            nowMs,
+            windowMs = 30_000L,
+            thresholdsDbm = listOf(-95, -105, -115)
+        )
+
+        assertEquals(1, bins[0].count)
+        assertEquals(1, bins[1].count)
+        assertEquals(1, bins[2].count)
+        assertEquals(RsrpHistogramBinKind.OTHER, bins[3].kind)
+        assertEquals(2, bins[3].count)
+        assertEquals(0, bins[4].count)
     }
 
     @Test
@@ -146,7 +174,8 @@ class RsrpHistogramTest {
             thresholdsDbm = listOf(-95, -105, -115)
         )
 
-        assertEquals(listOf(0, 0, 0, 2), bins.map { it.count })
-        assertEquals(null, bins.last().labelDbm)
+        assertEquals(listOf(0, 0, 0, 0, 2), bins.map { it.count })
+        assertEquals(RsrpHistogramBinKind.OTHER, bins[3].kind)
+        assertEquals(RsrpHistogramBinKind.NO_SIGNAL, bins.last().kind)
     }
 }

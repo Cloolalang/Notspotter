@@ -12,9 +12,13 @@ data class VoicePhraseOptions(
     fun withTechnology(enabled: Boolean) = copy(speakTechnology = enabled)
     fun withBand(enabled: Boolean) = copy(speakBand = enabled)
 
-    fun bandPhraseFor(lteEarfcn: Int?, nrBand: Int? = null): String? {
+    fun bandPhraseFor(lteEarfcn: Int?, nrBand: Int? = null, gsmEarfcn: Int? = null): String? {
         if (!speakBand) return null
-        return CellIdentityAnnouncement.prefixBandPhrase(lteEarfcn, nrBand)
+        return CellIdentityAnnouncement.prefixBandPhrase(
+            lteEarfcn = lteEarfcn,
+            nrBand = nrBand,
+            gsmEarfcn = gsmEarfcn
+        )
     }
 
     companion object {

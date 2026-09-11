@@ -32,7 +32,7 @@ class SignalStateAnnouncementTest {
     @Test
     fun formatNoSignalChange_wifiCallingUsesDedicatedPhraseWithoutTech() {
         assertEquals(
-            "E E, wifi calling, no cellular signal",
+            "E E, W I F I calling, no cellular signal",
             SignalStateAnnouncement.formatNoSignalChange(
                 active = true,
                 networkOperatorName = "EE",
@@ -60,7 +60,7 @@ class SignalStateAnnouncementTest {
             noSignalActive = true
         )
         assertEquals(
-            "Vodafone, wifi calling, no cellular signal",
+            "Vodafone, W I F I calling, no cellular signal",
             SignalStateAnnouncement.formatNoSignalAnnouncement(stats)
         )
         assertEquals(
@@ -256,11 +256,11 @@ class SignalStateAnnouncementTest {
     @Test
     fun formatDeadzoneAnnouncement_includesOperatorWhenKnown() {
         assertEquals(
-            "Vodafone UK, deadzone, no service, no SOS calls",
+            "Vodafone UK, dead zone, no service, no SOS calls",
             SignalStateAnnouncement.formatDeadzoneAnnouncement("Vodafone UK")
         )
         assertEquals(
-            "deadzone, no service, no SOS calls",
+            "dead zone, no service, no SOS calls",
             SignalStateAnnouncement.formatDeadzoneAnnouncement(null)
         )
     }
@@ -296,7 +296,7 @@ class SignalStateAnnouncementTest {
             SignalStateAnnouncement.formatG2CampedAnnouncement("EE", speakOperatorNameEnabled = false)
         )
         assertEquals(
-            "deadzone, no service, no SOS calls",
+            "dead zone, no service, no SOS calls",
             SignalStateAnnouncement.formatDeadzoneAnnouncement("EE", speakOperatorNameEnabled = false)
         )
     }
