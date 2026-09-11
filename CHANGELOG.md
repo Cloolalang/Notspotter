@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Documentation** — [MOCK_NETWORK_SCENARIOS.md](MOCK_NETWORK_SCENARIOS.md) (agreed mock trigger states per scenario) and [SETTINGS_PROFILES.md](SETTINGS_PROFILES.md) (profile JSON capture scope, including full `passiveMock` block). Updated [RXSS_CATALOGUE.md](RXSS_CATALOGUE.md), [VOICE_ANNOUNCEMENTS.md](VOICE_ANNOUNCEMENTS.md), and [README.md](README.md) cross-links; RXSS **0**, **11**, **12**, **20**, **23** rows reflect current voice implementation.
 
+## [2.12.1] - 2026-09-11
+
+### Fixed
+
+- **"4G layer resilience" always showed "—" while monitoring was running** — the real monitoring loop (`CellularPingMonitor`/`CellularPassiveSignalMonitor`, used once "Start" is pressed) builds `ConnectivityStats` directly from each fresh signal reading rather than going through `MonitorState`'s idle-preview path, and was missing the new field entirely, plus wasn't debounced at all. Both readers now carry the raw layer count through, and `MonitorState.updateStats()` (the shared funnel for the running-monitor path) now applies the same two-poll debounce as the idle-preview path.
+
 ## [2.12.0] - 2026-09-11
 
 ### Added

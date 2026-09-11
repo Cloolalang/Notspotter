@@ -354,7 +354,8 @@ class CellularPingMonitor(
             simSlotIndex = metrics.simSlotIndex,
             simDisplayName = metrics.simDisplayName,
             signalPermissionGranted = metrics.permissionGranted,
-            cellIdentityPermissionGranted = metrics.cellIdentityPermissionGranted
+            cellIdentityPermissionGranted = metrics.cellIdentityPermissionGranted,
+            lteLayerResilienceLayerCount = metrics.lteLayerResilienceLayerCount
         )
         onStatsUpdated(base)
     }

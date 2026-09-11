@@ -219,11 +219,21 @@ object MonitorState {
         recomputeStatsQuality()
     }
 
-    fun updateStats(stats: ConnectivityStats): MonitoringUpdateEvents {
+    fun updateStats(rawStats: ConnectivityStats): MonitoringUpdateEvents {
         val events = synchronized(monitorLock) {
-            rememberRadioAccessType(stats)
+            rememberRadioAccessType(rawStats)
             val passiveSettings = _passiveSignalSettings.value
             val previous = _stats.value
+            // CellularPingMonitor/CellularPassiveSignalMonitor build ConnectivityStats directly
+            // from a fresh CellularRadioMetrics reading each poll — debounce the raw layer count
+            // here (the single funnel point for the actual running-monitor path) rather than in
+            // those readers, so a single flickering neighbour reading doesn't make the displayed
+            // "4G layer resilience" value jump around.
+            val stats = rawStats.copy(
+                lteLayerResilienceLayerCount = lteLayerResilienceDebouncer.update(
+                    rawStats.lteLayerResilienceLayerCount
+                ).confirmedLayerCount
+            )
             val (displayStats, updatedIdentity) = stats.withStabilizedCellIdentity(stableCellIdentity)
             stableCellIdentity = updatedIdentity
             val enriched = if (displayStats.isPassiveIdleMode) {
