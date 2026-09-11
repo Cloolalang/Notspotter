@@ -57,4 +57,30 @@ data class CellularRadioMetrics(
      * see [io.github.cloolalang.notspotdetector.network.CellularSignalReader].
      */
     val lteLayerResilience: LteLayerResilienceReading? = null
-)
+) {
+    /**
+     * Drops camped RAT / RSRP / cell identity. Used when the radio is off, or when service is
+     * out and no live camp should be shown — leftover SignalStrength/CellInfo must not keep a
+     * camped RXSS.
+     */
+    fun withoutCampedRadio(): CellularRadioMetrics {
+        return copy(
+            rsrpDbm = null,
+            rsrqDb = null,
+            radioAccessType = null,
+            lteEarfcn = null,
+            ltePci = null,
+            nrEarfcn = null,
+            nrPci = null,
+            nrBand = null,
+            gsmEarfcn = null,
+            gsmBsic = null,
+            isOn2g = false,
+            hasHomeGsmSignal = false,
+            hasLteNrSignal = false,
+            servingNetworkOperatorName = null,
+            plmn = null,
+            lteLayerResilience = null
+        )
+    }
+}

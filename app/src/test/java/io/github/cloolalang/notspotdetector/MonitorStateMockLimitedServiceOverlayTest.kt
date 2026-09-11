@@ -104,7 +104,7 @@ class MonitorStateMockLimitedServiceOverlayTest {
         assertTrue(stats.shouldPlayLimited4gNoSignalCampTier(passiveSettings))
         assertTrue(stats.shouldPlayLimitedVisitedNoSignalVoiceAnnouncements(passiveSettings))
         assertEquals(
-            "E E visited, 4 G, no signal",
+            "E E visited, 4 G, no signal, limited service",
             MonitorState.formatNoSignalAnnouncement(stats)
         )
     }
@@ -140,7 +140,7 @@ class MonitorStateMockLimitedServiceOverlayTest {
         assertTrue(stats.shouldPlayLimitedAlt2gNoSignalCampTier(passiveSettings))
         assertTrue(stats.shouldPlayLimitedVisitedNoSignalVoiceAnnouncements(passiveSettings))
         assertEquals(
-            "E E visited, 2 G, no signal",
+            "E E visited, 2 G, no signal, limited service",
             MonitorState.formatNoSignalAnnouncement(stats)
         )
     }

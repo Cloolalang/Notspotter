@@ -1,14 +1,18 @@
 package io.github.cloolalang.notspotdetector.model
 
-/** Home and camped operator for the network metric row. */
+/** Home-network operator for the metrics card. */
+fun ConnectivityStats.formatHomeOperatorDisplay(): String? {
+    return homeNetworkOperatorName?.trim()?.takeIf { it.isNotBlank() }
+        ?: networkOperatorName?.trim()?.takeIf { it.isNotBlank() }
+        ?: homePlmn?.trim()?.takeIf { it.isNotBlank() }
+}
+
+/** Visited-network operator while in limited service away from the home PLMN. */
+fun ConnectivityStats.formatVisitedOperatorDisplay(): String? {
+    return resolveLimitedServiceVisitedOperatorName()
+}
+
+/** Home operator for the network metric row. */
 fun ConnectivityStats.formatNetworkOperatorDisplay(): String? {
-    if (isLimitedService) {
-        val visited = resolveLimitedServiceVisitedOperatorName()
-        val home = homeNetworkOperatorName?.trim()?.takeIf { it.isNotBlank() }
-            ?: networkOperatorName?.trim()?.takeIf { it.isNotBlank() }
-        if (home != null && visited != null) {
-            return "$home · $visited"
-        }
-    }
-    return networkOperatorName?.trim()?.takeIf { it.isNotBlank() } ?: plmn?.trim()?.takeIf { it.isNotBlank() }
+    return formatHomeOperatorDisplay()
 }

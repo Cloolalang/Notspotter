@@ -146,7 +146,7 @@ class CellVoiceAnnouncer(context: Context) : TextToSpeech.OnInitListener {
                 }
                 mainHandler.post {
                     if (!ready) {
-                        pending.addLast(PendingSpeech(text, volume, selection))
+                        replacePending(PendingSpeech(text, volume, selection))
                         complete()
                         return@post
                     }
@@ -201,7 +201,7 @@ class CellVoiceAnnouncer(context: Context) : TextToSpeech.OnInitListener {
         utteranceId: String = "voice_${System.nanoTime()}"
     ): Boolean {
         if (!ready) {
-            pending.addLast(PendingSpeech(text, volume, selection))
+            replacePending(PendingSpeech(text, volume, selection))
             return false
         }
         refreshAvailableVoices()
@@ -339,10 +339,14 @@ class CellVoiceAnnouncer(context: Context) : TextToSpeech.OnInitListener {
         }
     }
 
+    private fun replacePending(speech: PendingSpeech) {
+        pending.clear()
+        pending.addLast(speech)
+    }
+
     private fun drainPending() {
-        while (pending.isNotEmpty()) {
-            val item = pending.removeFirst()
-            speakOnMainThread(item.text, item.volume, item.selection)
-        }
+        val item = pending.pollLast() ?: return
+        pending.clear()
+        speakOnMainThread(item.text, item.volume, item.selection)
     }
 }

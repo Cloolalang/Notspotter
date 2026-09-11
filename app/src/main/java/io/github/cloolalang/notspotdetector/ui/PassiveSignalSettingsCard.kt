@@ -40,6 +40,7 @@ import io.github.cloolalang.notspotdetector.model.DEADZONE_TIER_NUMBER
 import io.github.cloolalang.notspotdetector.model.G2_NO_SIGNAL_TIER_NUMBER
 import io.github.cloolalang.notspotdetector.model.G2_STRONG_TIER_NUMBER
 import io.github.cloolalang.notspotdetector.model.G2_WEAK_TIER_NUMBER
+import io.github.cloolalang.notspotdetector.model.LIMITED_4G_NO_SIGNAL_TIER_NUMBER
 import io.github.cloolalang.notspotdetector.model.LIMITED_ALT_2G_TIER_NUMBER
 import io.github.cloolalang.notspotdetector.model.levelRangeAbcdMaxPulseDurationMs
 import io.github.cloolalang.notspotdetector.ui.theme.Sushi
@@ -1499,6 +1500,20 @@ private fun CampStateTierSettings(
             onPreviewLimitedServiceVoice = onPreviewLimitedServiceVoice,
             onPreviewSignalPulse = onPreviewSignalPulse
         )
+        Limited4gNoSignalCampTierBlock(
+            settings = settings,
+            audioVolumes = audioVolumes,
+            previewEnabled = previewEnabled,
+            passiveMeasurementIntervalMs = passiveMeasurementIntervalMs,
+            onSettingsChange = onSettingsChange,
+            onNoSignalTierPulseFrequencyChange = onNoSignalTierPulseFrequencyChange,
+            onNoSignalToneVolumeChange = onNoSignalToneVolumeChange,
+            onNoSignalVibrationEnabledChange = onNoSignalVibrationEnabledChange,
+            onNoSignalVoiceEnabledChange = onNoSignalVoiceEnabledChange,
+            onNoSignalVoiceVolumeChange = onNoSignalVoiceVolumeChange,
+            onPreviewNoSignalVoice = onPreviewNoSignalVoice,
+            onPreviewSignalPulse = onPreviewSignalPulse
+        )
         LimitedAlt2gCampTierBlock(
             settings = settings,
             audioVolumes = audioVolumes,
@@ -1987,6 +2002,94 @@ private fun LimitedServiceCampTierBlock(
                     onLimitedServiceVoiceEnabledChange = onLimitedServiceVoiceEnabledChange,
                     onLimitedServiceVoiceVolumeChange = onLimitedServiceVoiceVolumeChange,
                     onPreviewLimitedServiceVoice = onPreviewLimitedServiceVoice
+                )
+            }
+        )
+    }
+}
+
+@Composable
+private fun Limited4gNoSignalCampTierBlock(
+    settings: PassiveSignalSettings,
+    audioVolumes: AudioVolumeSettings,
+    previewEnabled: Boolean,
+    passiveMeasurementIntervalMs: Long,
+    onSettingsChange: (PassiveSignalSettings) -> Unit,
+    onNoSignalTierPulseFrequencyChange: (Int) -> Unit,
+    onNoSignalToneVolumeChange: (Float) -> Unit,
+    onNoSignalVibrationEnabledChange: (Boolean) -> Unit,
+    onNoSignalVoiceEnabledChange: (Boolean) -> Unit,
+    onNoSignalVoiceVolumeChange: (Float) -> Unit,
+    onPreviewNoSignalVoice: () -> Unit,
+    onPreviewSignalPulse: (volume: Float, frequencyHz: Int, pulseDurationMs: Int) -> Unit
+) {
+    val tierNumber = LIMITED_4G_NO_SIGNAL_TIER_NUMBER
+    val accentColor = SignalTierColors.forTierNumber(tierNumber)
+    TierSettingSection(tierNumber = tierNumber, accentColor = accentColor) {
+        RxssSectionControlsOrdered(
+            accentColor = accentColor,
+            soundToggle = {
+                TierSoundEnabledOption(
+                    tierNumber = tierNumber,
+                    enabled = settings.noSignalTierSoundEnabled,
+                    onEnabledChange = { onSettingsChange(settings.copy(noSignalTierSoundEnabled = it)) }
+                )
+            },
+            rangeControls = {
+                Text(
+                    text = stringResource(R.string.passive_signal_limited_4g_no_signal_tier_threshold),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = accentColor
+                )
+            },
+            volumeControls = {
+                CampSignalPulseVolumeControl(
+                    label = stringResource(R.string.audio_volume_no_signal),
+                    volume = audioVolumes.noSignalToneVolume,
+                    onVolumeChange = onNoSignalToneVolumeChange,
+                    previewEnabled = previewEnabled,
+                    accentColor = accentColor,
+                    pulseDurationMs = settings.noSignalTierPulseDurationMs,
+                    clickIntervalMs = settings.noSignalTierClickIntervalMs,
+                    frequencyHz = audioVolumes.noSignalTierPulseFrequencyHz,
+                    onPreviewSignalPulse = onPreviewSignalPulse
+                )
+            },
+            durationControls = {
+                TierPulseDurationSlider(
+                    label = stringResource(R.string.passive_signal_tier_pulse_duration, tierNumber),
+                    durationMs = settings.noSignalTierPulseDurationMs,
+                    accentColor = accentColor,
+                    onDurationChange = { onSettingsChange(settings.copy(noSignalTierPulseDurationMs = it)) }
+                )
+            },
+            intervalControls = {
+                TierClickSpeedSlider(
+                    label = stringResource(R.string.passive_signal_tier_click_interval, tierNumber),
+                    intervalMs = settings.noSignalTierClickIntervalMs,
+                    signalPulseDurationMs = settings.noSignalTierPulseDurationMs,
+                    passiveMeasurementIntervalMs = passiveMeasurementIntervalMs,
+                    accentColor = accentColor,
+                    onIntervalChange = { onSettingsChange(settings.copy(noSignalTierClickIntervalMs = it)) }
+                )
+            },
+            frequencyControls = {
+                TierPulseFrequencySlider(
+                    label = stringResource(R.string.passive_signal_tier_pulse_frequency, tierNumber),
+                    frequencyHz = audioVolumes.noSignalTierPulseFrequencyHz,
+                    accentColor = accentColor,
+                    onFrequencyChange = onNoSignalTierPulseFrequencyChange
+                )
+            },
+            voiceControls = {
+                NoSignalVoiceAnnouncementControls(
+                    audioVolumes = audioVolumes,
+                    previewEnabled = previewEnabled,
+                    accentColor = accentColor,
+                    onNoSignalVibrationEnabledChange = onNoSignalVibrationEnabledChange,
+                    onNoSignalVoiceEnabledChange = onNoSignalVoiceEnabledChange,
+                    onNoSignalVoiceVolumeChange = onNoSignalVoiceVolumeChange,
+                    onPreviewNoSignalVoice = onPreviewNoSignalVoice
                 )
             }
         )

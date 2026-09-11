@@ -22,7 +22,10 @@ import io.github.cloolalang.notspotdetector.model.hasUsableSignalForMonitoring
 import io.github.cloolalang.notspotdetector.model.LteLayerResilienceDebouncer
 import io.github.cloolalang.notspotdetector.model.NoSignalDebouncer
 import io.github.cloolalang.notspotdetector.model.MockNetworkScenario
+import io.github.cloolalang.notspotdetector.model.LteLayerResilienceReading
 import io.github.cloolalang.notspotdetector.model.computeSearching2gFallbackActive
+import io.github.cloolalang.notspotdetector.model.isRadioPoweredOff
+import io.github.cloolalang.notspotdetector.model.reconcileOutOfServiceCamp
 import io.github.cloolalang.notspotdetector.model.evaluateFlatlineCondition
 import io.github.cloolalang.notspotdetector.model.isG2FlatlineActive
 import io.github.cloolalang.notspotdetector.model.isG2WeakSignal
@@ -225,18 +228,21 @@ object MonitorState {
         val events = synchronized(monitorLock) {
             val remapped = rawStats.hidingFiveGIfDisabled(_monitoringSettings.value.fiveGFeaturesEnabled)
             val previousKnownRat = lastKnownRadioAccessType
-            rememberRadioAccessType(remapped)
             val passiveSettings = _passiveSignalSettings.value
             val previous = _stats.value
+            val reconciled = remapped.reconcileOutOfServiceCamp()
+            rememberRadioAccessType(reconciled)
             // CellularPingMonitor/CellularPassiveSignalMonitor build ConnectivityStats directly
             // from a fresh CellularRadioMetrics reading each poll — debounce the raw reading
             // here (the single funnel point for the actual running-monitor path) rather than in
             // those readers, so a single flickering neighbour reading doesn't make the displayed
             // "4G layers detected" values jump around.
-            val stats = remapped.copy(
-                lteLayerResilience = lteLayerResilienceDebouncer.update(
-                    remapped.lteLayerResilience
-                ).confirmedReading
+            val stats = reconciled.copy(
+                lteLayerResilience = confirmedLayerResilience(
+                    reconciled.lteLayerResilience,
+                    reconciled.networkServiceMode.isRadioPoweredOff(),
+                    reconciled.isCompleteNoService
+                )
             )
             val (displayStats, updatedIdentity) = stats.withStabilizedCellIdentity(stableCellIdentity)
             stableCellIdentity = updatedIdentity
@@ -356,13 +362,10 @@ object MonitorState {
     private fun applyIdleSignalMetrics(metrics: CellularRadioMetrics) {
         val monitor2gFallback = _monitoringSettings.value.monitor2gFallback
         val passiveSettings = _passiveSignalSettings.value
-        val hasSignal = metrics.hasUsableSignalForMonitoring(monitor2gFallback, passiveSettings)
-        val lteLayerResilience = lteLayerResilienceDebouncer.update(
-            metrics.lteLayerResilience
-        ).confirmedReading
-        val merged = _stats.value.copy(
+        val previous = _stats.value
+        val merged = previous.copy(
             isMonitoring = false,
-            cellularAvailable = hasSignal,
+            cellularAvailable = false,
             rsrpDbm = metrics.rsrpDbm,
             rsrqDb = metrics.rsrqDb,
             radioAccessType = metrics.radioAccessType,
@@ -394,9 +397,22 @@ object MonitorState {
             simDisplayName = metrics.simDisplayName,
             signalPermissionGranted = metrics.permissionGranted,
             cellIdentityPermissionGranted = metrics.cellIdentityPermissionGranted,
-            lteLayerResilience = lteLayerResilience
+            lteLayerResilience = metrics.lteLayerResilience
         )
-        val (display, updatedIdentity) = merged.withStabilizedCellIdentity(stableCellIdentity)
+        val reconciled = merged.reconcileOutOfServiceCamp()
+        val displayReady = reconciled.copy(
+            cellularAvailable = if (reconciled.isCompleteNoService) {
+                false
+            } else {
+                metrics.hasUsableSignalForMonitoring(monitor2gFallback, passiveSettings)
+            },
+            lteLayerResilience = confirmedLayerResilience(
+                reconciled.lteLayerResilience,
+                reconciled.networkServiceMode.isRadioPoweredOff(),
+                reconciled.isCompleteNoService
+            )
+        )
+        val (display, updatedIdentity) = displayReady.withStabilizedCellIdentity(stableCellIdentity)
         stableCellIdentity = updatedIdentity
         _stats.value = display.withQuality(_thresholds.value, passiveSettings)
     }
@@ -409,14 +425,10 @@ object MonitorState {
         if (!_isRunning.value) return MonitoringUpdateEvents()
 
         val previousKnownRat = lastKnownRadioAccessType
-        rememberRadioAccessType(metrics)
-
         val monitor2gFallback = _monitoringSettings.value.monitor2gFallback
         val passiveSettings = _passiveSignalSettings.value
-        val lteLayerResilience = lteLayerResilienceDebouncer.update(
-            metrics.lteLayerResilience
-        ).confirmedReading
-        val merged = _stats.value.copy(
+        val previous = _stats.value
+        val merged = previous.copy(
             rsrpDbm = metrics.rsrpDbm,
             rsrqDb = metrics.rsrqDb,
             radioAccessType = metrics.radioAccessType,
@@ -448,11 +460,19 @@ object MonitorState {
             simDisplayName = metrics.simDisplayName,
             signalPermissionGranted = metrics.permissionGranted,
             cellIdentityPermissionGranted = metrics.cellIdentityPermissionGranted,
-            lteLayerResilience = lteLayerResilience
+            lteLayerResilience = metrics.lteLayerResilience
         )
-        val (stabilized, updatedIdentity) = merged.withStabilizedCellIdentity(stableCellIdentity)
+        val reconciled = merged.reconcileOutOfServiceCamp()
+        rememberRadioAccessType(reconciled)
+        val withLayers = reconciled.copy(
+            lteLayerResilience = confirmedLayerResilience(
+                reconciled.lteLayerResilience,
+                reconciled.networkServiceMode.isRadioPoweredOff(),
+                reconciled.isCompleteNoService
+            )
+        )
+        val (stabilized, updatedIdentity) = withLayers.withStabilizedCellIdentity(stableCellIdentity)
         stableCellIdentity = updatedIdentity
-        val previous = _stats.value
         val next = if (stabilized.isMonitoring && !stabilized.isPassiveIdleMode) {
             stabilized.withQuality(_thresholds.value, passiveSettings)
         } else {
@@ -992,7 +1012,23 @@ object MonitorState {
         return computeSearching2gFallbackActive(debounced, lteRatBeforeNoSignalEpisode)
     }
 
+    private fun confirmedLayerResilience(
+        rawReading: LteLayerResilienceReading?,
+        radioOff: Boolean,
+        completeNoService: Boolean
+    ): LteLayerResilienceReading? {
+        if (radioOff || completeNoService) {
+            lteLayerResilienceDebouncer.reset()
+            return null
+        }
+        return lteLayerResilienceDebouncer.update(rawReading).confirmedReading
+    }
+
     private fun rememberRadioAccessType(stats: ConnectivityStats) {
+        if (stats.networkServiceMode.isRadioPoweredOff() || stats.isCompleteNoService) {
+            lastKnownRadioAccessType = null
+            return
+        }
         if (!stats.radioAccessType.isNullOrBlank()) {
             lastKnownRadioAccessType = stats.radioAccessType
             return
@@ -1007,7 +1043,9 @@ object MonitorState {
             ConnectivityStats(
                 radioAccessType = metrics.radioAccessType,
                 isOn2g = metrics.isOn2g,
-                restrictedTo2gNetwork = metrics.restrictedTo2gNetwork
+                restrictedTo2gNetwork = metrics.restrictedTo2gNetwork,
+                networkServiceMode = metrics.networkServiceMode,
+                isCompleteNoService = metrics.isCompleteNoService
             )
         )
     }

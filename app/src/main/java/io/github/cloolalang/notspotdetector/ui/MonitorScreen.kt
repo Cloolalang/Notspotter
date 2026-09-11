@@ -43,7 +43,9 @@ import io.github.cloolalang.notspotdetector.model.NetworkModePreference
 import io.github.cloolalang.notspotdetector.model.NetworkServiceMode
 import io.github.cloolalang.notspotdetector.model.PrimaryLayerDominance
 import io.github.cloolalang.notspotdetector.model.primaryLayerDominance
-import io.github.cloolalang.notspotdetector.model.formatNetworkOperatorDisplay
+import io.github.cloolalang.notspotdetector.model.formatHomeOperatorDisplay
+import io.github.cloolalang.notspotdetector.model.formatVisitedOperatorDisplay
+import io.github.cloolalang.notspotdetector.model.shouldBlankStaleCellIdentity
 import io.github.cloolalang.notspotdetector.model.PassiveMockSettings
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
 import io.github.cloolalang.notspotdetector.model.SettingsCompatibility
@@ -65,7 +67,6 @@ import io.github.cloolalang.notspotdetector.model.VoicePhraseGroup
 import io.github.cloolalang.notspotdetector.model.VoicePhraseOptions
 import io.github.cloolalang.notspotdetector.model.SignalMeasurementTier
 import io.github.cloolalang.notspotdetector.model.RSRQ_POOR_TIER_NUMBER
-import io.github.cloolalang.notspotdetector.model.isInNoSignalRxss
 import io.github.cloolalang.notspotdetector.model.isRsrqPoor
 import io.github.cloolalang.notspotdetector.model.resolveLimitedServiceSignalOverlayRxss
 import io.github.cloolalang.notspotdetector.model.resolveSignalMeasurementTier
@@ -550,9 +551,15 @@ private fun MetricsCard(
                 valueSingleLine = true
             )
             MetricRow(
-                label = stringResource(R.string.metric_network),
-                value = formatNetworkOperator(stats)
+                label = stringResource(R.string.metric_home_operator),
+                value = formatHomeOperator(stats)
             )
+            stats.formatVisitedOperatorDisplay()?.let { visited ->
+                MetricRow(
+                    label = stringResource(R.string.metric_visited_operator),
+                    value = visited
+                )
+            }
             MetricRow(
                 label = stringResource(R.string.metric_network_mode),
                 value = formatNetworkModePreference(stats)
@@ -637,10 +644,11 @@ private fun CellIdentityMetrics(
     passiveSignalSettings: PassiveSignalSettings
 ) {
     val permissionGranted = stats.cellIdentityPermissionGranted
-    // Any no-signal RXSS (dead zone, LTE/NR/2G no signal, searching 2G, WiFi calling, etc.) can
+    // Home no-signal RXSS (dead zone, LTE/NR/2G no signal, searching 2G, WiFi calling, etc.) can
     // still carry a stale EARFCN/PCI/BSIC/band forward from CellIdentityStabilizer's coalescing —
     // that cell is no longer valid, so blank these fields out rather than show last-known values.
-    val staleNoSignal = stats.isInNoSignalRxss(passiveSignalSettings)
+    // Limited-service camp (including visited 4G / RXSS 20) still has a current SOS cell.
+    val staleNoSignal = stats.shouldBlankStaleCellIdentity(passiveSignalSettings)
     val lteEarfcn = stats.lteEarfcn.takeUnless { staleNoSignal }
     val ltePci = stats.ltePci.takeUnless { staleNoSignal }
     val nrEarfcn = stats.nrEarfcn.takeUnless { staleNoSignal }
@@ -786,7 +794,8 @@ private fun formatServiceState(stats: ConnectivityStats): String {
     return when (stats.networkServiceMode) {
         NetworkServiceMode.IN_SERVICE -> stringResource(R.string.service_state_in_service)
         NetworkServiceMode.LIMITED_SERVICE -> stringResource(R.string.service_state_limited)
-        NetworkServiceMode.OUT_OF_SERVICE -> stringResource(R.string.service_state_no_service)
+        NetworkServiceMode.OUT_OF_SERVICE,
+        NetworkServiceMode.RADIO_OFF -> stringResource(R.string.service_state_no_service)
         NetworkServiceMode.UNKNOWN -> stringResource(R.string.service_state_unknown)
     }
 }
@@ -801,11 +810,11 @@ private fun formatRadioAccessType(stats: ConnectivityStats): String {
 }
 
 @Composable
-private fun formatNetworkOperator(stats: ConnectivityStats): String {
-    if (!stats.cellularAvailable && stats.formatNetworkOperatorDisplay() == null) {
+private fun formatHomeOperator(stats: ConnectivityStats): String {
+    if (!stats.cellularAvailable && stats.formatHomeOperatorDisplay() == null) {
         return stringResource(R.string.network_waiting)
     }
-    stats.formatNetworkOperatorDisplay()?.let { return it }
+    stats.formatHomeOperatorDisplay()?.let { return it }
     if (!stats.signalPermissionGranted) {
         return stringResource(R.string.network_permission_required)
     }

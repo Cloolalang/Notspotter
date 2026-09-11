@@ -5,11 +5,97 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.38.8] - 2026-09-11
+
+### Changed
+
+- **Busy-queue tones** — When spoken alerts would run longer than about 5 s (common with lots of low-signal reselections), the app still plays the short sound icons (cell-reselect bell, technology / limited / no-signal tones) and skips the spoken VA so you can hear that events are still happening.
+
+## [2.38.7] - 2026-09-11
+
+### Fixed
+
+- **Stale voice backlog** — Rapid state changes no longer play every outdated VA after the signal recovers. Service-state phrases (dead zone, no signal / restored, limited service) collapse to the latest, and queued cell reselections are dropped when a higher-priority VA (dead zone, no signal, signal low, and the rest of the priority list) needs to speak.
+
+## [2.38.6] - 2026-09-11
+
+### Changed
+
+- **No-service icon = RXSS 0** — When Android reports no service (out of service or radio off), the app always enters dead zone. Leftover visited-cell readings are ignored, so it no longer cycles “no signal” / “signal restored” in limited service.
+
+## [2.38.5] - 2026-09-11
+
+### Fixed
+
+- **No-service flicker** — After RF is lost, a leftover visited cell no longer bounces the app between dead zone and limited service (“no signal” / “signal restored”) while the Android no-service icon stays on. The leftover is ignored until the radio is powered off or Android reports service again.
+
+## [2.38.4] - 2026-09-11
+
+### Fixed
+
+- **RF loss from limited 4G** — When Android already shows no service, a leftover registered visited cell is no longer kept as limited-service camp. The app moves to dead zone (RXSS 0). Recovering from airplane mode still promotes a newly registered cell back to RXSS 12.
+
+## [2.38.3] - 2026-09-11
+
+### Fixed
+
+- **Stale cell identity** — A missing PCI/BSIC/NR band is no longer filled from the previous cell when the channel (EARFCN / NR-ARFCN / ARFCN) has already changed.
+- **Stale layer counts** — 4G layer readings clear immediately in airplane mode or a complete dead zone, instead of lingering for two extra polls.
+- **Stale technology** — Last-known RAT is cleared when the radio is off or there is no service, so later announcements do not keep saying the previous 4G/5G camp.
+
+## [2.38.2] - 2026-09-11
+
+### Fixed
+
+- **Leaving airplane mode** — After dead zone (RXSS 0), turning the radio back on no longer stays stuck in RXSS 0. A registered visited cell is treated as limited-service camp even while Android still reports **No service**, so you return to RXSS 12 (and overlays such as RXSS 5) without restarting monitoring.
+
+## [2.38.1] - 2026-09-11
+
+### Fixed
+
+- **Airplane mode from visited 4G** — Turning the radio off now enters dead zone (RXSS 0) instead of staying on Level Range D (RXSS 5) with leftover RSRP. Last-known cell identity is dropped when Network service is **No service**, so leaving airplane mode can pick up a live cell again.
+
+## [2.38.0] - 2026-09-11
+
+### Changed
+
+- **Home operator** — The cellular metrics row formerly labelled Operator is now **Home operator**.
+- **Visited operator** — In limited service on a visited network, a **Visited operator** row appears under Home operator.
+
+### Fixed
+
+- **Visited 4G metrics** — Limited-service camp on a visited 4G cell now shows that cell’s technology, EARFCN, PCI, RSRP, and RSRQ. The app no longer treats the SOS cell as a leftover home-network identity, and it reads those values from the registered cell when the phone still reports the home operator.
+
 ## [Unreleased]
 
 ### Added
 
 - **Documentation** — [MOCK_NETWORK_SCENARIOS.md](MOCK_NETWORK_SCENARIOS.md) (agreed mock trigger states per scenario) and [SETTINGS_PROFILES.md](SETTINGS_PROFILES.md) (profile JSON capture scope, including full `passiveMock` block). Updated [RXSS_CATALOGUE.md](RXSS_CATALOGUE.md), [VOICE_ANNOUNCEMENTS.md](VOICE_ANNOUNCEMENTS.md), and [README.md](README.md) cross-links; RXSS **0**, **11**, **12**, **20**, **23** rows reflect current voice implementation.
+
+## [2.37.1] - 2026-09-11
+
+### Fixed
+
+- **RXSS 20 / 23 voice** — Visited limited-service no-signal now speaks **limited service** after **no signal** (for example “4 G, no signal, limited service”). The 30 s limited-service-only reminder stays off so it is not spoken twice.
+
+## [2.37.0] - 2026-09-11
+
+### Added
+
+- **RXSS 20 alert controls** — Visited 4G limited service, no signal now has its own camped-state panel (sound, pulse, interval, frequency, voice). Those controls are shared with LTE/NR no signal (RXSS 10).
+
+## [2.36.0] - 2026-09-11
+
+### Changed
+
+- **Threshold histogram colours** — Threshold bars are green at 95% or more of samples, orange at 90–94%, and red below 90%. **Other samples** and **N/A** stay red at any share.
+- **Histogram elapsed time** — The elapsed readout stops once it reaches the sample-window length.
+
+## [2.35.0] - 2026-09-11
+
+### Added
+
+- **Histogram elapsed time** — The level histogram shows time since the first sample as **elapsed X m Y s**, after the sample-window count and after the **Sample window** label. It resets when you clear the graph or change technology.
 
 ## [2.34.0] - 2026-09-11
 

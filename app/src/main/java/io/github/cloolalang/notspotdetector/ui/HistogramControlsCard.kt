@@ -45,6 +45,7 @@ import io.github.cloolalang.notspotdetector.model.RsrpHistogramBand
 import io.github.cloolalang.notspotdetector.model.RsrpHistogramBin
 import io.github.cloolalang.notspotdetector.model.RsrpHistogramBinKind
 import io.github.cloolalang.notspotdetector.model.RsrpHistogramBinningMode
+import io.github.cloolalang.notspotdetector.model.RsrpHistogramThresholdBarColor
 import io.github.cloolalang.notspotdetector.model.RsrpSample
 import io.github.cloolalang.notspotdetector.model.coerceToHistogramWindowStep
 import io.github.cloolalang.notspotdetector.ui.theme.Sushi
@@ -76,6 +77,22 @@ fun HistogramControlsCard(
     modifier: Modifier = Modifier
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
+    var nowMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
+
+    LaunchedEffect(samples) {
+        nowMs = System.currentTimeMillis()
+    }
+    LaunchedEffect(isActive) {
+        while (isActive) {
+            nowMs = System.currentTimeMillis()
+            delay(1_000)
+        }
+    }
+    val elapsedMs = RsrpHistogram.elapsedSinceFirstSampleMs(
+        samples = samples,
+        nowMs = nowMs,
+        windowMs = windowMs.coerceToHistogramWindowStep()
+    )
 
     Card(modifier = modifier.fillMaxWidth()) {
         Column(
@@ -108,7 +125,8 @@ fun HistogramControlsCard(
                     windowMs = windowMs.coerceToHistogramWindowStep(),
                     binningMode = binningMode,
                     thresholdsDbm = thresholdsDbm,
-                    isActive = isActive
+                    nowMs = nowMs,
+                    elapsedMs = elapsedMs
                 )
 
                 OutlinedButton(
@@ -123,6 +141,7 @@ fun HistogramControlsCard(
                     windowMs = windowMs.coerceToHistogramWindowStep(),
                     binningMode = binningMode,
                     thresholdsDbm = thresholdsDbm,
+                    elapsedMs = elapsedMs,
                     onWindowChange = onWindowChange,
                     onBinningModeChange = onBinningModeChange,
                     onThresholdChange = onThresholdChange
@@ -137,6 +156,7 @@ private fun HistogramSettingsPanel(
     windowMs: Long,
     binningMode: RsrpHistogramBinningMode,
     thresholdsDbm: List<Int>,
+    elapsedMs: Long?,
     onWindowChange: (Long) -> Unit,
     onBinningModeChange: (RsrpHistogramBinningMode) -> Unit,
     onThresholdChange: (Int, Int) -> Unit
@@ -200,6 +220,7 @@ private fun HistogramSettingsPanel(
                 }
                 RsrpHistogramWindowSlider(
                     windowMs = windowMs,
+                    elapsedMs = elapsedMs,
                     onWindowChange = onWindowChange
                 )
             }
@@ -213,22 +234,10 @@ private fun RsrpHistogramDisplay(
     windowMs: Long,
     binningMode: RsrpHistogramBinningMode,
     thresholdsDbm: List<Int>,
-    isActive: Boolean,
+    nowMs: Long,
+    elapsedMs: Long?,
     modifier: Modifier = Modifier
 ) {
-    var nowMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
-
-    LaunchedEffect(windowMs, samples) {
-        nowMs = System.currentTimeMillis()
-    }
-
-    LaunchedEffect(isActive) {
-        while (isActive) {
-            nowMs = System.currentTimeMillis()
-            delay(1_000)
-        }
-    }
-
     val bins = if (binningMode == RsrpHistogramBinningMode.THRESHOLD) {
         RsrpHistogram.buildThresholdBins(samples, nowMs, windowMs, thresholdsDbm)
     } else {
@@ -270,22 +279,28 @@ private fun RsrpHistogramDisplay(
                         bin = indexedBin.value,
                         totalSamples = totalSamples,
                         maxCount = maxCount,
-                        barColor = histogramBarColor(indexedBin.value),
+                        barColor = histogramBarColor(
+                            bin = indexedBin.value,
+                            totalSamples = totalSamples,
+                            thresholdMode = binningMode == RsrpHistogramBinningMode.THRESHOLD
+                        ),
                         thresholdMode = binningMode == RsrpHistogramBinningMode.THRESHOLD,
                         modifier = Modifier.weight(1f)
                     )
                 }
             }
+            val countText = if (binningMode == RsrpHistogramBinningMode.THRESHOLD) {
+                stringResource(R.string.rsrp_histogram_sample_count, totalSamples)
+            } else {
+                stringResource(
+                    R.string.rsrp_histogram_sample_count_active,
+                    totalSamples,
+                    displayedBins.size
+                )
+            }
+            val elapsedLabel = formatHistogramElapsedLabel(elapsedMs)
             Text(
-                text = if (binningMode == RsrpHistogramBinningMode.THRESHOLD) {
-                    stringResource(R.string.rsrp_histogram_sample_count, totalSamples)
-                } else {
-                    stringResource(
-                        R.string.rsrp_histogram_sample_count_active,
-                        totalSamples,
-                        displayedBins.size
-                    )
-                },
+                text = if (elapsedLabel != null) "$countText · $elapsedLabel" else countText,
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -399,7 +414,22 @@ private val NullBinColor = Color(0xFF9E9E9E)
 /** Slate — measured RSRP that missed every threshold floor. */
 private val OtherBinColor = Color(0xFF78909C)
 
-private fun histogramBarColor(bin: RsrpHistogramBin): Color {
+private val ThresholdGreen = Color(0xFF66BB6A)
+private val ThresholdOrange = Color(0xFFFF9800)
+private val ThresholdRed = Color(0xFFFF1744)
+
+private fun histogramBarColor(
+    bin: RsrpHistogramBin,
+    totalSamples: Int,
+    thresholdMode: Boolean
+): Color {
+    if (thresholdMode) {
+        return when (RsrpHistogram.thresholdBarColor(bin, totalSamples)) {
+            RsrpHistogramThresholdBarColor.GREEN -> ThresholdGreen
+            RsrpHistogramThresholdBarColor.ORANGE -> ThresholdOrange
+            RsrpHistogramThresholdBarColor.RED -> ThresholdRed
+        }
+    }
     return when (bin.kind) {
         RsrpHistogramBinKind.NO_SIGNAL -> NullBinColor
         RsrpHistogramBinKind.OTHER -> OtherBinColor
@@ -415,8 +445,7 @@ private fun histogramBarColor(bin: RsrpHistogramBin): Color {
 }
 
 private fun histogramBinPercent(count: Int, totalSamples: Int): Int {
-    if (totalSamples <= 0) return 0
-    return ((count * 100f) / totalSamples).roundToInt()
+    return RsrpHistogram.occupancyPercent(count, totalSamples)
 }
 
 @Composable
@@ -503,6 +532,7 @@ private fun HistogramThresholdSlider(
 @Composable
 private fun RsrpHistogramWindowSlider(
     windowMs: Long,
+    elapsedMs: Long?,
     onWindowChange: (Long) -> Unit
 ) {
     val minMs = MonitoringSettings.MIN_RSRP_HISTOGRAM_WINDOW_MS
@@ -517,8 +547,13 @@ private fun RsrpHistogramWindowSlider(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            val elapsedLabel = formatHistogramElapsedLabel(elapsedMs)
             Text(
-                text = stringResource(R.string.rsrp_histogram_window_label),
+                text = if (elapsedLabel != null) {
+                    "${stringResource(R.string.rsrp_histogram_window_label)} · $elapsedLabel"
+                } else {
+                    stringResource(R.string.rsrp_histogram_window_label)
+                },
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Medium
             )
@@ -569,4 +604,15 @@ private fun formatHistogramWindow(windowMs: Long): String {
         totalSeconds % 60L == 0L -> "${totalSeconds / 60L} m"
         else -> "${totalSeconds / 60L} m ${totalSeconds % 60L} s"
     }
+}
+
+@Composable
+private fun formatHistogramElapsedLabel(elapsedMs: Long?): String? {
+    if (elapsedMs == null) return null
+    val totalSeconds = elapsedMs / 1_000L
+    return stringResource(
+        R.string.rsrp_histogram_elapsed,
+        (totalSeconds / 60L).toInt(),
+        (totalSeconds % 60L).toInt()
+    )
 }

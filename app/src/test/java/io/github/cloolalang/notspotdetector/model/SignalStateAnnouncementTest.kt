@@ -407,7 +407,7 @@ class SignalStateAnnouncementTest {
         )
 
         assertEquals(
-            "E E visited, 4 G, no signal",
+            "E E visited, 4 G, no signal, limited service",
             SignalStateAnnouncement.formatNoSignalAnnouncement(stats)
         )
     }
@@ -479,7 +479,7 @@ class SignalStateAnnouncementTest {
         )
 
         assertEquals(
-            "E E visited, 2 G, no signal",
+            "E E visited, 2 G, no signal, limited service",
             SignalStateAnnouncement.formatNoSignalAnnouncement(stats)
         )
     }

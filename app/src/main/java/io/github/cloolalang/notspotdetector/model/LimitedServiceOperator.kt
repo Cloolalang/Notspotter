@@ -5,31 +5,53 @@ fun ConnectivityStats.resolveCampedVisitedOperatorName(): String? {
     val homeName = homeNetworkOperatorName?.trim()?.takeIf { it.isNotBlank() }
     val servingName = servingNetworkOperatorName?.trim()?.takeIf { it.isNotBlank() }
         ?: networkOperatorName?.trim()?.takeIf { it.isNotBlank() }
-        ?: return null
-
-    if (homeName != null && servingName.equals(homeName, ignoreCase = true)) {
-        return null
-    }
-
     val homePlmn = homePlmn?.trim()?.takeIf { it.isNotBlank() }
     val servingPlmn = plmn?.trim()?.takeIf { it.isNotBlank() }
-    if (homePlmn != null && servingPlmn != null && homePlmn == servingPlmn) {
-        return null
-    }
 
-    if (homeName == null && homePlmn == null) {
-        return null
+    val isVisited = when {
+        homePlmn != null && servingPlmn != null -> homePlmn != servingPlmn
+        homeName != null && servingName != null -> !servingName.equals(homeName, ignoreCase = true)
+        else -> false
     }
+    if (!isVisited) return null
+    if (homeName == null && homePlmn == null) return null
 
-    if (homeName != null && !servingName.equals(homeName, ignoreCase = true)) {
-        return servingName
+    val servingNameIsHome = homeName != null &&
+        servingName != null &&
+        servingName.equals(homeName, ignoreCase = true)
+    return when {
+        servingName != null && !servingNameIsHome -> servingName
+        servingPlmn != null -> servingPlmn
+        else -> servingName
     }
+}
 
-    if (homePlmn != null && servingPlmn != null && homePlmn != servingPlmn) {
-        return servingName
+/**
+ * Prefers the registered cell's operator when telephony still reports the home name/PLMN
+ * during limited-service camp on a visited network.
+ */
+fun resolveServingOperatorFromCell(
+    telephonyServingName: String?,
+    homeName: String?,
+    homePlmn: String?,
+    cellServingName: String?,
+    cellServingPlmn: String?
+): String? {
+    val cellName = cellServingName?.trim()?.takeIf { it.isNotBlank() }
+    val telephonyName = telephonyServingName?.trim()?.takeIf { it.isNotBlank() }
+    val home = homeName?.trim()?.takeIf { it.isNotBlank() }
+    val cellPlmn = cellServingPlmn?.trim()?.takeIf { it.isNotBlank() }
+    val homePlmnValue = homePlmn?.trim()?.takeIf { it.isNotBlank() }
+    val cellIsVisited = homePlmnValue != null && cellPlmn != null && homePlmnValue != cellPlmn
+    if (cellIsVisited) {
+        val telephonyIsHome = home != null &&
+            telephonyName != null &&
+            telephonyName.equals(home, ignoreCase = true)
+        return cellName
+            ?: telephonyName?.takeUnless { telephonyIsHome }
+            ?: cellPlmn
     }
-
-    return null
+    return telephonyName ?: cellName
 }
 
 /** Serving-network operator when camped away from the home PLMN during limited service. */

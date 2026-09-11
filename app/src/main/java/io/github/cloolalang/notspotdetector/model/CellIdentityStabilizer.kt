@@ -7,17 +7,26 @@ package io.github.cloolalang.notspotdetector.model
 fun CellIdentitySnapshot.coalesceWith(previous: CellIdentitySnapshot): CellIdentitySnapshot {
     return CellIdentitySnapshot(
         lteEarfcn = lteEarfcn ?: previous.lteEarfcn,
-        ltePci = ltePci ?: previous.ltePci,
+        ltePci = ltePci ?: previous.ltePci?.takeIf {
+            lteEarfcn == null || previous.lteEarfcn == null || lteEarfcn == previous.lteEarfcn
+        },
         nrEarfcn = nrEarfcn ?: previous.nrEarfcn,
-        nrPci = nrPci ?: previous.nrPci,
-        nrBand = nrBand ?: previous.nrBand,
+        nrPci = nrPci ?: previous.nrPci?.takeIf {
+            nrEarfcn == null || previous.nrEarfcn == null || nrEarfcn == previous.nrEarfcn
+        },
+        nrBand = nrBand ?: previous.nrBand?.takeIf {
+            nrEarfcn == null || previous.nrEarfcn == null || nrEarfcn == previous.nrEarfcn
+        },
         gsmEarfcn = gsmEarfcn ?: previous.gsmEarfcn,
-        gsmBsic = gsmBsic ?: previous.gsmBsic
+        gsmBsic = gsmBsic ?: previous.gsmBsic?.takeIf {
+            gsmEarfcn == null || previous.gsmEarfcn == null || gsmEarfcn == previous.gsmEarfcn
+        }
     )
 }
 
 fun ConnectivityStats.shouldClearCellIdentity(): Boolean {
     if (isLimitedService) return false
+    if (networkServiceMode.isRadioPoweredOff()) return true
     if (isMonitoring && noSignalActive) return true
     if (isOn2g && !monitor2gFallbackEnabled) return true
     if (isCompleteNoService) return true

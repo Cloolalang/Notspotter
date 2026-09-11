@@ -27,7 +27,9 @@
     <string name="metric_jitter">Jitter</string>
     <string name="metric_packet_loss">Packet loss</string>
     <string name="metric_pings">Successful pings</string>
-    <string name="metric_network">Operator</string>
+    <string name="metric_network">Home operator</string>
+    <string name="metric_home_operator">Home operator</string>
+    <string name="metric_visited_operator">Visited operator</string>
     <string name="network_cellular">Cellular</string>
     <string name="network_waiting">Waiting for cellular…</string>
     <string name="network_permission_required">Permission needed</string>
@@ -163,6 +165,7 @@
     <string name="passive_signal_wifi_calling_tier_threshold">In service via WiFi calling (VoWiFi), no cellular RAT camped, no RSRP/RSRQ (debounced)</string>
     <string name="passive_signal_searching_2g_tier_threshold">Scanning for home 2G after LTE/NR loss (all-tech mode)</string>
     <string name="passive_signal_limited_service_tier_threshold">Limited service on home or visited operator 4G</string>
+    <string name="passive_signal_limited_4g_no_signal_tier_threshold">Visited-operator 4G limited service with no usable RSRP. Camp pulses and voice use the same controls as LTE/NR no signal (RXSS 10).</string>
     <string name="passive_signal_limited_alt_2g_tier_threshold">Limited service on visited operator 2G</string>
     <string name="passive_signal_tier_pulse_frequency">Alert pulse frequency</string>
     <string name="passive_signal_tier_pulse_duration">Alert pulse duration</string>
@@ -279,6 +282,7 @@
     <string name="rtt_graph_time_start">−60 s</string>
     <string name="rtt_graph_time_now">Now</string>
     <string name="rsrp_histogram_window_label">Sample window</string>
+    <string name="rsrp_histogram_elapsed">elapsed %1$d m %2$d s</string>
     <string name="rsrp_histogram_window_hint">One sample every 1 s. A longer window shows more samples after they have been collected (and immediately includes any already stored in the last hour).</string>
     <string name="histogram_controls_title">Level histogram</string>
     <string name="histogram_settings_title">Histogram settings</string>

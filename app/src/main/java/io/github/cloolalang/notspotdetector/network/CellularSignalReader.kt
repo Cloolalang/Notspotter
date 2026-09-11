@@ -27,7 +27,10 @@ import io.github.cloolalang.notspotdetector.model.LteLayerResilienceReading
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.NetworkModePreference
 import io.github.cloolalang.notspotdetector.model.NetworkServiceMode
+import io.github.cloolalang.notspotdetector.model.isNoCellularService
+import io.github.cloolalang.notspotdetector.model.isRadioPoweredOff
 import io.github.cloolalang.notspotdetector.model.readNetworkModePreference
+import io.github.cloolalang.notspotdetector.model.resolveServingOperatorFromCell
 
 object CellularSignalReader {
 
@@ -74,6 +77,7 @@ object CellularSignalReader {
         val simDisplayName = SimSubscriptionHelper.resolveSubscriptionLabel(context, subscriptionId)
         val hasLimitedServiceOnAnySim = hasLimitedServiceOnAnySubscription(context)
         val isDualSimActive = SimSubscriptionHelper.listActiveSubscriptions(context).size > 1
+        val radioOff = networkServiceMode.isRadioPoweredOff()
         val isLimitedService = networkServiceMode == NetworkServiceMode.LIMITED_SERVICE
         val hasHomeGsmSignal = hasHomeGsmSignal(
             signalStrength = telephonyManager.signalStrength,
@@ -84,29 +88,62 @@ object CellularSignalReader {
             monitor2gFallback = monitor2gFallback,
             isOn2g = networkReports2g
         )
-        val isOn2g = isEffectivelyOn2g(signalMetrics, networkReports2g)
-        val servingCell = readServingCellForSignal(
-            telephonyManager = telephonyManager,
-            cellIdentityPermissionGranted = cellIdentityPermissionGranted,
-            monitor2gFallback = monitor2gFallback,
-            expectedPlmn = plmn,
-            signalMetrics = signalMetrics,
-            networkReports2g = networkReports2g,
-            isDualSimActive = isDualSimActive
+        val servingCell = if (radioOff || networkServiceMode == NetworkServiceMode.OUT_OF_SERVICE) {
+            ServingCellIdentity()
+        } else {
+            readServingCellForSignal(
+                telephonyManager = telephonyManager,
+                cellIdentityPermissionGranted = cellIdentityPermissionGranted,
+                monitor2gFallback = monitor2gFallback,
+                expectedPlmn = plmn,
+                homePlmn = operatorInfo.homePlmn,
+                signalMetrics = signalMetrics,
+                networkReports2g = networkReports2g,
+                isDualSimActive = isDualSimActive,
+                isLimitedService = isLimitedService ||
+                    networkServiceMode == NetworkServiceMode.OUT_OF_SERVICE,
+                registeredOnly = networkServiceMode == NetworkServiceMode.OUT_OF_SERVICE
+            )
+        }
+        val isOn2g = when {
+            servingCell.radioAccessType in LTE_NR_RADIO_TYPES -> false
+            servingCell.radioAccessType == RADIO_2G -> true
+            else -> isEffectivelyOn2g(signalMetrics, networkReports2g)
+        }
+        val servingPlmn = servingCell.servingPlmn ?: plmn
+        val servingOperatorName = resolveServingOperatorFromCell(
+            telephonyServingName = operatorInfo.servingOperatorName,
+            homeName = operatorInfo.homeOperatorName,
+            homePlmn = operatorInfo.homePlmn,
+            cellServingName = servingCell.servingOperatorName,
+            cellServingPlmn = servingCell.servingPlmn
         )
-        val lteLayerResilience = readLteLayerResilience(
-            telephonyManager = telephonyManager,
-            cellIdentityPermissionGranted = cellIdentityPermissionGranted,
-            expectedPlmn = plmn,
-            isDualSimActive = isDualSimActive,
-            primaryLteEarfcn = servingCell.lteEarfcn
-        )
+        val lteLayerResilience = if (radioOff) {
+            null
+        } else {
+            readLteLayerResilience(
+                telephonyManager = telephonyManager,
+                cellIdentityPermissionGranted = cellIdentityPermissionGranted,
+                expectedPlmns = listOfNotNull(servingPlmn?.takeIf { it.length >= 5 }),
+                isDualSimActive = isDualSimActive,
+                primaryLteEarfcn = servingCell.lteEarfcn,
+                acceptRegisteredPlmnMismatch = isLimitedService && servingCell.servingPlmn == null
+            )
+        }
 
         var metrics = signalMetrics.copy(
+            rsrpDbm = signalMetrics.rsrpDbm ?: servingCell.rsrpDbm,
+            rsrqDb = signalMetrics.rsrqDb ?: servingCell.rsrqDb,
+            radioAccessType = mergeRadioAccessType(
+                fromSignal = signalMetrics.radioAccessType,
+                fromCell = servingCell.radioAccessType
+            ),
+            hasLteNrSignal = signalMetrics.hasLteNrSignal ||
+                servingCell.radioAccessType in LTE_NR_RADIO_TYPES,
             networkOperatorName = operatorInfo.displayOperatorName,
             homeNetworkOperatorName = operatorInfo.homeOperatorName,
-            servingNetworkOperatorName = operatorInfo.servingOperatorName,
-            plmn = plmn,
+            servingNetworkOperatorName = servingOperatorName ?: operatorInfo.servingOperatorName,
+            plmn = servingPlmn,
             homePlmn = operatorInfo.homePlmn,
             lteEarfcn = servingCell.lteEarfcn,
             ltePci = servingCell.ltePci,
@@ -131,7 +168,7 @@ object CellularSignalReader {
             lteLayerResilience = lteLayerResilience
         )
 
-        if (isOn2g && !monitor2gFallback) {
+        if (isOn2g && !monitor2gFallback && metrics.radioAccessType !in LTE_NR_RADIO_TYPES) {
             metrics = metrics.copy(
                 radioAccessType = RADIO_2G,
                 rsrpDbm = null,
@@ -152,9 +189,15 @@ object CellularSignalReader {
             )
         }
 
+        if (radioOff || networkServiceMode == NetworkServiceMode.OUT_OF_SERVICE) {
+            metrics = metrics.withoutCampedRadio().copy(
+                isWifiCallingActive = if (radioOff) false else metrics.isWifiCallingActive
+            )
+        }
+        val limitedOnAnySim = hasLimitedServiceOnAnySim || metrics.isLimitedService
         metrics = metrics.copy(
-            hasLimitedServiceOnAnySim = hasLimitedServiceOnAnySim,
-            isCompleteNoService = isCompleteNoService(metrics, hasLimitedServiceOnAnySim)
+            hasLimitedServiceOnAnySim = limitedOnAnySim,
+            isCompleteNoService = isCompleteNoService(metrics, limitedOnAnySim)
         )
 
         return metrics
@@ -203,19 +246,60 @@ object CellularSignalReader {
         cellIdentityPermissionGranted: Boolean,
         monitor2gFallback: Boolean,
         expectedPlmn: String?,
+        homePlmn: String?,
         signalMetrics: CellularRadioMetrics,
         networkReports2g: Boolean,
-        isDualSimActive: Boolean
+        isDualSimActive: Boolean,
+        isLimitedService: Boolean,
+        registeredOnly: Boolean = false
     ): ServingCellIdentity {
         if (!cellIdentityPermissionGranted) return ServingCellIdentity()
 
+        val expectedPlmns = expectedPlmns(expectedPlmn, homePlmn)
         return when {
+            isLimitedService || registeredOnly ->
+                readServingCellIdentities(
+                    telephonyManager = telephonyManager,
+                    monitor2gFallback = monitor2gFallback,
+                    expectedPlmns = expectedPlmns,
+                    isDualSimActive = isDualSimActive,
+                    acceptRegisteredPlmnMismatch = true,
+                    registeredOnly = registeredOnly
+                )
             shouldReadLteNrCellIdentity(signalMetrics, networkReports2g) ->
-                readServingCellIdentities(telephonyManager, monitor2gFallback = false, expectedPlmn, isDualSimActive)
+                readServingCellIdentities(
+                    telephonyManager = telephonyManager,
+                    monitor2gFallback = false,
+                    expectedPlmns = expectedPlmns,
+                    isDualSimActive = isDualSimActive,
+                    acceptRegisteredPlmnMismatch = false,
+                    registeredOnly = registeredOnly
+                )
             shouldReadGsmCellIdentity(signalMetrics, networkReports2g, monitor2gFallback) ->
-                readServingCellIdentities(telephonyManager, monitor2gFallback = true, expectedPlmn, isDualSimActive)
+                readServingCellIdentities(
+                    telephonyManager = telephonyManager,
+                    monitor2gFallback = true,
+                    expectedPlmns = expectedPlmns,
+                    isDualSimActive = isDualSimActive,
+                    acceptRegisteredPlmnMismatch = false,
+                    registeredOnly = registeredOnly
+                )
             else -> ServingCellIdentity()
         }
+    }
+
+    private fun mergeRadioAccessType(fromSignal: String?, fromCell: String?): String? {
+        if (fromCell in LTE_NR_RADIO_TYPES && (fromSignal == null || fromSignal == RADIO_2G)) {
+            return fromCell
+        }
+        return fromSignal ?: fromCell
+    }
+
+    private fun expectedPlmns(servingPlmn: String?, homePlmn: String?): List<String> {
+        return listOfNotNull(
+            servingPlmn?.trim()?.takeIf { it.length >= 5 },
+            homePlmn?.trim()?.takeIf { it.length >= 5 }
+        ).distinct()
     }
 
     @SuppressLint("MissingPermission")
@@ -246,7 +330,7 @@ object CellularSignalReader {
     ): Boolean {
         if (hasLimitedServiceOnAnySim) return false
         if (!metrics.permissionGranted) return false
-        if (metrics.networkServiceMode != NetworkServiceMode.OUT_OF_SERVICE) return false
+        if (!metrics.networkServiceMode.isNoCellularService()) return false
         if (metrics.isOn2g) return false
         if (metrics.radioAccessType != null || metrics.rsrpDbm != null || metrics.rsrqDb != null) {
             return false
@@ -339,16 +423,18 @@ object CellularSignalReader {
     private fun readNetworkServiceMode(telephonyManager: TelephonyManager): NetworkServiceMode {
         val serviceState = telephonyManager.serviceState ?: return NetworkServiceMode.UNKNOWN
 
-        if (readEnhancedLimitedServiceState(serviceState)) {
-            return NetworkServiceMode.LIMITED_SERVICE
-        }
-
+        // The status-bar no-service icon follows POWER_OFF / OUT_OF_SERVICE. Do not let
+        // leftover emergency-only hints override that into limited service (RXSS 12).
         return when (serviceState.state) {
-            ServiceState.STATE_IN_SERVICE -> NetworkServiceMode.IN_SERVICE
+            ServiceState.STATE_POWER_OFF -> NetworkServiceMode.RADIO_OFF
+            ServiceState.STATE_OUT_OF_SERVICE -> NetworkServiceMode.OUT_OF_SERVICE
             ServiceState.STATE_EMERGENCY_ONLY -> NetworkServiceMode.LIMITED_SERVICE
-            ServiceState.STATE_OUT_OF_SERVICE,
-            ServiceState.STATE_POWER_OFF -> NetworkServiceMode.OUT_OF_SERVICE
-            else -> NetworkServiceMode.UNKNOWN
+            ServiceState.STATE_IN_SERVICE -> NetworkServiceMode.IN_SERVICE
+            else -> if (readEnhancedLimitedServiceState(serviceState)) {
+                NetworkServiceMode.LIMITED_SERVICE
+            } else {
+                NetworkServiceMode.UNKNOWN
+            }
         }
     }
 
@@ -543,20 +629,28 @@ object CellularSignalReader {
     private fun readLteLayerResilience(
         telephonyManager: TelephonyManager,
         cellIdentityPermissionGranted: Boolean,
-        expectedPlmn: String?,
+        expectedPlmns: Collection<String>,
         isDualSimActive: Boolean,
-        primaryLteEarfcn: Int?
+        primaryLteEarfcn: Int?,
+        acceptRegisteredPlmnMismatch: Boolean
     ): LteLayerResilienceReading? {
         if (!cellIdentityPermissionGranted) return null
 
         return try {
             val cellInfoList = telephonyManager.allCellInfo ?: return null
-            val hasExplicitLtePlmnMatches = hasExplicitPlmnMatchForRat(cellInfoList, expectedPlmn) { it is CellInfoLte }
+            val hasExplicitLtePlmnMatches = hasExplicitPlmnMatchForRat(cellInfoList, expectedPlmns) { it is CellInfoLte }
 
             val eligibleCells = cellInfoList
                 .filterIsInstance<CellInfoLte>()
                 .filter { info ->
-                    shouldUseCellIdentity(info.cellIdentity, expectedPlmn, hasExplicitLtePlmnMatches, isDualSimActive)
+                    shouldUseCellIdentity(
+                        identity = info.cellIdentity,
+                        expectedPlmns = expectedPlmns,
+                        hasExplicitPlmnMatches = hasExplicitLtePlmnMatches,
+                        isDualSimActive = isDualSimActive,
+                        isRegistered = info.isRegistered,
+                        acceptRegisteredPlmnMismatch = acceptRegisteredPlmnMismatch
+                    )
                 }
 
             val earfcnsByLayer = eligibleCells
@@ -621,8 +715,10 @@ object CellularSignalReader {
     private fun readServingCellIdentities(
         telephonyManager: TelephonyManager,
         monitor2gFallback: Boolean,
-        expectedPlmn: String?,
-        isDualSimActive: Boolean
+        expectedPlmns: Collection<String>,
+        isDualSimActive: Boolean,
+        acceptRegisteredPlmnMismatch: Boolean,
+        registeredOnly: Boolean = false
     ): ServingCellIdentity {
         return try {
             val cellInfoList = telephonyManager.allCellInfo ?: return ServingCellIdentity()
@@ -630,15 +726,20 @@ object CellularSignalReader {
                 cellInfoList,
                 registeredOnly = true,
                 monitor2gFallback,
-                expectedPlmn,
-                isDualSimActive
+                expectedPlmns,
+                isDualSimActive,
+                acceptRegisteredPlmnMismatch
             )
+            if (registeredOnly) {
+                return registered ?: ServingCellIdentity()
+            }
             val fromAllCells = extractServingCellIdentities(
                 cellInfoList,
                 registeredOnly = false,
                 monitor2gFallback,
-                expectedPlmn,
-                isDualSimActive
+                expectedPlmns,
+                isDualSimActive,
+                acceptRegisteredPlmnMismatch
             )
             when {
                 registered == null -> fromAllCells ?: ServingCellIdentity()
@@ -656,15 +757,16 @@ object CellularSignalReader {
         cellInfoList: List<CellInfo>,
         registeredOnly: Boolean,
         monitor2gFallback: Boolean,
-        expectedPlmn: String?,
-        isDualSimActive: Boolean
+        expectedPlmns: Collection<String>,
+        isDualSimActive: Boolean,
+        acceptRegisteredPlmnMismatch: Boolean
     ): ServingCellIdentity? {
         var bestLte: RankedServingCell? = null
         var bestNr: RankedServingCell? = null
         var bestGsm: RankedServingCell? = null
-        val hasExplicitLtePlmnMatches = hasExplicitPlmnMatchForRat(cellInfoList, expectedPlmn) { it is CellInfoLte }
-        val hasExplicitNrPlmnMatches = hasExplicitPlmnMatchForRat(cellInfoList, expectedPlmn) { it is CellInfoNr }
-        val hasExplicitGsmPlmnMatches = hasExplicitPlmnMatchForRat(cellInfoList, expectedPlmn) { it is CellInfoGsm }
+        val hasExplicitLtePlmnMatches = hasExplicitPlmnMatchForRat(cellInfoList, expectedPlmns) { it is CellInfoLte }
+        val hasExplicitNrPlmnMatches = hasExplicitPlmnMatchForRat(cellInfoList, expectedPlmns) { it is CellInfoNr }
+        val hasExplicitGsmPlmnMatches = hasExplicitPlmnMatchForRat(cellInfoList, expectedPlmns) { it is CellInfoGsm }
 
         for (info in cellInfoList) {
             if (registeredOnly && !info.isRegistered) continue
@@ -673,14 +775,28 @@ object CellularSignalReader {
 
             when (info) {
                 is CellInfoLte -> {
-                    if (!shouldUseCellIdentity(info.cellIdentity, expectedPlmn, hasExplicitLtePlmnMatches, isDualSimActive)) {
+                    if (!shouldUseCellIdentity(
+                            identity = info.cellIdentity,
+                            expectedPlmns = expectedPlmns,
+                            hasExplicitPlmnMatches = hasExplicitLtePlmnMatches,
+                            isDualSimActive = isDualSimActive,
+                            isRegistered = info.isRegistered,
+                            acceptRegisteredPlmnMismatch = acceptRegisteredPlmnMismatch
+                        )
+                    ) {
                         continue
                     }
                     val identity = info.cellIdentity
+                    val rsrp = info.cellSignalStrength.rsrp.takeIf { isValidMetric(it) }
+                    val rsrq = info.cellSignalStrength.rsrq.takeIf { isValidMetric(it) }
                     val candidate = RankedServingCell(
                         connectionRank = connectionRank,
                         lteEarfcn = identity.earfcn.takeIf { isValidCellIdentityValue(it) },
-                        ltePci = identity.pci.takeIf { isValidCellIdentityValue(it) }
+                        ltePci = identity.pci.takeIf { isValidCellIdentityValue(it) },
+                        rsrpDbm = rsrp,
+                        rsrqDb = rsrq,
+                        servingPlmn = formatIdentityPlmn(identity),
+                        servingOperatorName = readIdentityOperatorName(identity)
                     )
                     if (candidate.hasValues && (bestLte == null || candidate beats bestLte)) {
                         bestLte = candidate
@@ -688,16 +804,39 @@ object CellularSignalReader {
                 }
                 is CellInfoNr -> {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        if (!shouldUseCellIdentity(info.cellIdentity, expectedPlmn, hasExplicitNrPlmnMatches, isDualSimActive)) {
+                        if (!shouldUseCellIdentity(
+                                identity = info.cellIdentity,
+                                expectedPlmns = expectedPlmns,
+                                hasExplicitPlmnMatches = hasExplicitNrPlmnMatches,
+                                isDualSimActive = isDualSimActive,
+                                isRegistered = info.isRegistered,
+                                acceptRegisteredPlmnMismatch = acceptRegisteredPlmnMismatch
+                            )
+                        ) {
                             continue
                         }
                         val identity = info.cellIdentity
                         if (identity is CellIdentityNr) {
+                            val strength = info.cellSignalStrength
+                            val rsrp = if (strength is CellSignalStrengthNr) {
+                                strength.ssRsrp.takeIf { isValidMetric(it) }
+                            } else {
+                                null
+                            }
+                            val rsrq = if (strength is CellSignalStrengthNr) {
+                                strength.ssRsrq.takeIf { isValidMetric(it) }
+                            } else {
+                                null
+                            }
                             val candidate = RankedServingCell(
                                 connectionRank = connectionRank,
                                 nrEarfcn = identity.nrarfcn.takeIf { isValidCellIdentityValue(it) },
                                 nrPci = identity.pci.takeIf { isValidCellIdentityValue(it) },
-                                nrBand = readNrBand(identity)
+                                nrBand = readNrBand(identity),
+                                rsrpDbm = rsrp,
+                                rsrqDb = rsrq,
+                                servingPlmn = formatIdentityPlmn(identity),
+                                servingOperatorName = readIdentityOperatorName(identity)
                             )
                             if (candidate.hasValues && (bestNr == null || candidate beats bestNr)) {
                                 bestNr = candidate
@@ -707,14 +846,26 @@ object CellularSignalReader {
                 }
                 is CellInfoGsm -> {
                     if (monitor2gFallback) {
-                        if (!shouldUseCellIdentity(info.cellIdentity, expectedPlmn, hasExplicitGsmPlmnMatches, isDualSimActive)) {
+                        if (!shouldUseCellIdentity(
+                                identity = info.cellIdentity,
+                                expectedPlmns = expectedPlmns,
+                                hasExplicitPlmnMatches = hasExplicitGsmPlmnMatches,
+                                isDualSimActive = isDualSimActive,
+                                isRegistered = info.isRegistered,
+                                acceptRegisteredPlmnMismatch = acceptRegisteredPlmnMismatch
+                            )
+                        ) {
                             continue
                         }
                         val identity = info.cellIdentity
+                        val dbm = info.cellSignalStrength.dbm.takeIf { isValidMetric(it) }
                         val candidate = RankedServingCell(
                             connectionRank = connectionRank,
                             gsmEarfcn = identity.arfcn.takeIf { isValidCellIdentityValue(it) },
-                            gsmBsic = identity.bsic.takeIf { isValidCellIdentityValue(it) }
+                            gsmBsic = identity.bsic.takeIf { isValidCellIdentityValue(it) },
+                            rsrpDbm = dbm,
+                            servingPlmn = formatIdentityPlmn(identity),
+                            servingOperatorName = readIdentityOperatorName(identity)
                         )
                         if (candidate.hasValues && (bestGsm == null || candidate beats bestGsm)) {
                             bestGsm = candidate
@@ -724,6 +875,27 @@ object CellularSignalReader {
             }
         }
 
+        return servingCellFromRanked(bestLte, bestNr, bestGsm)
+    }
+
+    private fun servingCellFromRanked(
+        bestLte: RankedServingCell?,
+        bestNr: RankedServingCell?,
+        bestGsm: RankedServingCell?
+    ): ServingCellIdentity? {
+        val radioAccessType = when {
+            bestLte != null && bestNr != null -> RADIO_5G_ENDC
+            bestNr != null -> RADIO_5G
+            bestLte != null -> RADIO_4G
+            bestGsm != null -> RADIO_2G
+            else -> null
+        }
+        val primary = when (radioAccessType) {
+            RADIO_5G_ENDC, RADIO_4G -> bestLte
+            RADIO_5G -> bestNr
+            RADIO_2G -> bestGsm
+            else -> bestLte ?: bestNr ?: bestGsm
+        }
         val lteEarfcn = bestLte?.lteEarfcn
         val ltePci = bestLte?.ltePci
         val nrEarfcn = bestNr?.nrEarfcn
@@ -744,7 +916,12 @@ object CellularSignalReader {
             nrPci = nrPci,
             nrBand = nrBand,
             gsmEarfcn = gsmEarfcn,
-            gsmBsic = gsmBsic
+            gsmBsic = gsmBsic,
+            rsrpDbm = primary?.rsrpDbm,
+            rsrqDb = primary?.rsrqDb,
+            radioAccessType = radioAccessType,
+            servingPlmn = primary?.servingPlmn,
+            servingOperatorName = primary?.servingOperatorName
         )
     }
 
@@ -761,12 +938,12 @@ object CellularSignalReader {
 
     private fun hasExplicitPlmnMatchForRat(
         cellInfoList: List<CellInfo>,
-        expectedPlmn: String?,
+        expectedPlmns: Collection<String>,
         ratFilter: (CellInfo) -> Boolean
     ): Boolean {
         return cellInfoList.any { info ->
             ratFilter(info) &&
-                plmnMatchStatus(info.cellIdentity, expectedPlmn) == PlmnMatchStatus.MATCH
+                plmnMatchAny(info.cellIdentity, expectedPlmns) == PlmnMatchStatus.MATCH
         }
     }
 
@@ -784,7 +961,11 @@ object CellularSignalReader {
         val nrPci: Int? = null,
         val nrBand: Int? = null,
         val gsmEarfcn: Int? = null,
-        val gsmBsic: Int? = null
+        val gsmBsic: Int? = null,
+        val rsrpDbm: Int? = null,
+        val rsrqDb: Int? = null,
+        val servingPlmn: String? = null,
+        val servingOperatorName: String? = null
     ) {
         val hasValues: Boolean
             get() = lteEarfcn != null || ltePci != null || nrEarfcn != null || nrPci != null ||
@@ -797,7 +978,10 @@ object CellularSignalReader {
      * Decides whether a candidate [CellInfo] entry's identity may be used as the serving cell
      * for the *currently monitored* subscription.
      *
-     * An explicit PLMN mismatch against [expectedPlmn] is always rejected. Cells with
+     * An explicit PLMN mismatch against every [expectedPlmns] value is rejected, except when
+     * [acceptRegisteredPlmnMismatch] is set and the cell is registered — limited-service SOS
+     * camp often keeps `TelephonyManager.networkOperator` on the home PLMN while the registered
+     * cell is the visited operator. Cells with
      * [PlmnMatchStatus.UNKNOWN] (identity doesn't expose usable MCC/MNC) are accepted as
      * best-effort *unless* another cell of the same RAT in the same read explicitly matched —
      * in that case the explicit match already found the real serving cell, so the unverifiable
@@ -817,15 +1001,33 @@ object CellularSignalReader {
     @Suppress("UNUSED_PARAMETER")
     private fun shouldUseCellIdentity(
         identity: CellIdentity,
-        expectedPlmn: String?,
+        expectedPlmns: Collection<String>,
         hasExplicitPlmnMatches: Boolean,
-        isDualSimActive: Boolean
+        isDualSimActive: Boolean,
+        isRegistered: Boolean,
+        acceptRegisteredPlmnMismatch: Boolean
     ): Boolean {
-        return when (plmnMatchStatus(identity, expectedPlmn)) {
+        return when (plmnMatchAny(identity, expectedPlmns)) {
             PlmnMatchStatus.MATCH -> true
             PlmnMatchStatus.UNKNOWN -> !hasExplicitPlmnMatches
-            PlmnMatchStatus.MISMATCH -> false
+            PlmnMatchStatus.MISMATCH -> acceptRegisteredPlmnMismatch && isRegistered
         }
+    }
+
+    private fun plmnMatchAny(
+        identity: CellIdentity,
+        expectedPlmns: Collection<String>
+    ): PlmnMatchStatus {
+        if (expectedPlmns.isEmpty()) return PlmnMatchStatus.UNKNOWN
+        var sawMismatch = false
+        for (plmn in expectedPlmns) {
+            when (plmnMatchStatus(identity, plmn)) {
+                PlmnMatchStatus.MATCH -> return PlmnMatchStatus.MATCH
+                PlmnMatchStatus.UNKNOWN -> Unit
+                PlmnMatchStatus.MISMATCH -> sawMismatch = true
+            }
+        }
+        return if (sawMismatch) PlmnMatchStatus.MISMATCH else PlmnMatchStatus.UNKNOWN
     }
 
     private fun plmnMatchStatus(identity: CellIdentity, expectedPlmn: String?): PlmnMatchStatus {
@@ -880,6 +1082,18 @@ object CellularSignalReader {
         return mccInt.toString() to mncInt.toString()
     }
 
+    private fun formatIdentityPlmn(identity: CellIdentity): String? {
+        val (mcc, mnc) = readIdentityPlmn(identity) ?: return null
+        val paddedMnc = if (mnc.length == 1) mnc.padStart(2, '0') else mnc
+        return mcc + paddedMnc
+    }
+
+    private fun readIdentityOperatorName(identity: CellIdentity): String? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return null
+        return normalizeOperatorName(identity.operatorAlphaLong?.toString())
+            ?: normalizeOperatorName(identity.operatorAlphaShort?.toString())
+    }
+
     private fun normalizeMnc(mnc: String): String {
         return mnc.trim().trimStart('0').ifEmpty { "0" }
     }
@@ -902,8 +1116,17 @@ object CellularSignalReader {
         val nrPci: Int? = null,
         val nrBand: Int? = null,
         val gsmEarfcn: Int? = null,
-        val gsmBsic: Int? = null
+        val gsmBsic: Int? = null,
+        val rsrpDbm: Int? = null,
+        val rsrqDb: Int? = null,
+        val radioAccessType: String? = null,
+        val servingPlmn: String? = null,
+        val servingOperatorName: String? = null
     ) {
+        val hasCampedIdentity: Boolean
+            get() = lteEarfcn != null || ltePci != null || nrEarfcn != null || nrPci != null ||
+                gsmEarfcn != null || gsmBsic != null
+
         fun fillGapsFrom(fallback: ServingCellIdentity): ServingCellIdentity {
             return copy(
                 lteEarfcn = lteEarfcn ?: fallback.lteEarfcn,
@@ -928,7 +1151,12 @@ object CellularSignalReader {
                     gsmEarfcn == null ||
                         fallback.gsmEarfcn == null ||
                         gsmEarfcn == fallback.gsmEarfcn
-                }
+                },
+                rsrpDbm = rsrpDbm ?: fallback.rsrpDbm,
+                rsrqDb = rsrqDb ?: fallback.rsrqDb,
+                radioAccessType = radioAccessType ?: fallback.radioAccessType,
+                servingPlmn = servingPlmn ?: fallback.servingPlmn,
+                servingOperatorName = servingOperatorName ?: fallback.servingOperatorName
             )
         }
     }

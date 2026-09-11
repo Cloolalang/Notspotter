@@ -18,6 +18,17 @@ class CellIdentityStabilizerTest {
     }
 
     @Test
+    fun coalesceWith_doesNotReusePciFromADifferentEarfcn() {
+        val current = CellIdentitySnapshot(lteEarfcn = 1_900, ltePci = null)
+        val previous = CellIdentitySnapshot(lteEarfcn = 1_800, ltePci = 42)
+
+        val merged = current.coalesceWith(previous)
+
+        assertEquals(1_900, merged.lteEarfcn)
+        assertNull(merged.ltePci)
+    }
+
+    @Test
     fun coalesceWith_prefersCurrentNonNullValues() {
         val current = CellIdentitySnapshot(lteEarfcn = 1_900, ltePci = 77)
         val previous = CellIdentitySnapshot(lteEarfcn = 1_800, ltePci = 42)
@@ -26,6 +37,28 @@ class CellIdentityStabilizerTest {
 
         assertEquals(1_900, merged.lteEarfcn)
         assertEquals(77, merged.ltePci)
+    }
+
+    @Test
+    fun withStabilizedCellIdentity_clearsOnRadioOffEvenWithLeftoverRsrp() {
+        val stats = ConnectivityStats(
+            isMonitoring = true,
+            networkServiceMode = NetworkServiceMode.RADIO_OFF,
+            rsrpDbm = -110,
+            rsrqDb = -14,
+            radioAccessType = "4G",
+            lteEarfcn = 6_300,
+            ltePci = 12
+        )
+        val previous = CellIdentitySnapshot(lteEarfcn = 6_300, ltePci = 12)
+
+        val (display, cache) = stats.withStabilizedCellIdentity(previous)
+
+        assertNull(display.rsrpDbm)
+        assertNull(display.rsrqDb)
+        assertNull(display.lteEarfcn)
+        assertNull(display.ltePci)
+        assertEquals(CellIdentitySnapshot(), cache)
     }
 
     @Test

@@ -160,6 +160,79 @@ class RsrpHistogramTest {
     }
 
     @Test
+    fun elapsedSinceFirstSample_isNullWhenEmpty() {
+        assertEquals(null, RsrpHistogram.elapsedSinceFirstSampleMs(emptyList(), nowMs = 10_000L))
+    }
+
+    @Test
+    fun elapsedSinceFirstSample_usesOldestTimestamp() {
+        val samples = listOf(
+            RsrpSample(timestampMs = 8_000L, rsrpDbm = -90),
+            RsrpSample(timestampMs = 4_000L, rsrpDbm = -100),
+            RsrpSample(timestampMs = 9_000L, rsrpDbm = null)
+        )
+        assertEquals(6_000L, RsrpHistogram.elapsedSinceFirstSampleMs(samples, nowMs = 10_000L))
+    }
+
+    @Test
+    fun elapsedSinceFirstSample_doesNotGoNegative() {
+        val samples = listOf(RsrpSample(timestampMs = 12_000L, rsrpDbm = -80))
+        assertEquals(0L, RsrpHistogram.elapsedSinceFirstSampleMs(samples, nowMs = 10_000L))
+    }
+
+    @Test
+    fun elapsedSinceFirstSample_stopsAtSampleWindow() {
+        val samples = listOf(RsrpSample(timestampMs = 0L, rsrpDbm = -90))
+        assertEquals(
+            30_000L,
+            RsrpHistogram.elapsedSinceFirstSampleMs(
+                samples,
+                nowMs = 80_000L,
+                windowMs = 30_000L
+            )
+        )
+    }
+
+    @Test
+    fun thresholdBarColor_usesOccupancyBands() {
+        val threshold = RsrpHistogramBin(labelDbm = -95, count = 95, kind = RsrpHistogramBinKind.SIGNAL)
+        assertEquals(
+            RsrpHistogramThresholdBarColor.GREEN,
+            RsrpHistogram.thresholdBarColor(threshold.copy(count = 95), totalSamples = 100)
+        )
+        assertEquals(
+            RsrpHistogramThresholdBarColor.ORANGE,
+            RsrpHistogram.thresholdBarColor(threshold.copy(count = 94), totalSamples = 100)
+        )
+        assertEquals(
+            RsrpHistogramThresholdBarColor.ORANGE,
+            RsrpHistogram.thresholdBarColor(threshold.copy(count = 90), totalSamples = 100)
+        )
+        assertEquals(
+            RsrpHistogramThresholdBarColor.RED,
+            RsrpHistogram.thresholdBarColor(threshold.copy(count = 89), totalSamples = 100)
+        )
+    }
+
+    @Test
+    fun thresholdBarColor_otherAndNaAreAlwaysRed() {
+        assertEquals(
+            RsrpHistogramThresholdBarColor.RED,
+            RsrpHistogram.thresholdBarColor(
+                RsrpHistogramBin(labelDbm = null, count = 100, kind = RsrpHistogramBinKind.OTHER),
+                totalSamples = 100
+            )
+        )
+        assertEquals(
+            RsrpHistogramThresholdBarColor.RED,
+            RsrpHistogram.thresholdBarColor(
+                RsrpHistogramBin(labelDbm = null, count = 1, kind = RsrpHistogramBinKind.NO_SIGNAL),
+                totalSamples = 100
+            )
+        )
+    }
+
+    @Test
     fun buildThresholdBins_nullSamplesOnlyGoInTrailingBin() {
         val nowMs = 10_000L
         val samples = listOf(

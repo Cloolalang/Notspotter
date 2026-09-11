@@ -242,6 +242,18 @@ fun ConnectivityStats.isInNoSignalRxss(
     return tier.isNoSignalRxss()
 }
 
+/**
+ * Metrics blanking for leftover EARFCN/PCI from [CellIdentitySnapshot.coalesceWith]. Limited
+ * service still has a current SOS cell (including visited 4G / RXSS 20), so those fields stay
+ * visible when values exist.
+ */
+fun ConnectivityStats.shouldBlankStaleCellIdentity(
+    settings: PassiveSignalSettings = PassiveSignalSettings()
+): Boolean {
+    if (isLimitedService) return false
+    return isInNoSignalRxss(settings)
+}
+
 /** Whether **VA-10** cell-reselect voice may fire on this poll. */
 fun ConnectivityStats.shouldAllowCellReselectVoice(
     settings: PassiveSignalSettings = PassiveSignalSettings()

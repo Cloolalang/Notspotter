@@ -23,11 +23,13 @@ import io.github.cloolalang.notspotdetector.data.MonitoringSettingsRepository
 import io.github.cloolalang.notspotdetector.data.PingSettingsRepository
 import io.github.cloolalang.notspotdetector.data.ThresholdSettingsRepository
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
+import io.github.cloolalang.notspotdetector.model.MonitoringAnnouncement
 import io.github.cloolalang.notspotdetector.model.MonitoringAnnouncementKind
 import io.github.cloolalang.notspotdetector.model.RsrpHistogram
 import io.github.cloolalang.notspotdetector.model.MonitoringUpdateEvents
 import io.github.cloolalang.notspotdetector.model.SignalStateAnnouncement
 import io.github.cloolalang.notspotdetector.model.TechnologyChangeTarget
+import io.github.cloolalang.notspotdetector.model.VoiceAnnouncementQueue
 import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerSelection
 import io.github.cloolalang.notspotdetector.model.shouldPlayFlatline
 import io.github.cloolalang.notspotdetector.model.isG2WeakSignal
@@ -51,6 +53,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.util.concurrent.atomic.AtomicInteger
 
 class ConnectivityMonitorService : Service() {
 
@@ -74,6 +77,8 @@ class ConnectivityMonitorService : Service() {
     private var rsrpHistogramSampleJob: Job? = null
     private val monitoringAlertMutex = Mutex()
     private val monitoringEventsHandlerMutex = Mutex()
+    private val voiceQueue = VoiceAnnouncementQueue()
+    private val periodicVoiceGeneration = AtomicInteger(0)
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -261,8 +266,21 @@ class ConnectivityMonitorService : Service() {
     }
 
     private suspend fun handleMonitoringEvents(events: MonitoringUpdateEvents) {
-        monitoringAlertMutex.withLock {
-            playMonitoringEventsSequential(events)
+        val incoming = events.immediateAnnouncements()
+        if (incoming.isNotEmpty()) {
+            val result = voiceQueue.enqueue(incoming)
+            if (result.supersededServiceState) {
+                periodicVoiceGeneration.incrementAndGet()
+            }
+            result.toneOnly.forEach { playSoundIcon(it) }
+            if (result.interruptCurrent) {
+                cellVoiceAnnouncer.stop()
+            }
+            serviceScope.launch {
+                monitoringAlertMutex.withLock {
+                    drainVoiceQueue()
+                }
+            }
         }
         val passiveSettings = MonitorState.passiveSignalSettings.value
         val monitoringSettings = MonitorState.monitoringSettings.value
@@ -296,28 +314,38 @@ class ConnectivityMonitorService : Service() {
         updateNotification(MonitorState.stats.value.statusLabel(this))
     }
 
-    private suspend fun playMonitoringEventsSequential(events: MonitoringUpdateEvents) {
-        for (announcement in events.immediateAnnouncements()) {
-            when (announcement.kind) {
-                MonitoringAnnouncementKind.NO_SIGNAL_STATE ->
-                    playNoSignalAlertAwait(announcement.message)
-                MonitoringAnnouncementKind.DEADZONE ->
-                    playDeadzoneAlertAwait(announcement.message)
-                MonitoringAnnouncementKind.LIMITED_SERVICE_STATE,
-                MonitoringAnnouncementKind.LIMITED_SERVICE_OPERATOR ->
-                    playLimitedServiceAlertAwait(announcement.message)
-                MonitoringAnnouncementKind.G2_FALLBACK ->
-                    playG2FallbackAlertAwait(announcement.message)
-                MonitoringAnnouncementKind.TIER5 ->
-                    playTier5VoiceAlertAwait(announcement.message)
-                MonitoringAnnouncementKind.TECHNOLOGY_CHANGE ->
-                    playTechnologyChangeAlertAwait(
-                        announcement.message,
-                        announcement.targetRadioAccessType
-                    )
-                MonitoringAnnouncementKind.CELL_IDENTITY ->
-                    playCellChangeAlertAwait(announcement.message)
-            }
+    private suspend fun drainVoiceQueue() {
+        while (true) {
+            val item = voiceQueue.startNext() ?: break
+            playQueuedAnnouncement(item)
+            voiceQueue.markFinished(item.id)
+        }
+    }
+
+    private suspend fun playQueuedAnnouncement(item: VoiceAnnouncementQueue.Item) {
+        val stillCurrent = { voiceQueue.isPlaying(item.id) }
+        if (!stillCurrent()) return
+        val announcement = item.announcement
+        when (announcement.kind) {
+            MonitoringAnnouncementKind.NO_SIGNAL_STATE ->
+                playNoSignalAlertAwait(announcement.message, stillCurrent)
+            MonitoringAnnouncementKind.DEADZONE ->
+                playDeadzoneAlertAwait(announcement.message, stillCurrent)
+            MonitoringAnnouncementKind.LIMITED_SERVICE_STATE,
+            MonitoringAnnouncementKind.LIMITED_SERVICE_OPERATOR ->
+                playLimitedServiceAlertAwait(announcement.message, stillCurrent)
+            MonitoringAnnouncementKind.G2_FALLBACK ->
+                playG2FallbackAlertAwait(announcement.message, stillCurrent)
+            MonitoringAnnouncementKind.TIER5 ->
+                playTier5VoiceAlertAwait(announcement.message, stillCurrent)
+            MonitoringAnnouncementKind.TECHNOLOGY_CHANGE ->
+                playTechnologyChangeAlertAwait(
+                    announcement.message,
+                    announcement.targetRadioAccessType,
+                    stillCurrent
+                )
+            MonitoringAnnouncementKind.CELL_IDENTITY ->
+                playCellChangeAlertAwait(announcement.message, stillCurrent)
         }
     }
 
@@ -401,7 +429,11 @@ class ConnectivityMonitorService : Service() {
                 ) {
                     break
                 }
+                val generation = periodicVoiceGeneration.get()
                 monitoringAlertMutex.withLock {
+                    if (periodicVoiceGeneration.get() != generation) {
+                        return@withLock
+                    }
                     playG2ModePeriodicAnnouncement(current, settings)
                 }
             }
@@ -537,30 +569,38 @@ class ConnectivityMonitorService : Service() {
         toneDurationMs: Int,
         announcement: String?,
         voiceEnabled: Boolean,
-        voiceVolume: Float
+        voiceVolume: Float,
+        stillCurrent: () -> Boolean = { true }
     ) {
+        if (!stillCurrent()) return
         onPlayTone()
         delay(AudioVolumeSettings.voiceDelayAfterAlertTone(toneDurationMs))
+        if (!stillCurrent()) return
         val masterVoiceEnabled = MonitorState.audioVolumes.value.masterVoiceAnnouncementsEnabled
         if (masterVoiceEnabled && voiceEnabled && !announcement.isNullOrBlank() && voiceVolume > 0f) {
             cellVoiceAnnouncer.speakAwait(announcement, voiceVolume)
         }
     }
 
-    private suspend fun playCellChangeAlertAwait(announcement: String?) {
+    private suspend fun playCellChangeAlertAwait(
+        announcement: String?,
+        stillCurrent: () -> Boolean = { true }
+    ) {
         val volumes = MonitorState.audioVolumes.value.normalized()
         playAlertWithVoiceAwait(
             onPlayTone = ::playCellChangeBell,
             toneDurationMs = GeigerCounterPlayer.CELL_CHANGE_BELL_DURATION_MS,
             announcement = announcement,
             voiceEnabled = volumes.cellChangeVoiceEnabled,
-            voiceVolume = volumes.cellChangeVoiceVolume
+            voiceVolume = volumes.cellChangeVoiceVolume,
+            stillCurrent = stillCurrent
         )
     }
 
     private suspend fun playTechnologyChangeAlertAwait(
         announcement: String?,
-        targetRadioAccessType: String?
+        targetRadioAccessType: String?,
+        stillCurrent: () -> Boolean = { true }
     ) {
         val alertVolumes = MonitorState.audioVolumes.value
             .normalized()
@@ -571,11 +611,15 @@ class ConnectivityMonitorService : Service() {
             toneDurationMs = GeigerCounterPlayer.TECHNOLOGY_CHANGE_TONE_DURATION_MS,
             announcement = announcement,
             voiceEnabled = alertVolumes.voiceEnabled,
-            voiceVolume = alertVolumes.voiceVolume
+            voiceVolume = alertVolumes.voiceVolume,
+            stillCurrent = stillCurrent
         )
     }
 
-    private suspend fun playNoSignalAlertAwait(announcement: String?) {
+    private suspend fun playNoSignalAlertAwait(
+        announcement: String?,
+        stillCurrent: () -> Boolean = { true }
+    ) {
         val volumes = MonitorState.audioVolumes.value.normalized()
         if (volumes.noSignalVibrationEnabled) {
             AlertVibrator.buzzNoSignal(this)
@@ -587,31 +631,60 @@ class ConnectivityMonitorService : Service() {
             toneDurationMs = GeigerCounterPlayer.NO_SIGNAL_ALERT_TONE_DURATION_MS,
             announcement = announcement,
             voiceEnabled = volumes.noSignalVoiceEnabled,
-            voiceVolume = volumes.noSignalVoiceVolume
+            voiceVolume = volumes.noSignalVoiceVolume,
+            stillCurrent = stillCurrent
         )
     }
 
     private fun playNoSignalAlert(announcement: String?) {
-        playPeriodicAlert { playNoSignalAlertAwait(announcement) }
+        playPeriodicAlert {
+            val current = MonitorState.stats.value
+            val settings = MonitorState.passiveSignalSettings.value
+            when {
+                current.shouldPlayNoSignalVoiceAnnouncements(settings) ->
+                    playNoSignalAlertAwait(MonitorState.formatNoSignalAnnouncement(current))
+                current.searching2gFallbackActive && !current.isOn2g && !current.isCompleteNoService ->
+                    playNoSignalAlertAwait(announcement)
+                else -> return@playPeriodicAlert
+            }
+        }
     }
 
     private fun playPeriodicLimitedServiceAlert(announcement: String?) {
-        playPeriodicAlert { playLimitedServiceAlertAwait(announcement) }
+        playPeriodicAlert {
+            val current = MonitorState.stats.value
+            val settings = MonitorState.passiveSignalSettings.value
+            if (!current.shouldAllowLimitedServicePeriodicVoice(settings)) {
+                return@playPeriodicAlert
+            }
+            playLimitedServiceAlertAwait(MonitorState.formatLimitedServiceAnnouncement(current))
+        }
     }
 
     private fun playPeriodicDeadzoneAlert(announcement: String?) {
-        playPeriodicAlert { playDeadzoneAlertAwait(announcement) }
+        playPeriodicAlert {
+            val current = MonitorState.stats.value
+            if (!current.isMonitoring || current.isPassiveIdleMode || !current.isCompleteNoService) {
+                return@playPeriodicAlert
+            }
+            playDeadzoneAlertAwait(MonitorState.formatDeadzoneAnnouncement(current))
+        }
     }
 
     private fun playPeriodicAlert(block: suspend () -> Unit) {
+        val generation = periodicVoiceGeneration.get()
         serviceScope.launch {
             monitoringAlertMutex.withLock {
+                if (periodicVoiceGeneration.get() != generation) return@withLock
                 block()
             }
         }
     }
 
-    private suspend fun playLimitedServiceAlertAwait(announcement: String?) {
+    private suspend fun playLimitedServiceAlertAwait(
+        announcement: String?,
+        stillCurrent: () -> Boolean = { true }
+    ) {
         val volumes = MonitorState.audioVolumes.value.normalized()
         val toneMs = MonitorState.passiveSignalSettings.value.normalized().limitedServiceTierPulseDurationMs
         playAlertWithVoiceAwait(
@@ -626,11 +699,15 @@ class ConnectivityMonitorService : Service() {
             toneDurationMs = GeigerCounterPlayer.limitedServiceAlertToneDurationMs(toneMs),
             announcement = announcement,
             voiceEnabled = volumes.limitedServiceVoiceEnabled,
-            voiceVolume = volumes.limitedServiceVoiceVolume
+            voiceVolume = volumes.limitedServiceVoiceVolume,
+            stillCurrent = stillCurrent
         )
     }
 
-    private suspend fun playG2FallbackAlertAwait(announcement: String?) {
+    private suspend fun playG2FallbackAlertAwait(
+        announcement: String?,
+        stillCurrent: () -> Boolean = { true }
+    ) {
         val alertVolumes = MonitorState.audioVolumes.value
             .normalized()
             .technologyChangeAlertVolumes(TechnologyChangeTarget.TO_2G)
@@ -639,11 +716,15 @@ class ConnectivityMonitorService : Service() {
             toneDurationMs = GeigerCounterPlayer.TECHNOLOGY_CHANGE_TONE_DURATION_MS,
             announcement = announcement,
             voiceEnabled = alertVolumes.voiceEnabled,
-            voiceVolume = alertVolumes.voiceVolume
+            voiceVolume = alertVolumes.voiceVolume,
+            stillCurrent = stillCurrent
         )
     }
 
-    private suspend fun playDeadzoneAlertAwait(announcement: String?) {
+    private suspend fun playDeadzoneAlertAwait(
+        announcement: String?,
+        stillCurrent: () -> Boolean = { true }
+    ) {
         val volumes = MonitorState.audioVolumes.value.normalized()
         playAlertWithVoiceAwait(
             onPlayTone = {
@@ -652,16 +733,21 @@ class ConnectivityMonitorService : Service() {
             toneDurationMs = GeigerCounterPlayer.NO_SIGNAL_ALERT_TONE_DURATION_MS,
             announcement = announcement,
             voiceEnabled = volumes.noSignalVoiceEnabled,
-            voiceVolume = volumes.noSignalVoiceVolume
+            voiceVolume = volumes.noSignalVoiceVolume,
+            stillCurrent = stillCurrent
         )
     }
 
-    private suspend fun playTier5VoiceAlertAwait(announcement: String?) {
+    private suspend fun playTier5VoiceAlertAwait(
+        announcement: String?,
+        stillCurrent: () -> Boolean = { true }
+    ) {
         val volumes = MonitorState.audioVolumes.value.normalized()
         if (!volumes.masterVoiceAnnouncementsEnabled ||
             !volumes.tier5AnnouncerEnabled ||
             announcement.isNullOrBlank() ||
-            volumes.tier5AnnouncerVolume <= 0f
+            volumes.tier5AnnouncerVolume <= 0f ||
+            !stillCurrent()
         ) {
             return
         }
@@ -669,7 +755,57 @@ class ConnectivityMonitorService : Service() {
     }
 
     private fun playTier5VoiceAlert(announcement: String?) {
-        playPeriodicAlert { playTier5VoiceAlertAwait(announcement) }
+        playPeriodicAlert {
+            val current = MonitorState.stats.value
+            val settings = MonitorState.passiveSignalSettings.value
+            val audio = MonitorState.audioVolumes.value.normalized()
+            if (!current.isMonitoring ||
+                current.isPassiveIdleMode ||
+                !audio.tier5AnnouncerEnabled ||
+                !current.shouldPlayTier5StylePeriodicVoice(settings)
+            ) {
+                return@playPeriodicAlert
+            }
+            playTier5VoiceAlertAwait(MonitorState.formatTier5Announcement(current))
+        }
+    }
+
+    private fun playSoundIcon(announcement: MonitoringAnnouncement) {
+        val volumes = MonitorState.audioVolumes.value.normalized()
+        when (announcement.kind) {
+            MonitoringAnnouncementKind.CELL_IDENTITY -> playCellChangeBell()
+            MonitoringAnnouncementKind.TECHNOLOGY_CHANGE -> {
+                val alertVolumes = volumes.technologyChangeAlertVolumes(
+                    announcement.targetRadioAccessType
+                ) ?: return
+                geigerPlayer.playTechnologyChangeTone(alertVolumes.toneVolume)
+            }
+            MonitoringAnnouncementKind.G2_FALLBACK -> {
+                val alertVolumes = volumes.technologyChangeAlertVolumes(TechnologyChangeTarget.TO_2G)
+                geigerPlayer.playTechnologyChangeTone(alertVolumes.toneVolume)
+            }
+            MonitoringAnnouncementKind.NO_SIGNAL_STATE -> {
+                if (volumes.noSignalVibrationEnabled) {
+                    AlertVibrator.buzzNoSignal(this)
+                }
+                geigerPlayer.previewNoSignalTone(volumes.noSignalToneVolume)
+            }
+            MonitoringAnnouncementKind.DEADZONE ->
+                geigerPlayer.previewNoSignalTone(volumes.noSignalToneVolume)
+            MonitoringAnnouncementKind.LIMITED_SERVICE_STATE,
+            MonitoringAnnouncementKind.LIMITED_SERVICE_OPERATOR -> {
+                val toneMs = MonitorState.passiveSignalSettings.value
+                    .normalized()
+                    .limitedServiceTierPulseDurationMs
+                geigerPlayer.previewLimitedServiceTone(
+                    volume = volumes.limitedServiceToneVolume,
+                    lowFrequencyHz = volumes.limitedServiceTierPulseFrequencyHz,
+                    highFrequencyHz = volumes.limitedServiceTwoToneHighFrequencyHz(),
+                    toneMs = toneMs
+                )
+            }
+            MonitoringAnnouncementKind.TIER5 -> Unit
+        }
     }
 
     private fun playCellChangeBell() {
@@ -729,6 +865,8 @@ class ConnectivityMonitorService : Service() {
         searching2gAnnouncementJob = null
         rsrpHistogramSampleJob?.cancel()
         rsrpHistogramSampleJob = null
+        voiceQueue.clear()
+        periodicVoiceGeneration.incrementAndGet()
         pingMonitor.stop()
         passiveSignalMonitor.stop()
         geigerPlayer.stop()

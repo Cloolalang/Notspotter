@@ -49,6 +49,8 @@ data class MonitoringUpdateEvents(
         }
     }
 
+    fun hasImmediateAnnouncements(): Boolean = immediateAnnouncements().isNotEmpty()
+
     private fun immediateAnnouncementFor(kind: MonitoringAnnouncementKind): MonitoringAnnouncement? {
         return when (kind) {
             MonitoringAnnouncementKind.DEADZONE -> deadzoneAnnounced.takeIf { it }?.let {

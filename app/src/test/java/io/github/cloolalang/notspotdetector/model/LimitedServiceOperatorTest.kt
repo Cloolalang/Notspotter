@@ -35,6 +35,47 @@ class LimitedServiceOperatorTest {
     }
 
     @Test
+    fun resolveCampedVisitedOperatorName_usesPlmnWhenNamesMatchButPlmnsDiffer() {
+        val stats = ConnectivityStats(
+            homeNetworkOperatorName = "EE",
+            servingNetworkOperatorName = "EE",
+            networkOperatorName = "EE",
+            homePlmn = "23430",
+            plmn = "23415"
+        )
+
+        assertEquals("23415", stats.resolveCampedVisitedOperatorName())
+    }
+
+    @Test
+    fun resolveServingOperatorFromCell_prefersCellNameWhenPlmnIsVisited() {
+        assertEquals(
+            "Vodafone",
+            resolveServingOperatorFromCell(
+                telephonyServingName = "EE",
+                homeName = "EE",
+                homePlmn = "23430",
+                cellServingName = "Vodafone",
+                cellServingPlmn = "23415"
+            )
+        )
+    }
+
+    @Test
+    fun resolveServingOperatorFromCell_fallsBackToCellPlmnWhenTelephonyNameIsHome() {
+        assertEquals(
+            "23415",
+            resolveServingOperatorFromCell(
+                telephonyServingName = "EE",
+                homeName = "EE",
+                homePlmn = "23430",
+                cellServingName = null,
+                cellServingPlmn = "23415"
+            )
+        )
+    }
+
+    @Test
     fun resolveLimitedServiceVisitedOperatorName_returnsNullWhenSameOperator() {
         val stats = ConnectivityStats(
             isLimitedService = true,

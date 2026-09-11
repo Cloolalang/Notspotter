@@ -202,7 +202,8 @@ object SignalStateAnnouncement {
         phrases: VoicePhraseOptions = VoicePhraseOptions(
             speakOperatorName = speakOperatorNameEnabled,
             speakTechnology = speakTechnologyEnabled
-        )
+        ),
+        serviceState: String? = null
     ): String {
         return formatCampedSignalStateAnnouncement(
             operatorSpeech = stats.formatCampedOperatorForSpeech(),
@@ -211,7 +212,8 @@ object SignalStateAnnouncement {
             speakOperatorNameEnabled = phrases.speakOperatorName,
             speakTechnologyEnabled = phrases.speakTechnology,
             speakBandEnabled = phrases.speakBand,
-            bandPhrase = phrases.bandPhraseFor(stats.lteEarfcn, stats.nrBand)
+            bandPhrase = phrases.bandPhraseFor(stats.lteEarfcn, stats.nrBand),
+            serviceState = serviceState
         )
     }
 
@@ -222,7 +224,8 @@ object SignalStateAnnouncement {
         speakOperatorNameEnabled: Boolean = true,
         speakTechnologyEnabled: Boolean = true,
         speakBandEnabled: Boolean = false,
-        bandPhrase: String? = null
+        bandPhrase: String? = null,
+        serviceState: String? = null
     ): String {
         val parts = mutableListOf<String>()
         if (speakOperatorNameEnabled) {
@@ -237,6 +240,7 @@ object SignalStateAnnouncement {
             bandPhrase?.takeIf { it.isNotBlank() }?.let(parts::add)
         }
         parts.add(signalState)
+        serviceState?.takeIf { it.isNotBlank() }?.let(parts::add)
         return parts.joinToString(", ")
     }
 
@@ -348,7 +352,8 @@ object SignalStateAnnouncement {
             stats = stats,
             lastKnownRadioAccessType = lastKnownRadioAccessType,
             signalState = PHRASE_NO_SIGNAL,
-            phrases = phrases
+            phrases = phrases,
+            serviceState = PHRASE_LIMITED_SERVICE.takeIf { stats.isLimitedService }
         )
     }
 

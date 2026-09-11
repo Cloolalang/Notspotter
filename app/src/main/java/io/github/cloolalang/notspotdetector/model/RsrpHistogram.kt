@@ -1,5 +1,7 @@
 package io.github.cloolalang.notspotdetector.model
 
+import kotlin.math.roundToInt
+
 /** What a histogram bar represents. */
 enum class RsrpHistogramBinKind {
     /** A 5 dB level bin or a “stronger than” threshold floor. */
@@ -27,6 +29,13 @@ enum class RsrpHistogramBand {
     FAIR,
     POOR,
     CRITICAL
+}
+
+/** Traffic-light colour for a threshold-histogram bar. */
+enum class RsrpHistogramThresholdBarColor {
+    GREEN,
+    ORANGE,
+    RED
 }
 
 /** Which histogram is shown — only one mode is visible at a time. */
@@ -61,6 +70,8 @@ object RsrpHistogram {
     const val MIN_THRESHOLD_DBM = MIN_RSRP_DBM
     const val MAX_THRESHOLD_DBM = MAX_RSRP_DBM
     const val THRESHOLD_BIN_COUNT = 3
+    const val THRESHOLD_GREEN_MIN_PERCENT = 95
+    const val THRESHOLD_ORANGE_MIN_PERCENT = 90
 
     fun binIndexForRsrp(rsrpDbm: Int): Int {
         val clamped = rsrpDbm.coerceIn(MIN_RSRP_DBM, MAX_RSRP_DBM)
@@ -169,6 +180,44 @@ object RsrpHistogram {
     ): Int {
         val cutoff = nowMs - windowMs
         return samples.count { it.timestampMs >= cutoff }
+    }
+
+    /**
+     * Wall time since the oldest retained sample, capped at [windowMs] so the indicator
+     * stops once the sample window is full. Null when the histogram is empty.
+     */
+    fun elapsedSinceFirstSampleMs(
+        samples: List<RsrpSample>,
+        nowMs: Long,
+        windowMs: Long = Long.MAX_VALUE
+    ): Long? {
+        val firstMs = samples.minOfOrNull { it.timestampMs } ?: return null
+        val elapsed = (nowMs - firstMs).coerceAtLeast(0L)
+        return elapsed.coerceAtMost(windowMs.coerceAtLeast(0L))
+    }
+
+    fun occupancyPercent(count: Int, totalSamples: Int): Int {
+        if (totalSamples <= 0) return 0
+        return ((count * 100f) / totalSamples).roundToInt()
+    }
+
+    /**
+     * Threshold bars: green at ≥95%, orange at 90–94%, red below 90%.
+     * Other-samples and N/A bars are always red.
+     */
+    fun thresholdBarColor(
+        bin: RsrpHistogramBin,
+        totalSamples: Int
+    ): RsrpHistogramThresholdBarColor {
+        if (bin.kind != RsrpHistogramBinKind.SIGNAL) {
+            return RsrpHistogramThresholdBarColor.RED
+        }
+        val percent = occupancyPercent(bin.count, totalSamples)
+        return when {
+            percent >= THRESHOLD_GREEN_MIN_PERCENT -> RsrpHistogramThresholdBarColor.GREEN
+            percent >= THRESHOLD_ORANGE_MIN_PERCENT -> RsrpHistogramThresholdBarColor.ORANGE
+            else -> RsrpHistogramThresholdBarColor.RED
+        }
     }
 
     fun activeBins(bins: List<RsrpHistogramBin>): List<IndexedValue<RsrpHistogramBin>> {
