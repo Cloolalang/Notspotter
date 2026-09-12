@@ -219,6 +219,18 @@ class PassiveSignalSettingsRepository(context: Context) {
             limitedAlt2gTierPulseDurationMs = prefs.getInt(
                 KEY_LIMITED_ALT_2G_TIER_PULSE_MS,
                 PassiveSignalSettings.DEFAULT_LIMITED_ALT_2G_TIER_PULSE_DURATION_MS
+            ),
+            wifiCallingTierClickIntervalMs = prefs.getInt(
+                KEY_WIFI_CALLING_TIER_CLICK_MS,
+                PassiveSignalSettings.DEFAULT_WIFI_CALLING_TIER_CLICK_INTERVAL_MS
+            ),
+            wifiCallingTierSoundEnabled = prefs.getBoolean(
+                KEY_WIFI_CALLING_TIER_SOUND,
+                PassiveSignalSettings.DEFAULT_TIER_SOUND_ENABLED
+            ),
+            wifiCallingTierPulseDurationMs = prefs.getInt(
+                KEY_WIFI_CALLING_TIER_PULSE_MS,
+                PassiveSignalSettings.DEFAULT_WIFI_CALLING_TIER_PULSE_DURATION_MS
             )
         ).normalized()
     }
@@ -282,6 +294,9 @@ class PassiveSignalSettingsRepository(context: Context) {
             .putInt(KEY_LIMITED_ALT_2G_TIER_CLICK_MS, normalized.limitedAlt2gTierClickIntervalMs)
             .putBoolean(KEY_LIMITED_ALT_2G_TIER_SOUND, normalized.limitedAlt2gTierSoundEnabled)
             .putInt(KEY_LIMITED_ALT_2G_TIER_PULSE_MS, normalized.limitedAlt2gTierPulseDurationMs)
+            .putInt(KEY_WIFI_CALLING_TIER_CLICK_MS, normalized.wifiCallingTierClickIntervalMs)
+            .putBoolean(KEY_WIFI_CALLING_TIER_SOUND, normalized.wifiCallingTierSoundEnabled)
+            .putInt(KEY_WIFI_CALLING_TIER_PULSE_MS, normalized.wifiCallingTierPulseDurationMs)
             .apply()
     }
 
@@ -359,5 +374,8 @@ class PassiveSignalSettingsRepository(context: Context) {
         private const val KEY_LIMITED_ALT_2G_TIER_CLICK_MS = "limited_alt_2g_tier_click_ms"
         private const val KEY_LIMITED_ALT_2G_TIER_SOUND = "limited_alt_2g_tier_sound_enabled"
         private const val KEY_LIMITED_ALT_2G_TIER_PULSE_MS = "limited_alt_2g_tier_pulse_ms"
+        private const val KEY_WIFI_CALLING_TIER_CLICK_MS = "wifi_calling_tier_click_ms"
+        private const val KEY_WIFI_CALLING_TIER_SOUND = "wifi_calling_tier_sound_enabled"
+        private const val KEY_WIFI_CALLING_TIER_PULSE_MS = "wifi_calling_tier_pulse_ms"
     }
 }

@@ -1,7 +1,7 @@
 package io.github.cloolalang.notspotdetector.model
 
 /**
- * Stable voice announcement IDs (**VA-1** … **VA-18**) and playback priorities.
+ * Stable voice announcement IDs (**VA-1** … **VA-19**) and playback priorities.
  * Phrase templates: [SignalStateAnnouncement] · doc: VOICE_ANNOUNCEMENTS.md
  */
 object VoiceAnnouncement {
@@ -26,6 +26,7 @@ object VoiceAnnouncement {
     const val VA_16_G2_CAMPED_REPEAT = 16
     const val VA_17_G2_NO_SIGNAL_REPEAT = 17
     const val VA_18_G2_WEAK_REPEAT = 18
+    const val VA_19_SPECIAL_CELL = 19
 
     /** Lower number speaks first when several announcements queue together. */
     fun priorityFor(kind: MonitoringAnnouncementKind): Int = when (kind) {
@@ -37,6 +38,7 @@ object VoiceAnnouncement {
         MonitoringAnnouncementKind.LIMITED_SERVICE_OPERATOR -> 8
         MonitoringAnnouncementKind.TECHNOLOGY_CHANGE -> 8
         MonitoringAnnouncementKind.CELL_IDENTITY -> 9
+        MonitoringAnnouncementKind.SPECIAL_CELL -> 10
     }
 
     /** Maps an immediate [MonitoringAnnouncementKind] to catalogue VA number(s). */
@@ -50,6 +52,7 @@ object VoiceAnnouncement {
         MonitoringAnnouncementKind.LIMITED_SERVICE_OPERATOR -> listOf(VA_6_LIMITED_SERVICE_OPERATOR)
         MonitoringAnnouncementKind.TECHNOLOGY_CHANGE -> listOf(VA_9_TECHNOLOGY_CHANGE)
         MonitoringAnnouncementKind.CELL_IDENTITY -> listOf(VA_10_CELL_RESELECT)
+        MonitoringAnnouncementKind.SPECIAL_CELL -> listOf(VA_19_SPECIAL_CELL)
     }
 
     /** Same-poll immediate playback order (lowest [priorityFor] first; tie-break by list order). */
@@ -61,6 +64,7 @@ object VoiceAnnouncement {
         MonitoringAnnouncementKind.G2_FALLBACK,
         MonitoringAnnouncementKind.LIMITED_SERVICE_OPERATOR,
         MonitoringAnnouncementKind.TECHNOLOGY_CHANGE,
-        MonitoringAnnouncementKind.CELL_IDENTITY
+        MonitoringAnnouncementKind.CELL_IDENTITY,
+        MonitoringAnnouncementKind.SPECIAL_CELL
     )
 }

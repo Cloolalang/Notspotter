@@ -4,7 +4,8 @@ package io.github.cloolalang.notspotdetector.model
  * Immediate VA queue. Same-kind phrases replace each other, service-state VAs
  * (dead zone / no-signal / limited) collapse to the latest, and spoken backlog is
  * kept to about [SPEECH_BUDGET_MS]. Overflow events keep their alert tone/bell
- * and drop TTS so reselections stay audible in low signal.
+ * and drop TTS so reselections stay audible in low signal. Known-cell voice
+ * (VA-19) is always kept — it has no bell of its own.
  */
 class VoiceAnnouncementQueue {
 
@@ -127,11 +128,12 @@ class VoiceAnnouncementQueue {
         var remaining = SPEECH_BUDGET_MS - remainingPlayingMsLocked()
         val keep = ArrayDeque<Item>()
         for (item in pending) {
-            val cost = estimatedSpokenMs(item.announcement.kind)
-            if (cost <= remaining) {
+            val kind = item.announcement.kind
+            val cost = estimatedSpokenMs(kind)
+            if (kind == MonitoringAnnouncementKind.SPECIAL_CELL || cost <= remaining) {
                 keep.addLast(item)
                 remaining -= cost
-            } else if (hasSoundIcon(item.announcement.kind)) {
+            } else if (hasSoundIcon(kind)) {
                 toneOnly += item.announcement
             }
         }
@@ -156,7 +158,8 @@ class VoiceAnnouncementQueue {
         )
 
         fun hasSoundIcon(kind: MonitoringAnnouncementKind): Boolean {
-            return kind != MonitoringAnnouncementKind.TIER5
+            return kind != MonitoringAnnouncementKind.TIER5 &&
+                kind != MonitoringAnnouncementKind.SPECIAL_CELL
         }
 
         fun estimatedSpokenMs(kind: MonitoringAnnouncementKind): Long {
@@ -168,7 +171,8 @@ class VoiceAnnouncementQueue {
                 MonitoringAnnouncementKind.DEADZONE -> 250L
                 MonitoringAnnouncementKind.LIMITED_SERVICE_STATE,
                 MonitoringAnnouncementKind.LIMITED_SERVICE_OPERATOR -> 800L
-                MonitoringAnnouncementKind.TIER5 -> 0L
+                MonitoringAnnouncementKind.TIER5,
+                MonitoringAnnouncementKind.SPECIAL_CELL -> 0L
             }
             return toneMs + ALERT_VOICE_GAP_MS + ESTIMATED_SPEECH_MS
         }
@@ -225,7 +229,8 @@ class VoiceAnnouncementQueue {
             MonitoringAnnouncementKind.G2_FALLBACK,
             MonitoringAnnouncementKind.LIMITED_SERVICE_OPERATOR,
             MonitoringAnnouncementKind.TECHNOLOGY_CHANGE,
-            MonitoringAnnouncementKind.CELL_IDENTITY
+            MonitoringAnnouncementKind.CELL_IDENTITY,
+            MonitoringAnnouncementKind.SPECIAL_CELL
         )
     }
 }

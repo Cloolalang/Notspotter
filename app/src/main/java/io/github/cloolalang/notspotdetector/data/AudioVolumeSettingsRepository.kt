@@ -257,6 +257,26 @@ class AudioVolumeSettingsRepository(context: Context) {
                 KEY_NO_SIGNAL_SPEAK_TECHNOLOGY,
                 KEY_NO_SIGNAL_SPEAK_BAND
             ),
+            specialCellsDetectionEnabled = prefs.getBoolean(
+                KEY_SPECIAL_CELLS_DETECTION_ENABLED,
+                AudioVolumeSettings.DEFAULT_SPECIAL_CELLS_DETECTION_ENABLED
+            ),
+            specialCellsVoiceEnabled = prefs.getBoolean(
+                KEY_SPECIAL_CELLS_VOICE_ENABLED,
+                AudioVolumeSettings.DEFAULT_SPECIAL_CELLS_VOICE_ENABLED
+            ),
+            specialCellsSpeakType = prefs.getBoolean(
+                KEY_SPECIAL_CELLS_SPEAK_TYPE,
+                AudioVolumeSettings.DEFAULT_SPECIAL_CELLS_SPEAK_TYPE
+            ),
+            specialCellsSpeakSite = prefs.getBoolean(
+                KEY_SPECIAL_CELLS_SPEAK_SITE,
+                AudioVolumeSettings.DEFAULT_SPECIAL_CELLS_SPEAK_SITE
+            ),
+            specialCellsSpeakSector = prefs.getBoolean(
+                KEY_SPECIAL_CELLS_SPEAK_SECTOR,
+                AudioVolumeSettings.DEFAULT_SPECIAL_CELLS_SPEAK_SECTOR
+            ),
             limitedServicePhrases = loadPhrases(
                 KEY_LIMITED_SERVICE_SPEAK_OPERATOR,
                 KEY_LIMITED_SERVICE_SPEAK_TECHNOLOGY,
@@ -380,6 +400,11 @@ class AudioVolumeSettingsRepository(context: Context) {
                 KEY_LIMITED_SERVICE_SPEAK_VISITING_LIMITED,
                 normalized.limitedServicePhrases.speakVisitingLimitedService
             )
+            .putBoolean(KEY_SPECIAL_CELLS_DETECTION_ENABLED, normalized.specialCellsDetectionEnabled)
+            .putBoolean(KEY_SPECIAL_CELLS_VOICE_ENABLED, normalized.specialCellsVoiceEnabled)
+            .putBoolean(KEY_SPECIAL_CELLS_SPEAK_TYPE, normalized.specialCellsSpeakType)
+            .putBoolean(KEY_SPECIAL_CELLS_SPEAK_SITE, normalized.specialCellsSpeakSite)
+            .putBoolean(KEY_SPECIAL_CELLS_SPEAK_SECTOR, normalized.specialCellsSpeakSector)
             .apply()
     }
 
@@ -459,5 +484,10 @@ class AudioVolumeSettingsRepository(context: Context) {
             "limited_service_phrase_speak_home_limited"
         private const val KEY_LIMITED_SERVICE_SPEAK_VISITING_LIMITED =
             "limited_service_phrase_speak_visiting_limited"
+        private const val KEY_SPECIAL_CELLS_DETECTION_ENABLED = "special_cells_detection_enabled"
+        private const val KEY_SPECIAL_CELLS_VOICE_ENABLED = "special_cells_voice_enabled"
+        private const val KEY_SPECIAL_CELLS_SPEAK_TYPE = "special_cells_speak_type"
+        private const val KEY_SPECIAL_CELLS_SPEAK_SITE = "special_cells_speak_site"
+        private const val KEY_SPECIAL_CELLS_SPEAK_SECTOR = "special_cells_speak_sector"
     }
 }

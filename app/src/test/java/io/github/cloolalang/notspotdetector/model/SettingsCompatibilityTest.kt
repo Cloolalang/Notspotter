@@ -101,6 +101,19 @@ class SettingsCompatibilityTest {
     }
 
     @Test
+    fun normalizePassiveSignalSettingsRaisesWifiCallingClickIntervalBelowPulseDuration() {
+        val settings = PassiveSignalSettings(
+            wifiCallingTierClickIntervalMs = 50,
+            wifiCallingTierPulseDurationMs = 250
+        )
+        val normalized = SettingsCompatibility.normalizePassiveSignalSettings(
+            settings,
+            signalPulseDurationMs = 100
+        )
+        assertEquals(280, normalized.wifiCallingTierClickIntervalMs)
+    }
+
+    @Test
     fun passiveOnlyUsesConfiguredIntervalWhenLongEnough() {
         assertEquals(
             500L,

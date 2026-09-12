@@ -246,7 +246,7 @@
     <string name="metric_primary_layer_resilience">Primary intra-cells</string>
     <string name="metric_alternate_layer_resilience">Alternate layer(s)</string>
     <string name="metric_alternate_layer_resilience_value">%1$d cells / %2$d layers</string>
-    <string name="metric_primary_layer_dominance">Primary layer dominance</string>
+    <string name="metric_primary_layer_dominance">Primary intra dominance</string>
     <string name="metric_primary_layer_dominance_value">%1$d dB (%2$s)</string>
     <string name="primary_layer_dominance_low">Low</string>
     <string name="primary_layer_dominance_high">High</string>
@@ -435,4 +435,34 @@
     <string name="settings_profiles_error_too_many">Maximum number of profiles saved. Delete one to add another.</string>
     <string name="settings_profiles_error_invalid_file">Could not read that file as a settings profile.</string>
     <string name="settings_profiles_error_import_failed">Could not import that profile.</string>
+    <string name="special_cells_title">Known cells</string>
+    <string name="special_cells_summary">Match the serving cell against a CSV list. Load example list is the bundled walk-test file (Robin Hood, Hill Farm, Tesco). Import a CSV to replace it. The list is not stored in settings profiles.</string>
+    <string name="special_cells_loaded">%1$s — %2$d cells</string>
+    <string name="special_cells_list_heading">Loaded cells</string>
+    <string name="special_cells_status_disabled">Matching is off.</string>
+    <string name="special_cells_status_no_serving">No serving channel/PCI yet.</string>
+    <string name="special_cells_status_matched">Serving %1$s — matched %2$s %3$s</string>
+    <string name="special_cells_status_no_match">Serving %1$s — not in this list</string>
+    <string name="metric_special_banner">Known cell: %1$s · %2$s · %3$s</string>
+    <string name="special_cells_unnamed">Loaded list</string>
+    <string name="special_cells_detection_enabled">Show known-cell match</string>
+    <string name="special_cells_voice_enabled">Voice announcement</string>
+    <string name="special_cells_speak_type">Speak type</string>
+    <string name="special_cells_speak_site">Speak site</string>
+    <string name="special_cells_speak_sector">Speak sector</string>
+    <string name="special_cells_test">Test</string>
+    <string name="special_cells_import">Import CSV</string>
+    <string name="special_cells_restore_example">Load example list</string>
+    <string name="special_cells_imported">Known-cells list imported.</string>
+    <string name="special_cells_error_invalid_file">Could not read that file as a known-cells CSV.</string>
+    <string name="special_cells_error_empty_file">That CSV had no usable cell rows.</string>
+    <string name="special_cells_error_import_failed">Could not import that known-cells file.</string>
+    <string name="radio_debug_title">Radio debug log</string>
+    <string name="radio_debug_summary">For drive tests. Records each radio poll: the EARFCN the app chose, the subscription ServiceState keys, and every cell from the modem list (P=primary, S=secondary, R=registered, N=neighbour). Share the log after the drive. Not stored in settings profiles.</string>
+    <string name="radio_debug_enabled">Record radio log</string>
+    <string name="radio_debug_enabled_hint">%1$d lines stored. Turn on before you start monitoring, then Share when you stop.</string>
+    <string name="radio_debug_share">Share log</string>
+    <string name="radio_debug_clear">Clear log</string>
+    <string name="radio_debug_share_subject">NotSpotter radio debug log</string>
+    <string name="radio_debug_share_chooser">Share radio debug log</string>
 </resources>

@@ -13,8 +13,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import io.github.cloolalang.notspotdetector.data.RadioDebugLogger
 import io.github.cloolalang.notspotdetector.data.SettingsProfilesRepository
+import io.github.cloolalang.notspotdetector.data.SpecialCellsRepository
 import io.github.cloolalang.notspotdetector.model.ProfileImportResult
+import io.github.cloolalang.notspotdetector.model.SpecialCellsImportResult
 import io.github.cloolalang.notspotdetector.ui.MonitorApp
 import io.github.cloolalang.notspotdetector.ui.theme.NotspotDetectorTheme
 import io.github.cloolalang.notspotdetector.util.BackgroundHelper
@@ -25,6 +28,7 @@ class MainActivity : ComponentActivity() {
     private val viewModel: MonitorViewModel by viewModels()
 
     private var pendingImportCallback: ((ProfileImportResult) -> Unit)? = null
+    private var pendingSpecialCellsImportCallback: ((SpecialCellsImportResult) -> Unit)? = null
 
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -48,6 +52,20 @@ class MainActivity : ComponentActivity() {
             ProfileImportResult.InvalidFile
         } else {
             viewModel.importSettingsProfile(uri)
+        }
+        callback(result)
+    }
+
+    private val importSpecialCellsLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        val callback = pendingSpecialCellsImportCallback
+        pendingSpecialCellsImportCallback = null
+        if (callback == null) return@registerForActivityResult
+        val result = if (uri == null) {
+            SpecialCellsImportResult.InvalidFile
+        } else {
+            viewModel.importSpecialCells(uri)
         }
         callback(result)
     }
@@ -80,7 +98,20 @@ class MainActivity : ComponentActivity() {
                             )
                         )
                     },
-                    onShareSettingsProfile = ::shareSettingsProfile
+                    onShareSettingsProfile = ::shareSettingsProfile,
+                    onShareRadioDebugLog = ::shareRadioDebugLog,
+                    onImportSpecialCells = { onResult ->
+                        pendingSpecialCellsImportCallback = onResult
+                        importSpecialCellsLauncher.launch(
+                            arrayOf(
+                                SpecialCellsRepository.CSV_MIME_TYPE,
+                                "text/comma-separated-values",
+                                "text/plain",
+                                "text/*",
+                                "*/*"
+                            )
+                        )
+                    }
                 )
             }
         }
@@ -106,6 +137,30 @@ class MainActivity : ComponentActivity() {
             Intent.createChooser(
                 shareIntent,
                 getString(R.string.settings_profiles_share_chooser)
+            )
+        )
+    }
+
+    private fun shareRadioDebugLog() {
+        val file = viewModel.radioDebugFileForShare() ?: return
+        val uri = FileProvider.getUriForFile(
+            this,
+            "${packageName}.fileprovider",
+            file
+        )
+        val label = getString(R.string.radio_debug_share_subject)
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = RadioDebugLogger.SHARE_MIME_TYPE
+            putExtra(Intent.EXTRA_STREAM, uri)
+            putExtra(Intent.EXTRA_SUBJECT, label)
+            putExtra(Intent.EXTRA_TITLE, label)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            clipData = android.content.ClipData.newRawUri(label, uri)
+        }
+        startActivity(
+            Intent.createChooser(
+                shareIntent,
+                getString(R.string.radio_debug_share_chooser)
             )
         )
     }

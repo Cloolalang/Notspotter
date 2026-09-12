@@ -234,7 +234,12 @@ class AppSettingsSnapshotCodecCompletenessTest {
                 technologyChangeTo5gEndcPhrases = VoicePhraseOptions(speakOperatorName = true, speakTechnology = true, speakBand = true),
                 signalLowPhrases = VoicePhraseOptions(speakOperatorName = false, speakTechnology = true, speakBand = false),
                 noSignalPhrases = VoicePhraseOptions(speakOperatorName = true, speakTechnology = false, speakBand = true),
-                limitedServicePhrases = VoicePhraseOptions(speakOperatorName = false, speakTechnology = false, speakBand = true)
+                limitedServicePhrases = VoicePhraseOptions(speakOperatorName = false, speakTechnology = false, speakBand = true),
+                specialCellsDetectionEnabled = false,
+                specialCellsVoiceEnabled = false,
+                specialCellsSpeakType = false,
+                specialCellsSpeakSite = false,
+                specialCellsSpeakSector = false
             )
         )
     }
@@ -407,7 +412,12 @@ class AppSettingsSnapshotCodecCompletenessTest {
             "limitedServiceSpeakTechnology",
             "limitedServiceSpeakBand",
             "limitedServiceSpeakHomeLimitedService",
-            "limitedServiceSpeakVisitingLimitedService"
+            "limitedServiceSpeakVisitingLimitedService",
+            "specialCellsDetectionEnabled",
+            "specialCellsVoiceEnabled",
+            "specialCellsSpeakType",
+            "specialCellsSpeakSite",
+            "specialCellsSpeakSector"
         )
     }
 }

@@ -365,6 +365,8 @@ class ConnectivityMonitorService : Service() {
                 )
             MonitoringAnnouncementKind.CELL_IDENTITY ->
                 playCellChangeAlertAwait(announcement.message, stillCurrent)
+            MonitoringAnnouncementKind.SPECIAL_CELL ->
+                playSpecialCellVoiceAwait(announcement.message, stillCurrent)
         }
     }
 
@@ -631,6 +633,22 @@ class ConnectivityMonitorService : Service() {
         }
     }
 
+    private suspend fun playSpecialCellVoiceAwait(
+        announcement: String?,
+        stillCurrent: () -> Boolean = { true }
+    ) {
+        if (!stillCurrent()) return
+        val volumes = MonitorState.audioVolumes.value.normalized()
+        val masterVoiceEnabled = volumes.masterVoiceAnnouncementsEnabled
+        if (masterVoiceEnabled &&
+            volumes.allowsSpecialCellVoice() &&
+            !announcement.isNullOrBlank() &&
+            volumes.cellChangeVoiceVolume > 0f
+        ) {
+            cellVoiceAnnouncer.speakAwait(announcement, volumes.cellChangeVoiceVolume)
+        }
+    }
+
     private suspend fun playCellChangeAlertAwait(
         announcement: String?,
         stillCurrent: () -> Boolean = { true }
@@ -865,7 +883,8 @@ class ConnectivityMonitorService : Service() {
                     toneMs = toneMs
                 )
             }
-            MonitoringAnnouncementKind.TIER5 -> Unit
+            MonitoringAnnouncementKind.TIER5,
+            MonitoringAnnouncementKind.SPECIAL_CELL -> Unit
         }
     }
 

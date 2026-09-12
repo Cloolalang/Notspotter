@@ -1,0 +1,32 @@
+# NotSpotter known cells — schema 1
+# UTF-8 CSV. Lines starting with # are comments. Blank lines are ignored.
+# Field walk-test list: Robin Hood, Hill Farm, Tesco (Vodafone 4G).
+#
+# Required columns: site, type, mno, rat, sector, channel, pci
+# Optional: plmn, speak, speak_as, notes
+# Match key is rat + channel + pci (and plmn when the phone reports one).
+#
+site,type,mno,rat,sector,channel,pci,plmn,speak,speak_as,notes
+Robin Hood,Streetworks,Vodafone,4G,S1,6300,107,23415,yes,Robin Hood,
+Robin Hood,Streetworks,Vodafone,4G,S1,247,107,23415,yes,Robin Hood,
+Robin Hood,Streetworks,Vodafone,4G,S2,6300,106,23415,yes,Robin Hood,
+Robin Hood,Streetworks,Vodafone,4G,S2,247,106,23415,yes,Robin Hood,
+Robin Hood,Streetworks,Vodafone,4G,S3,6300,105,23415,yes,Robin Hood,
+Robin Hood,Streetworks,Vodafone,4G,S3,247,105,23415,yes,Robin Hood,
+Hill Farm,Macro,Vodafone,4G,S1,6300,327,23415,yes,Hill Farm,
+Hill Farm,Macro,Vodafone,4G,S1,3501,327,23415,yes,Hill Farm,
+Hill Farm,Macro,Vodafone,4G,S1,223,327,23415,yes,Hill Farm,
+Hill Farm,Macro,Vodafone,4G,S2,6300,329,23415,yes,Hill Farm,
+Hill Farm,Macro,Vodafone,4G,S2,3501,329,23415,yes,Hill Farm,
+Hill Farm,Macro,Vodafone,4G,S2,223,329,23415,yes,Hill Farm,
+Hill Farm,Macro,Vodafone,4G,S3,6300,328,23415,yes,Hill Farm,
+Hill Farm,Macro,Vodafone,4G,S3,3501,328,23415,yes,Hill Farm,
+Hill Farm,Macro,Vodafone,4G,S3,223,328,23415,yes,Hill Farm,
+Tesco,Macro,Vodafone,4G,S1,6300,339,23415,yes,Tesco,
+Tesco,Macro,Vodafone,4G,S1,3501,339,23415,yes,Tesco,
+Tesco,Macro,Vodafone,4G,S1,223,339,23415,yes,Tesco,
+Tesco,Macro,Vodafone,4G,S1,2850,339,23415,yes,Tesco,
+Tesco,Macro,Vodafone,4G,S2,6300,340,23415,yes,Tesco,
+Tesco,Macro,Vodafone,4G,S2,3501,340,23415,yes,Tesco,
+Tesco,Macro,Vodafone,4G,S2,223,340,23415,yes,Tesco,
+Tesco,Macro,Vodafone,4G,S2,2850,340,23415,yes,Tesco,

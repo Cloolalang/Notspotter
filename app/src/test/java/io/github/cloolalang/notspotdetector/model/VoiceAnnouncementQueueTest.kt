@@ -139,6 +139,26 @@ class VoiceAnnouncementQueueTest {
     }
 
     @Test
+    fun cellReselectKeepsSpecialCellVoice() {
+        val queue = VoiceAnnouncementQueue()
+        val result = queue.enqueue(
+            listOf(
+                announcement(MonitoringAnnouncementKind.CELL_IDENTITY, "channel 6300, PCI 106"),
+                announcement(MonitoringAnnouncementKind.SPECIAL_CELL, "streetworks, Robin Hood, sector two")
+            )
+        )
+
+        assertEquals(
+            listOf(
+                MonitoringAnnouncementKind.CELL_IDENTITY,
+                MonitoringAnnouncementKind.SPECIAL_CELL
+            ),
+            queue.pendingKinds()
+        )
+        assertTrue(result.toneOnly.isEmpty())
+    }
+
+    @Test
     fun isolatedReselectIsSpoken() {
         val queue = VoiceAnnouncementQueue()
         val result = queue.enqueue(listOf(announcement(MonitoringAnnouncementKind.CELL_IDENTITY, "PCI 10")))

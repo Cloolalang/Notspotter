@@ -19,6 +19,11 @@ import io.github.cloolalang.notspotdetector.model.RttSample
 import io.github.cloolalang.notspotdetector.model.RsrpSample
 import io.github.cloolalang.notspotdetector.model.ThresholdSettings
 import io.github.cloolalang.notspotdetector.model.SignalStateAnnouncement
+import io.github.cloolalang.notspotdetector.model.SpecialCellAnnouncement
+import io.github.cloolalang.notspotdetector.model.SpecialCellCatalog
+import io.github.cloolalang.notspotdetector.model.SpecialCellMatch
+import io.github.cloolalang.notspotdetector.model.SpecialCellMatcher
+import io.github.cloolalang.notspotdetector.model.shouldBlankStaleCellIdentity
 import io.github.cloolalang.notspotdetector.model.hasUsableSignalForMonitoring
 import io.github.cloolalang.notspotdetector.model.LteLayerResilienceDebouncer
 import io.github.cloolalang.notspotdetector.model.NoSignalDebouncer
@@ -76,12 +81,19 @@ object MonitorState {
     private val _passiveMockSettings = MutableStateFlow(PassiveMockSettings())
     val passiveMockSettings: StateFlow<PassiveMockSettings> = _passiveMockSettings.asStateFlow()
 
+    private val _specialCellCatalog = MutableStateFlow(SpecialCellCatalog())
+    val specialCellCatalog: StateFlow<SpecialCellCatalog> = _specialCellCatalog.asStateFlow()
+
+    private val _specialCellMatch = MutableStateFlow<SpecialCellMatch?>(null)
+    val specialCellMatch: StateFlow<SpecialCellMatch?> = _specialCellMatch.asStateFlow()
+
     private val _rttHistory = MutableStateFlow<List<RttSample>>(emptyList())
     val rttHistory: StateFlow<List<RttSample>> = _rttHistory.asStateFlow()
 
     private val _rsrpHistory = MutableStateFlow<List<RsrpSample>>(emptyList())
     val rsrpHistory: StateFlow<List<RsrpSample>> = _rsrpHistory.asStateFlow()
 
+    private var lastSpokenSpecialCellKey: String? = null
     private var cellIdentityBaselineReady = false
     private val cellReselectTimestamps = mutableListOf<Long>()
     private var radioTechnologyBaselineReady = false
@@ -215,10 +227,18 @@ object MonitorState {
 
     fun setMonitoringSettings(settings: MonitoringSettings) {
         _monitoringSettings.value = settings
+        publishSpecialCellMatch(_stats.value)
     }
 
     fun setAudioVolumes(settings: AudioVolumeSettings) {
         _audioVolumes.value = settings.normalized()
+        publishSpecialCellMatch(_stats.value)
+    }
+
+    fun setSpecialCellCatalog(catalog: SpecialCellCatalog) {
+        _specialCellCatalog.value = catalog
+        lastSpokenSpecialCellKey = null
+        publishSpecialCellMatch(_stats.value)
     }
 
     fun setThresholds(settings: ThresholdSettings) {
@@ -261,6 +281,7 @@ object MonitorState {
                 previousKnownRat
             )
             _stats.value = finalStats
+            publishSpecialCellMatch(finalStats)
             clearRsrpHistogramIfTechnologyChanged(finalStats.radioAccessType)
             if (!enriched.isPassiveIdleMode) {
                 enriched.rttMs?.let { recordRttSample(it, enriched.lastPingTimestampMs) }
@@ -345,6 +366,7 @@ object MonitorState {
                 val passiveSettings = _passiveSignalSettings.value
                 val withQuality = current.withQuality(_thresholds.value, passiveSettings)
                 _stats.value = applyNoSignalDebounce(withQuality, passiveSettings)
+                publishSpecialCellMatch(_stats.value)
             }
         }
     }
@@ -421,6 +443,7 @@ object MonitorState {
         val (display, updatedIdentity) = displayReady.withStabilizedCellIdentity(stableCellIdentity)
         stableCellIdentity = updatedIdentity
         _stats.value = display.withQuality(_thresholds.value, passiveSettings)
+        publishSpecialCellMatch(_stats.value)
     }
 
     fun updateSignalMetrics(metrics: CellularRadioMetrics): MonitoringUpdateEvents {
@@ -494,6 +517,7 @@ object MonitorState {
             previousKnownRat
         )
         _stats.value = finalStats
+        publishSpecialCellMatch(finalStats)
         return events
     }
 
@@ -604,6 +628,10 @@ object MonitorState {
         )
         val events = MonitoringUpdateEvents(
             cellChangeAnnouncement = cellChangeAnnouncement,
+            specialCellAnnouncement = consumeSpecialCellAnnouncement(
+                stats = nextDebounced,
+                passiveSettings = passiveSettings
+            ),
             technologyChangeAnnouncement = technologyChangeAnnouncement,
             technologyChangeTargetRadioAccessType = nextDebounced.radioAccessType?.takeIf {
                 technologyChangeAnnouncement != null
@@ -995,7 +1023,57 @@ object MonitorState {
         deadzoneAnnouncedThisEpisode = false
     }
 
+    private fun consumeSpecialCellAnnouncement(
+        stats: ConnectivityStats,
+        passiveSettings: PassiveSignalSettings
+    ): String? {
+        publishSpecialCellMatch(stats, passiveSettings)
+        if (!_isRunning.value || !stats.isMonitoring) return null
+        val volumes = _audioVolumes.value
+        if (!volumes.allowsSpecialCellVoice()) {
+            lastSpokenSpecialCellKey = null
+            return null
+        }
+        val match = _specialCellMatch.value
+        val key = match?.cell?.matchKey
+        if (key != null && key == lastSpokenSpecialCellKey) return null
+        if (match != null) {
+            val spoken = SpecialCellAnnouncement.format(
+                cell = match.cell,
+                speakType = volumes.specialCellsSpeakType,
+                speakSite = volumes.specialCellsSpeakSite,
+                speakSector = volumes.specialCellsSpeakSector
+            ).takeIf { it.isNotBlank() } ?: return null
+            lastSpokenSpecialCellKey = key
+            return spoken
+        }
+        val leavingListedCell = lastSpokenSpecialCellKey != null
+        lastSpokenSpecialCellKey = null
+        if (!leavingListedCell) return null
+        if (!SpecialCellMatcher.hasServingIdentity(stats)) return null
+        if (stats.shouldBlankStaleCellIdentity(passiveSettings)) return null
+        return SpecialCellAnnouncement.EXIT_MACRO_CELL
+    }
+
+    private fun publishSpecialCellMatch(
+        stats: ConnectivityStats,
+        passiveSettings: PassiveSignalSettings = _passiveSignalSettings.value
+    ) {
+        val volumes = _audioVolumes.value
+        _specialCellMatch.value = if (!volumes.specialCellsDetectionEnabled) {
+            null
+        } else {
+            SpecialCellMatcher.match(
+                stats = stats,
+                catalog = _specialCellCatalog.value,
+                fiveGFeaturesEnabled = _monitoringSettings.value.fiveGFeaturesEnabled,
+                blankStaleIdentity = stats.shouldBlankStaleCellIdentity(passiveSettings)
+            )
+        }
+    }
+
     private fun resetCellIdentityTracking() {
+        lastSpokenSpecialCellKey = null
         cellReselectTimestamps.clear()
         cellIdentityBaselineReady = false
         radioTechnologyBaselineReady = false
@@ -1112,6 +1190,7 @@ object MonitorState {
                 monitoringEventsListener = null
                 resetCellIdentityTracking()
                 _stats.value = ConnectivityStats(isMonitoring = false)
+                publishSpecialCellMatch(_stats.value)
                 _rttHistory.value = emptyList()
                 _rsrpHistory.value = emptyList()
                 histogramRadioAccessType = null

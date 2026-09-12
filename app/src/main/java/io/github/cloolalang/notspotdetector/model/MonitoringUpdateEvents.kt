@@ -2,6 +2,7 @@ package io.github.cloolalang.notspotdetector.model
 
 data class MonitoringUpdateEvents(
     val cellChangeAnnouncement: String? = null,
+    val specialCellAnnouncement: String? = null,
     val technologyChangeAnnouncement: String? = null,
     val technologyChangeTargetRadioAccessType: String? = null,
     val noSignalStateAnnouncement: String? = null,
@@ -20,6 +21,9 @@ data class MonitoringUpdateEvents(
 ) {
     val cellIdentityChanged: Boolean
         get() = !cellChangeAnnouncement.isNullOrBlank()
+
+    val specialCellChanged: Boolean
+        get() = !specialCellAnnouncement.isNullOrBlank()
 
     val radioTechnologyChanged: Boolean
         get() = !technologyChangeAnnouncement.isNullOrBlank()
@@ -85,6 +89,9 @@ data class MonitoringUpdateEvents(
             MonitoringAnnouncementKind.CELL_IDENTITY -> cellIdentityChanged.takeIf { it }?.let {
                 MonitoringAnnouncement(kind, cellChangeAnnouncement)
             }
+            MonitoringAnnouncementKind.SPECIAL_CELL -> specialCellChanged.takeIf { it }?.let {
+                MonitoringAnnouncement(kind, specialCellAnnouncement)
+            }
         }
     }
 }
@@ -97,7 +104,8 @@ enum class MonitoringAnnouncementKind {
     G2_FALLBACK,
     TIER5,
     TECHNOLOGY_CHANGE,
-    CELL_IDENTITY;
+    CELL_IDENTITY,
+    SPECIAL_CELL;
 
     /** Playback priority — see [VoiceAnnouncement.priorityFor]. */
     val playbackPriority: Int

@@ -93,7 +93,12 @@ data class AudioVolumeSettings(
     val technologyChangeTo5gEndcPhrases: VoicePhraseOptions = DEFAULT_TECH_CHANGE_TO_5G_ENDC_PHRASES,
     val signalLowPhrases: VoicePhraseOptions = DEFAULT_SIGNAL_LOW_PHRASES,
     val noSignalPhrases: VoicePhraseOptions = DEFAULT_NO_SIGNAL_PHRASES,
-    val limitedServicePhrases: VoicePhraseOptions = DEFAULT_LIMITED_SERVICE_PHRASES
+    val limitedServicePhrases: VoicePhraseOptions = DEFAULT_LIMITED_SERVICE_PHRASES,
+    val specialCellsDetectionEnabled: Boolean = DEFAULT_SPECIAL_CELLS_DETECTION_ENABLED,
+    val specialCellsVoiceEnabled: Boolean = DEFAULT_SPECIAL_CELLS_VOICE_ENABLED,
+    val specialCellsSpeakType: Boolean = DEFAULT_SPECIAL_CELLS_SPEAK_TYPE,
+    val specialCellsSpeakSite: Boolean = DEFAULT_SPECIAL_CELLS_SPEAK_SITE,
+    val specialCellsSpeakSector: Boolean = DEFAULT_SPECIAL_CELLS_SPEAK_SECTOR
 ) {
     fun pulseFrequencyHzForTier(tier: SignalStrengthTier): Int {
         return when (tier) {
@@ -246,6 +251,11 @@ data class AudioVolumeSettings(
             technologyChangeTo2gVoiceEnabled &&
             technologyChangeTo2gPeriodicVoiceEnabled
 
+    fun allowsSpecialCellVoice(): Boolean =
+        masterVoiceAnnouncementsEnabled &&
+            specialCellsDetectionEnabled &&
+            specialCellsVoiceEnabled
+
     fun withPeriodicVoiceRepeat(kind: PeriodicVoiceRepeat, enabled: Boolean): AudioVolumeSettings {
         return when (kind) {
             PeriodicVoiceRepeat.NO_SIGNAL -> copy(noSignalPeriodicVoiceEnabled = enabled)
@@ -329,6 +339,11 @@ data class AudioVolumeSettings(
         const val DEFAULT_MASTER_VOICE_ANNOUNCEMENTS_ENABLED = true
         const val DEFAULT_CELL_CHANGE_VOICE_ENABLED = true
         const val DEFAULT_CELL_CHANGE_SPEAK_BAND_ENABLED = true
+        const val DEFAULT_SPECIAL_CELLS_DETECTION_ENABLED = true
+        const val DEFAULT_SPECIAL_CELLS_VOICE_ENABLED = true
+        const val DEFAULT_SPECIAL_CELLS_SPEAK_TYPE = true
+        const val DEFAULT_SPECIAL_CELLS_SPEAK_SITE = true
+        const val DEFAULT_SPECIAL_CELLS_SPEAK_SECTOR = true
         const val DEFAULT_VOICE_ANNOUNCEMENT_ENABLED = true
         const val DEFAULT_PERIODIC_VOICE_ENABLED = true
         const val DEFAULT_NO_SIGNAL_VIBRATION_ENABLED = true

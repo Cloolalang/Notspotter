@@ -14,6 +14,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.cloolalang.notspotdetector.BuildConfig
 import io.github.cloolalang.notspotdetector.model.ProfileImportResult
+import io.github.cloolalang.notspotdetector.model.SpecialCellsImportResult
 import io.github.cloolalang.notspotdetector.viewmodel.MonitorViewModel
 
 @Composable
@@ -23,6 +24,8 @@ fun MonitorApp(
     onRequestCellIdentityPermission: () -> Unit,
     onImportSettingsProfile: (onResult: (ProfileImportResult) -> Unit) -> Unit,
     onShareSettingsProfile: (String) -> Unit,
+    onShareRadioDebugLog: () -> Unit,
+    onImportSpecialCells: (onResult: (SpecialCellsImportResult) -> Unit) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val stats by viewModel.stats.collectAsStateWithLifecycle()
@@ -36,6 +39,11 @@ fun MonitorApp(
     val audioVolumes by viewModel.audioVolumes.collectAsStateWithLifecycle()
     val voiceAnnouncerOptions by viewModel.voiceAnnouncerOptions.collectAsStateWithLifecycle()
     val settingsProfiles by viewModel.settingsProfiles.collectAsStateWithLifecycle()
+    val specialCellCatalog by viewModel.specialCellCatalog.collectAsStateWithLifecycle()
+    val specialCellMatch by viewModel.specialCellMatch.collectAsStateWithLifecycle()
+    val radioDebugEnabled by viewModel.radioDebugEnabled.collectAsStateWithLifecycle()
+    val radioDebugSnapshot by viewModel.radioDebugSnapshot.collectAsStateWithLifecycle()
+    val radioDebugLineCount by viewModel.radioDebugLineCount.collectAsStateWithLifecycle()
     val rttHistory by viewModel.rttHistory.collectAsStateWithLifecycle()
     val rsrpHistory by viewModel.rsrpHistory.collectAsStateWithLifecycle()
     val carrierConfigSnapshot by viewModel.carrierConfigSnapshot.collectAsStateWithLifecycle()
@@ -71,6 +79,8 @@ fun MonitorApp(
             audioVolumes = audioVolumes,
             voiceAnnouncerOptions = voiceAnnouncerOptions,
             settingsProfiles = settingsProfiles,
+            specialCellCatalog = specialCellCatalog,
+            specialCellMatch = specialCellMatch,
             rttHistory = rttHistory,
             rsrpHistory = rsrpHistory,
             isRunning = isRunning,
@@ -163,6 +173,22 @@ fun MonitorApp(
             onImportSettingsProfile = onImportSettingsProfile,
             onShareSettingsProfile = onShareSettingsProfile,
             onExportSettingsProfileToDownloads = viewModel::exportSettingsProfileToDownloads,
+            radioDebugEnabled = radioDebugEnabled,
+            radioDebugLineCount = radioDebugLineCount,
+            radioDebugSnapshot = radioDebugSnapshot,
+            onRadioDebugEnabledChange = viewModel::updateRadioDebugEnabled,
+            onShareRadioDebugLog = onShareRadioDebugLog,
+            onClearRadioDebugLog = viewModel::clearRadioDebugLog,
+            specialCellsActions = SpecialCellsActions(
+                onImport = onImportSpecialCells,
+                onRestoreExample = viewModel::restoreExampleSpecialCells,
+                onDetectionEnabledChange = viewModel::updateSpecialCellsDetectionEnabled,
+                onVoiceEnabledChange = viewModel::updateSpecialCellsVoiceEnabled,
+                onSpeakTypeChange = viewModel::updateSpecialCellsSpeakType,
+                onSpeakSiteChange = viewModel::updateSpecialCellsSpeakSite,
+                onSpeakSectorChange = viewModel::updateSpecialCellsSpeakSector,
+                onPreviewVoice = viewModel::previewSpecialCellVoice
+            ),
             onRequestCellIdentityPermission = onRequestCellIdentityPermission,
             carrierConfigSnapshot = carrierConfigSnapshot,
             onRefreshCarrierConfig = viewModel::refreshCarrierConfigSnapshot,

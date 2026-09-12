@@ -5,6 +5,85 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.46.0] - 2026-09-12
+
+### Added
+
+- **Known-cell exit voice** — Leaving a listed site for a camped cell that is not on the list now speaks “macro cell” (VA-19), so the walk-test call-out matches the banner going away.
+
+### Changed
+
+- **Known cells** — The settings panel, metrics banner, and import messages now say known cell instead of special cell. Cell metrics keep one blue banner (site · type · sector) and no longer repeat those fields as extra rows.
+- **Primary intra dominance** — The cellular metrics label is now primary intra dominance, not primary layer dominance.
+
+## [2.45.5] - 2026-09-12
+
+### Fixed
+
+- **Special-cell voice on the next listed cell** — The first matched site spoke, but a later matched cell only updated the metrics banner. Cell-reselect voice was using the speech budget and silently dropping VA-19. Special-cell voice now still plays after a cell change.
+
+## [2.45.4] - 2026-09-12
+
+### Fixed
+
+- **Wrong PCI on the right EARFCN** — ServiceState was camped on 6300/106 (registered) but the app showed neighbour 6300/107. Serving PCI now follows ServiceState when both are present, so sector (e.g. Robin Hood S2 vs S1) is correct.
+
+## [2.45.3] - 2026-09-12
+
+### Fixed
+
+- **Blank RSRP after the stale-cell filter** — When the modem leaves the whole `allCellInfo` snapshot unrefreshed for minutes, the 2-minute age cap was also dropping the live 3501 serving row. Stale now means “much older than the newest row in this snapshot”, so 6400 is still ignored and 3501 keeps its RSRP.
+
+## [2.45.2] - 2026-09-12
+
+### Fixed
+
+- **Stale VMO2 EARFCN after the SIM is removed** — The modem can keep a 6400 neighbour in `allCellInfo` for over an hour, still sharing the live PCI. Serving identity now follows this SIM’s ServiceState (3501/328 in the drive log) and ignores CellInfo rows that are much older than the newest sample.
+
+## [2.45.1] - 2026-09-12
+
+### Fixed
+
+- **Wrong EARFCN on dual-SIM** — When the modem listed two registered LTE cells (e.g. Vodafone 6300 and VMO2 6400), the app could display the other SIM’s channel. It now follows this SIM’s ServiceState EARFCN/PCI and takes RSRP/RSRQ from that same cell.
+
+## [2.45.0] - 2026-09-12
+
+### Added
+
+- **Radio debug log** — Development area toggle records each radio poll while you drive: the EARFCN/PCI the app chose, the subscription ServiceState keys, and every modem cell (registered vs neighbour, PLMN, RSRP, age). Share the log after the run. Not stored in settings profiles.
+
+## [2.44.2] - 2026-09-12
+
+### Changed
+
+- **Example special-cells list** — Load example list is now the Robin Hood / Hill Farm / Tesco Vodafone 4G walk-test file (23 rows), not the old Shellmex demo.
+
+## [2.44.1] - 2026-09-12
+
+### Changed
+
+- **Special cells panel** — The loaded CSV rows are now listed, with a live line for the serving channel/PCI and whether it matched.
+
+### Fixed
+
+- **Special-cell match** — A listed channel/PCI could be ignored when the phone left PLMN blank or used a dashed form such as `234-15`. Matching now uses channel and PCI first, and only applies PLMN when the phone actually reports one.
+
+## [2.44.0] - 2026-09-12
+
+### Added
+
+- **Special cells** — Import a CSV of DAS / small-cell sites and match it against the serving channel and PCI. When camped on a listed cell, cellular metrics show site, type, sector, and MNO. Voice can speak type, site, and sector when the phone camps onto that cell. The example list is bundled and loaded automatically; **Mock-Home** matches the Home 4G mock scenario so you can test without a real DAS. The cell list is separate from settings profiles; detection and voice toggles are saved in profiles.
+
+## [2.43.4] - 2026-09-12
+
+### Changed
+
+- **MHz nickname voice** — The MHz band style no longer says “B” (for example “eight hundred” instead of “B, eight hundred”).
+
+### Fixed
+
+- **WiFi calling profile / restart** — RXSS 31 click interval, pulse duration, and sound toggle were saved in profiles and applied on load, but were not written to device storage, so they reset after the next app start. They now persist like the other camp tiers.
+
 ## [2.43.3] - 2026-09-12
 
 ### Changed

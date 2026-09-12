@@ -128,7 +128,7 @@ class CellIdentityAnnouncementTest {
             bandNamingStyle = CellReselectBandNamingStyle.MHZ_NICKNAME
         )
 
-        assertEquals("4 G, B, eight hundred", announcement)
+        assertEquals("4 G, eight hundred", announcement)
     }
 
     @Test
@@ -145,7 +145,7 @@ class CellIdentityAnnouncementTest {
             bandNamingStyle = CellReselectBandNamingStyle.MHZ_NICKNAME
         )
 
-        assertEquals("4 G, B, twenty six hundred", announcement)
+        assertEquals("4 G, twenty six hundred", announcement)
     }
 
     @Test
@@ -225,7 +225,7 @@ class CellIdentityAnnouncementTest {
             bandNamingStyle = CellReselectBandNamingStyle.MHZ_NICKNAME
         )
 
-        assertEquals("2 G, B, nine hundred", announcement)
+        assertEquals("2 G, nine hundred", announcement)
     }
 
     @Test
@@ -241,7 +241,7 @@ class CellIdentityAnnouncementTest {
             bandNamingStyle = CellReselectBandNamingStyle.MHZ_NICKNAME
         )
 
-        assertEquals("2 G, B, eighteen hundred", announcement)
+        assertEquals("2 G, eighteen hundred", announcement)
     }
 
     @Test
@@ -263,7 +263,7 @@ class CellIdentityAnnouncementTest {
             bandNamingStyle = CellReselectBandNamingStyle.MHZ_NICKNAME
         )
 
-        assertEquals("4 G, B, eight hundred", preview)
+        assertEquals("4 G, eight hundred", preview)
     }
 
     @Test
@@ -284,6 +284,6 @@ class CellIdentityAnnouncementTest {
             )
         )
 
-        assertEquals("4 G, B, eight hundred", announcement)
+        assertEquals("4 G, eight hundred", announcement)
     }
 }

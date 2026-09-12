@@ -584,6 +584,11 @@ object AppSettingsSnapshotCodec {
             .putPhrases("signalLow", settings.signalLowPhrases)
             .putPhrases("noSignal", settings.noSignalPhrases)
             .putPhrases("limitedService", settings.limitedServicePhrases)
+            .put("specialCellsDetectionEnabled", settings.specialCellsDetectionEnabled)
+            .put("specialCellsVoiceEnabled", settings.specialCellsVoiceEnabled)
+            .put("specialCellsSpeakType", settings.specialCellsSpeakType)
+            .put("specialCellsSpeakSite", settings.specialCellsSpeakSite)
+            .put("specialCellsSpeakSector", settings.specialCellsSpeakSector)
     }
 
     private fun JSONObject.putPhrases(prefix: String, phrases: VoicePhraseOptions): JSONObject {
@@ -899,6 +904,26 @@ object AppSettingsSnapshotCodec {
                 "limitedService",
                 json.optBoolean("speakOperatorNameEnabled", AudioVolumeSettings.DEFAULT_SPEAK_OPERATOR_NAME_ENABLED),
                 json.optBoolean("speakTechnologyEnabled", AudioVolumeSettings.DEFAULT_SPEAK_TECHNOLOGY_ENABLED)
+            ),
+            specialCellsDetectionEnabled = json.optBoolean(
+                "specialCellsDetectionEnabled",
+                AudioVolumeSettings.DEFAULT_SPECIAL_CELLS_DETECTION_ENABLED
+            ),
+            specialCellsVoiceEnabled = json.optBoolean(
+                "specialCellsVoiceEnabled",
+                AudioVolumeSettings.DEFAULT_SPECIAL_CELLS_VOICE_ENABLED
+            ),
+            specialCellsSpeakType = json.optBoolean(
+                "specialCellsSpeakType",
+                AudioVolumeSettings.DEFAULT_SPECIAL_CELLS_SPEAK_TYPE
+            ),
+            specialCellsSpeakSite = json.optBoolean(
+                "specialCellsSpeakSite",
+                AudioVolumeSettings.DEFAULT_SPECIAL_CELLS_SPEAK_SITE
+            ),
+            specialCellsSpeakSector = json.optBoolean(
+                "specialCellsSpeakSector",
+                AudioVolumeSettings.DEFAULT_SPECIAL_CELLS_SPEAK_SECTOR
             )
         )
     }

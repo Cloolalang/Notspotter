@@ -65,6 +65,10 @@ import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerChoice
 import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerOption
 import io.github.cloolalang.notspotdetector.model.VoicePhraseFragment
 import io.github.cloolalang.notspotdetector.model.VoicePhraseGroup
+import io.github.cloolalang.notspotdetector.model.RadioDebugSnapshot
+import io.github.cloolalang.notspotdetector.model.SpecialCellCatalog
+import io.github.cloolalang.notspotdetector.model.SpecialCellMatch
+import io.github.cloolalang.notspotdetector.model.SpecialCellMatcher
 import io.github.cloolalang.notspotdetector.model.VoicePhraseOptions
 import io.github.cloolalang.notspotdetector.model.SignalMeasurementTier
 import io.github.cloolalang.notspotdetector.model.RSRQ_POOR_TIER_NUMBER
@@ -90,6 +94,15 @@ fun MonitorScreen(
     audioVolumes: AudioVolumeSettings,
     voiceAnnouncerOptions: List<VoiceAnnouncerOption>,
     settingsProfiles: List<SettingsProfileSummary>,
+    specialCellCatalog: SpecialCellCatalog,
+    specialCellMatch: SpecialCellMatch?,
+    specialCellsActions: SpecialCellsActions,
+    radioDebugEnabled: Boolean = false,
+    radioDebugLineCount: Int = 0,
+    radioDebugSnapshot: RadioDebugSnapshot? = null,
+    onRadioDebugEnabledChange: (Boolean) -> Unit = {},
+    onShareRadioDebugLog: () -> Unit = {},
+    onClearRadioDebugLog: () -> Unit = {},
     rttHistory: List<RttSample>,
     rsrpHistory: List<RsrpSample>,
     isRunning: Boolean,
@@ -274,6 +287,9 @@ fun MonitorScreen(
                 monitoringSettings = monitoringSettings,
                 passiveSignalSettings = passiveSignalSettings,
                 passiveMockSettings = passiveMockSettings,
+                specialCellMatch = specialCellMatch.takeIf { audioVolumes.specialCellsDetectionEnabled },
+                radioDebugEnabled = radioDebugEnabled,
+                radioDebugSnapshot = radioDebugSnapshot,
                 onRequestCellIdentityPermission = onRequestCellIdentityPermission
             )
         }
@@ -371,6 +387,19 @@ fun MonitorScreen(
                 onExportProfileToDownloads = onExportSettingsProfileToDownloads
             )
 
+            SpecialCellsCard(
+                catalog = specialCellCatalog,
+                match = specialCellMatch.takeIf { audioVolumes.specialCellsDetectionEnabled },
+                servingIdentity = SpecialCellMatcher.servingIdentitySummary(stats),
+                detectionEnabled = audioVolumes.specialCellsDetectionEnabled,
+                voiceEnabled = audioVolumes.specialCellsVoiceEnabled,
+                speakType = audioVolumes.specialCellsSpeakType,
+                speakSite = audioVolumes.specialCellsSpeakSite,
+                speakSector = audioVolumes.specialCellsSpeakSector,
+                previewEnabled = !isRunning,
+                actions = specialCellsActions
+            )
+
             GlobalVoiceSettingsCard(
                 voiceAnnouncerChoice = audioVolumes.voiceAnnouncerChoice,
                 voiceAnnouncerOptions = voiceAnnouncerOptions,
@@ -434,6 +463,15 @@ fun MonitorScreen(
                 snapshot = carrierConfigSnapshot,
                 phoneStatePermissionGranted = phoneStatePermissionGranted,
                 onRefresh = onRefreshCarrierConfig
+            )
+
+            RadioDebugCard(
+                enabled = radioDebugEnabled,
+                lineCount = radioDebugLineCount,
+                lastSnapshot = radioDebugSnapshot,
+                onEnabledChange = onRadioDebugEnabledChange,
+                onShare = onShareRadioDebugLog,
+                onClear = onClearRadioDebugLog
             )
         }
 
@@ -533,6 +571,9 @@ private fun MetricsCard(
     monitoringSettings: MonitoringSettings,
     passiveSignalSettings: PassiveSignalSettings,
     passiveMockSettings: PassiveMockSettings,
+    specialCellMatch: SpecialCellMatch?,
+    radioDebugEnabled: Boolean,
+    radioDebugSnapshot: RadioDebugSnapshot?,
     onRequestCellIdentityPermission: () -> Unit
 ) {
     val mockActive = stats.isPassiveOnlySession && passiveMockSettings.enabled
@@ -553,11 +594,38 @@ private fun MetricsCard(
                 textAlign = TextAlign.Center
             )
 
+            if (radioDebugEnabled && radioDebugSnapshot != null) {
+                Text(
+                    text = radioDebugSnapshot.bannerLine(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (radioDebugSnapshot.isSuspect) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                )
+            }
+
             MetricRow(
                 label = stringResource(R.string.metric_sim),
                 value = formatSimMetric(stats, monitoringSettings),
                 valueSingleLine = true
             )
+
+            if (specialCellMatch != null) {
+                val match = specialCellMatch
+                Text(
+                    text = stringResource(
+                        R.string.metric_special_banner,
+                        match.cell.displaySite,
+                        match.cell.type,
+                        match.cell.sector
+                    ),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = BondiBlue,
+                    fontWeight = FontWeight.Bold
+                )
+            }
             MetricRow(
                 label = stringResource(R.string.metric_home_operator),
                 value = formatHomeOperator(stats)

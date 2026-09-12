@@ -7,7 +7,8 @@ package io.github.cloolalang.notspotdetector.model
  * [PassiveSignalSettings], [PassiveMockSettings] (enabled, scenario, rsrpDbm, rsrqDb),
  * and [AudioVolumeSettings].
  *
- * Not captured: monitoring session state, live [ConnectivityStats], or permissions.
+ * Not captured: monitoring session state, live [ConnectivityStats], permissions,
+ * or the known-cells CSV (detection/voice toggles live in [AudioVolumeSettings]).
  * See [SETTINGS_PROFILES.md] and [AppSettingsSnapshotCodec].
  */
 data class AppSettingsSnapshot(

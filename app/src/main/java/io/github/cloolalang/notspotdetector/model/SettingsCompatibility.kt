@@ -99,6 +99,10 @@ object SettingsCompatibility {
                 normalized.limitedAlt2gTierClickIntervalMs,
                 normalized.limitedAlt2gTierPulseDurationMs
             ),
+            wifiCallingTierClickIntervalMs = coerceStoredTierClickIntervalMs(
+                normalized.wifiCallingTierClickIntervalMs,
+                normalized.wifiCallingTierPulseDurationMs
+            ),
             rsrqTierClickIntervalMs = coerceStoredTierClickIntervalMs(
                 normalized.rsrqTierClickIntervalMs,
                 normalized.rsrqTierPulseDurationMs,

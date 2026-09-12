@@ -10,7 +10,10 @@ import io.github.cloolalang.notspotdetector.data.MonitoringSettingsRepository
 import io.github.cloolalang.notspotdetector.data.PassiveMockSettingsRepository
 import io.github.cloolalang.notspotdetector.data.PassiveSignalSettingsRepository
 import io.github.cloolalang.notspotdetector.data.PingSettingsRepository
+import io.github.cloolalang.notspotdetector.data.RadioDebugLogger
+import io.github.cloolalang.notspotdetector.data.RadioDebugSettingsRepository
 import io.github.cloolalang.notspotdetector.data.SettingsProfilesRepository
+import io.github.cloolalang.notspotdetector.data.SpecialCellsRepository
 import io.github.cloolalang.notspotdetector.data.ThresholdSettingsRepository
 import io.github.cloolalang.notspotdetector.model.AppSettingsSnapshot
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
@@ -38,6 +41,8 @@ import io.github.cloolalang.notspotdetector.model.VoicePhraseGroup
 import io.github.cloolalang.notspotdetector.model.VoicePhraseOptions
 import io.github.cloolalang.notspotdetector.model.NetworkOperatorSpeech
 import io.github.cloolalang.notspotdetector.model.CellIdentityAnnouncement
+import io.github.cloolalang.notspotdetector.model.SpecialCellAnnouncement
+import io.github.cloolalang.notspotdetector.model.SpecialCellsImportResult
 import io.github.cloolalang.notspotdetector.model.SignalStateAnnouncement
 import io.github.cloolalang.notspotdetector.R
 import java.io.File
@@ -66,6 +71,9 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
     private val passiveSignalSettingsRepository = PassiveSignalSettingsRepository(application)
     private val passiveMockSettingsRepository = PassiveMockSettingsRepository(application)
     private val settingsProfilesRepository = SettingsProfilesRepository(application)
+    private val specialCellsRepository = SpecialCellsRepository(application)
+    private val radioDebugSettingsRepository = RadioDebugSettingsRepository(application)
+    private val radioDebugLogger = RadioDebugLogger(application)
     private val alertSoundPreview = GeigerCounterPlayer()
     private val cellVoiceAnnouncer = CellVoiceAnnouncer(application)
 
@@ -94,6 +102,8 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
             )
         )
         MonitorState.setPassiveMockSettings(passiveMockSettingsRepository.load())
+        MonitorState.setSpecialCellCatalog(specialCellsRepository.load())
+        radioDebugLogger.setEnabled(radioDebugSettingsRepository.loadEnabled())
         reconcilePassiveTierClickIntervals(MonitorState.audioVolumes.value)
         cellVoiceAnnouncer.setVoiceSelectionProvider {
             VoiceAnnouncerSelection.fromSettings(MonitorState.audioVolumes.value)
@@ -154,6 +164,22 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         SharingStarted.WhileSubscribed(5_000),
         MonitorState.passiveMockSettings.value
     )
+
+    val specialCellCatalog = MonitorState.specialCellCatalog.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        MonitorState.specialCellCatalog.value
+    )
+
+    val specialCellMatch = MonitorState.specialCellMatch.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        MonitorState.specialCellMatch.value
+    )
+
+    val radioDebugEnabled = radioDebugLogger.enabled
+    val radioDebugSnapshot = radioDebugLogger.lastSnapshot
+    val radioDebugLineCount = radioDebugLogger.lineCount
 
     val rttHistory = MonitorState.rttHistory.stateIn(
         viewModelScope,
@@ -372,6 +398,65 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
 
     fun updateCellChangeBandNamingStyle(style: CellReselectBandNamingStyle) {
         updateAudioVolumes(audioVolumes.value.copy(cellChangeBandNamingStyle = style))
+    }
+
+    fun updateSpecialCellsDetectionEnabled(enabled: Boolean) {
+        updateAudioVolumes(audioVolumes.value.copy(specialCellsDetectionEnabled = enabled))
+    }
+
+    fun updateSpecialCellsVoiceEnabled(enabled: Boolean) {
+        updateAudioVolumes(audioVolumes.value.copy(specialCellsVoiceEnabled = enabled))
+    }
+
+    fun updateSpecialCellsSpeakType(enabled: Boolean) {
+        updateAudioVolumes(audioVolumes.value.copy(specialCellsSpeakType = enabled))
+    }
+
+    fun updateSpecialCellsSpeakSite(enabled: Boolean) {
+        updateAudioVolumes(audioVolumes.value.copy(specialCellsSpeakSite = enabled))
+    }
+
+    fun updateSpecialCellsSpeakSector(enabled: Boolean) {
+        updateAudioVolumes(audioVolumes.value.copy(specialCellsSpeakSector = enabled))
+    }
+
+    fun importSpecialCells(uri: Uri): SpecialCellsImportResult {
+        val result = specialCellsRepository.importFromUri(uri)
+        if (result == SpecialCellsImportResult.Imported) {
+            MonitorState.setSpecialCellCatalog(specialCellsRepository.load())
+        }
+        return result
+    }
+
+    fun restoreExampleSpecialCells() {
+        MonitorState.setSpecialCellCatalog(specialCellsRepository.restoreExample())
+    }
+
+    fun updateRadioDebugEnabled(enabled: Boolean) {
+        radioDebugSettingsRepository.saveEnabled(enabled)
+        radioDebugLogger.setEnabled(enabled)
+    }
+
+    fun radioDebugFileForShare(): File? = radioDebugLogger.fileForShare()
+
+    fun clearRadioDebugLog() {
+        radioDebugLogger.clear()
+    }
+
+    fun previewSpecialCellVoice() {
+        if (isRunning.value) return
+        val volumes = audioVolumes.value.normalized()
+        if (!volumes.allowsSpecialCellVoice()) return
+        previewVoiceOnly(
+            announcement = SpecialCellAnnouncement.previewText(
+                catalog = MonitorState.specialCellCatalog.value,
+                match = MonitorState.specialCellMatch.value,
+                speakType = volumes.specialCellsSpeakType,
+                speakSite = volumes.specialCellsSpeakSite,
+                speakSector = volumes.specialCellsSpeakSector
+            ),
+            voiceVolume = volumes.cellChangeVoiceVolume
+        )
     }
 
     fun updateTechnologyChangeToneVolume(target: TechnologyChangeTarget, value: Float) {
@@ -683,7 +768,7 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
                     gsmEarfcn = stats.gsmEarfcn
                 )
                     ?: CellIdentityAnnouncement.prefixBandPhrase(6400)
-                    ?: "B"
+                    ?: "twenty"
             VoicePhraseFragment.HOME_LIMITED_SERVICE -> "home limited service"
             VoicePhraseFragment.VISITING_LIMITED_SERVICE -> "visiting limited service"
         }

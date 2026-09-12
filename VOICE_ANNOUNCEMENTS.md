@@ -19,7 +19,7 @@ This document describes **implemented behaviour** in the current app. For RXSS s
 
 ---
 
-## Announcement list (VA-1 … VA-18)
+## Announcement list (VA-1 … VA-19)
 
 Stable IDs used throughout this document. `{operator}` / `{tech}` are spoken operator and RAT labels.
 
@@ -107,7 +107,8 @@ Mock scenario **WiFi calling (no cellular)** in the Mock network state panel dri
 | **VA-7** | **6** | 2G camped after LTE/NR loss | `{operator}, 2 G` | G2 fallback | First poll on **2G** after LTE/NR no-signal episode; `monitor2gFallback` enabled; G2-fallback baseline ready. | — |
 | **VA-8** | **5** | Signal low (immediate) | `{operator}, {tech}, signal low` | 5 / 6 | `tier5Immediate`: dead zone→tier 5, or tier 10→tier 6 recovery; `tier5AnnouncerEnabled`. | — |
 | **VA-9** | **8** | Technology change | `{operator}, {tech}` | 28–30 | Camped `radioAccessType` changes after radio baseline. | LTE/NR→**2G** after no-signal (RXSS **10** exit path — **VA-7** instead). |
-| **VA-10** | **9** | Cell reselect (lowest immediate) | Home camp: `{operator}, {tech}, cell reselect, channel …, PCI …` · visited camp: `{operator} visited, {tech}, cell reselect, …` (2G: `channel …, BSIC …`; EN-DC: `LTE channel …, PCI …, NR channel …, PCI …`). Alternative (`cellChangeSpeakBandEnabled`): replaces `cell reselect, channel …, PCI …` with `band, …` — the E-UTRA band from the LTE channel (EARFCN), spoken as whole-number words — the band number (`cellChangeBandNamingStyle = BAND_NUMBER`, e.g. “band, twenty”) or MHz nickname (`MHZ_NICKNAME`, e.g. “band, eight hundred”); falls back to the normal phrasing with no LTE channel (2G-only reselect) | 9 | LTE/NR PCI or channel change, or 2G BSIC/channel change, after cell-identity baseline. Visited suffix when `resolveCampedVisitedOperatorName()` is non-null. | Any [no-signal RXSS](#no-signal-rxss-voice-rules): **0**, **10**, **15**, **20**, **21**, **23**, **26**, **27**. |
+| **VA-10** | **9** | Cell reselect | Home camp: `{operator}, {tech}, cell reselect, channel …, PCI …` · visited camp: `{operator} visited, {tech}, cell reselect, …` (2G: `channel …, BSIC …`; EN-DC: `LTE channel …, PCI …, NR channel …, PCI …`). Alternative (`cellChangeSpeakBandEnabled`): replaces `cell reselect, channel …, PCI …` with the band number or MHz nickname | 9 | LTE/NR PCI or channel change, or 2G BSIC/channel change, after cell-identity baseline. | Any [no-signal RXSS](#no-signal-rxss-voice-rules). |
+| **VA-19** | **10** | Known cell | Entry: `{type}, {site}, sector {n}` — e.g. “D A S, Mock home, sector one”. Type / site / sector each have a toggle. Exit: `macro cell`. | — | Serving channel+PCI matches the loaded known-cells CSV (first camp or a change to a different listed cell). Leaving a listed cell for a camped cell that is not on the list speaks **macro cell**. | Detection or voice off; row `speak=no`; no-signal / blank identity (not a camped unlisted cell); master VA mute. |
 
 ### Delayed immediate
 
@@ -193,7 +194,8 @@ Full **Pri** values are in the tables above. Rationale: tell the listener **what
 | **5** | **VA-8** | Immediate signal low |
 | **6** | **VA-7** | 2G camp after LTE/NR loss |
 | **8** | **VA-6**, **VA-9** | Limited-service operator change, then technology change |
-| **9** | **VA-10** | Cell reselect — **lowest immediate** |
+| **9** | **VA-10** | Cell reselect |
+| **10** | **VA-19** | Known-cell match (after cell reselect on the same poll) |
 | **10** | **VA-11** | ~5 s after search starts (after the immediate batch) |
 | **11–17** | **VA-13** … **VA-16** | Periodic repeats — worst state first (dead zone → no signal → limited → weak/low → 2G camp) |
 
@@ -214,6 +216,7 @@ On one poll, priorities **1–9** run back-to-back via `immediateAnnouncements()
 | **VA-9** → 2G / 4G / 5G | `technologyChangeTo{2g,4g,5gEndc}VoiceEnabled` | matching `…VoiceVolume` | matching `…ToneVolume` |
 | **VA-10** | `cellChangeVoiceEnabled` | `cellChangeVoiceVolume` | `cellChangeBellVolume` |
 | **VA-10** band phrasing | `cellChangeSpeakBandEnabled`, `cellChangeBandNamingStyle` | — | — |
+| **VA-19** | `specialCellsVoiceEnabled` (+ `specialCellsDetectionEnabled`) | `cellChangeVoiceVolume` | — (TTS only) |
 | All | `voiceAnnouncerChoice`, `voiceAnnouncerEngineId` | — | — |
 
 UI controls live under **Signal thresholds** (per RXSS) and **Alert sound volume** (global announcer picker).

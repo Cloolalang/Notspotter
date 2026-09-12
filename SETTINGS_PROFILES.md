@@ -68,9 +68,9 @@ All tier click intervals, pulse durations, and sound-enable flags for:
 
 - RSRP tiers **1–6** (very strong → critical)
 - 2G tiers **7–8**, **15**
-- Camp tiers **0**, **10**, **11**, **12**, **13**
+- Camp tiers **0**, **10**, **11**, **12**, **13**, **31** (WiFi calling)
 - RSRQ overlay **14**
-- No-signal / dead-zone / searching / limited-service / limited-alt-2G camp settings
+- No-signal / dead-zone / searching / limited-service / limited-alt-2G / WiFi-calling camp settings
 
 Full key list: `PASSIVE_SIGNAL_KEYS` in `AppSettingsSnapshotCodecCompletenessTest`.
 
@@ -87,6 +87,8 @@ Full key list: `AUDIO_KEYS` in `AppSettingsSnapshotCodecCompletenessTest`.
 | Item | Notes |
 |------|--------|
 | Monitoring running / stopped | Session state only |
+| Settings lock | Session-only unlock; not stored in profiles |
+| Known-cells CSV | Separate imported file; detection/voice toggles are in `audio` |
 | Current `ConnectivityStats` / RXSS display | Recomputed after load |
 | Passive-only vs active ping session | User starts monitoring again after load |
 | Saved profile list metadata beyond each profile | Each file is self-contained |
