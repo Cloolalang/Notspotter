@@ -65,12 +65,12 @@ class MonitorStateSpecialCellAnnouncementTest {
     fun listedCellSpeaksSiteThenUnlistedCellSpeaksMacroCell() {
         val listed = camped4g(earfcn = 6300, pci = 106)
         val entry = MonitorState.updateStats(listed)
-        assertEquals("streetworks, Robin Hood, sector two", entry.specialCellAnnouncement)
+        assertEquals("Robin Hood, streetworks, sector two", entry.specialCellAnnouncement)
 
         assertNull(MonitorState.updateStats(listed).specialCellAnnouncement)
 
         val exit = MonitorState.updateStats(camped4g(earfcn = 6300, pci = 42))
-        assertEquals(SpecialCellAnnouncement.EXIT_MACRO_CELL, exit.specialCellAnnouncement)
+        assertEquals(SpecialCellAnnouncement.EXIT_UNKNOWN_CELL, exit.specialCellAnnouncement)
     }
 
     @Test
@@ -78,7 +78,7 @@ class MonitorStateSpecialCellAnnouncementTest {
         MonitorState.updateStats(camped4g(earfcn = 6300, pci = 106))
 
         val nextListed = MonitorState.updateStats(camped4g(earfcn = 3501, pci = 328))
-        assertEquals("macro, Hill Farm, sector three", nextListed.specialCellAnnouncement)
+        assertEquals("Hill Farm, macro, sector three", nextListed.specialCellAnnouncement)
     }
 
     @Test

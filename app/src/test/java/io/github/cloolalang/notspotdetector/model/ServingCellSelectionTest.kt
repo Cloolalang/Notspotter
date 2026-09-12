@@ -88,6 +88,37 @@ class ServingCellSelectionTest {
     }
 
     @Test
+    fun usableRegisteredPair_dropsBlankServiceStatePciZero() {
+        assertEquals(null to null, ServingCellSelection.usableRegisteredPair(null, 0))
+        assertEquals(null to null, ServingCellSelection.usableRegisteredPair(null, null))
+        assertEquals(6300 to 0, ServingCellSelection.usableRegisteredPair(6300, 0))
+        assertEquals(6300 to 106, ServingCellSelection.usableRegisteredPair(6300, 106))
+    }
+
+    @Test
+    fun beatsServingRank_registeredMismatchBeatsNeighbourWithBlankPlmn() {
+        assertTrue(
+            ServingCellSelection.beatsServingRank(
+                matchesRegisteredKeys = false,
+                connectionRank = 1,
+                plmnRank = 0,
+                pciMatchesSignal = false,
+                otherMatchesRegisteredKeys = false,
+                otherConnectionRank = 0,
+                otherPlmnRank = 1,
+                otherPciMatchesSignal = false
+            )
+        )
+    }
+
+    @Test
+    fun isMetricsStale_afterFifteenSeconds() {
+        assertFalse(ServingCellSelection.isMetricsStale(14_999L))
+        assertTrue(ServingCellSelection.isMetricsStale(15_001L))
+        assertFalse(ServingCellSelection.isMetricsStale(null))
+    }
+
+    @Test
     fun resolveLteIdentity_usesServiceStateWhenKeyMatchMissing() {
         val (earfcn, pci) = ServingCellSelection.resolveLteIdentity(
             rankedEarfcn = 6400,

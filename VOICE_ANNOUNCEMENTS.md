@@ -33,8 +33,9 @@ Stable IDs used throughout this document. `{operator}` / `{tech}` are spoken ope
 
 1. **Operator** — camped network name; in **dual-PLMN** limited service, home then visited each with a **role word** (see below); on a visited camp, cell reselect adds **visited** to the camped operator only  
 2. **Tech** — spoken RAT (**2 G**, **4 G**, **5 G**, **5 G E N D C**); omitted for dead zone (no camped RAT)  
-3. **Signal state** — `no signal`, `signal restored`, or `signal low` when RSRP quality matters  
-4. **Service state** — only when **not** implicit 4G/5G full service: `limited service`, `searching 2 G`, `deadzone, no service, no SOS calls`, `cell reselect, …`, etc.
+3. **Band** — optional; when a VA’s speak-band toggle is on, the fragment uses `cellChangeBandNamingStyle` (MHz nickname or E-UTRA band number), the same control as **VA-10**  
+4. **Signal state** — `no signal`, `signal restored`, or `signal low` when RSRP quality matters  
+5. **Service state** — only when **not** implicit 4G/5G full service: `limited service`, `searching 2 G`, `deadzone, no service, no SOS calls`, `cell reselect, …`, etc.
 
 Implemented in [`SignalStateAnnouncement.joinAnnouncementParts()`](app/src/main/java/io/github/cloolalang/notspotdetector/model/SignalStateAnnouncement.kt) and [`CellIdentityAnnouncement`](app/src/main/java/io/github/cloolalang/notspotdetector/model/CellIdentityAnnouncement.kt).
 
@@ -108,7 +109,7 @@ Mock scenario **WiFi calling (no cellular)** in the Mock network state panel dri
 | **VA-8** | **5** | Signal low (immediate) | `{operator}, {tech}, signal low` | 5 / 6 | `tier5Immediate`: dead zone→tier 5, or tier 10→tier 6 recovery; `tier5AnnouncerEnabled`. | — |
 | **VA-9** | **8** | Technology change | `{operator}, {tech}` | 28–30 | Camped `radioAccessType` changes after radio baseline. | LTE/NR→**2G** after no-signal (RXSS **10** exit path — **VA-7** instead). |
 | **VA-10** | **9** | Cell reselect | Home camp: `{operator}, {tech}, cell reselect, channel …, PCI …` · visited camp: `{operator} visited, {tech}, cell reselect, …` (2G: `channel …, BSIC …`; EN-DC: `LTE channel …, PCI …, NR channel …, PCI …`). Alternative (`cellChangeSpeakBandEnabled`): replaces `cell reselect, channel …, PCI …` with the band number or MHz nickname | 9 | LTE/NR PCI or channel change, or 2G BSIC/channel change, after cell-identity baseline. | Any [no-signal RXSS](#no-signal-rxss-voice-rules). |
-| **VA-19** | **10** | Known cell | Entry: `{type}, {site}, sector {n}` — e.g. “D A S, Mock home, sector one”. Type / site / sector each have a toggle. Exit: `macro cell`. | — | Serving channel+PCI matches the loaded known-cells CSV (first camp or a change to a different listed cell). Leaving a listed cell for a camped cell that is not on the list speaks **macro cell**. | Detection or voice off; row `speak=no`; no-signal / blank identity (not a camped unlisted cell); master VA mute. |
+| **VA-19** | **10** | Known cell | Entry: `{site}, {type}, sector {n}` — e.g. “Mock home, D A S, sector one”. Site / type / sector each have a toggle. Exit: `unknown cell`. | — | Serving channel+PCI matches the loaded known-cells CSV (first camp or a change to a different listed cell). Leaving a listed cell for a camped cell that is not on the list speaks **unknown cell**. | Detection or voice off; row `speak=no`; no-signal / blank identity (not a camped unlisted cell); master VA mute. |
 
 ### Delayed immediate
 
@@ -215,7 +216,8 @@ On one poll, priorities **1–9** run back-to-back via `immediateAnnouncements()
 | **VA-7**, **VA-16** | `technologyChangeTo2gVoiceEnabled` | `technologyChangeTo2gVoiceVolume` | `technologyChangeTo2gToneVolume` |
 | **VA-9** → 2G / 4G / 5G | `technologyChangeTo{2g,4g,5gEndc}VoiceEnabled` | matching `…VoiceVolume` | matching `…ToneVolume` |
 | **VA-10** | `cellChangeVoiceEnabled` | `cellChangeVoiceVolume` | `cellChangeBellVolume` |
-| **VA-10** band phrasing | `cellChangeSpeakBandEnabled`, `cellChangeBandNamingStyle` | — | — |
+| **VA-10** band instead of channel/PCI | `cellChangeSpeakBandEnabled` | — | — |
+| Every VA band fragment | `cellChangeBandNamingStyle` | — | — |
 | **VA-19** | `specialCellsVoiceEnabled` (+ `specialCellsDetectionEnabled`) | `cellChangeVoiceVolume` | — (TTS only) |
 | All | `voiceAnnouncerChoice`, `voiceAnnouncerEngineId` | — | — |
 

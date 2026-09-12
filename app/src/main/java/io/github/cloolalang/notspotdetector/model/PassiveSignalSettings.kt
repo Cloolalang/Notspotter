@@ -10,7 +10,7 @@ package io.github.cloolalang.notspotdetector.model
  * RSRQ uses a single fair boundary: below triggers tier 14 (RSRQ poor) and poor reception.
  */
 data class PassiveSignalSettings(
-    /** RXSS 6 lower bound — no-signal RSRP, configurable in [MIN_NO_SIGNAL_RSRP_DBM]..[MAX_NO_SIGNAL_RSRP_DBM]. */
+    /** RXSS 10 upper bound — camped LTE/NR no-signal RSRP, configurable in [MIN_NO_SIGNAL_RSRP_DBM]..[MAX_NO_SIGNAL_RSRP_DBM]. */
     val noSignalRsrpDbm: Int = DEFAULT_NO_SIGNAL_RSRP_DBM,
     val poorRsrpMinDbm: Int = DEFAULT_POOR_RSRP_MIN_DBM,
     val fairRsrpMinDbm: Int = DEFAULT_FAIR_RSRP_MIN_DBM,
@@ -177,10 +177,10 @@ data class PassiveSignalSettings(
     }
 
     companion object {
-        const val MIN_RSRP_DBM = -130
+        const val MIN_RSRP_DBM = -133
         const val MAX_RSRP_DBM = -50
-        const val MIN_NO_SIGNAL_RSRP_DBM = -130
-        const val MAX_NO_SIGNAL_RSRP_DBM = -118
+        const val MIN_NO_SIGNAL_RSRP_DBM = -133
+        const val MAX_NO_SIGNAL_RSRP_DBM = -123
         const val MIN_VERY_STRONG_RSRP_DBM = -90
         const val MAX_VERY_STRONG_RSRP_DBM = -30
         const val DEFAULT_VERY_STRONG_RSRP_MIN_DBM = -85

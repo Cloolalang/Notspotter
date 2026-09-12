@@ -5,6 +5,73 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.48.2] - 2026-09-12
+
+### Changed
+
+- **Known-cell banner** — Site, type, and sector are regular weight, not bold.
+
+## [2.48.1] - 2026-09-12
+
+### Changed
+
+- **Known-cell banner** — “Known cell:” is teal; site, type, and sector are white.
+
+## [2.48.0] - 2026-09-12
+
+### Changed
+
+- **Exo 2 typeface** — All on-screen text now uses Exo 2, including titles, settings, metrics, and the histogram.
+
+## [2.47.2] - 2026-09-12
+
+### Changed
+
+- **Home title** — The operator name now sits on its own line under NotSpotter, instead of after a dash on the same line.
+
+## [2.47.1] - 2026-09-12
+
+### Changed
+
+- **Known-cell banner** — The “Known cell:” label is now white and regular weight. Site, type, and sector stay blue and bold.
+
+## [2.47.0] - 2026-09-12
+
+### Added
+
+- **RXSS 10 RSRP threshold** — LTE/NR no-signal now has its own “no signal at or below” slider. The range is −133 to −123 dBm (was −130 to −118, and the control sat only under RXSS 6). Factory default stays −126 dBm.
+
+## [2.46.5] - 2026-09-12
+
+### Changed
+
+- **Band name on every voice alert** — Technology change, no-signal, signal-low, limited service, 2G camp, and Test previews now use the same MHz / band-number style as cell reselect. EARFCN 6300 no longer says “eight hundred” on one alert and “twenty” on the next.
+
+## [2.46.4] - 2026-09-12
+
+### Changed
+
+- **Known-cell exit voice** — Leaving a listed site for an unlisted camp now speaks “unknown cell”, not “macro cell”.
+
+## [2.46.3] - 2026-09-12
+
+### Changed
+
+- **Known-cell voice order** — VA-19 now always speaks site, then type, then sector (for example “Robin Hood, streetworks, sector two”).
+
+## [2.46.2] - 2026-09-12
+
+### Fixed
+
+- **Cell reselect rate in no service** — Dead zone and no-signal now show a blank cell reselect rate, not a leftover count from the last camped minute.
+
+## [2.46.1] - 2026-09-12
+
+### Fixed
+
+- **Stuck RSRP/RSRQ on a stale CellInfo cache** — The modem can keep the same `getAllCellInfo` snapshot for minutes (ages 90s+ in the walk-test log) so RSRP/RSRQ never move. Each poll now asks for a fresh CellInfo update, and if the list is still older than 15 s the live SignalStrength RSRP/RSRQ is used instead.
+- **Neighbour PCI when ServiceState blanks** — `ss=—/0` was treated as PCI 0, then a neighbour with a blank PLMN (Tesco 6300/339) beat the registered Vodafone cell tagged 23410. Blank ServiceState keys are ignored, and a registered row wins over a neighbour.
+
 ## [2.46.0] - 2026-09-12
 
 ### Added

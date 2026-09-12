@@ -43,6 +43,25 @@ class RadioDebugSnapshotTest {
     }
 
     @Test
+    fun flags_staleCellInfo_marksCellinfoStale() {
+        val flags = RadioDebugSnapshot.flags(
+            chosenLteEarfcn = 6300,
+            chosenPlmn = "23410",
+            expectedPlmn = "23415",
+            homePlmn = "23415",
+            serviceStateLteEarfcn = 6300,
+            registeredLteCount = 1,
+            registeredPlmns = listOf("23410"),
+            chosenLtePci = 106,
+            serviceStateLtePci = 106,
+            cellInfoStale = true
+        )
+
+        assertTrue(flags.contains("cellinfo-stale"))
+        assertTrue(flags.contains("plmn-mismatch"))
+    }
+
+    @Test
     fun flags_neighbourPciOnSameEarfcn_marksSsPciMismatch() {
         val flags = RadioDebugSnapshot.flags(
             chosenLteEarfcn = 6300,

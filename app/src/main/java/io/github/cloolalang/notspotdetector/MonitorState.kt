@@ -131,7 +131,8 @@ object MonitorState {
         return SignalStateAnnouncement.formatNoSignalAnnouncement(
             stats,
             lastKnownRadioAccessType,
-            phrases = volumes.noSignalPhrases
+            phrases = volumes.noSignalPhrases,
+            bandNamingStyle = volumes.cellChangeBandNamingStyle
         )
     }
 
@@ -140,7 +141,8 @@ object MonitorState {
         return SignalStateAnnouncement.formatSignalRestoredAnnouncement(
             stats,
             lastKnownRadioAccessType,
-            phrases = volumes.noSignalPhrases
+            phrases = volumes.noSignalPhrases,
+            bandNamingStyle = volumes.cellChangeBandNamingStyle
         )
     }
 
@@ -156,7 +158,8 @@ object MonitorState {
         return SignalStateAnnouncement.formatTier5SignalLowAnnouncement(
             stats,
             lastKnownRadioAccessType,
-            phrases = volumes.signalLowPhrases
+            phrases = volumes.signalLowPhrases,
+            bandNamingStyle = volumes.cellChangeBandNamingStyle
         )
     }
 
@@ -165,7 +168,8 @@ object MonitorState {
         return SignalStateAnnouncement.formatLimitedServiceAnnouncement(
             stats,
             lastKnownRadioAccessType,
-            phrases = volumes.limitedServicePhrases
+            phrases = volumes.limitedServicePhrases,
+            bandNamingStyle = volumes.cellChangeBandNamingStyle
         )
     }
 
@@ -177,7 +181,9 @@ object MonitorState {
             lteRatBeforeNoSignalEpisode,
             phrases = volumes.noSignalPhrases,
             lteEarfcn = stats.lteEarfcn,
-            nrBand = stats.nrBand
+            nrBand = stats.nrBand,
+            gsmEarfcn = stats.gsmEarfcn,
+            bandNamingStyle = volumes.cellChangeBandNamingStyle
         )
     }
 
@@ -708,7 +714,12 @@ object MonitorState {
             phrases.speakOperatorName,
             speakTechnologyEnabled = true,
             phrases.speakBand,
-            phrases.bandPhraseFor(next.lteEarfcn, next.nrBand)
+            phrases.bandPhraseFor(
+                next.lteEarfcn,
+                next.nrBand,
+                next.gsmEarfcn,
+                namingStyle = volumes.cellChangeBandNamingStyle
+            )
         )
     }
 
@@ -821,7 +832,9 @@ object MonitorState {
                 isWifiCallingActive = next.isWifiCallingActive,
                 phrases = volumes.noSignalPhrases,
                 lteEarfcn = next.lteEarfcn,
-                nrBand = next.nrBand
+                nrBand = next.nrBand,
+                gsmEarfcn = next.gsmEarfcn,
+                bandNamingStyle = volumes.cellChangeBandNamingStyle
             )
         }
 
@@ -848,7 +861,9 @@ object MonitorState {
             isWifiCallingActive = next.isWifiCallingActive,
             phrases = volumes.noSignalPhrases,
             lteEarfcn = next.lteEarfcn,
-            nrBand = next.nrBand
+            nrBand = next.nrBand,
+            gsmEarfcn = next.gsmEarfcn,
+            bandNamingStyle = volumes.cellChangeBandNamingStyle
         )
     }
 
@@ -873,7 +888,12 @@ object MonitorState {
             speakOperatorNameEnabled = volumes.noSignalPhrases.speakOperatorName,
             speakTechnologyEnabled = volumes.noSignalPhrases.speakTechnology,
             speakBandEnabled = volumes.noSignalPhrases.speakBand,
-            bandPhrase = volumes.noSignalPhrases.bandPhraseFor(next.lteEarfcn, next.nrBand)
+            bandPhrase = volumes.noSignalPhrases.bandPhraseFor(
+                next.lteEarfcn,
+                next.nrBand,
+                next.gsmEarfcn,
+                namingStyle = volumes.cellChangeBandNamingStyle
+            )
         )
     }
 
@@ -910,7 +930,9 @@ object MonitorState {
             networkOperatorName,
             phrases = volumes.technologyChangeTo2gPhrases,
             lteEarfcn = next.lteEarfcn,
-            nrBand = next.nrBand
+            nrBand = next.nrBand,
+            gsmEarfcn = next.gsmEarfcn,
+            bandNamingStyle = volumes.cellChangeBandNamingStyle
         )
     }
 
@@ -952,7 +974,8 @@ object MonitorState {
         return SignalStateAnnouncement.formatLimitedServiceChange(
             stats = next,
             lastKnownRadioAccessType = lastKnownRadioAccessType,
-            phrases = _audioVolumes.value.limitedServicePhrases
+            phrases = _audioVolumes.value.limitedServicePhrases,
+            bandNamingStyle = _audioVolumes.value.cellChangeBandNamingStyle
         )
     }
 
@@ -967,7 +990,8 @@ object MonitorState {
         return SignalStateAnnouncement.formatLimitedServiceAnnouncement(
             stats = next,
             lastKnownRadioAccessType = lastKnownRadioAccessType,
-            phrases = _audioVolumes.value.limitedServicePhrases
+            phrases = _audioVolumes.value.limitedServicePhrases,
+            bandNamingStyle = _audioVolumes.value.cellChangeBandNamingStyle
         )
     }
 
@@ -1052,7 +1076,7 @@ object MonitorState {
         if (!leavingListedCell) return null
         if (!SpecialCellMatcher.hasServingIdentity(stats)) return null
         if (stats.shouldBlankStaleCellIdentity(passiveSettings)) return null
-        return SpecialCellAnnouncement.EXIT_MACRO_CELL
+        return SpecialCellAnnouncement.EXIT_UNKNOWN_CELL
     }
 
     private fun publishSpecialCellMatch(

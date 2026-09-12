@@ -622,7 +622,8 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
             announcement = SignalStateAnnouncement.previewTechnologyChange(
                 readCurrentOperatorName(),
                 target,
-                phrases = volumes.phrasesForTechnologyChange(target)
+                phrases = volumes.phrasesForTechnologyChange(target),
+                bandNamingStyle = volumes.cellChangeBandNamingStyle
             ),
             voiceVolume = alertVolumes.voiceVolume
         )
@@ -634,7 +635,8 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         if (volumes.tier5AnnouncerVolume <= 0f) return
         val announcement = SignalStateAnnouncement.previewTier5SignalLow(
             readCurrentOperatorName(),
-            phrases = volumes.signalLowPhrases
+            phrases = volumes.signalLowPhrases,
+            bandNamingStyle = volumes.cellChangeBandNamingStyle
         )
         if (announcement.isBlank()) return
         viewModelScope.launch {
@@ -669,7 +671,8 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         previewVoiceOnly(
             announcement = SignalStateAnnouncement.previewNoSignal(
                 readCurrentOperatorName(),
-                phrases = volumes.noSignalPhrases
+                phrases = volumes.noSignalPhrases,
+                bandNamingStyle = volumes.cellChangeBandNamingStyle
             ),
             voiceVolume = volumes.noSignalVoiceVolume
         )
@@ -707,11 +710,13 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
             announcements = listOf(
                 SignalStateAnnouncement.previewLimitedService(
                     operatorName,
-                    phrases = volumes.limitedServicePhrases
+                    phrases = volumes.limitedServicePhrases,
+                    bandNamingStyle = volumes.cellChangeBandNamingStyle
                 ),
                 SignalStateAnnouncement.previewInService(
                     operatorName,
-                    phrases = volumes.limitedServicePhrases
+                    phrases = volumes.limitedServicePhrases,
+                    bandNamingStyle = volumes.cellChangeBandNamingStyle
                 )
             ),
             voiceVolume = volumes.limitedServiceVoiceVolume
@@ -749,6 +754,7 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
     ): String {
         val operator = readCurrentOperatorName()
         val stats = stats.value
+        val bandNamingStyle = audioVolumes.value.normalized().cellChangeBandNamingStyle
         return when (fragment) {
             VoicePhraseFragment.OPERATOR ->
                 NetworkOperatorSpeech.formatForSpeech(operator) ?: "operator"
@@ -765,9 +771,13 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
                 CellIdentityAnnouncement.prefixBandPhrase(
                     lteEarfcn = stats.lteEarfcn,
                     nrBand = stats.nrBand,
-                    gsmEarfcn = stats.gsmEarfcn
+                    gsmEarfcn = stats.gsmEarfcn,
+                    namingStyle = bandNamingStyle
                 )
-                    ?: CellIdentityAnnouncement.prefixBandPhrase(6400)
+                    ?: CellIdentityAnnouncement.prefixBandPhrase(
+                        6400,
+                        namingStyle = bandNamingStyle
+                    )
                     ?: "twenty"
             VoicePhraseFragment.HOME_LIMITED_SERVICE -> "home limited service"
             VoicePhraseFragment.VISITING_LIMITED_SERVICE -> "visiting limited service"

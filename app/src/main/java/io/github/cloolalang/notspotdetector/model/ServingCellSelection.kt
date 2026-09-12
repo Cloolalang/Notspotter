@@ -66,8 +66,45 @@ object ServingCellSelection {
         return ageMs > ABSOLUTE_STALE_MS
     }
 
+    /**
+     * ServiceState often reports PCI 0 and no EARFCN when the serving identity is blank
+     * (`ss=—/0`). PCI 0 is a real LTE PCI only when an EARFCN is also present.
+     */
+    fun usableRegisteredPair(earfcn: Int?, pci: Int?): Pair<Int?, Int?> {
+        if (earfcn == null && (pci == null || pci == 0)) {
+            return null to null
+        }
+        return earfcn to pci
+    }
+
+    /**
+     * Registered / ServiceState-matched rows beat a neighbour that only looks better because
+     * its PLMN is blank (UNKNOWN outranks an explicit 23410 vs 23415 mismatch).
+     */
+    fun beatsServingRank(
+        matchesRegisteredKeys: Boolean,
+        connectionRank: Int,
+        plmnRank: Int,
+        pciMatchesSignal: Boolean,
+        otherMatchesRegisteredKeys: Boolean,
+        otherConnectionRank: Int,
+        otherPlmnRank: Int,
+        otherPciMatchesSignal: Boolean
+    ): Boolean {
+        if (matchesRegisteredKeys != otherMatchesRegisteredKeys) return matchesRegisteredKeys
+        if (connectionRank != otherConnectionRank) return connectionRank > otherConnectionRank
+        if (plmnRank != otherPlmnRank) return plmnRank > otherPlmnRank
+        if (pciMatchesSignal != otherPciMatchesSignal) return pciMatchesSignal
+        return false
+    }
+
     const val STALE_SLACK_MS = 10_000L
     const val ABSOLUTE_STALE_MS = 120_000L
+    const val METRICS_STALE_MS = 15_000L
+
+    fun isMetricsStale(newestAgeMs: Long?): Boolean {
+        return newestAgeMs != null && newestAgeMs > METRICS_STALE_MS
+    }
 
     fun normalizePlmn(value: String?): String? {
         val digits = value?.filter { it.isDigit() }.orEmpty()

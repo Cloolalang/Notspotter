@@ -160,7 +160,7 @@ object CellIdentityAnnouncement {
     fun prefixBandPhrase(
         lteEarfcn: Int?,
         nrBand: Int? = null,
-        namingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.BAND_NUMBER,
+        namingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.DEFAULT,
         gsmEarfcn: Int? = null
     ): String? {
         formatBandPhrase(lteEarfcn, namingStyle)?.let { return it }

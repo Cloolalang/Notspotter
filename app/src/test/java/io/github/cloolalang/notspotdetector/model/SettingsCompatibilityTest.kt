@@ -85,6 +85,14 @@ class SettingsCompatibilityTest {
             -125,
             PassiveSignalSettings(noSignalRsrpDbm = -125).normalized().noSignalRsrpDbm
         )
+        assertEquals(
+            -133,
+            PassiveSignalSettings(noSignalRsrpDbm = -133).normalized().noSignalRsrpDbm
+        )
+        assertEquals(
+            -123,
+            PassiveSignalSettings(noSignalRsrpDbm = -123).normalized().noSignalRsrpDbm
+        )
     }
 
     @Test

@@ -24,16 +24,19 @@ class AppSettingsSnapshotCodecCompletenessTest {
     fun encodedJsonIncludesEverySettableField() {
         val settingsJson = encodeSettingsJson(fullyCustomizedSnapshot().normalized())
 
-        assertContainsAll(
-            settingsJson.getJSONObject("thresholds"),
-            THRESHOLD_KEYS,
-            "thresholds"
-        )
-        assertContainsAll(settingsJson.getJSONObject("ping"), PING_KEYS, "ping")
-        assertContainsAll(settingsJson.getJSONObject("monitoring"), MONITORING_KEYS, "monitoring")
-        assertContainsAll(settingsJson.getJSONObject("passiveSignal"), PASSIVE_SIGNAL_KEYS, "passiveSignal")
-        assertContainsAll(settingsJson.getJSONObject("passiveMock"), PASSIVE_MOCK_KEYS, "passiveMock")
-        assertContainsAll(settingsJson.getJSONObject("audio"), AUDIO_KEYS, "audio")
+        assertExactKeys(settingsJson.getJSONObject("thresholds"), THRESHOLD_KEYS, "thresholds")
+        assertExactKeys(settingsJson.getJSONObject("ping"), PING_KEYS, "ping")
+        assertExactKeys(settingsJson.getJSONObject("monitoring"), MONITORING_KEYS, "monitoring")
+        assertExactKeys(settingsJson.getJSONObject("passiveSignal"), PASSIVE_SIGNAL_KEYS, "passiveSignal")
+        assertExactKeys(settingsJson.getJSONObject("passiveMock"), PASSIVE_MOCK_KEYS, "passiveMock")
+        assertExactKeys(settingsJson.getJSONObject("audio"), AUDIO_KEYS, "audio")
+
+        assertEquals(persistedPropertyNames(ThresholdSettings::class.java), THRESHOLD_KEYS)
+        assertEquals(persistedPropertyNames(PingSettings::class.java), PING_KEYS)
+        assertEquals(persistedPropertyNames(MonitoringSettings::class.java), MONITORING_KEYS)
+        assertEquals(persistedPropertyNames(PassiveSignalSettings::class.java), PASSIVE_SIGNAL_KEYS)
+        assertEquals(persistedPropertyNames(PassiveMockSettings::class.java), PASSIVE_MOCK_KEYS)
+        assertEquals(audioJsonKeysFromModel(), AUDIO_KEYS)
     }
 
     @Test
@@ -87,9 +90,62 @@ class AppSettingsSnapshotCodecCompletenessTest {
             .getJSONObject("settings")
     }
 
-    private fun assertContainsAll(json: JSONObject, expectedKeys: Set<String>, section: String) {
-        val missing = expectedKeys.filterNot(json::has)
-        assertTrue("$section missing codec keys: $missing", missing.isEmpty())
+    private fun assertExactKeys(json: JSONObject, expectedKeys: Set<String>, section: String) {
+        val actual = json.keys().asSequence().toSet()
+        val missing = expectedKeys - actual
+        val extra = actual - expectedKeys
+        assertTrue("$section missing codec keys: $missing extra: $extra", missing.isEmpty() && extra.isEmpty())
+    }
+
+    private fun persistedPropertyNames(type: Class<*>): Set<String> {
+        return type.declaredFields
+            .asSequence()
+            .filter { field ->
+                !java.lang.reflect.Modifier.isStatic(field.modifiers) &&
+                    !field.isSynthetic &&
+                    field.name != "Companion" &&
+                    !field.name.startsWith("$")
+            }
+            .map { it.name }
+            .toSet()
+    }
+
+    private fun audioJsonKeysFromModel(): Set<String> {
+        val phraseObjects = setOf(
+            "cellChangePhrases",
+            "technologyChangeTo2gPhrases",
+            "technologyChangeTo4gPhrases",
+            "technologyChangeTo5gEndcPhrases",
+            "signalLowPhrases",
+            "noSignalPhrases",
+            "limitedServicePhrases"
+        )
+        val scalarKeys = persistedPropertyNames(AudioVolumeSettings::class.java) - phraseObjects
+        return scalarKeys + setOf(
+            "cellChangeSpeakOperatorName",
+            "cellChangeSpeakTechnology",
+            "cellChangeSpeakBand",
+            "technologyChangeTo2gSpeakOperatorName",
+            "technologyChangeTo2gSpeakTechnology",
+            "technologyChangeTo2gSpeakBand",
+            "technologyChangeTo4gSpeakOperatorName",
+            "technologyChangeTo4gSpeakTechnology",
+            "technologyChangeTo4gSpeakBand",
+            "technologyChangeTo5gEndcSpeakOperatorName",
+            "technologyChangeTo5gEndcSpeakTechnology",
+            "technologyChangeTo5gEndcSpeakBand",
+            "signalLowSpeakOperatorName",
+            "signalLowSpeakTechnology",
+            "signalLowSpeakBand",
+            "noSignalSpeakOperatorName",
+            "noSignalSpeakTechnology",
+            "noSignalSpeakBand",
+            "limitedServiceSpeakOperatorName",
+            "limitedServiceSpeakTechnology",
+            "limitedServiceSpeakBand",
+            "limitedServiceSpeakHomeLimitedService",
+            "limitedServiceSpeakVisitingLimitedService"
+        )
     }
 
     private fun fullyCustomizedSnapshot(): AppSettingsSnapshot {
@@ -117,9 +173,11 @@ class AppSettingsSnapshotCodecCompletenessTest {
                 rsrpHistogramBinningMode = RsrpHistogramBinningMode.THRESHOLD,
                 rsrpHistogramThreshold1Dbm = -90,
                 rsrpHistogramThreshold2Dbm = -100,
-                rsrpHistogramThreshold3Dbm = -120
+                rsrpHistogramThreshold3Dbm = -120,
+                fiveGFeaturesEnabled = true
             ),
             passiveSignalSettings = PassiveSignalSettings(
+                noSignalRsrpDbm = -128,
                 poorRsrpMinDbm = -118,
                 fairRsrpMinDbm = -104,
                 goodRsrpMinDbm = -99,
@@ -140,6 +198,10 @@ class AppSettingsSnapshotCodecCompletenessTest {
                 fairTierPulseDurationMs = 175,
                 poorTierPulseDurationMs = 185,
                 levelRangeAbcdClickIntervalMs = 1_400,
+                poorTierClickIntervalMs = 910,
+                fairTierClickIntervalMs = 1_120,
+                goodTierClickIntervalMs = 1_330,
+                mildTierClickIntervalMs = 1_540,
                 veryStrongTierClickIntervalMs = 1_300,
                 veryStrongTierSoundEnabled = false,
                 mildTierSoundEnabled = false,
@@ -234,7 +296,13 @@ class AppSettingsSnapshotCodecCompletenessTest {
                 technologyChangeTo5gEndcPhrases = VoicePhraseOptions(speakOperatorName = true, speakTechnology = true, speakBand = true),
                 signalLowPhrases = VoicePhraseOptions(speakOperatorName = false, speakTechnology = true, speakBand = false),
                 noSignalPhrases = VoicePhraseOptions(speakOperatorName = true, speakTechnology = false, speakBand = true),
-                limitedServicePhrases = VoicePhraseOptions(speakOperatorName = false, speakTechnology = false, speakBand = true),
+                limitedServicePhrases = VoicePhraseOptions(
+                    speakOperatorName = false,
+                    speakTechnology = false,
+                    speakBand = true,
+                    speakHomeLimitedService = false,
+                    speakVisitingLimitedService = false
+                ),
                 specialCellsDetectionEnabled = false,
                 specialCellsVoiceEnabled = false,
                 specialCellsSpeakType = false,

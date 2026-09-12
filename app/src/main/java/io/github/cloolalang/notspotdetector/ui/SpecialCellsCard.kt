@@ -146,16 +146,16 @@ fun SpecialCellsCard(
                 )
                 if (voiceEnabled) {
                     SettingsToggleRow(
-                        label = stringResource(R.string.special_cells_speak_type),
-                        checked = speakType,
-                        enabled = controlsEnabled,
-                        onCheckedChange = actions.onSpeakTypeChange
-                    )
-                    SettingsToggleRow(
                         label = stringResource(R.string.special_cells_speak_site),
                         checked = speakSite,
                         enabled = controlsEnabled,
                         onCheckedChange = actions.onSpeakSiteChange
+                    )
+                    SettingsToggleRow(
+                        label = stringResource(R.string.special_cells_speak_type),
+                        checked = speakType,
+                        enabled = controlsEnabled,
+                        onCheckedChange = actions.onSpeakTypeChange
                     )
                     SettingsToggleRow(
                         label = stringResource(R.string.special_cells_speak_sector),

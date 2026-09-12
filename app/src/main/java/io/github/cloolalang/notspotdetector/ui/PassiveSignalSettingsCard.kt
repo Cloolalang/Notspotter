@@ -1680,10 +1680,19 @@ private fun NoSignalCampTierBlock(
                 )
             },
             rangeControls = {
-                Text(
-                    text = stringResource(R.string.passive_signal_no_signal_tier_threshold),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = accentColor
+                BoundarySlider(
+                    label = stringResource(R.string.passive_signal_boundary_no_signal),
+                    rangeLabel = stringResource(
+                        R.string.passive_signal_rsrp_band_range,
+                        PassiveSignalSettings.MIN_NO_SIGNAL_RSRP_DBM,
+                        settings.noSignalRsrpDbm
+                    ),
+                    value = settings.noSignalRsrpDbm,
+                    valueRange = PassiveSignalSettings.MIN_NO_SIGNAL_RSRP_DBM..
+                        PassiveSignalSettings.MAX_NO_SIGNAL_RSRP_DBM,
+                    accentColor = accentColor,
+                    expandLowerEnd = true,
+                    onValueChange = { onSettingsChange(settings.copy(noSignalRsrpDbm = it)) }
                 )
             },
             volumeControls = {

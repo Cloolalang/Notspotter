@@ -40,7 +40,8 @@ object SignalStateAnnouncement {
         phrases: VoicePhraseOptions = VoicePhraseOptions(
             speakOperatorName = speakOperatorNameEnabled,
             speakTechnology = speakTechnologyEnabled
-        )
+        ),
+        bandNamingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.DEFAULT
     ): String {
         return formatTechnologyChange(
             target.radioAccessType,
@@ -48,7 +49,7 @@ object SignalStateAnnouncement {
             phrases.speakOperatorName,
             phrases.speakTechnology,
             phrases.speakBand,
-            phrases.bandPhraseFor(PREVIEW_LTE_EARFCN)
+            phrases.bandPhraseFor(PREVIEW_LTE_EARFCN, namingStyle = bandNamingStyle)
         )
     }
 
@@ -59,7 +60,8 @@ object SignalStateAnnouncement {
         phrases: VoicePhraseOptions = VoicePhraseOptions(
             speakOperatorName = speakOperatorNameEnabled,
             speakTechnology = speakTechnologyEnabled
-        )
+        ),
+        bandNamingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.DEFAULT
     ): String {
         return formatTier5SignalLowAnnouncement(
             networkOperatorName,
@@ -67,7 +69,7 @@ object SignalStateAnnouncement {
             phrases.speakOperatorName,
             phrases.speakTechnology,
             phrases.speakBand,
-            phrases.bandPhraseFor(PREVIEW_LTE_EARFCN)
+            phrases.bandPhraseFor(PREVIEW_LTE_EARFCN, namingStyle = bandNamingStyle)
         )
     }
 
@@ -78,7 +80,8 @@ object SignalStateAnnouncement {
         phrases: VoicePhraseOptions = VoicePhraseOptions(
             speakOperatorName = speakOperatorNameEnabled,
             speakTechnology = speakTechnologyEnabled
-        )
+        ),
+        bandNamingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.DEFAULT
     ): String {
         return formatNoSignalAnnouncement(
             networkOperatorName,
@@ -86,7 +89,7 @@ object SignalStateAnnouncement {
             speakOperatorNameEnabled = phrases.speakOperatorName,
             speakTechnologyEnabled = phrases.speakTechnology,
             speakBandEnabled = phrases.speakBand,
-            bandPhrase = phrases.bandPhraseFor(PREVIEW_LTE_EARFCN)
+            bandPhrase = phrases.bandPhraseFor(PREVIEW_LTE_EARFCN, namingStyle = bandNamingStyle)
         )
     }
 
@@ -97,7 +100,8 @@ object SignalStateAnnouncement {
         phrases: VoicePhraseOptions = VoicePhraseOptions(
             speakOperatorName = speakOperatorNameEnabled,
             speakTechnology = speakTechnologyEnabled
-        )
+        ),
+        bandNamingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.DEFAULT
     ): String {
         return formatLimitedServiceAnnouncement(
             homeOperatorName = networkOperatorName,
@@ -106,7 +110,7 @@ object SignalStateAnnouncement {
             speakOperatorNameEnabled = phrases.speakOperatorName,
             speakTechnologyEnabled = phrases.speakTechnology,
             speakBandEnabled = phrases.speakBand,
-            bandPhrase = phrases.bandPhraseFor(PREVIEW_LTE_EARFCN),
+            bandPhrase = phrases.bandPhraseFor(PREVIEW_LTE_EARFCN, namingStyle = bandNamingStyle),
             speakHomeLimitedService = phrases.speakHomeLimitedService,
             speakVisitingLimitedService = phrases.speakVisitingLimitedService
         )
@@ -160,13 +164,15 @@ object SignalStateAnnouncement {
         phrases: VoicePhraseOptions = VoicePhraseOptions(
             speakOperatorName = speakOperatorNameEnabled,
             speakTechnology = speakTechnologyEnabled
-        )
+        ),
+        bandNamingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.DEFAULT
     ): String {
         return formatCampedSignalStateAnnouncement(
             stats = stats,
             lastKnownRadioAccessType = lastKnownRadioAccessType,
             signalState = PHRASE_SIGNAL_LOW,
-            phrases = phrases
+            phrases = phrases,
+            bandNamingStyle = bandNamingStyle
         )
     }
 
@@ -208,7 +214,8 @@ object SignalStateAnnouncement {
             speakOperatorName = speakOperatorNameEnabled,
             speakTechnology = speakTechnologyEnabled
         ),
-        serviceState: String? = null
+        serviceState: String? = null,
+        bandNamingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.DEFAULT
     ): String {
         return formatCampedSignalStateAnnouncement(
             operatorSpeech = stats.formatCampedOperatorForSpeech(),
@@ -217,7 +224,12 @@ object SignalStateAnnouncement {
             speakOperatorNameEnabled = phrases.speakOperatorName,
             speakTechnologyEnabled = phrases.speakTechnology,
             speakBandEnabled = phrases.speakBand,
-            bandPhrase = phrases.bandPhraseFor(stats.lteEarfcn, stats.nrBand),
+            bandPhrase = phrases.bandPhraseFor(
+                stats.lteEarfcn,
+                stats.nrBand,
+                stats.gsmEarfcn,
+                namingStyle = bandNamingStyle
+            ),
             serviceState = serviceState
         )
     }
@@ -261,9 +273,16 @@ object SignalStateAnnouncement {
             speakTechnology = speakTechnologyEnabled
         ),
         lteEarfcn: Int? = null,
-        nrBand: Int? = null
+        nrBand: Int? = null,
+        gsmEarfcn: Int? = null,
+        bandNamingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.DEFAULT
     ): String {
-        val bandPhrase = phrases.bandPhraseFor(lteEarfcn, nrBand)
+        val bandPhrase = phrases.bandPhraseFor(
+            lteEarfcn,
+            nrBand,
+            gsmEarfcn,
+            namingStyle = bandNamingStyle
+        )
         if (active) {
             return formatNoSignalAnnouncement(
                 networkOperatorName,
@@ -321,7 +340,8 @@ object SignalStateAnnouncement {
         phrases: VoicePhraseOptions = VoicePhraseOptions(
             speakOperatorName = speakOperatorNameEnabled,
             speakTechnology = speakTechnologyEnabled
-        )
+        ),
+        bandNamingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.DEFAULT
     ): String? {
         return formatNoSignalChange(
             active = stats.noSignalActive,
@@ -330,7 +350,9 @@ object SignalStateAnnouncement {
             isWifiCallingActive = stats.isWifiCallingActive,
             phrases = phrases,
             lteEarfcn = stats.lteEarfcn,
-            nrBand = stats.nrBand
+            nrBand = stats.nrBand,
+            gsmEarfcn = stats.gsmEarfcn,
+            bandNamingStyle = bandNamingStyle
         )
     }
 
@@ -342,7 +364,8 @@ object SignalStateAnnouncement {
         phrases: VoicePhraseOptions = VoicePhraseOptions(
             speakOperatorName = speakOperatorNameEnabled,
             speakTechnology = speakTechnologyEnabled
-        )
+        ),
+        bandNamingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.DEFAULT
     ): String {
         if (stats.isWifiCallingActive) {
             return formatNoSignalAnnouncement(
@@ -361,7 +384,8 @@ object SignalStateAnnouncement {
             serviceState = limitedServiceSpeechPhrase(
                 isVisited = stats.resolveLimitedServiceVisitedOperatorName() != null,
                 phrases = phrases
-            ).takeIf { stats.isLimitedService }
+            ).takeIf { stats.isLimitedService },
+            bandNamingStyle = bandNamingStyle
         )
     }
 
@@ -373,7 +397,8 @@ object SignalStateAnnouncement {
         phrases: VoicePhraseOptions = VoicePhraseOptions(
             speakOperatorName = speakOperatorNameEnabled,
             speakTechnology = speakTechnologyEnabled
-        )
+        ),
+        bandNamingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.DEFAULT
     ): String {
         if (stats.isWifiCallingActive) {
             return formatSignalRestoredAnnouncement(
@@ -388,7 +413,8 @@ object SignalStateAnnouncement {
             stats = stats,
             lastKnownRadioAccessType = lastKnownRadioAccessType,
             signalState = PHRASE_SIGNAL_RESTORED,
-            phrases = phrases
+            phrases = phrases,
+            bandNamingStyle = bandNamingStyle
         )
     }
 
@@ -400,22 +426,30 @@ object SignalStateAnnouncement {
         phrases: VoicePhraseOptions = VoicePhraseOptions(
             speakOperatorName = speakOperatorNameEnabled,
             speakTechnology = speakTechnologyEnabled
-        )
+        ),
+        bandNamingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.DEFAULT
     ): String {
         if (!stats.isLimitedService && stats.shouldAnnounceInServiceAfterLimited()) {
-            return formatInServiceAnnouncement(stats, lastKnownRadioAccessType, phrases)
+            return formatInServiceAnnouncement(
+                stats,
+                lastKnownRadioAccessType,
+                phrases,
+                bandNamingStyle
+            )
         }
         return formatLimitedServiceAnnouncement(
             stats,
             lastKnownRadioAccessType,
-            phrases = phrases
+            phrases = phrases,
+            bandNamingStyle = bandNamingStyle
         )
     }
 
     fun formatInServiceAnnouncement(
         stats: ConnectivityStats,
         lastKnownRadioAccessType: String? = null,
-        phrases: VoicePhraseOptions = VoicePhraseOptions()
+        phrases: VoicePhraseOptions = VoicePhraseOptions(),
+        bandNamingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.DEFAULT
     ): String {
         return joinAnnouncementParts(
             operatorNames = listOf(
@@ -428,13 +462,19 @@ object SignalStateAnnouncement {
             speakOperatorNameEnabled = phrases.speakOperatorName,
             speakTechnologyEnabled = phrases.speakTechnology,
             speakBandEnabled = phrases.speakBand,
-            bandPhrase = phrases.bandPhraseFor(stats.lteEarfcn, stats.nrBand, stats.gsmEarfcn)
+            bandPhrase = phrases.bandPhraseFor(
+                stats.lteEarfcn,
+                stats.nrBand,
+                stats.gsmEarfcn,
+                namingStyle = bandNamingStyle
+            )
         )
     }
 
     fun previewInService(
         networkOperatorName: String?,
-        phrases: VoicePhraseOptions = VoicePhraseOptions()
+        phrases: VoicePhraseOptions = VoicePhraseOptions(),
+        bandNamingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.DEFAULT
     ): String {
         return joinAnnouncementParts(
             operatorNames = listOf(networkOperatorName),
@@ -443,7 +483,7 @@ object SignalStateAnnouncement {
             speakOperatorNameEnabled = phrases.speakOperatorName,
             speakTechnologyEnabled = phrases.speakTechnology,
             speakBandEnabled = phrases.speakBand,
-            bandPhrase = phrases.bandPhraseFor(PREVIEW_LTE_EARFCN)
+            bandPhrase = phrases.bandPhraseFor(PREVIEW_LTE_EARFCN, namingStyle = bandNamingStyle)
         )
     }
 
@@ -525,7 +565,8 @@ object SignalStateAnnouncement {
         phrases: VoicePhraseOptions = VoicePhraseOptions(
             speakOperatorName = speakOperatorNameEnabled,
             speakTechnology = speakTechnologyEnabled
-        )
+        ),
+        bandNamingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.DEFAULT
     ): String {
         return formatLimitedServiceAnnouncement(
             homeOperatorName = stats.homeNetworkOperatorName ?: stats.networkOperatorName,
@@ -534,7 +575,12 @@ object SignalStateAnnouncement {
             speakOperatorNameEnabled = phrases.speakOperatorName,
             speakTechnologyEnabled = phrases.speakTechnology,
             speakBandEnabled = phrases.speakBand,
-            bandPhrase = phrases.bandPhraseFor(stats.lteEarfcn, stats.nrBand),
+            bandPhrase = phrases.bandPhraseFor(
+                stats.lteEarfcn,
+                stats.nrBand,
+                stats.gsmEarfcn,
+                namingStyle = bandNamingStyle
+            ),
             speakHomeLimitedService = phrases.speakHomeLimitedService,
             speakVisitingLimitedService = phrases.speakVisitingLimitedService
         )
@@ -573,7 +619,9 @@ object SignalStateAnnouncement {
             speakTechnology = speakTechnologyEnabled
         ),
         lteEarfcn: Int? = null,
-        nrBand: Int? = null
+        nrBand: Int? = null,
+        gsmEarfcn: Int? = null,
+        bandNamingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.DEFAULT
     ): String {
         return joinAnnouncementParts(
             operatorNames = listOf(networkOperatorName),
@@ -581,7 +629,12 @@ object SignalStateAnnouncement {
             speakOperatorNameEnabled = phrases.speakOperatorName,
             speakTechnologyEnabled = phrases.speakTechnology,
             speakBandEnabled = phrases.speakBand,
-            bandPhrase = phrases.bandPhraseFor(lteEarfcn, nrBand)
+            bandPhrase = phrases.bandPhraseFor(
+                lteEarfcn,
+                nrBand,
+                gsmEarfcn,
+                namingStyle = bandNamingStyle
+            )
         )
     }
 
@@ -596,7 +649,9 @@ object SignalStateAnnouncement {
             speakTechnology = speakTechnologyEnabled
         ),
         lteEarfcn: Int? = null,
-        nrBand: Int? = null
+        nrBand: Int? = null,
+        gsmEarfcn: Int? = null,
+        bandNamingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.DEFAULT
     ): String {
         return joinAnnouncementParts(
             operatorNames = listOf(networkOperatorName),
@@ -606,7 +661,12 @@ object SignalStateAnnouncement {
             speakOperatorNameEnabled = phrases.speakOperatorName,
             speakTechnologyEnabled = phrases.speakTechnology,
             speakBandEnabled = phrases.speakBand,
-            bandPhrase = phrases.bandPhraseFor(lteEarfcn, nrBand)
+            bandPhrase = phrases.bandPhraseFor(
+                lteEarfcn,
+                nrBand,
+                gsmEarfcn,
+                namingStyle = bandNamingStyle
+            )
         )
     }
 

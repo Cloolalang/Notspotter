@@ -431,6 +431,93 @@ class SignalStateAnnouncementTest {
     }
 
     @Test
+    fun speakBand_followsCellReselectNamingStyle() {
+        val speakBand = VoicePhraseOptions(speakBand = true)
+        val earfcn6400 = ConnectivityStats(
+            networkOperatorName = "EE",
+            radioAccessType = CellularSignalReader.RADIO_4G,
+            lteEarfcn = 6400,
+            noSignalActive = true
+        )
+
+        assertEquals(
+            "E E, 4 G, eight hundred",
+            SignalStateAnnouncement.previewTechnologyChange(
+                "EE",
+                phrases = speakBand,
+                bandNamingStyle = CellReselectBandNamingStyle.MHZ_NICKNAME
+            )
+        )
+        assertEquals(
+            "E E, 4 G, twenty",
+            SignalStateAnnouncement.previewTechnologyChange(
+                "EE",
+                phrases = speakBand,
+                bandNamingStyle = CellReselectBandNamingStyle.BAND_NUMBER
+            )
+        )
+        assertEquals(
+            "E E, 4 G, eight hundred, no signal",
+            SignalStateAnnouncement.previewNoSignal(
+                "EE",
+                phrases = speakBand,
+                bandNamingStyle = CellReselectBandNamingStyle.MHZ_NICKNAME
+            )
+        )
+        assertEquals(
+            "E E, 4 G, twenty, no signal",
+            SignalStateAnnouncement.formatNoSignalAnnouncement(
+                earfcn6400,
+                phrases = speakBand,
+                bandNamingStyle = CellReselectBandNamingStyle.BAND_NUMBER
+            )
+        )
+        assertEquals(
+            "E E, 4 G, eight hundred, signal low",
+            SignalStateAnnouncement.previewTier5SignalLow(
+                "EE",
+                phrases = speakBand,
+                bandNamingStyle = CellReselectBandNamingStyle.MHZ_NICKNAME
+            )
+        )
+        assertEquals(
+            "E E, 4 G, twenty, in-service",
+            SignalStateAnnouncement.previewInService(
+                "EE",
+                phrases = speakBand,
+                bandNamingStyle = CellReselectBandNamingStyle.BAND_NUMBER
+            )
+        )
+        assertEquals(
+            "2 G, nine hundred",
+            SignalStateAnnouncement.formatG2CampedAnnouncement(
+                networkOperatorName = null,
+                phrases = speakBand,
+                gsmEarfcn = 62,
+                bandNamingStyle = CellReselectBandNamingStyle.MHZ_NICKNAME
+            )
+        )
+        assertEquals(
+            "4 G, eight, no signal, searching 2 G",
+            SignalStateAnnouncement.formatSearching2gAnnouncement(
+                networkOperatorName = null,
+                lastKnownLteNrRadioAccessType = CellularSignalReader.RADIO_4G,
+                phrases = speakBand,
+                gsmEarfcn = 62,
+                bandNamingStyle = CellReselectBandNamingStyle.BAND_NUMBER
+            )
+        )
+        assertEquals(
+            "E E home, E E visited, 4 G, eight hundred, visiting limited service",
+            SignalStateAnnouncement.previewLimitedService(
+                "EE",
+                phrases = speakBand,
+                bandNamingStyle = CellReselectBandNamingStyle.MHZ_NICKNAME
+            )
+        )
+    }
+
+    @Test
     fun speakTechnologyDisabled_omitsTechnologyAcrossOtherAnnouncementTypes() {
         assertEquals(
             "E E, no signal",

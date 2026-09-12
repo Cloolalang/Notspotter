@@ -24,10 +24,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -614,16 +616,33 @@ private fun MetricsCard(
 
             if (specialCellMatch != null) {
                 val match = specialCellMatch
+                val detail = stringResource(
+                    R.string.metric_special_banner_detail,
+                    match.cell.displaySite,
+                    match.cell.type,
+                    match.cell.sector
+                )
                 Text(
-                    text = stringResource(
-                        R.string.metric_special_banner,
-                        match.cell.displaySite,
-                        match.cell.type,
-                        match.cell.sector
-                    ),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = BondiBlue,
-                    fontWeight = FontWeight.Bold
+                    text = buildAnnotatedString {
+                        withStyle(
+                            SpanStyle(
+                                color = BondiBlue,
+                                fontWeight = FontWeight.Normal
+                            )
+                        ) {
+                            append(stringResource(R.string.metric_special_banner_label))
+                        }
+                        append(" ")
+                        withStyle(
+                            SpanStyle(
+                                color = Color.White,
+                                fontWeight = FontWeight.Normal
+                            )
+                        ) {
+                            append(detail)
+                        }
+                    },
+                    style = MaterialTheme.typography.titleSmall
                 )
             }
             MetricRow(
@@ -825,10 +844,13 @@ private fun CellIdentityMetrics(
 
     MetricRow(
         label = stringResource(R.string.metric_cell_reselect_rate),
-        value = if (!permissionGranted) {
-            stringResource(R.string.cell_identity_permission_required)
-        } else {
-            stringResource(R.string.metric_cell_reselect_rate_value, stats.cellReselectsPerMinute)
+        value = when {
+            !permissionGranted -> stringResource(R.string.cell_identity_permission_required)
+            staleNoSignal || stats.isCompleteNoService -> "—"
+            else -> stringResource(
+                R.string.metric_cell_reselect_rate_value,
+                stats.cellReselectsPerMinute
+            )
         }
     )
 
@@ -1065,7 +1087,6 @@ private fun MetricRow(
                 Modifier
             },
             style = MaterialTheme.typography.bodyLarge,
-            fontFamily = FontFamily.Monospace,
             fontSize = valueFontSize,
             color = valueColor,
             fontWeight = if (valueColor != MaterialTheme.colorScheme.onSurface) {

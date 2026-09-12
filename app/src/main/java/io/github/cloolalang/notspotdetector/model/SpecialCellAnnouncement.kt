@@ -3,7 +3,7 @@ package io.github.cloolalang.notspotdetector.model
 object SpecialCellAnnouncement {
 
     /** VA-19 exit phrase when leaving a listed cell for a camped unlisted cell. */
-    const val EXIT_MACRO_CELL = "macro cell"
+    const val EXIT_UNKNOWN_CELL = "unknown cell"
 
     fun format(
         cell: SpecialCell,
@@ -13,8 +13,8 @@ object SpecialCellAnnouncement {
     ): String {
         if (!cell.speak) return ""
         val parts = mutableListOf<String>()
-        if (speakType) speakType(cell.type)?.let(parts::add)
         if (speakSite) speakSite(cell.displaySite)?.let(parts::add)
+        if (speakType) speakType(cell.type)?.let(parts::add)
         if (speakSector) speakSector(cell.sector)?.let(parts::add)
         return parts.joinToString(", ")
     }

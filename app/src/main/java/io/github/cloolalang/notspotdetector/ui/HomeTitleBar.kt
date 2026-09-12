@@ -1,10 +1,12 @@
 package io.github.cloolalang.notspotdetector.ui
 
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
@@ -35,13 +37,12 @@ fun HomeTitleBar(
     val titleStyle = MaterialTheme.typography.headlineMedium
     val titleWeight = FontWeight.Bold
 
-    Row(modifier = modifier) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
         Text(
-            text = if (operatorLabel == null) {
-                stringResource(R.string.home_title)
-            } else {
-                "${stringResource(R.string.home_title)} - "
-            },
+            text = stringResource(R.string.home_title),
             style = titleStyle,
             color = Sushi,
             fontWeight = titleWeight

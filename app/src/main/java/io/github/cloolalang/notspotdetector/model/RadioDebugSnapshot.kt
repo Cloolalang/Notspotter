@@ -69,11 +69,15 @@ data class RadioDebugSnapshot(
             registeredLteCount: Int,
             registeredPlmns: Collection<String>,
             chosenLtePci: Int? = null,
-            serviceStateLtePci: Int? = null
+            serviceStateLtePci: Int? = null,
+            cellInfoStale: Boolean = false
         ): List<String> {
             val flags = mutableListOf<String>()
             val expect = normalizePlmn(expectedPlmn) ?: normalizePlmn(homePlmn)
             val chosen = normalizePlmn(chosenPlmn)
+            if (cellInfoStale) {
+                flags += "cellinfo-stale"
+            }
             if (chosen != null && expect != null && chosen != expect) {
                 flags += "plmn-mismatch"
             }

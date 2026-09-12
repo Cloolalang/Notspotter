@@ -163,7 +163,7 @@ class SpecialCellCsvTest {
         )
 
         assertEquals(
-            "D A S, Ikea Oxford Street, sector one",
+            "Ikea Oxford Street, D A S, sector one",
             SpecialCellAnnouncement.format(
                 cell = cell,
                 speakType = true,

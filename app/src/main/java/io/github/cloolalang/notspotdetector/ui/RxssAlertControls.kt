@@ -546,21 +546,19 @@ fun CellChangeAlertControls(
                 )
             }
         }
-        if (audioVolumes.cellChangeSpeakBandEnabled) {
-            CellChangeBandNamingStyleOption(
-                selected = CellReselectBandNamingStyle.BAND_NUMBER,
-                current = audioVolumes.cellChangeBandNamingStyle,
-                label = stringResource(R.string.audio_cell_change_band_naming_number),
-                onSelect = onCellChangeBandNamingStyleChange
-            )
-            CellChangeBandNamingStyleOption(
-                selected = CellReselectBandNamingStyle.MHZ_NICKNAME,
-                current = audioVolumes.cellChangeBandNamingStyle,
-                label = stringResource(R.string.audio_cell_change_band_naming_mhz),
-                onSelect = onCellChangeBandNamingStyleChange
-            )
-        }
     }
+    CellChangeBandNamingStyleOption(
+        selected = CellReselectBandNamingStyle.BAND_NUMBER,
+        current = audioVolumes.cellChangeBandNamingStyle,
+        label = stringResource(R.string.audio_cell_change_band_naming_number),
+        onSelect = onCellChangeBandNamingStyleChange
+    )
+    CellChangeBandNamingStyleOption(
+        selected = CellReselectBandNamingStyle.MHZ_NICKNAME,
+        current = audioVolumes.cellChangeBandNamingStyle,
+        label = stringResource(R.string.audio_cell_change_band_naming_mhz),
+        onSelect = onCellChangeBandNamingStyleChange
+    )
 }
 
 @Composable

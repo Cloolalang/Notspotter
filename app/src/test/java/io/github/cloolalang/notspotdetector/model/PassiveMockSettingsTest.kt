@@ -17,6 +17,12 @@ class PassiveMockSettingsTest {
     }
 
     @Test
+    fun normalized_acceptsMockRsrpDownToMinus133() {
+        val settings = PassiveMockSettings(rsrpDbm = -133).normalized()
+        assertEquals(-133, settings.rsrpDbm)
+    }
+
+    @Test
     fun home4gScenario_isInServiceOn4g() {
         val radio = PassiveMockSettings(scenario = MockNetworkScenario.HOME_4G).toRadioMetrics()
         assertEquals(CellularSignalReader.RADIO_4G, radio.radioAccessType)

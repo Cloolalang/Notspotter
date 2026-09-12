@@ -123,7 +123,7 @@
     <string name="passive_signal_rsrp_band_sound_enabled">Alert pulse</string>
     <string name="passive_signal_rsrp_band_boundary_above">RXSS %1$s above</string>
     <string name="passive_signal_no_signal_section">No signal</string>
-    <string name="passive_signal_rsrp_order_hint">RXSS 1 (signal high) sits above RXSS 2–5 (highest RSRP to lowest). RXSS 6 (signal low) spans above the no-signal RSRP floor (−130 to −118 dBm) through the RXSS 5 boundary. RXSS 2–5 share pulse sound and click interval; each RXSS keeps its own enable toggle and RSRP boundary.</string>
+    <string name="passive_signal_rsrp_order_hint">RXSS 1 (signal high) sits above RXSS 2–5 (highest RSRP to lowest). RXSS 10 (LTE/NR no signal) is RSRP at or below the no-signal threshold (−133 to −123 dBm). RXSS 6 (signal low) spans above that floor through the RXSS 5 boundary. RXSS 2–5 share pulse sound and click interval; each RXSS keeps its own enable toggle and RSRP boundary.</string>
     <string name="passive_signal_tier_click_value">%1$d ms</string>
     <string name="passive_signal_tier_click_effective">Plays every %1$d ms (raised to fit alert pulse duration)</string>
     <string name="passive_signal_tier_click_ping_mode">With ping monitoring: %1$d ms</string>
@@ -170,7 +170,7 @@
     <string name="passive_signal_g2_tier8_threshold">2G only — RX level below %1$d dBm</string>
     <string name="passive_signal_g2_no_signal_tier_threshold">Home 2G camp, debounced no signal — separate from LTE/NR RXSS 10</string>
     <string name="passive_signal_deadzone_section_hint">Used when there is no service from any network or technology (out of service everywhere, no limited service). RXSS 0 clicks replace the continuous flatline tone when enabled.</string>
-    <string name="passive_signal_no_signal_tier_threshold">LTE/NR no signal (debounced) — not yet searching or dead zone</string>
+    <string name="passive_signal_no_signal_tier_threshold">LTE/NR camped, RSRP at or below this value (debounced) — not yet searching or dead zone. Adjustable from −133 to −123 dBm.</string>
     <string name="passive_signal_wifi_calling_tier_threshold">In service via WiFi calling (VoWiFi), no cellular RAT camped, no RSRP/RSRQ (debounced)</string>
     <string name="passive_signal_searching_2g_tier_threshold">Scanning for home 2G after LTE/NR loss (all-tech mode)</string>
     <string name="passive_signal_limited_service_tier_threshold">Limited service on visited operator 4G</string>
@@ -366,9 +366,9 @@
     <string name="audio_cell_change_speak_band_enabled">Speak band instead of channel/PCI or BSIC</string>
     <string name="audio_cell_change_speak_band_hint">On cell reselect, after the technology name, say the band instead of channel/PCI (4G) or channel/BSIC (2G). 4G uses the E-UTRA band from the LTE channel. 2G uses the matching E-UTRA number (900 MHz = band 8, 1800 MHz = band 3) or the MHz nickname (“nine hundred” / “eighteen hundred”).</string>
     <string name="audio_cell_change_band_naming_number">Band number</string>
-    <string name="audio_cell_change_band_naming_number_hint">Speaks the E-UTRA band number as a whole number, e.g. “band, twenty” for band 20.</string>
+    <string name="audio_cell_change_band_naming_number_hint">Used by every announcement that speaks a band. Speaks the E-UTRA band number as a whole number, e.g. “twenty” for band 20.</string>
     <string name="audio_cell_change_band_naming_mhz">Band MHz name</string>
-    <string name="audio_cell_change_band_naming_mhz_hint">Speaks the band’s common MHz nickname as a whole number, e.g. “band, eight hundred” for band 20 (L800) or “band, twenty-six hundred” for band 7 (L2600).</string>
+    <string name="audio_cell_change_band_naming_mhz_hint">Used by every announcement that speaks a band. Speaks the band’s common MHz nickname as a whole number, e.g. “eight hundred” for band 20 (L800) or “twenty-six hundred” for band 7 (L2600).</string>
     <string name="audio_volume_technology_change">Alert sound volume</string>
     <string name="audio_technology_change_voice_enabled">Voice announcement</string>
     <string name="audio_technology_change_voice_enabled_hint">After the sweep tone, speaks the network name and new radio technology (e.g. “E E, Technology change, 4 G”). Only when 2G, 4G, or 5G changes.</string>
@@ -443,7 +443,8 @@
     <string name="special_cells_status_no_serving">No serving channel/PCI yet.</string>
     <string name="special_cells_status_matched">Serving %1$s — matched %2$s %3$s</string>
     <string name="special_cells_status_no_match">Serving %1$s — not in this list</string>
-    <string name="metric_special_banner">Known cell: %1$s · %2$s · %3$s</string>
+    <string name="metric_special_banner_label">Known cell:</string>
+    <string name="metric_special_banner_detail">%1$s · %2$s · %3$s</string>
     <string name="special_cells_unnamed">Loaded list</string>
     <string name="special_cells_detection_enabled">Show known-cell match</string>
     <string name="special_cells_voice_enabled">Voice announcement</string>

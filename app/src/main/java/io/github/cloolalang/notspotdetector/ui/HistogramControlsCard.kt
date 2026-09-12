@@ -34,7 +34,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -351,7 +350,6 @@ private fun RsrpHistogramBarColumn(
                 Text(
                     text = bin.count.toString(),
                     style = MaterialTheme.typography.labelSmall,
-                    fontFamily = FontFamily.Monospace,
                     fontSize = 9.sp,
                     maxLines = 1,
                     softWrap = false,
@@ -363,7 +361,6 @@ private fun RsrpHistogramBarColumn(
                         histogramBinPercent(bin.count, totalSamples)
                     ),
                     style = MaterialTheme.typography.labelSmall,
-                    fontFamily = FontFamily.Monospace,
                     fontSize = 8.sp,
                     maxLines = 1,
                     softWrap = false,
@@ -417,7 +414,6 @@ private fun RsrpHistogramBarColumn(
                         }
                     },
                     style = MaterialTheme.typography.labelSmall,
-                    fontFamily = FontFamily.Monospace,
                     fontSize = if (wrappedLabel) 11.sp else 10.sp,
                     maxLines = if (wrappedLabel) 2 else 1,
                     softWrap = wrappedLabel,
@@ -536,7 +532,6 @@ private fun HistogramThresholdSlider(
             Text(
                 text = stringResource(R.string.rsrp_histogram_threshold_slider_value, clamped),
                 style = MaterialTheme.typography.labelMedium,
-                fontFamily = FontFamily.Monospace,
                 color = MaterialTheme.colorScheme.primary
             )
         }
@@ -582,7 +577,6 @@ private fun RsrpHistogramWindowSlider(
             Text(
                 text = formatHistogramWindow(windowMs),
                 style = MaterialTheme.typography.labelMedium,
-                fontFamily = FontFamily.Monospace,
                 color = MaterialTheme.colorScheme.primary
             )
         }

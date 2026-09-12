@@ -47,7 +47,7 @@ Multi-profile export uses a top-level `"profiles"` array with the same object sh
 |-----|------|-------------|
 | `enabled` | boolean | Mock network card master toggle |
 | `scenario` | string | One of `MockNetworkScenario` enum names — see [MOCK_NETWORK_SCENARIOS.md](MOCK_NETWORK_SCENARIOS.md) |
-| `rsrpDbm` | int | Mock RSRP / 2G RX level (−130 … max tier RSRP) |
+| `rsrpDbm` | int | Mock RSRP / 2G RX level (−133 … max tier RSRP) |
 | `rsrqDb` | int | Mock RSRQ (LTE/NR scenarios only) |
 
 Scenario reference and trigger states: [MOCK_NETWORK_SCENARIOS.md](MOCK_NETWORK_SCENARIOS.md).
@@ -71,6 +71,7 @@ All tier click intervals, pulse durations, and sound-enable flags for:
 - Camp tiers **0**, **10**, **11**, **12**, **13**, **31** (WiFi calling)
 - RSRQ overlay **14**
 - No-signal / dead-zone / searching / limited-service / limited-alt-2G / WiFi-calling camp settings
+- RXSS 10 no-signal RSRP threshold (`noSignalRsrpDbm`, −133 to −123 dBm)
 
 Full key list: `PASSIVE_SIGNAL_KEYS` in `AppSettingsSnapshotCodecCompletenessTest`.
 
@@ -89,6 +90,7 @@ Full key list: `AUDIO_KEYS` in `AppSettingsSnapshotCodecCompletenessTest`.
 | Monitoring running / stopped | Session state only |
 | Settings lock | Session-only unlock; not stored in profiles |
 | Known-cells CSV | Separate imported file; detection/voice toggles are in `audio` |
+| Radio debug log toggle | Development-area only; not stored in profiles |
 | Current `ConnectivityStats` / RXSS display | Recomputed after load |
 | Passive-only vs active ping session | User starts monitoring again after load |
 | Saved profile list metadata beyond each profile | Each file is self-contained |

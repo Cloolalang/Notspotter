@@ -20,7 +20,7 @@ data class VoicePhraseOptions(
         lteEarfcn: Int?,
         nrBand: Int? = null,
         gsmEarfcn: Int? = null,
-        namingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.BAND_NUMBER
+        namingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.DEFAULT
     ): String? {
         if (!speakBand) return null
         return CellIdentityAnnouncement.prefixBandPhrase(
