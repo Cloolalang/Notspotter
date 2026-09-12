@@ -45,6 +45,9 @@ fun ConnectivityStats.resolveSignalPulseScheduleKey(
     if (shouldPlayLimited4gNoSignalCampTier(settings)) {
         return SignalPulseScheduleKey(SignalPulsePath.LIMITED_4G_NO_SIGNAL, Rxss.LIMITED_4G_NO_SIGNAL)
     }
+    if (shouldPlayLimitedHome2gNoSignalCampTier(settings)) {
+        return SignalPulseScheduleKey(SignalPulsePath.LIMITED_ALT_2G_NO_SIGNAL, Rxss.LIMITED_HOME_2G_NO_SIGNAL)
+    }
     if (shouldPlayLimitedAlt2gNoSignalCampTier(settings)) {
         return SignalPulseScheduleKey(SignalPulsePath.LIMITED_ALT_2G_NO_SIGNAL, Rxss.LIMITED_ALT_2G_NO_SIGNAL)
     }
@@ -54,8 +57,14 @@ fun ConnectivityStats.resolveSignalPulseScheduleKey(
             rsrpIntervalRxssNumber(settings)
         )
     }
+    if (shouldPlayLimitedHome2gCampTier(settings)) {
+        return SignalPulseScheduleKey(SignalPulsePath.LIMITED_ALT_2G, Rxss.LIMITED_HOME_2G)
+    }
     if (shouldPlayLimitedAlt2gCampTier(settings)) {
         return SignalPulseScheduleKey(SignalPulsePath.LIMITED_ALT_2G, Rxss.LIMITED_ALT_2G)
+    }
+    if (shouldPlayLimitedHome4gCampTier(settings)) {
+        return SignalPulseScheduleKey(SignalPulsePath.LIMITED_SERVICE, Rxss.LIMITED_HOME_4G)
     }
     if (shouldPlayLimitedServiceCampTier(settings)) {
         return SignalPulseScheduleKey(SignalPulsePath.LIMITED_SERVICE, Rxss.LIMITED_ALT_4G)

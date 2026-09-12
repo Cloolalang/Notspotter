@@ -15,12 +15,14 @@ object SignalStateAnnouncement {
     internal const val PHRASE_NO_SIGNAL = "no signal"
     internal const val PHRASE_SIGNAL_RESTORED = "signal restored"
     internal const val PHRASE_LIMITED_SERVICE = "limited service"
+    internal const val PHRASE_HOME_LIMITED_SERVICE = "home limited service"
+    internal const val PHRASE_VISITING_LIMITED_SERVICE = "visiting limited service"
     internal const val PHRASE_HOME_OPERATOR_ROLE = "home"
     internal const val PHRASE_VISITED_OPERATOR_ROLE = "visited"
     internal const val PHRASE_DEADZONE = "dead zone, no service, no SOS calls"
     internal const val PHRASE_SEARCHING_2G = "searching 2 G"
     /** RXSS 31 — in service via WiFi calling only, no cellular RAT/RSRP. */
-    internal const val PHRASE_WIFI_CALLING_NO_SIGNAL = "W I F I calling, no cellular signal"
+    internal const val PHRASE_WIFI_CALLING_NO_SIGNAL = "wifi calling, no cellular signal"
     internal const val PHRASE_CELLULAR_SIGNAL_RESTORED = "cellular signal restored"
 
     private const val PREVIEW_LTE_EARFCN = 6400
@@ -103,7 +105,9 @@ object SignalStateAnnouncement {
             speakOperatorNameEnabled = phrases.speakOperatorName,
             speakTechnologyEnabled = phrases.speakTechnology,
             speakBandEnabled = phrases.speakBand,
-            bandPhrase = phrases.bandPhraseFor(PREVIEW_LTE_EARFCN)
+            bandPhrase = phrases.bandPhraseFor(PREVIEW_LTE_EARFCN),
+            speakHomeLimitedService = phrases.speakHomeLimitedService,
+            speakVisitingLimitedService = phrases.speakVisitingLimitedService
         )
     }
 
@@ -353,7 +357,10 @@ object SignalStateAnnouncement {
             lastKnownRadioAccessType = lastKnownRadioAccessType,
             signalState = PHRASE_NO_SIGNAL,
             phrases = phrases,
-            serviceState = PHRASE_LIMITED_SERVICE.takeIf { stats.isLimitedService }
+            serviceState = limitedServiceSpeechPhrase(
+                isVisited = stats.resolveLimitedServiceVisitedOperatorName() != null,
+                phrases = phrases
+            ).takeIf { stats.isLimitedService }
         )
     }
 
@@ -408,7 +415,9 @@ object SignalStateAnnouncement {
         speakOperatorNameEnabled: Boolean = true,
         speakTechnologyEnabled: Boolean = true,
         speakBandEnabled: Boolean = false,
-        bandPhrase: String? = null
+        bandPhrase: String? = null,
+        speakHomeLimitedService: Boolean = VoicePhraseOptions.DEFAULT_SPEAK_HOME_LIMITED_SERVICE,
+        speakVisitingLimitedService: Boolean = VoicePhraseOptions.DEFAULT_SPEAK_VISITING_LIMITED_SERVICE
     ): String {
         val parts = mutableListOf<String>()
         if (speakOperatorNameEnabled) {
@@ -431,7 +440,13 @@ object SignalStateAnnouncement {
         if (speakBandEnabled) {
             bandPhrase?.takeIf { it.isNotBlank() }?.let(parts::add)
         }
-        parts.add(PHRASE_LIMITED_SERVICE)
+        parts.add(
+            limitedServiceSpeechPhrase(
+                isVisited = visitedOperatorName != null,
+                speakHomeLimitedService = speakHomeLimitedService,
+                speakVisitingLimitedService = speakVisitingLimitedService
+            )
+        )
         return parts.joinToString(", ")
     }
 
@@ -441,7 +456,9 @@ object SignalStateAnnouncement {
         speakOperatorNameEnabled: Boolean = true,
         speakTechnologyEnabled: Boolean = true,
         speakBandEnabled: Boolean = false,
-        bandPhrase: String? = null
+        bandPhrase: String? = null,
+        speakHomeLimitedService: Boolean = VoicePhraseOptions.DEFAULT_SPEAK_HOME_LIMITED_SERVICE,
+        speakVisitingLimitedService: Boolean = VoicePhraseOptions.DEFAULT_SPEAK_VISITING_LIMITED_SERVICE
     ): String {
         return formatLimitedServiceAnnouncement(
             homeOperatorName = networkOperatorName,
@@ -450,7 +467,9 @@ object SignalStateAnnouncement {
             speakOperatorNameEnabled = speakOperatorNameEnabled,
             speakTechnologyEnabled = speakTechnologyEnabled,
             speakBandEnabled = speakBandEnabled,
-            bandPhrase = bandPhrase
+            bandPhrase = bandPhrase,
+            speakHomeLimitedService = speakHomeLimitedService,
+            speakVisitingLimitedService = speakVisitingLimitedService
         )
     }
 
@@ -471,8 +490,33 @@ object SignalStateAnnouncement {
             speakOperatorNameEnabled = phrases.speakOperatorName,
             speakTechnologyEnabled = phrases.speakTechnology,
             speakBandEnabled = phrases.speakBand,
-            bandPhrase = phrases.bandPhraseFor(stats.lteEarfcn, stats.nrBand)
+            bandPhrase = phrases.bandPhraseFor(stats.lteEarfcn, stats.nrBand),
+            speakHomeLimitedService = phrases.speakHomeLimitedService,
+            speakVisitingLimitedService = phrases.speakVisitingLimitedService
         )
+    }
+
+    internal fun limitedServiceSpeechPhrase(
+        isVisited: Boolean,
+        phrases: VoicePhraseOptions
+    ): String {
+        return limitedServiceSpeechPhrase(
+            isVisited = isVisited,
+            speakHomeLimitedService = phrases.speakHomeLimitedService,
+            speakVisitingLimitedService = phrases.speakVisitingLimitedService
+        )
+    }
+
+    internal fun limitedServiceSpeechPhrase(
+        isVisited: Boolean,
+        speakHomeLimitedService: Boolean,
+        speakVisitingLimitedService: Boolean
+    ): String {
+        return when {
+            isVisited && speakVisitingLimitedService -> PHRASE_VISITING_LIMITED_SERVICE
+            !isVisited && speakHomeLimitedService -> PHRASE_HOME_LIMITED_SERVICE
+            else -> PHRASE_LIMITED_SERVICE
+        }
     }
 
     /** Spoken when the phone camps on 2G after losing LTE/NR signal (operator + tech; 2G is not implicit full service). */

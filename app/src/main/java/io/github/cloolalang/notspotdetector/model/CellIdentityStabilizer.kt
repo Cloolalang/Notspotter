@@ -45,6 +45,8 @@ fun ConnectivityStats.withStabilizedCellIdentity(
         return copy(
             rsrpDbm = null,
             rsrqDb = null,
+            lteSinrDb = null,
+            nrSinrDb = null,
             lteEarfcn = null,
             ltePci = null,
             nrEarfcn = null,

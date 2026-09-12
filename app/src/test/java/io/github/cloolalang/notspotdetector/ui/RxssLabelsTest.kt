@@ -19,12 +19,14 @@ class RxssLabelsTest {
         assertEquals(R.string.rxss_state_tech_change_to_4g, rxssStateNameResId(Rxss.TECH_CHANGE_TO_4G))
         assertEquals(R.string.rxss_state_lte_nr_no_signal, rxssStateNameResId(Rxss.LTE_NR_NO_SIGNAL))
         assertEquals(R.string.rxss_state_limited_4g_no_signal, rxssStateNameResId(Rxss.LIMITED_4G_NO_SIGNAL))
+        assertEquals(R.string.rxss_state_limited_home_4g, rxssStateNameResId(Rxss.LIMITED_HOME_4G))
+        assertEquals(R.string.rxss_state_limited_home_2g, rxssStateNameResId(Rxss.LIMITED_HOME_2G))
+        assertEquals(R.string.rxss_state_limited_home_2g_no_signal, rxssStateNameResId(Rxss.LIMITED_HOME_2G_NO_SIGNAL))
         assertEquals(R.string.rxss_state_rsrq_poor, rxssStateNameResId(Rxss.RSRQ_POOR))
     }
 
     @Test
     fun rxssStateNameResId_returnsNullForUnimplementedTiers() {
-        assertNull(rxssStateNameResId(Rxss.LIMITED_HOME_4G))
         assertNull(rxssStateNameResId(99))
     }
 }

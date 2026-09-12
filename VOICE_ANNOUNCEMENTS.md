@@ -51,10 +51,10 @@ When the home PLMN and camped PLMN differ (`resolveCampedVisitedOperatorName()` 
 
 | Announcement | Operator phrasing |
 |--------------|-------------------|
-| **VA-4**, **VA-6**, **VA-14** (limited service) | `{home} home, {visited} visited` — home SIM operator first, then camped visited operator |
+| **VA-4**, **VA-6**, **VA-14** (limited service) | `{home} home, {visited} visited` — home SIM operator first, then camped visited operator. Service phrase is **visiting limited service** or **home limited service** when those toggles are on |
 | **VA-10** (cell reselect) | `{visited} visited` — camped operator only, with **visited** appended |
 
-**Single-operator** limited service (home PLMN only, or home and serving names/PLMNs match): `{operator}, {tech}, limited service` — no role words.
+**Single-operator** limited service (home PLMN only, or home and serving names/PLMNs match): `{operator}, {tech}, home limited service` — no operator role words. Per-RXSS toggles can fall back to plain `limited service`.
 
 Short acronyms are spaced for TTS via [`NetworkOperatorSpeech`](app/src/main/java/io/github/cloolalang/notspotdetector/model/NetworkOperatorSpeech.kt) (e.g. **EE** → “E E”).
 
@@ -71,7 +71,7 @@ Mock scenarios use real UK operator labels so spoken output matches field testin
 
 **Worked examples** (mock visited-operator limited service on 4G):
 
-- **VA-4 / VA-14:** “Vodafone home, E E visited, 4 G, limited service”  
+- **VA-4 / VA-14:** “Vodafone home, E E visited, 4 G, visiting limited service”  
 - **VA-8 / VA-15** (overlay 6): “E E visited, 4 G, signal low”  
 - **VA-1 / VA-12** (overlay 20): “E E visited, 4 G, no signal” · exit **VA-2:** “… signal restored”  
 - **VA-10:** “E E visited, 4 G, cell reselect, channel …, PCI …”  

@@ -55,6 +55,38 @@ Each row is the **agreed trigger state** the mock simulates. Live detection uses
 
 ---
 
+### 2a. Home operator 4G (limited service) — `HOME_LIMITED_4G`
+
+| Field | Value |
+|-------|--------|
+| **Primary RXSS** | **19** |
+| **Overlays** | **1–6** (RSRP band) · **20** (no usable RSRP) |
+| **Operator** | Vodafone home (`homePlmn == plmn`) |
+| **Tech** | 4G, `isOn2g = false` |
+| **Service** | Limited — `isLimitedService = true` |
+| **Mock slider** | RSRP + RSRQ |
+| **Not** | Visited 4G (**12**), in-service home 4G |
+
+**Voice:** “Vodafone, 4 G, home limited service”.
+
+---
+
+### 2b. Home operator 2G (limited service) — `HOME_LIMITED_2G`
+
+| Field | Value |
+|-------|--------|
+| **Primary RXSS** | **22** |
+| **Overlays** | **7–8** (2G RX) · **21** (no usable RX) |
+| **Operator** | Vodafone home |
+| **Tech** | 2G, `isOn2g = true` |
+| **Service** | Limited — `isLimitedService = true` |
+| **Mock slider** | RSRP (2G RX level) |
+| **Not** | Searching 2G (**11**), in-service home 2G no signal (**15**), visited 2G (**13**) |
+
+**Voice:** “Vodafone, 2 G, home limited service”; weak → “signal low”; no signal → RXSS **21**.
+
+---
+
 ### 3. Visited operator 4G (limited service) — `ALT_OPERATOR_4G`
 
 | Field | Value |

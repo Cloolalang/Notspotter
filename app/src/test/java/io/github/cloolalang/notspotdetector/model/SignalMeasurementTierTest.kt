@@ -32,6 +32,9 @@ class SignalMeasurementTierTest {
         assertEquals(Rxss.SEARCH_HOME_2G, SignalMeasurementTier.SEARCHING_2G.rxssNumber)
         assertEquals(Rxss.LIMITED_ALT_4G, SignalMeasurementTier.LIMITED_SERVICE.rxssNumber)
         assertEquals(Rxss.LIMITED_ALT_2G, SignalMeasurementTier.LIMITED_ALT_2G.rxssNumber)
+        assertEquals(Rxss.LIMITED_HOME_4G, SignalMeasurementTier.LIMITED_HOME_4G.rxssNumber)
+        assertEquals(Rxss.LIMITED_HOME_2G, SignalMeasurementTier.LIMITED_HOME_2G.rxssNumber)
+        assertEquals(Rxss.LIMITED_HOME_2G_NO_SIGNAL, SignalMeasurementTier.LIMITED_HOME_2G_NO_SIGNAL.rxssNumber)
         assertEquals(Rxss.RSRQ_POOR, SignalMeasurementTier.RSRQ_POOR.rxssNumber)
         assertEquals(Rxss.HOME_2G_NO_SIGNAL, SignalMeasurementTier.G2_NO_SIGNAL.rxssNumber)
         assertEquals(Rxss.CELL_CHANGE, MonitoringAnnouncementKind.CELL_IDENTITY.rxssNumber)
@@ -109,7 +112,7 @@ class SignalMeasurementTierTest {
     @Test
     fun limitedServiceKeepsCampTierWithSignalOverlay() {
         val stats = baseStats(rsrpDbm = -75, rsrqDb = -12, isLimitedService = true)
-        assertEquals(SignalMeasurementTier.LIMITED_SERVICE, stats.resolveSignalMeasurementTier(settings))
+        assertEquals(SignalMeasurementTier.LIMITED_HOME_4G, stats.resolveSignalMeasurementTier(settings))
         assertEquals(Rxss.SIGNAL_HIGH, stats.resolveLimitedServiceSignalOverlayRxss(settings))
     }
 

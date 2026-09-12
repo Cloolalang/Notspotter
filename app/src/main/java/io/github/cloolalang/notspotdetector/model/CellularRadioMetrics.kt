@@ -3,6 +3,10 @@ package io.github.cloolalang.notspotdetector.model
 data class CellularRadioMetrics(
     val rsrpDbm: Int? = null,
     val rsrqDb: Int? = null,
+    /** LTE RSSNR (SNIR) in dB. */
+    val lteSinrDb: Int? = null,
+    /** NR SS-SINR (SNIR) in dB. */
+    val nrSinrDb: Int? = null,
     val radioAccessType: String? = null,
     val lteEarfcn: Int? = null,
     val ltePci: Int? = null,
@@ -31,6 +35,8 @@ data class CellularRadioMetrics(
     val restrictedTo2gNetwork: Boolean = false,
     val isLimitedService: Boolean = false,
     val networkServiceMode: NetworkServiceMode = NetworkServiceMode.UNKNOWN,
+    /** Voice/CS camped, packet data not registered (e.g. 4G bands locked, 2G voice remains). */
+    val isVoiceOnlyNoData: Boolean = false,
     val hasLimitedServiceOnAnySim: Boolean = false,
     val isCompleteNoService: Boolean = false,
     val hasHomeGsmSignal: Boolean = false,
@@ -67,6 +73,8 @@ data class CellularRadioMetrics(
         return copy(
             rsrpDbm = null,
             rsrqDb = null,
+            lteSinrDb = null,
+            nrSinrDb = null,
             radioAccessType = null,
             lteEarfcn = null,
             ltePci = null,
@@ -76,6 +84,7 @@ data class CellularRadioMetrics(
             gsmEarfcn = null,
             gsmBsic = null,
             isOn2g = false,
+            isVoiceOnlyNoData = false,
             hasHomeGsmSignal = false,
             hasLteNrSignal = false,
             servingNetworkOperatorName = null,

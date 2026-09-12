@@ -92,6 +92,7 @@ class CellularPassiveSignalMonitor(
                 restrictedTo2gNetwork = radio.restrictedTo2gNetwork,
                 isLimitedService = radio.isLimitedService,
                 networkServiceMode = radio.networkServiceMode,
+                isVoiceOnlyNoData = radio.isVoiceOnlyNoData,
                 isWifiCallingActive = radio.isWifiCallingActive,
                 hasLimitedServiceOnAnySim = radio.hasLimitedServiceOnAnySim,
                 isCompleteNoService = radio.isCompleteNoService,

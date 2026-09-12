@@ -552,6 +552,7 @@ object AppSettingsSnapshotCodec {
             .put("cellChangeBandNamingStyle", settings.cellChangeBandNamingStyle.id)
             .put("technologyChangeTo2gToneVolume", settings.technologyChangeTo2gToneVolume.toDouble())
             .put("technologyChangeTo2gVoiceEnabled", settings.technologyChangeTo2gVoiceEnabled)
+            .put("technologyChangeTo2gPeriodicVoiceEnabled", settings.technologyChangeTo2gPeriodicVoiceEnabled)
             .put("technologyChangeTo2gVoiceVolume", settings.technologyChangeTo2gVoiceVolume.toDouble())
             .put("technologyChangeTo4gToneVolume", settings.technologyChangeTo4gToneVolume.toDouble())
             .put("technologyChangeTo4gVoiceEnabled", settings.technologyChangeTo4gVoiceEnabled)
@@ -560,15 +561,19 @@ object AppSettingsSnapshotCodec {
             .put("technologyChangeTo5gEndcVoiceEnabled", settings.technologyChangeTo5gEndcVoiceEnabled)
             .put("technologyChangeTo5gEndcVoiceVolume", settings.technologyChangeTo5gEndcVoiceVolume.toDouble())
             .put("tier5AnnouncerEnabled", settings.tier5AnnouncerEnabled)
+            .put("tier5PeriodicVoiceEnabled", settings.tier5PeriodicVoiceEnabled)
             .put("tier5AnnouncerVolume", settings.tier5AnnouncerVolume.toDouble())
             .put("voiceAnnouncerChoice", settings.voiceAnnouncerChoice.id)
             .put("voiceAnnouncerEngineId", settings.voiceAnnouncerEngineId)
+            .put("voiceSpeechRate", settings.voiceSpeechRate.toDouble())
             .put("noSignalToneVolume", settings.noSignalToneVolume.toDouble())
             .put("noSignalVibrationEnabled", settings.noSignalVibrationEnabled)
             .put("noSignalVoiceEnabled", settings.noSignalVoiceEnabled)
+            .put("noSignalPeriodicVoiceEnabled", settings.noSignalPeriodicVoiceEnabled)
             .put("noSignalVoiceVolume", settings.noSignalVoiceVolume.toDouble())
             .put("limitedServiceToneVolume", settings.limitedServiceToneVolume.toDouble())
             .put("limitedServiceVoiceEnabled", settings.limitedServiceVoiceEnabled)
+            .put("limitedServicePeriodicVoiceEnabled", settings.limitedServicePeriodicVoiceEnabled)
             .put("limitedServiceVoiceVolume", settings.limitedServiceVoiceVolume.toDouble())
             .put("speakOperatorNameEnabled", settings.speakOperatorNameEnabled)
             .put("speakTechnologyEnabled", settings.speakTechnologyEnabled)
@@ -585,6 +590,10 @@ object AppSettingsSnapshotCodec {
         put("${prefix}SpeakOperatorName", phrases.speakOperatorName)
         put("${prefix}SpeakTechnology", phrases.speakTechnology)
         put("${prefix}SpeakBand", phrases.speakBand)
+        if (prefix == "limitedService") {
+            put("${prefix}SpeakHomeLimitedService", phrases.speakHomeLimitedService)
+            put("${prefix}SpeakVisitingLimitedService", phrases.speakVisitingLimitedService)
+        }
         return this
     }
 
@@ -608,7 +617,23 @@ object AppSettingsSnapshotCodec {
             } else {
                 fallbackTechnology
             },
-            speakBand = json.optBoolean(bandKey, VoicePhraseOptions.DEFAULT_SPEAK_BAND)
+            speakBand = json.optBoolean(bandKey, VoicePhraseOptions.DEFAULT_SPEAK_BAND),
+            speakHomeLimitedService = if (prefix == "limitedService") {
+                json.optBoolean(
+                    "${prefix}SpeakHomeLimitedService",
+                    VoicePhraseOptions.DEFAULT_SPEAK_HOME_LIMITED_SERVICE
+                )
+            } else {
+                VoicePhraseOptions.DEFAULT_SPEAK_HOME_LIMITED_SERVICE
+            },
+            speakVisitingLimitedService = if (prefix == "limitedService") {
+                json.optBoolean(
+                    "${prefix}SpeakVisitingLimitedService",
+                    VoicePhraseOptions.DEFAULT_SPEAK_VISITING_LIMITED_SERVICE
+                )
+            } else {
+                VoicePhraseOptions.DEFAULT_SPEAK_VISITING_LIMITED_SERVICE
+            }
         )
     }
 
@@ -758,6 +783,10 @@ object AppSettingsSnapshotCodec {
             ),
             technologyChangeTo2gToneVolume = decodeTechnologyChangeToneVolume(json, "technologyChangeTo2gToneVolume"),
             technologyChangeTo2gVoiceEnabled = decodeTechnologyChangeVoiceEnabled(json, "technologyChangeTo2gVoiceEnabled"),
+            technologyChangeTo2gPeriodicVoiceEnabled = json.optBoolean(
+                "technologyChangeTo2gPeriodicVoiceEnabled",
+                AudioVolumeSettings.DEFAULT_PERIODIC_VOICE_ENABLED
+            ),
             technologyChangeTo2gVoiceVolume = decodeTechnologyChangeVoiceVolume(json, "technologyChangeTo2gVoiceVolume"),
             technologyChangeTo4gToneVolume = decodeTechnologyChangeToneVolume(json, "technologyChangeTo4gToneVolume"),
             technologyChangeTo4gVoiceEnabled = decodeTechnologyChangeVoiceEnabled(json, "technologyChangeTo4gVoiceEnabled"),
@@ -769,6 +798,10 @@ object AppSettingsSnapshotCodec {
                 "tier5AnnouncerEnabled",
                 AudioVolumeSettings.DEFAULT_VOICE_ANNOUNCEMENT_ENABLED
             ),
+            tier5PeriodicVoiceEnabled = json.optBoolean(
+                "tier5PeriodicVoiceEnabled",
+                AudioVolumeSettings.DEFAULT_PERIODIC_VOICE_ENABLED
+            ),
             tier5AnnouncerVolume = json.optDouble(
                 "tier5AnnouncerVolume",
                 AudioVolumeSettings.DEFAULT_VOLUME.toDouble()
@@ -777,6 +810,10 @@ object AppSettingsSnapshotCodec {
                 json.optString("voiceAnnouncerChoice", VoiceAnnouncerChoice.SYSTEM_DEFAULT.id)
             ),
             voiceAnnouncerEngineId = json.optString("voiceAnnouncerEngineId").ifBlank { null },
+            voiceSpeechRate = json.optDouble(
+                "voiceSpeechRate",
+                AudioVolumeSettings.DEFAULT_VOICE_SPEECH_RATE.toDouble()
+            ).toFloat(),
             noSignalToneVolume = json.optDouble(
                 "noSignalToneVolume",
                 AudioVolumeSettings.DEFAULT_VOLUME.toDouble()
@@ -789,6 +826,10 @@ object AppSettingsSnapshotCodec {
                 "noSignalVoiceEnabled",
                 AudioVolumeSettings.DEFAULT_VOICE_ANNOUNCEMENT_ENABLED
             ),
+            noSignalPeriodicVoiceEnabled = json.optBoolean(
+                "noSignalPeriodicVoiceEnabled",
+                AudioVolumeSettings.DEFAULT_PERIODIC_VOICE_ENABLED
+            ),
             noSignalVoiceVolume = json.optDouble(
                 "noSignalVoiceVolume",
                 AudioVolumeSettings.DEFAULT_VOLUME.toDouble()
@@ -800,6 +841,10 @@ object AppSettingsSnapshotCodec {
             limitedServiceVoiceEnabled = json.optBoolean(
                 "limitedServiceVoiceEnabled",
                 AudioVolumeSettings.DEFAULT_VOICE_ANNOUNCEMENT_ENABLED
+            ),
+            limitedServicePeriodicVoiceEnabled = json.optBoolean(
+                "limitedServicePeriodicVoiceEnabled",
+                AudioVolumeSettings.DEFAULT_PERIODIC_VOICE_ENABLED
             ),
             limitedServiceVoiceVolume = json.optDouble(
                 "limitedServiceVoiceVolume",

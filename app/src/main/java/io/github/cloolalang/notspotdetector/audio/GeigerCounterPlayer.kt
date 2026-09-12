@@ -24,6 +24,9 @@ import io.github.cloolalang.notspotdetector.model.shouldPlayFlatline
 import io.github.cloolalang.notspotdetector.model.shouldPlayLimited4gNoSignalCampTier
 import io.github.cloolalang.notspotdetector.model.shouldPlayLimitedAlt2gCampTier
 import io.github.cloolalang.notspotdetector.model.shouldPlayLimitedAlt2gNoSignalCampTier
+import io.github.cloolalang.notspotdetector.model.shouldPlayLimitedHome2gCampTier
+import io.github.cloolalang.notspotdetector.model.shouldPlayLimitedHome2gNoSignalCampTier
+import io.github.cloolalang.notspotdetector.model.shouldPlayLimitedHome4gCampTier
 import io.github.cloolalang.notspotdetector.model.shouldPlayLimitedServiceCampTier
 import io.github.cloolalang.notspotdetector.model.shouldPlayLimitedServiceSignalOverlay
 import io.github.cloolalang.notspotdetector.model.shouldPlayLimitedServiceTone
@@ -149,7 +152,8 @@ class GeigerCounterPlayer {
                             SignalStrengthTier.NO_SIGNAL
                         )
                     }
-                    stats.shouldPlayLimitedAlt2gNoSignalCampTier(passiveSettings) -> {
+                    stats.shouldPlayLimitedAlt2gNoSignalCampTier(passiveSettings) ||
+                        stats.shouldPlayLimitedHome2gNoSignalCampTier(passiveSettings) -> {
                         stopLimitedService()
                         stopFlatline()
                         handleCampTierAudio(
@@ -164,7 +168,8 @@ class GeigerCounterPlayer {
                         stopFlatline()
                         handleSignalStrengthIntervalAudio(stats, volumes, passiveSettings)
                     }
-                    stats.shouldPlayLimitedAlt2gCampTier(passiveSettings) -> {
+                    stats.shouldPlayLimitedAlt2gCampTier(passiveSettings) ||
+                        stats.shouldPlayLimitedHome2gCampTier(passiveSettings) -> {
                         stopLimitedService()
                         stopFlatline()
                         handleCampTierAudio(
@@ -174,7 +179,8 @@ class GeigerCounterPlayer {
                             SignalStrengthTier.LIMITED_ALT_2G
                         )
                     }
-                    stats.shouldPlayLimitedServiceCampTier(passiveSettings) -> {
+                    stats.shouldPlayLimitedServiceCampTier(passiveSettings) ||
+                        stats.shouldPlayLimitedHome4gCampTier(passiveSettings) -> {
                         stopLimitedService()
                         stopFlatline()
                         handleCampTierAudio(

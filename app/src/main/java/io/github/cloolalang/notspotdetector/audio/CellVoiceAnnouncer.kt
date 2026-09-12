@@ -25,7 +25,7 @@ class CellVoiceAnnouncer(context: Context) : TextToSpeech.OnInitListener {
 
     companion object {
         /** Default TTS rate is 1.0; slightly faster for concise cell-change alerts. */
-        private const val SPEECH_RATE = 1.2f
+        private const val DEFAULT_SPEECH_RATE = 1.2f
         private const val DEFAULT_PITCH = 1.0f
 
         /**
@@ -60,6 +60,7 @@ class CellVoiceAnnouncer(context: Context) : TextToSpeech.OnInitListener {
     private var voiceSelectionProvider: () -> VoiceAnnouncerSelection = {
         VoiceAnnouncerSelection(VoiceAnnouncerChoice.SYSTEM_DEFAULT, null)
     }
+    private var speechRateProvider: () -> Float = { DEFAULT_SPEECH_RATE }
     private var onReadyListener: (() -> Unit)? = null
     private val pending = ArrayDeque<PendingSpeech>()
     private var audioFocusRequest: AudioFocusRequest? = null
@@ -71,7 +72,7 @@ class CellVoiceAnnouncer(context: Context) : TextToSpeech.OnInitListener {
         if (ready) {
             refreshAvailableVoices()
             tts?.language = Locale.getDefault()
-            tts?.setSpeechRate(SPEECH_RATE)
+            applySpeechRate()
             applyPlaybackAudioAttributes()
             applySelectedVoice()
             onReadyListener?.invoke()
@@ -84,6 +85,17 @@ class CellVoiceAnnouncer(context: Context) : TextToSpeech.OnInitListener {
         if (ready) {
             applySelectedVoice()
         }
+    }
+
+    fun setSpeechRateProvider(provider: () -> Float) {
+        speechRateProvider = provider
+        if (ready) {
+            applySpeechRate()
+        }
+    }
+
+    private fun applySpeechRate() {
+        tts?.setSpeechRate(speechRateProvider().coerceIn(0.5f, 2.0f))
     }
 
     @Deprecated("Use setVoiceSelectionProvider")
@@ -205,6 +217,7 @@ class CellVoiceAnnouncer(context: Context) : TextToSpeech.OnInitListener {
             return false
         }
         refreshAvailableVoices()
+        applySpeechRate()
         applySelectedVoice(selection)
         applyPlaybackAudioAttributes()
         requestTtsAudioFocus()

@@ -52,7 +52,7 @@ import io.github.cloolalang.notspotdetector.ui.theme.Sushi
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 
-private val HistogramBarAreaHeight = 132.dp
+private val HistogramBarAreaHeight = 80.dp
 private val HistogramLabelAreaHeight = 34.dp
 private val HistogramMinBarWidth = 12.dp
 private val HistogramMaxBarWidth = 36.dp
@@ -304,6 +304,19 @@ private fun RsrpHistogramDisplay(
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            val stats = RsrpHistogram.windowStats(samples, nowMs, windowMs)
+            if (stats != null) {
+                Text(
+                    text = stringResource(
+                        R.string.rsrp_histogram_window_stats,
+                        RsrpHistogram.formatWindowStat(stats.meanDbm),
+                        RsrpHistogram.formatWindowStat(stats.medianDbm),
+                        RsrpHistogram.formatWindowStat(stats.stdevDbm)
+                    ),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }
@@ -365,10 +378,17 @@ private fun RsrpHistogramBarColumn(
                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
                 contentAlignment = Alignment.BottomCenter
             ) {
+                val fillFraction = if (thresholdMode) {
+                    RsrpHistogram.thresholdBarFillFraction(
+                        RsrpHistogram.occupancyPercent(bin.count, totalSamples)
+                    )
+                } else {
+                    bin.count.toFloat() / maxCount.toFloat()
+                }
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .fillMaxHeight(bin.count.toFloat() / maxCount.toFloat())
+                        .fillMaxHeight(fillFraction)
                         .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
                         .background(barColor)
                 )
@@ -416,6 +436,7 @@ private val OtherBinColor = Color(0xFF78909C)
 
 private val ThresholdGreen = Color(0xFF66BB6A)
 private val ThresholdOrange = Color(0xFFFF9800)
+private val ThresholdYellow = Color(0xFFFFEB3B)
 private val ThresholdRed = Color(0xFFFF1744)
 
 private fun histogramBarColor(
@@ -427,6 +448,7 @@ private fun histogramBarColor(
         return when (RsrpHistogram.thresholdBarColor(bin, totalSamples)) {
             RsrpHistogramThresholdBarColor.GREEN -> ThresholdGreen
             RsrpHistogramThresholdBarColor.ORANGE -> ThresholdOrange
+            RsrpHistogramThresholdBarColor.YELLOW -> ThresholdYellow
             RsrpHistogramThresholdBarColor.RED -> ThresholdRed
         }
     }

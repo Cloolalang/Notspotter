@@ -39,14 +39,15 @@ import io.github.cloolalang.notspotdetector.model.CellReselectBandNamingStyle
 import io.github.cloolalang.notspotdetector.model.ConnectivityStats
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.LteLayerResilienceReading
-import io.github.cloolalang.notspotdetector.model.NetworkModePreference
 import io.github.cloolalang.notspotdetector.model.NetworkServiceMode
 import io.github.cloolalang.notspotdetector.model.PrimaryLayerDominance
 import io.github.cloolalang.notspotdetector.model.primaryLayerDominance
 import io.github.cloolalang.notspotdetector.model.formatHomeOperatorDisplay
 import io.github.cloolalang.notspotdetector.model.formatVisitedOperatorDisplay
+import io.github.cloolalang.notspotdetector.model.ServingBandMhz
 import io.github.cloolalang.notspotdetector.model.shouldBlankStaleCellIdentity
 import io.github.cloolalang.notspotdetector.model.PassiveMockSettings
+import io.github.cloolalang.notspotdetector.model.PeriodicVoiceRepeat
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
 import io.github.cloolalang.notspotdetector.model.SettingsCompatibility
 import io.github.cloolalang.notspotdetector.model.PingSettings
@@ -72,6 +73,8 @@ import io.github.cloolalang.notspotdetector.model.resolveLimitedServiceSignalOve
 import io.github.cloolalang.notspotdetector.model.resolveSignalMeasurementTier
 import io.github.cloolalang.notspotdetector.ui.theme.BondiBlue
 import io.github.cloolalang.notspotdetector.ui.theme.OnBondiBlue
+import io.github.cloolalang.notspotdetector.ui.theme.OnStopRose
+import io.github.cloolalang.notspotdetector.ui.theme.StopRose
 import io.github.cloolalang.notspotdetector.ui.theme.Sushi
 
 @Composable
@@ -114,6 +117,7 @@ fun MonitorScreen(
     onResetPassiveSignalSettings: () -> Unit,
     onSubscriptionChange: (Int) -> Unit,
     onVoiceAnnouncerChoiceChange: (VoiceAnnouncerChoice) -> Unit,
+    onVoiceSpeechRateChange: (Float) -> Unit = {},
     onRefreshVoiceAnnouncerOptions: () -> Unit,
     onPreviewVoiceAnnouncer: () -> Unit,
     onPingClickVolumeChange: (Float) -> Unit,
@@ -126,6 +130,7 @@ fun MonitorScreen(
     onMasterVoiceAnnouncementsEnabledChange: (Boolean) -> Unit,
     onVoicePhrasesChange: (VoicePhraseGroup, VoicePhraseOptions) -> Unit = { _, _ -> },
     onPreviewVoicePhrase: (VoicePhraseGroup, VoicePhraseFragment) -> Unit = { _, _ -> },
+    onPeriodicVoiceRepeatChange: (PeriodicVoiceRepeat, Boolean) -> Unit = { _, _ -> },
     onFiveGFeaturesEnabledChange: (Boolean) -> Unit = {},
     settingsUnlocked: Boolean = false,
     onSettingsUnlockedChange: (Boolean) -> Unit = {},
@@ -345,7 +350,8 @@ fun MonitorScreen(
                 onReset = onResetPassiveSignalSettings,
                 fiveGFeaturesEnabled = monitoringSettings.fiveGFeaturesEnabled,
                 onVoicePhrasesChange = onVoicePhrasesChange,
-                onPreviewVoicePhrase = onPreviewVoicePhrase
+                onPreviewVoicePhrase = onPreviewVoicePhrase,
+                onPeriodicVoiceRepeatChange = onPeriodicVoiceRepeatChange
             )
         }
 
@@ -368,8 +374,10 @@ fun MonitorScreen(
             GlobalVoiceSettingsCard(
                 voiceAnnouncerChoice = audioVolumes.voiceAnnouncerChoice,
                 voiceAnnouncerOptions = voiceAnnouncerOptions,
+                voiceSpeechRate = audioVolumes.voiceSpeechRate,
                 previewEnabled = !isRunning,
                 onVoiceAnnouncerChoiceChange = onVoiceAnnouncerChoiceChange,
+                onVoiceSpeechRateChange = onVoiceSpeechRateChange,
                 onRefreshVoiceAnnouncerOptions = onRefreshVoiceAnnouncerOptions,
                 onPreviewVoiceAnnouncer = onPreviewVoiceAnnouncer
             )
@@ -489,7 +497,8 @@ private fun MonitoringControlButtons(
             onClick = onStop,
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.error
+                containerColor = StopRose,
+                contentColor = OnStopRose
             )
         ) {
             Text(text = stringResource(R.string.stop_monitoring))
@@ -547,7 +556,6 @@ private fun MetricsCard(
             MetricRow(
                 label = stringResource(R.string.metric_sim),
                 value = formatSimMetric(stats, monitoringSettings),
-                valueFontSize = 13.sp,
                 valueSingleLine = true
             )
             MetricRow(
@@ -560,10 +568,6 @@ private fun MetricsCard(
                     value = visited
                 )
             }
-            MetricRow(
-                label = stringResource(R.string.metric_network_mode),
-                value = formatNetworkModePreference(stats)
-            )
             MetricRow(
                 label = stringResource(R.string.metric_service_state),
                 value = formatServiceState(stats)
@@ -626,6 +630,42 @@ private fun MetricsCard(
                         permissionGranted = stats.signalPermissionGranted
                     )
                 )
+                when (stats.radioAccessType) {
+                    CellularSignalReader.RADIO_5G -> MetricRow(
+                        label = stringResource(R.string.metric_snir),
+                        value = formatSignalValue(
+                            value = stats.nrSinrDb,
+                            unit = "dB",
+                            permissionGranted = stats.signalPermissionGranted
+                        )
+                    )
+                    CellularSignalReader.RADIO_5G_ENDC -> {
+                        MetricRow(
+                            label = stringResource(R.string.metric_snir_lte),
+                            value = formatSignalValue(
+                                value = stats.lteSinrDb,
+                                unit = "dB",
+                                permissionGranted = stats.signalPermissionGranted
+                            )
+                        )
+                        MetricRow(
+                            label = stringResource(R.string.metric_snir_nr),
+                            value = formatSignalValue(
+                                value = stats.nrSinrDb,
+                                unit = "dB",
+                                permissionGranted = stats.signalPermissionGranted
+                            )
+                        )
+                    }
+                    else -> MetricRow(
+                        label = stringResource(R.string.metric_snir),
+                        value = formatSignalValue(
+                            value = stats.lteSinrDb,
+                            unit = "dB",
+                            permissionGranted = stats.signalPermissionGranted
+                        )
+                    )
+                }
             }
             SignalTierMetricRow(
                 tier = stats.resolveSignalMeasurementTier(passiveSignalSettings),
@@ -678,6 +718,15 @@ private fun CellIdentityMetrics(
                 label = stringResource(R.string.metric_nr_band),
                 value = formatNrBandValue(nrBand, permissionGranted)
             )
+            MetricRow(
+                label = stringResource(R.string.metric_band_mhz),
+                value = formatBandMhzValue(
+                    permissionGranted = permissionGranted,
+                    lteEarfcn = lteEarfcn,
+                    gsmArfcn = null,
+                    nrBand = nrBand
+                )
+            )
         }
         CellularSignalReader.RADIO_5G -> {
             MetricRow(
@@ -692,6 +741,15 @@ private fun CellIdentityMetrics(
                 label = stringResource(R.string.metric_nr_band),
                 value = formatNrBandValue(nrBand, permissionGranted)
             )
+            MetricRow(
+                label = stringResource(R.string.metric_band_mhz),
+                value = formatBandMhzValue(
+                    permissionGranted = permissionGranted,
+                    lteEarfcn = null,
+                    gsmArfcn = null,
+                    nrBand = nrBand
+                )
+            )
         }
         CellularSignalReader.RADIO_2G -> {
             MetricRow(
@@ -701,6 +759,15 @@ private fun CellIdentityMetrics(
             MetricRow(
                 label = stringResource(R.string.metric_gsm_bsic),
                 value = formatCellIdentityValue(gsmBsic, permissionGranted)
+            )
+            MetricRow(
+                label = stringResource(R.string.metric_band_mhz),
+                value = formatBandMhzValue(
+                    permissionGranted = permissionGranted,
+                    lteEarfcn = null,
+                    gsmArfcn = gsmEarfcn,
+                    nrBand = null
+                )
             )
         }
         else -> {
@@ -712,8 +779,26 @@ private fun CellIdentityMetrics(
                 label = stringResource(R.string.metric_pci),
                 value = formatCellIdentityValue(ltePci, permissionGranted)
             )
+            MetricRow(
+                label = stringResource(R.string.metric_band_mhz),
+                value = formatBandMhzValue(
+                    permissionGranted = permissionGranted,
+                    lteEarfcn = lteEarfcn,
+                    gsmArfcn = null,
+                    nrBand = null
+                )
+            )
         }
     }
+
+    MetricRow(
+        label = stringResource(R.string.metric_cell_reselect_rate),
+        value = if (!permissionGranted) {
+            stringResource(R.string.cell_identity_permission_required)
+        } else {
+            stringResource(R.string.metric_cell_reselect_rate_value, stats.cellReselectsPerMinute)
+        }
+    )
 
     // Neighbour-layer counts are not meaningful without a camped LTE cell — hide the same
     // leftover allCellInfo readings that no-signal / dead zone / WiFi calling already blank
@@ -792,8 +877,16 @@ private fun formatServiceState(stats: ConnectivityStats): String {
         return stringResource(R.string.signal_permission_required)
     }
     return when (stats.networkServiceMode) {
-        NetworkServiceMode.IN_SERVICE -> stringResource(R.string.service_state_in_service)
-        NetworkServiceMode.LIMITED_SERVICE -> stringResource(R.string.service_state_limited)
+        NetworkServiceMode.IN_SERVICE -> if (stats.isVoiceOnlyNoData) {
+            stringResource(R.string.service_state_in_service_voice_only)
+        } else {
+            stringResource(R.string.service_state_in_service)
+        }
+        NetworkServiceMode.LIMITED_SERVICE -> if (stats.isVoiceOnlyNoData) {
+            stringResource(R.string.service_state_limited_voice_only)
+        } else {
+            stringResource(R.string.service_state_limited)
+        }
         NetworkServiceMode.OUT_OF_SERVICE,
         NetworkServiceMode.RADIO_OFF -> stringResource(R.string.service_state_no_service)
         NetworkServiceMode.UNKNOWN -> stringResource(R.string.service_state_unknown)
@@ -819,22 +912,6 @@ private fun formatHomeOperator(stats: ConnectivityStats): String {
         return stringResource(R.string.network_permission_required)
     }
     return stringResource(R.string.network_cellular)
-}
-
-@Composable
-private fun formatNetworkModePreference(stats: ConnectivityStats): String {
-    if (!stats.signalPermissionGranted) {
-        return stringResource(R.string.signal_permission_required)
-    }
-    return stringResource(
-        when (stats.networkModePreference) {
-            NetworkModePreference.ALL_TECHNOLOGIES -> R.string.network_mode_all_technologies
-            NetworkModePreference.FORCED_2G -> R.string.network_mode_forced_2g
-            NetworkModePreference.FORCED_LTE_NR -> R.string.network_mode_forced_lte_nr
-            NetworkModePreference.FORCED_NR_ONLY -> R.string.network_mode_forced_nr
-            NetworkModePreference.UNKNOWN -> R.string.network_mode_unknown
-        }
-    )
 }
 
 @Composable
@@ -882,6 +959,23 @@ private fun formatNrBandValue(
 }
 
 @Composable
+private fun formatBandMhzValue(
+    permissionGranted: Boolean,
+    lteEarfcn: Int?,
+    gsmArfcn: Int?,
+    nrBand: Int?
+): String {
+    if (!permissionGranted) {
+        return stringResource(R.string.cell_identity_permission_required)
+    }
+    return ServingBandMhz.formatMhz(
+        ServingBandMhz.fromLteEarfcn(lteEarfcn),
+        ServingBandMhz.fromGsmArfcn(gsmArfcn),
+        ServingBandMhz.fromNrBand(nrBand)
+    ) ?: "—"
+}
+
+@Composable
 private fun SignalTierMetricRow(
     tier: SignalMeasurementTier,
     rsrqTierActive: Boolean,
@@ -917,7 +1011,7 @@ private fun MetricRow(
     label: String,
     value: String,
     valueColor: Color = MaterialTheme.colorScheme.onSurface,
-    valueFontSize: TextUnit = 18.sp,
+    valueFontSize: TextUnit = 13.sp,
     valueSingleLine: Boolean = false
 ) {
     Row(

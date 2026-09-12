@@ -51,7 +51,10 @@ object SignalTierColors {
         13 to (0xFFAD1457L to 0xFFF06292L),
         14 to (0xFF4E342EL to 0xFFBCAAA4L),
         15 to (0xFF8E0000L to 0xFFEF9A9AL),
+        19 to (0xFFE65100L to 0xFFFFCC80L),
         20 to (0xFFB71C1CL to 0xFFE57373L),
+        21 to (0xFF8E0000L to 0xFFEF9A9AL),
+        22 to (0xFFAD1457L to 0xFFF06292L),
         23 to (0xFF8E0000L to 0xFFEF9A9AL),
         28 to (0xFF004D40L to 0xFF80CBC4L),
         29 to (0xFF0D47A1L to 0xFF64B5F6L),
@@ -94,7 +97,10 @@ object SignalTierColors {
             SignalMeasurementTier.SEARCHING_2G -> tier11
             SignalMeasurementTier.LIMITED_SERVICE -> tier12
             SignalMeasurementTier.LIMITED_ALT_2G -> tier13
+            SignalMeasurementTier.LIMITED_HOME_4G -> tier12
+            SignalMeasurementTier.LIMITED_HOME_2G -> tier13
             SignalMeasurementTier.LIMITED_4G_NO_SIGNAL -> tier10
+            SignalMeasurementTier.LIMITED_HOME_2G_NO_SIGNAL -> tier15
             SignalMeasurementTier.LIMITED_ALT_2G_NO_SIGNAL -> tier15
             SignalMeasurementTier.RSRQ_POOR -> tier14
             // RXSS 31 reuses the RXSS 10 (no signal) accent — see RXSS_CATALOGUE.md.

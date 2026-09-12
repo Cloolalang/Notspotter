@@ -28,7 +28,10 @@ fun rxssStateNameResId(tierNumber: Int): Int? {
         Rxss.SEARCH_HOME_2G -> R.string.rxss_state_search_home_2g
         Rxss.LIMITED_ALT_4G -> R.string.rxss_state_limited_alt_4g
         Rxss.LIMITED_ALT_2G -> R.string.rxss_state_limited_alt_2g
+        Rxss.LIMITED_HOME_4G -> R.string.rxss_state_limited_home_4g
+        Rxss.LIMITED_HOME_2G -> R.string.rxss_state_limited_home_2g
         Rxss.LIMITED_4G_NO_SIGNAL -> R.string.rxss_state_limited_4g_no_signal
+        Rxss.LIMITED_HOME_2G_NO_SIGNAL -> R.string.rxss_state_limited_home_2g_no_signal
         Rxss.LIMITED_ALT_2G_NO_SIGNAL -> R.string.rxss_state_limited_alt_2g_no_signal
         Rxss.RSRQ_POOR -> R.string.rxss_state_rsrq_poor
         Rxss.HOME_2G_NO_SIGNAL -> R.string.rxss_state_home_2g_no_signal
@@ -75,12 +78,15 @@ fun signalMeasurementDisplayLabel(
     tier.rxssNumber?.let { number ->
         val rxssParts = mutableListOf(number)
         if (tier == SignalMeasurementTier.LIMITED_SERVICE ||
-            tier == SignalMeasurementTier.LIMITED_ALT_2G
+            tier == SignalMeasurementTier.LIMITED_ALT_2G ||
+            tier == SignalMeasurementTier.LIMITED_HOME_4G ||
+            tier == SignalMeasurementTier.LIMITED_HOME_2G
         ) {
             limitedServiceSignalOverlayRxss?.let { rxssParts.add(it) }
         }
         if (rsrqTierActive &&
             tier != SignalMeasurementTier.LIMITED_4G_NO_SIGNAL &&
+            tier != SignalMeasurementTier.LIMITED_HOME_2G_NO_SIGNAL &&
             tier != SignalMeasurementTier.LIMITED_ALT_2G_NO_SIGNAL
         ) {
             rxssParts.add(RSRQ_POOR_TIER_NUMBER)

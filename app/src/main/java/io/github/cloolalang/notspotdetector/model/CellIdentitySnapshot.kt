@@ -15,6 +15,21 @@ data class CellIdentitySnapshot(
             gsmEarfcn != null || gsmBsic != null
     }
 
+    /**
+     * Serving-cell identity change used for the reselect-rate metric.
+     * PCI / channel / BSIC only — an NR band-label drift is not a reselect.
+     * Empty → first identity is a camp, not a reselect.
+     */
+    fun isServingCellReselectFrom(previous: CellIdentitySnapshot): Boolean {
+        if (!hasAnyIdentity() || !previous.hasAnyIdentity()) return false
+        return lteEarfcn != previous.lteEarfcn ||
+            ltePci != previous.ltePci ||
+            nrEarfcn != previous.nrEarfcn ||
+            nrPci != previous.nrPci ||
+            gsmEarfcn != previous.gsmEarfcn ||
+            gsmBsic != previous.gsmBsic
+    }
+
     companion object {
         fun fromStats(stats: ConnectivityStats): CellIdentitySnapshot {
             return CellIdentitySnapshot(

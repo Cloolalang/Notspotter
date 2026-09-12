@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import io.github.cloolalang.notspotdetector.R
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
 import io.github.cloolalang.notspotdetector.model.CellReselectBandNamingStyle
+import io.github.cloolalang.notspotdetector.model.PeriodicVoiceRepeat
 import io.github.cloolalang.notspotdetector.model.TechnologyChangeTarget
 import io.github.cloolalang.notspotdetector.model.VoicePhraseFragment
 import io.github.cloolalang.notspotdetector.model.VoicePhraseGroup
@@ -44,6 +45,10 @@ val LocalOnVoicePhrasesChange = staticCompositionLocalOf<(VoicePhraseGroup, Voic
 }
 
 val LocalOnPreviewVoicePhrase = staticCompositionLocalOf<(VoicePhraseGroup, VoicePhraseFragment) -> Unit> {
+    { _, _ -> }
+}
+
+val LocalOnPeriodicVoiceRepeatChange = staticCompositionLocalOf<(PeriodicVoiceRepeat, Boolean) -> Unit> {
     { _, _ -> }
 }
 
@@ -88,6 +93,28 @@ fun VoicePhraseToggles(
         controlsEnabled = controlsEnabled,
         onPreview = { onPreviewFragment(group, VoicePhraseFragment.BAND) }
     )
+    if (group == VoicePhraseGroup.LIMITED_SERVICE) {
+        VoicePhraseToggleRow(
+            checked = phrases.speakHomeLimitedService,
+            onCheckedChange = { onPhrasesChange(group, phrases.withHomeLimitedService(it)) },
+            title = stringResource(R.string.voice_phrase_speak_home_limited_service),
+            hint = stringResource(R.string.voice_phrase_speak_home_limited_service_hint),
+            previewEnabled = previewEnabled,
+            accentColor = accentColor,
+            controlsEnabled = controlsEnabled,
+            onPreview = { onPreviewFragment(group, VoicePhraseFragment.HOME_LIMITED_SERVICE) }
+        )
+        VoicePhraseToggleRow(
+            checked = phrases.speakVisitingLimitedService,
+            onCheckedChange = { onPhrasesChange(group, phrases.withVisitingLimitedService(it)) },
+            title = stringResource(R.string.voice_phrase_speak_visiting_limited_service),
+            hint = stringResource(R.string.voice_phrase_speak_visiting_limited_service_hint),
+            previewEnabled = previewEnabled,
+            accentColor = accentColor,
+            controlsEnabled = controlsEnabled,
+            onPreview = { onPreviewFragment(group, VoicePhraseFragment.VISITING_LIMITED_SERVICE) }
+        )
+    }
 }
 
 @Composable
@@ -128,6 +155,42 @@ private fun VoicePhraseToggleRow(
             onPreview = onPreview,
             modifier = Modifier.padding(start = 8.dp)
         )
+    }
+}
+
+@Composable
+fun PeriodicVoiceRepeatOption(
+    kind: PeriodicVoiceRepeat,
+    checked: Boolean,
+    enabled: Boolean,
+    accentColor: Color,
+    title: String = stringResource(R.string.audio_periodic_voice_enabled),
+    hint: String = stringResource(R.string.audio_periodic_voice_enabled_hint)
+) {
+    val onChange = LocalOnPeriodicVoiceRepeatChange.current
+    val controlsEnabled = settingsControlsEnabled() && enabled
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Checkbox(
+            checked = checked,
+            onCheckedChange = { onChange(kind, it) },
+            enabled = controlsEnabled
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Medium,
+                color = accentColor
+            )
+            Text(
+                text = hint,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 
@@ -328,6 +391,12 @@ fun NoSignalVoiceAnnouncementControls(
         onPreviewVoice = onPreviewNoSignalVoice,
         accentColor = accentColor
     )
+    PeriodicVoiceRepeatOption(
+        kind = PeriodicVoiceRepeat.NO_SIGNAL,
+        checked = audioVolumes.noSignalPeriodicVoiceEnabled,
+        enabled = audioVolumes.noSignalVoiceEnabled,
+        accentColor = accentColor
+    )
     VoicePhraseToggles(
         group = VoicePhraseGroup.NO_SIGNAL,
         phrases = audioVolumes.noSignalPhrases,
@@ -404,6 +473,12 @@ fun Tier5SignalLowVoiceControls(
         onVolumeChange = onTier5AnnouncerVolumeChange,
         previewEnabled = previewEnabled,
         onPreviewVoice = onPreviewTier5Announcer,
+        accentColor = accentColor
+    )
+    PeriodicVoiceRepeatOption(
+        kind = PeriodicVoiceRepeat.SIGNAL_LOW,
+        checked = audioVolumes.tier5PeriodicVoiceEnabled,
+        enabled = audioVolumes.tier5AnnouncerEnabled,
         accentColor = accentColor
     )
     VoicePhraseToggles(
@@ -546,6 +621,16 @@ fun TechnologyChangeAlertControls(
         onPreviewVoice = onPreviewVoice,
         accentColor = accentColor
     )
+    if (target == TechnologyChangeTarget.TO_2G) {
+        PeriodicVoiceRepeatOption(
+            kind = PeriodicVoiceRepeat.G2_CAMPED,
+            checked = audioVolumes.technologyChangeTo2gPeriodicVoiceEnabled,
+            enabled = alertVolumes.voiceEnabled,
+            accentColor = accentColor,
+            title = stringResource(R.string.audio_g2_camped_periodic_voice_enabled),
+            hint = stringResource(R.string.audio_g2_camped_periodic_voice_enabled_hint)
+        )
+    }
     VoicePhraseToggles(
         group = VoicePhraseGroup.forTechnologyChange(target),
         phrases = audioVolumes.phrasesForTechnologyChange(target),
@@ -590,6 +675,12 @@ fun LimitedServiceVoiceAnnouncementControls(
         onVolumeChange = onLimitedServiceVoiceVolumeChange,
         previewEnabled = previewEnabled,
         onPreviewVoice = onPreviewLimitedServiceVoice,
+        accentColor = accentColor
+    )
+    PeriodicVoiceRepeatOption(
+        kind = PeriodicVoiceRepeat.LIMITED_SERVICE,
+        checked = audioVolumes.limitedServicePeriodicVoiceEnabled,
+        enabled = audioVolumes.limitedServiceVoiceEnabled,
         accentColor = accentColor
     )
     VoicePhraseToggles(

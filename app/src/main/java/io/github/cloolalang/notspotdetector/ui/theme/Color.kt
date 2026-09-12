@@ -36,3 +36,7 @@ val SushiContainerLight = Color(0xFFEBF2DF)
 val OnSushiContainerLight = Color(0xFF1F2D0C)
 val SushiContainerDark = Color(0xFF4F6B1C)
 val OnSushiContainerDark = Color(0xFFE3EFD3)
+
+/** Stop button — muted rose, less bright than Material error pink. */
+val StopRose = Color(0xFFB45C68)
+val OnStopRose = Color(0xFFFFFFFF)

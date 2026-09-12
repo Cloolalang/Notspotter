@@ -209,7 +209,7 @@ class RsrpHistogramTest {
             RsrpHistogram.thresholdBarColor(threshold.copy(count = 90), totalSamples = 100)
         )
         assertEquals(
-            RsrpHistogramThresholdBarColor.RED,
+            RsrpHistogramThresholdBarColor.YELLOW,
             RsrpHistogram.thresholdBarColor(threshold.copy(count = 89), totalSamples = 100)
         )
     }
@@ -230,6 +230,38 @@ class RsrpHistogramTest {
                 totalSamples = 100
             )
         )
+    }
+
+    @Test
+    fun thresholdBarFillFraction_compressesBelowEightyPercent() {
+        assertEquals(0f, RsrpHistogram.thresholdBarFillFraction(0), 0.001f)
+        assertEquals(0.15f, RsrpHistogram.thresholdBarFillFraction(80), 0.001f)
+        assertEquals(1f, RsrpHistogram.thresholdBarFillFraction(100), 0.001f)
+        val mid = RsrpHistogram.thresholdBarFillFraction(90)
+        assertEquals(0.575f, mid, 0.001f)
+    }
+
+    @Test
+    fun windowStats_computesMeanMedianAndStdev() {
+        val nowMs = 10_000L
+        val samples = listOf(
+            RsrpSample(timestampMs = 9_000L, rsrpDbm = -100),
+            RsrpSample(timestampMs = 9_100L, rsrpDbm = -102),
+            RsrpSample(timestampMs = 9_200L, rsrpDbm = -104),
+            RsrpSample(timestampMs = 9_300L, rsrpDbm = null),
+            RsrpSample(timestampMs = 1_000L, rsrpDbm = -70)
+        )
+        val stats = RsrpHistogram.windowStats(samples, nowMs, windowMs = 2_000L)
+        assertEquals(3, stats?.sampleCount)
+        assertEquals(-102.0, stats?.meanDbm ?: 0.0, 0.001)
+        assertEquals(-102.0, stats?.medianDbm ?: 0.0, 0.001)
+        assertEquals(2.0, stats?.stdevDbm ?: 0.0, 0.001)
+    }
+
+    @Test
+    fun formatWindowStat_dropsTrailingZero() {
+        assertEquals("-102", RsrpHistogram.formatWindowStat(-102.0))
+        assertEquals("-102.4", RsrpHistogram.formatWindowStat(-102.36))
     }
 
     @Test

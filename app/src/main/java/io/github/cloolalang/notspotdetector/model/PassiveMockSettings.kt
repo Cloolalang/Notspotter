@@ -9,6 +9,8 @@ import io.github.cloolalang.notspotdetector.network.CellularSignalReader
 enum class MockNetworkScenario {
     HOME_4G,
     HOME_2G,
+    HOME_LIMITED_4G,
+    HOME_LIMITED_2G,
     ALT_OPERATOR_4G,
     ALT_OPERATOR_2G,
     NO_SERVICE,
@@ -26,9 +28,11 @@ enum class MockNetworkScenario {
         }
     }
 
-    fun usesLteNrSignalStrength(): Boolean = this == HOME_4G || this == ALT_OPERATOR_4G || this == HOME_5G_ENDC
+    fun usesLteNrSignalStrength(): Boolean =
+        this == HOME_4G || this == HOME_LIMITED_4G || this == ALT_OPERATOR_4G || this == HOME_5G_ENDC
 
-    fun usesG2SignalStrength(): Boolean = this == HOME_2G || this == ALT_OPERATOR_2G
+    fun usesG2SignalStrength(): Boolean =
+        this == HOME_2G || this == HOME_LIMITED_2G || this == ALT_OPERATOR_2G
 
     /** Scenarios that feed mock RSRP/RSRQ (or 2G RX level) into simulated metrics. */
     fun appliesMockSignalStrength(): Boolean =
@@ -56,6 +60,8 @@ data class PassiveMockSettings(
         return when (scenario) {
             MockNetworkScenario.HOME_4G -> home4gMetrics()
             MockNetworkScenario.HOME_2G -> home2gMetrics()
+            MockNetworkScenario.HOME_LIMITED_4G -> homeLimited4gMetrics()
+            MockNetworkScenario.HOME_LIMITED_2G -> homeLimited2gMetrics()
             MockNetworkScenario.ALT_OPERATOR_4G -> altOperator4gMetrics()
             MockNetworkScenario.ALT_OPERATOR_2G -> altOperator2gMetrics()
             MockNetworkScenario.NO_SERVICE -> noServiceMetrics()
@@ -124,6 +130,50 @@ data class PassiveMockSettings(
             isLimitedService = false,
             networkServiceMode = NetworkServiceMode.IN_SERVICE,
             hasLimitedServiceOnAnySim = false,
+            isCompleteNoService = false,
+            hasHomeGsmSignal = true,
+            hasLteNrSignal = false,
+            networkOperatorName = MOCK_HOME_OPERATOR,
+            homeNetworkOperatorName = MOCK_HOME_OPERATOR,
+            servingNetworkOperatorName = MOCK_HOME_OPERATOR,
+            plmn = MOCK_HOME_PLMN,
+            homePlmn = MOCK_HOME_PLMN
+        )
+    }
+
+    private fun homeLimited4gMetrics(): CellularRadioMetrics {
+        return baseMetrics(
+            rsrpDbm = rsrpDbm,
+            rsrqDb = rsrqDb,
+            radioAccessType = CellularSignalReader.RADIO_4G,
+            lteEarfcn = MOCK_LTE_EARFCN,
+            ltePci = MOCK_LTE_PCI,
+            isOn2g = false,
+            isLimitedService = true,
+            networkServiceMode = NetworkServiceMode.LIMITED_SERVICE,
+            hasLimitedServiceOnAnySim = true,
+            isCompleteNoService = false,
+            hasHomeGsmSignal = false,
+            hasLteNrSignal = true,
+            networkOperatorName = MOCK_HOME_OPERATOR,
+            homeNetworkOperatorName = MOCK_HOME_OPERATOR,
+            servingNetworkOperatorName = MOCK_HOME_OPERATOR,
+            plmn = MOCK_HOME_PLMN,
+            homePlmn = MOCK_HOME_PLMN
+        )
+    }
+
+    private fun homeLimited2gMetrics(): CellularRadioMetrics {
+        return baseMetrics(
+            rsrpDbm = rsrpDbm,
+            rsrqDb = null,
+            radioAccessType = CellularSignalReader.RADIO_2G,
+            gsmEarfcn = MOCK_GSM_EARFCN,
+            gsmBsic = MOCK_GSM_BSIC,
+            isOn2g = true,
+            isLimitedService = true,
+            networkServiceMode = NetworkServiceMode.LIMITED_SERVICE,
+            hasLimitedServiceOnAnySim = true,
             isCompleteNoService = false,
             hasHomeGsmSignal = true,
             hasLteNrSignal = false,
@@ -365,6 +415,7 @@ fun PassiveMockSettings.toConnectivityStats(
         restrictedTo2gNetwork = radio.restrictedTo2gNetwork,
         isLimitedService = radio.isLimitedService,
         networkServiceMode = radio.networkServiceMode,
+        isVoiceOnlyNoData = radio.isVoiceOnlyNoData,
         isWifiCallingActive = radio.isWifiCallingActive,
         hasLimitedServiceOnAnySim = radio.hasLimitedServiceOnAnySim,
         isCompleteNoService = radio.isCompleteNoService,

@@ -17,6 +17,7 @@ import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
 import io.github.cloolalang.notspotdetector.model.CarrierConfigSnapshot
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.PassiveMockSettings
+import io.github.cloolalang.notspotdetector.model.PeriodicVoiceRepeat
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
 import io.github.cloolalang.notspotdetector.model.ProfileExportOutcome
 import io.github.cloolalang.notspotdetector.model.ProfileImportResult
@@ -96,6 +97,9 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         reconcilePassiveTierClickIntervals(MonitorState.audioVolumes.value)
         cellVoiceAnnouncer.setVoiceSelectionProvider {
             VoiceAnnouncerSelection.fromSettings(MonitorState.audioVolumes.value)
+        }
+        cellVoiceAnnouncer.setSpeechRateProvider {
+            MonitorState.audioVolumes.value.voiceSpeechRate
         }
         cellVoiceAnnouncer.setOnReadyListener { refreshVoiceAnnouncerOptions() }
         refreshSimSubscriptions()
@@ -383,8 +387,16 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         updateAudioVolumes(audioVolumes.value.copy(tier5AnnouncerEnabled = enabled))
     }
 
+    fun updatePeriodicVoiceRepeat(kind: PeriodicVoiceRepeat, enabled: Boolean) {
+        updateAudioVolumes(audioVolumes.value.withPeriodicVoiceRepeat(kind, enabled))
+    }
+
     fun updateTier5AnnouncerVolume(value: Float) {
         updateAudioVolumes(audioVolumes.value.copy(tier5AnnouncerVolume = value))
+    }
+
+    fun updateVoiceSpeechRate(value: Float) {
+        updateAudioVolumes(audioVolumes.value.copy(voiceSpeechRate = value))
     }
 
     fun updateVoiceAnnouncerChoice(choice: VoiceAnnouncerChoice) {
@@ -662,6 +674,8 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
                 )
                     ?: CellIdentityAnnouncement.prefixBandPhrase(6400)
                     ?: "band"
+            VoicePhraseFragment.HOME_LIMITED_SERVICE -> "home limited service"
+            VoicePhraseFragment.VISITING_LIMITED_SERVICE -> "visiting limited service"
         }
     }
 

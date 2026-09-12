@@ -3,6 +3,7 @@ package io.github.cloolalang.notspotdetector
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
 import io.github.cloolalang.notspotdetector.model.CellIdentityAnnouncement
 import io.github.cloolalang.notspotdetector.model.CellIdentitySnapshot
+import io.github.cloolalang.notspotdetector.model.CellReselectRate
 import io.github.cloolalang.notspotdetector.model.CellularRadioMetrics
 import io.github.cloolalang.notspotdetector.model.ConnectionQuality
 import io.github.cloolalang.notspotdetector.model.ConnectivityStats
@@ -81,6 +82,7 @@ object MonitorState {
     val rsrpHistory: StateFlow<List<RsrpSample>> = _rsrpHistory.asStateFlow()
 
     private var cellIdentityBaselineReady = false
+    private val cellReselectTimestamps = mutableListOf<Long>()
     private var radioTechnologyBaselineReady = false
     private var noSignalBaselineReady = false
     private var limitedServiceBaselineReady = false
@@ -368,6 +370,8 @@ object MonitorState {
             cellularAvailable = false,
             rsrpDbm = metrics.rsrpDbm,
             rsrqDb = metrics.rsrqDb,
+            lteSinrDb = metrics.lteSinrDb,
+            nrSinrDb = metrics.nrSinrDb,
             radioAccessType = metrics.radioAccessType,
             lteEarfcn = metrics.lteEarfcn,
             ltePci = metrics.ltePci,
@@ -381,6 +385,7 @@ object MonitorState {
             restrictedTo2gNetwork = metrics.restrictedTo2gNetwork,
             isLimitedService = metrics.isLimitedService,
             networkServiceMode = metrics.networkServiceMode,
+            isVoiceOnlyNoData = metrics.isVoiceOnlyNoData,
             isWifiCallingActive = metrics.isWifiCallingActive,
             hasLimitedServiceOnAnySim = metrics.hasLimitedServiceOnAnySim,
             isCompleteNoService = metrics.isCompleteNoService,
@@ -431,6 +436,8 @@ object MonitorState {
         val merged = previous.copy(
             rsrpDbm = metrics.rsrpDbm,
             rsrqDb = metrics.rsrqDb,
+            lteSinrDb = metrics.lteSinrDb,
+            nrSinrDb = metrics.nrSinrDb,
             radioAccessType = metrics.radioAccessType,
             lteEarfcn = metrics.lteEarfcn,
             ltePci = metrics.ltePci,
@@ -444,6 +451,7 @@ object MonitorState {
             restrictedTo2gNetwork = metrics.restrictedTo2gNetwork,
             isLimitedService = metrics.isLimitedService,
             networkServiceMode = metrics.networkServiceMode,
+            isVoiceOnlyNoData = metrics.isVoiceOnlyNoData,
             isWifiCallingActive = metrics.isWifiCallingActive,
             hasLimitedServiceOnAnySim = metrics.hasLimitedServiceOnAnySim,
             isCompleteNoService = metrics.isCompleteNoService,
@@ -567,14 +575,34 @@ object MonitorState {
             previousKnownRat = previousKnownRat,
             networkOperatorName = networkOperatorName
         )
+        val previousIdentity = CellIdentitySnapshot.fromStats(previous)
+        val nextIdentity = CellIdentitySnapshot.fromStats(nextDebounced)
+        val hadCellIdentityBaseline = cellIdentityBaselineReady
+        val cellChangeAnnouncement = consumeCellIdentityChange(
+            next = nextIdentity,
+            stats = nextDebounced,
+            passiveSettings = passiveSettings,
+            radioAccessType = nextDebounced.radioAccessType,
+            networkOperatorName = networkOperatorName
+        )
+        val reselectOccurred = hadCellIdentityBaseline &&
+            _isRunning.value &&
+            nextDebounced.isMonitoring &&
+            nextDebounced.shouldAllowCellReselectVoice(passiveSettings) &&
+            nextIdentity.isServingCellReselectFrom(previousIdentity)
+        val nowMs = System.currentTimeMillis()
+        val updatedTimestamps = CellReselectRate.record(
+            timestampsMs = cellReselectTimestamps,
+            nowMs = nowMs,
+            reselectOccurred = reselectOccurred
+        )
+        cellReselectTimestamps.clear()
+        cellReselectTimestamps.addAll(updatedTimestamps)
+        val nextWithRate = nextDebounced.copy(
+            cellReselectsPerMinute = CellReselectRate.countPerMinute(cellReselectTimestamps, nowMs)
+        )
         val events = MonitoringUpdateEvents(
-            cellChangeAnnouncement = consumeCellIdentityChange(
-                next = CellIdentitySnapshot.fromStats(nextDebounced),
-                stats = nextDebounced,
-                passiveSettings = passiveSettings,
-                radioAccessType = nextDebounced.radioAccessType,
-                networkOperatorName = networkOperatorName
-            ),
+            cellChangeAnnouncement = cellChangeAnnouncement,
             technologyChangeAnnouncement = technologyChangeAnnouncement,
             technologyChangeTargetRadioAccessType = nextDebounced.radioAccessType?.takeIf {
                 technologyChangeAnnouncement != null
@@ -605,7 +633,7 @@ object MonitorState {
                 previous.isLimitedServiceNoSignalCamp(passiveSettings) !=
                 nextDebounced.isLimitedServiceNoSignalCamp(passiveSettings)
         )
-        return nextDebounced to events
+        return nextWithRate to events
     }
 
     private fun consumeTechnologyChangeAnnouncement(
@@ -968,6 +996,7 @@ object MonitorState {
     }
 
     private fun resetCellIdentityTracking() {
+        cellReselectTimestamps.clear()
         cellIdentityBaselineReady = false
         radioTechnologyBaselineReady = false
         noSignalBaselineReady = false
@@ -994,8 +1023,8 @@ object MonitorState {
                     }
                     return computeSearching2gFallbackActive(debounced, lteRatBeforeNoSignalEpisode)
                 }
-                MockNetworkScenario.HOME_4G, MockNetworkScenario.ALT_OPERATOR_4G,
-                MockNetworkScenario.HOME_5G_ENDC -> {
+                MockNetworkScenario.HOME_4G, MockNetworkScenario.HOME_LIMITED_4G,
+                MockNetworkScenario.ALT_OPERATOR_4G, MockNetworkScenario.HOME_5G_ENDC -> {
                     if (!debounced.noSignalActive) {
                         lteRatBeforeNoSignalEpisode = null
                     }

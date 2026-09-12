@@ -32,7 +32,7 @@ class SignalStateAnnouncementTest {
     @Test
     fun formatNoSignalChange_wifiCallingUsesDedicatedPhraseWithoutTech() {
         assertEquals(
-            "E E, W I F I calling, no cellular signal",
+            "E E, wifi calling, no cellular signal",
             SignalStateAnnouncement.formatNoSignalChange(
                 active = true,
                 networkOperatorName = "EE",
@@ -60,7 +60,7 @@ class SignalStateAnnouncementTest {
             noSignalActive = true
         )
         assertEquals(
-            "Vodafone, W I F I calling, no cellular signal",
+            "Vodafone, wifi calling, no cellular signal",
             SignalStateAnnouncement.formatNoSignalAnnouncement(stats)
         )
         assertEquals(
@@ -161,7 +161,7 @@ class SignalStateAnnouncementTest {
             signalPermissionGranted = true
         )
         assertEquals(
-            "Vodafone UK, 2 G, limited service",
+            "Vodafone UK, 2 G, home limited service",
             SignalStateAnnouncement.formatLimitedServiceChange(stats)
         )
     }
@@ -178,7 +178,7 @@ class SignalStateAnnouncementTest {
         )
 
         assertEquals(
-            "Vodafone UK home, E E visited, 4 G, limited service",
+            "Vodafone UK home, E E visited, 4 G, visiting limited service",
             SignalStateAnnouncement.formatLimitedServiceAnnouncement(stats)
         )
     }
@@ -193,7 +193,7 @@ class SignalStateAnnouncementTest {
         )
 
         assertEquals(
-            "Vodafone home, E E visited, 4 G, limited service",
+            "Vodafone home, E E visited, 4 G, visiting limited service",
             SignalStateAnnouncement.formatLimitedServiceAnnouncement(stats)
         )
     }
@@ -208,7 +208,7 @@ class SignalStateAnnouncementTest {
         )
 
         assertEquals(
-            "Vodafone home, E E visited, 2 G, limited service",
+            "Vodafone home, E E visited, 2 G, visiting limited service",
             SignalStateAnnouncement.formatLimitedServiceAnnouncement(stats)
         )
     }
@@ -225,8 +225,40 @@ class SignalStateAnnouncementTest {
         )
 
         assertEquals(
-            "Vodafone UK, 2 G, limited service",
+            "Vodafone UK, 2 G, home limited service",
             SignalStateAnnouncement.formatLimitedServiceAnnouncement(stats)
+        )
+    }
+
+    @Test
+    fun formatLimitedServiceAnnouncement_roleTogglesOffKeepPlainLimitedService() {
+        val home = ConnectivityStats(
+            isLimitedService = true,
+            homeNetworkOperatorName = "Vodafone UK",
+            servingNetworkOperatorName = "Vodafone UK",
+            homePlmn = "23415",
+            plmn = "23415",
+            radioAccessType = CellularSignalReader.RADIO_2G
+        )
+        val visited = ConnectivityStats(
+            isLimitedService = true,
+            homeNetworkOperatorName = "Vodafone UK",
+            servingNetworkOperatorName = "EE",
+            homePlmn = "23415",
+            plmn = "23430",
+            radioAccessType = CellularSignalReader.RADIO_4G
+        )
+        val off = VoicePhraseOptions(
+            speakHomeLimitedService = false,
+            speakVisitingLimitedService = false
+        )
+        assertEquals(
+            "Vodafone UK, 2 G, limited service",
+            SignalStateAnnouncement.formatLimitedServiceAnnouncement(home, phrases = off)
+        )
+        assertEquals(
+            "Vodafone UK home, E E visited, 4 G, limited service",
+            SignalStateAnnouncement.formatLimitedServiceAnnouncement(visited, phrases = off)
         )
     }
 
@@ -284,7 +316,7 @@ class SignalStateAnnouncementTest {
             )
         )
         assertEquals(
-            "2 G, limited service",
+            "2 G, home limited service",
             SignalStateAnnouncement.formatLimitedServiceAnnouncement(
                 "EE",
                 CellularSignalReader.RADIO_2G,
@@ -334,7 +366,7 @@ class SignalStateAnnouncementTest {
             )
         )
         assertEquals(
-            "E E, 4 G, band, twenty, limited service",
+            "E E, 4 G, band, twenty, home limited service",
             SignalStateAnnouncement.formatLimitedServiceAnnouncement(
                 "EE",
                 CellularSignalReader.RADIO_4G,
@@ -355,7 +387,7 @@ class SignalStateAnnouncementTest {
             )
         )
         assertEquals(
-            "E E, limited service",
+            "E E, home limited service",
             SignalStateAnnouncement.formatLimitedServiceAnnouncement(
                 "EE",
                 CellularSignalReader.RADIO_2G,
@@ -407,7 +439,7 @@ class SignalStateAnnouncementTest {
         )
 
         assertEquals(
-            "E E visited, 4 G, no signal, limited service",
+            "E E visited, 4 G, no signal, visiting limited service",
             SignalStateAnnouncement.formatNoSignalAnnouncement(stats)
         )
     }
@@ -479,7 +511,7 @@ class SignalStateAnnouncementTest {
         )
 
         assertEquals(
-            "E E visited, 2 G, no signal, limited service",
+            "E E visited, 2 G, no signal, visiting limited service",
             SignalStateAnnouncement.formatNoSignalAnnouncement(stats)
         )
     }

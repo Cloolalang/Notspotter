@@ -15,6 +15,7 @@ import io.github.cloolalang.notspotdetector.model.isSignalLowVoiceCamp
 import io.github.cloolalang.notspotdetector.model.toConnectivityStats
 import io.github.cloolalang.notspotdetector.network.CellularSignalReader
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -315,5 +316,89 @@ class MonitorStateCellReselectTest {
             signalPermissionGranted = true
         )
         assertFalse(g2NoSignal.shouldAllowG2WeakPeriodicVoice(passiveSettings))
+    }
+
+    @Test
+    fun firstCampedSnapshotDoesNotCountAsReselect() {
+        MonitorState.updateStats(campedHome4g(pci = 42))
+
+        assertEquals(0, MonitorState.stats.value.cellReselectsPerMinute)
+    }
+
+    @Test
+    fun pciChangeIncrementsRollingReselectRate() {
+        MonitorState.updateStats(campedHome4g(pci = 42))
+        MonitorState.updateStats(campedHome4g(pci = 99))
+
+        assertEquals(1, MonitorState.stats.value.cellReselectsPerMinute)
+    }
+
+    @Test
+    fun twoPciChangesCountAsTwoReselectsPerMinute() {
+        MonitorState.updateStats(campedHome4g(pci = 42))
+        MonitorState.updateStats(campedHome4g(pci = 99))
+        MonitorState.updateStats(campedHome4g(pci = 7))
+
+        assertEquals(2, MonitorState.stats.value.cellReselectsPerMinute)
+    }
+
+    @Test
+    fun noSignalIdentityFlickerDoesNotIncrementReselectRate() {
+        val mock = PassiveMockSettings(
+            enabled = true,
+            scenario = MockNetworkScenario.HOME_4G,
+            rsrpDbm = -95
+        )
+        MonitorState.updateStats(
+            mock.toConnectivityStats(
+                monitor2gFallback = true,
+                passiveSettings = passiveSettings,
+                passiveIdleMode = false,
+                passiveOnlySession = true
+            )
+        )
+        MonitorState.updateStats(campedHome4g(pci = 99))
+        assertEquals(1, MonitorState.stats.value.cellReselectsPerMinute)
+
+        val noSignalCamp = mock.copy(rsrpDbm = -130).toConnectivityStats(
+            monitor2gFallback = true,
+            passiveSettings = passiveSettings,
+            passiveIdleMode = false,
+            passiveOnlySession = true
+        )
+        MonitorState.updateStats(noSignalCamp)
+        MonitorState.updateStats(
+            noSignalCamp.copy(
+                lteEarfcn = 1_900,
+                ltePci = 7
+            )
+        )
+
+        assertEquals(1, MonitorState.stats.value.cellReselectsPerMinute)
+    }
+
+    @Test
+    fun stoppingMonitorClearsReselectRate() {
+        MonitorState.updateStats(campedHome4g(pci = 42))
+        MonitorState.updateStats(campedHome4g(pci = 99))
+        assertEquals(1, MonitorState.stats.value.cellReselectsPerMinute)
+
+        MonitorState.setRunning(false)
+
+        assertEquals(0, MonitorState.stats.value.cellReselectsPerMinute)
+    }
+
+    private fun campedHome4g(pci: Int): ConnectivityStats {
+        val mock = PassiveMockSettings(
+            enabled = true,
+            scenario = MockNetworkScenario.HOME_4G,
+            rsrpDbm = -95
+        )
+        return mock.toConnectivityStats(
+            monitor2gFallback = true,
+            passiveSettings = passiveSettings,
+            passiveIdleMode = false,
+            passiveOnlySession = true
+        ).copy(ltePci = pci)
     }
 }

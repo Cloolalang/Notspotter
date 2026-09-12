@@ -12,6 +12,7 @@ class EutraBandTest {
 
         assertEquals(20, info?.band)
         assertEquals("L800", info?.mhzNickname)
+        assertEquals(800, info?.nominalMhz())
     }
 
     @Test

@@ -24,6 +24,10 @@ data class ConnectivityStats(
     val severity: Float = 0f,
     val rsrpDbm: Int? = null,
     val rsrqDb: Int? = null,
+    /** LTE RSSNR (SNIR) in dB. */
+    val lteSinrDb: Int? = null,
+    /** NR SS-SINR (SNIR) in dB. */
+    val nrSinrDb: Int? = null,
     val radioAccessType: String? = null,
     val lteEarfcn: Int? = null,
     val ltePci: Int? = null,
@@ -41,6 +45,8 @@ data class ConnectivityStats(
     val searching2gFallbackActive: Boolean = false,
     val isLimitedService: Boolean = false,
     val networkServiceMode: NetworkServiceMode = NetworkServiceMode.UNKNOWN,
+    /** Voice/CS camped, packet data not registered (e.g. 4G bands locked, 2G voice remains). */
+    val isVoiceOnlyNoData: Boolean = false,
     /** WiFi calling / VoWiFi registered as the in-service transport — see [CellularRadioMetrics.isWifiCallingActive]. */
     val isWifiCallingActive: Boolean = false,
     val hasLimitedServiceOnAnySim: Boolean = false,
@@ -66,7 +72,9 @@ data class ConnectivityStats(
      * displayed values change) so a single flickering neighbour reading doesn't cause the values
      * shown to the user to jump around.
      */
-    val lteLayerResilience: LteLayerResilienceReading? = null
+    val lteLayerResilience: LteLayerResilienceReading? = null,
+    /** Serving-cell reselects in the last 60 s (rolling). */
+    val cellReselectsPerMinute: Int = 0
 )
 
 fun ConnectivityStats.hidingFiveGIfDisabled(fiveGFeaturesEnabled: Boolean): ConnectivityStats {
@@ -82,6 +90,7 @@ fun ConnectivityStats.hidingFiveGIfDisabled(fiveGFeaturesEnabled: Boolean): Conn
         },
         nrEarfcn = null,
         nrPci = null,
-        nrBand = null
+        nrBand = null,
+        nrSinrDb = null
     )
 }

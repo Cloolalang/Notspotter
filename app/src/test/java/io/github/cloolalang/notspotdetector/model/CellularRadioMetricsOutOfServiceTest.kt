@@ -14,6 +14,8 @@ class CellularRadioMetricsOutOfServiceTest {
         val leftover = CellularRadioMetrics(
             rsrpDbm = -110,
             rsrqDb = -14,
+            lteSinrDb = 8,
+            nrSinrDb = 12,
             radioAccessType = CellularSignalReader.RADIO_4G,
             lteEarfcn = 6_300,
             ltePci = 12,
@@ -32,6 +34,8 @@ class CellularRadioMetricsOutOfServiceTest {
 
         assertNull(cleared.rsrpDbm)
         assertNull(cleared.rsrqDb)
+        assertNull(cleared.lteSinrDb)
+        assertNull(cleared.nrSinrDb)
         assertNull(cleared.radioAccessType)
         assertNull(cleared.lteEarfcn)
         assertNull(cleared.ltePci)
@@ -76,7 +80,7 @@ class CellularRadioMetricsOutOfServiceTest {
 
         assertFalse(stats.shouldClearCellIdentity())
         assertEquals(
-            SignalMeasurementTier.LIMITED_SERVICE,
+            SignalMeasurementTier.LIMITED_HOME_4G,
             stats.resolveSignalMeasurementTier()
         )
     }

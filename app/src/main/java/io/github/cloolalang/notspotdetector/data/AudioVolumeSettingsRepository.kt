@@ -134,6 +134,10 @@ class AudioVolumeSettingsRepository(context: Context) {
                 KEY_TECHNOLOGY_CHANGE_TO_2G_VOICE_ENABLED,
                 legacyTechnologyChangeVoiceEnabled
             ),
+            technologyChangeTo2gPeriodicVoiceEnabled = prefs.getBoolean(
+                KEY_TECHNOLOGY_CHANGE_TO_2G_PERIODIC_VOICE_ENABLED,
+                AudioVolumeSettings.DEFAULT_PERIODIC_VOICE_ENABLED
+            ),
             technologyChangeTo2gVoiceVolume = prefs.getFloat(
                 KEY_TECHNOLOGY_CHANGE_TO_2G_VOICE,
                 legacyTechnologyChangeVoiceVolume
@@ -166,6 +170,10 @@ class AudioVolumeSettingsRepository(context: Context) {
                 KEY_TIER5_ANNOUNCER_ENABLED,
                 AudioVolumeSettings.DEFAULT_VOICE_ANNOUNCEMENT_ENABLED
             ),
+            tier5PeriodicVoiceEnabled = prefs.getBoolean(
+                KEY_TIER5_PERIODIC_VOICE_ENABLED,
+                AudioVolumeSettings.DEFAULT_PERIODIC_VOICE_ENABLED
+            ),
             tier5AnnouncerVolume = prefs.getFloat(
                 KEY_TIER5_ANNOUNCER_VOLUME,
                 AudioVolumeSettings.DEFAULT_VOLUME
@@ -174,6 +182,10 @@ class AudioVolumeSettingsRepository(context: Context) {
                 prefs.getString(KEY_VOICE_ANNOUNCER_CHOICE, null)
             ),
             voiceAnnouncerEngineId = prefs.getString(KEY_VOICE_ANNOUNCER_ENGINE_ID, null),
+            voiceSpeechRate = prefs.getFloat(
+                KEY_VOICE_SPEECH_RATE,
+                AudioVolumeSettings.DEFAULT_VOICE_SPEECH_RATE
+            ),
             noSignalToneVolume = prefs.getFloat(KEY_NO_SIGNAL_TONE, AudioVolumeSettings.DEFAULT_VOLUME),
             noSignalVibrationEnabled = prefs.getBoolean(
                 KEY_NO_SIGNAL_VIBRATION_ENABLED,
@@ -182,6 +194,10 @@ class AudioVolumeSettingsRepository(context: Context) {
             noSignalVoiceEnabled = prefs.getBoolean(
                 KEY_NO_SIGNAL_VOICE_ENABLED,
                 AudioVolumeSettings.DEFAULT_VOICE_ANNOUNCEMENT_ENABLED
+            ),
+            noSignalPeriodicVoiceEnabled = prefs.getBoolean(
+                KEY_NO_SIGNAL_PERIODIC_VOICE_ENABLED,
+                AudioVolumeSettings.DEFAULT_PERIODIC_VOICE_ENABLED
             ),
             noSignalVoiceVolume = prefs.getFloat(
                 KEY_NO_SIGNAL_VOICE,
@@ -194,6 +210,10 @@ class AudioVolumeSettingsRepository(context: Context) {
             limitedServiceVoiceEnabled = prefs.getBoolean(
                 KEY_LIMITED_SERVICE_VOICE_ENABLED,
                 AudioVolumeSettings.DEFAULT_VOICE_ANNOUNCEMENT_ENABLED
+            ),
+            limitedServicePeriodicVoiceEnabled = prefs.getBoolean(
+                KEY_LIMITED_SERVICE_PERIODIC_VOICE_ENABLED,
+                AudioVolumeSettings.DEFAULT_PERIODIC_VOICE_ENABLED
             ),
             limitedServiceVoiceVolume = prefs.getFloat(
                 KEY_LIMITED_SERVICE_VOICE,
@@ -241,6 +261,15 @@ class AudioVolumeSettingsRepository(context: Context) {
                 KEY_LIMITED_SERVICE_SPEAK_OPERATOR,
                 KEY_LIMITED_SERVICE_SPEAK_TECHNOLOGY,
                 KEY_LIMITED_SERVICE_SPEAK_BAND
+            ).copy(
+                speakHomeLimitedService = prefs.getBoolean(
+                    KEY_LIMITED_SERVICE_SPEAK_HOME_LIMITED,
+                    VoicePhraseOptions.DEFAULT_SPEAK_HOME_LIMITED_SERVICE
+                ),
+                speakVisitingLimitedService = prefs.getBoolean(
+                    KEY_LIMITED_SERVICE_SPEAK_VISITING_LIMITED,
+                    VoicePhraseOptions.DEFAULT_SPEAK_VISITING_LIMITED_SERVICE
+                )
             )
         ).normalized()
     }
@@ -297,6 +326,7 @@ class AudioVolumeSettingsRepository(context: Context) {
             .putString(KEY_CELL_CHANGE_BAND_NAMING_STYLE, normalized.cellChangeBandNamingStyle.id)
             .putFloat(KEY_TECHNOLOGY_CHANGE_TO_2G_TONE, normalized.technologyChangeTo2gToneVolume)
             .putBoolean(KEY_TECHNOLOGY_CHANGE_TO_2G_VOICE_ENABLED, normalized.technologyChangeTo2gVoiceEnabled)
+            .putBoolean(KEY_TECHNOLOGY_CHANGE_TO_2G_PERIODIC_VOICE_ENABLED, normalized.technologyChangeTo2gPeriodicVoiceEnabled)
             .putFloat(KEY_TECHNOLOGY_CHANGE_TO_2G_VOICE, normalized.technologyChangeTo2gVoiceVolume)
             .putFloat(KEY_TECHNOLOGY_CHANGE_TO_4G_TONE, normalized.technologyChangeTo4gToneVolume)
             .putBoolean(KEY_TECHNOLOGY_CHANGE_TO_4G_VOICE_ENABLED, normalized.technologyChangeTo4gVoiceEnabled)
@@ -305,15 +335,19 @@ class AudioVolumeSettingsRepository(context: Context) {
             .putBoolean(KEY_TECHNOLOGY_CHANGE_TO_5G_ENDC_VOICE_ENABLED, normalized.technologyChangeTo5gEndcVoiceEnabled)
             .putFloat(KEY_TECHNOLOGY_CHANGE_TO_5G_ENDC_VOICE, normalized.technologyChangeTo5gEndcVoiceVolume)
             .putBoolean(KEY_TIER5_ANNOUNCER_ENABLED, normalized.tier5AnnouncerEnabled)
+            .putBoolean(KEY_TIER5_PERIODIC_VOICE_ENABLED, normalized.tier5PeriodicVoiceEnabled)
             .putFloat(KEY_TIER5_ANNOUNCER_VOLUME, normalized.tier5AnnouncerVolume)
             .putString(KEY_VOICE_ANNOUNCER_CHOICE, normalized.voiceAnnouncerChoice.id)
             .putString(KEY_VOICE_ANNOUNCER_ENGINE_ID, normalized.voiceAnnouncerEngineId)
+            .putFloat(KEY_VOICE_SPEECH_RATE, normalized.voiceSpeechRate)
             .putFloat(KEY_NO_SIGNAL_TONE, normalized.noSignalToneVolume)
             .putBoolean(KEY_NO_SIGNAL_VIBRATION_ENABLED, normalized.noSignalVibrationEnabled)
             .putBoolean(KEY_NO_SIGNAL_VOICE_ENABLED, normalized.noSignalVoiceEnabled)
+            .putBoolean(KEY_NO_SIGNAL_PERIODIC_VOICE_ENABLED, normalized.noSignalPeriodicVoiceEnabled)
             .putFloat(KEY_NO_SIGNAL_VOICE, normalized.noSignalVoiceVolume)
             .putFloat(KEY_LIMITED_SERVICE_TONE, normalized.limitedServiceToneVolume)
             .putBoolean(KEY_LIMITED_SERVICE_VOICE_ENABLED, normalized.limitedServiceVoiceEnabled)
+            .putBoolean(KEY_LIMITED_SERVICE_PERIODIC_VOICE_ENABLED, normalized.limitedServicePeriodicVoiceEnabled)
             .putFloat(KEY_LIMITED_SERVICE_VOICE, normalized.limitedServiceVoiceVolume)
             .putBoolean(KEY_SPEAK_OPERATOR_NAME_ENABLED, normalized.speakOperatorNameEnabled)
             .putBoolean(KEY_SPEAK_TECHNOLOGY_ENABLED, normalized.speakTechnologyEnabled)
@@ -338,6 +372,14 @@ class AudioVolumeSettingsRepository(context: Context) {
             .putBoolean(KEY_LIMITED_SERVICE_SPEAK_OPERATOR, normalized.limitedServicePhrases.speakOperatorName)
             .putBoolean(KEY_LIMITED_SERVICE_SPEAK_TECHNOLOGY, normalized.limitedServicePhrases.speakTechnology)
             .putBoolean(KEY_LIMITED_SERVICE_SPEAK_BAND, normalized.limitedServicePhrases.speakBand)
+            .putBoolean(
+                KEY_LIMITED_SERVICE_SPEAK_HOME_LIMITED,
+                normalized.limitedServicePhrases.speakHomeLimitedService
+            )
+            .putBoolean(
+                KEY_LIMITED_SERVICE_SPEAK_VISITING_LIMITED,
+                normalized.limitedServicePhrases.speakVisitingLimitedService
+            )
             .apply()
     }
 
@@ -367,6 +409,7 @@ class AudioVolumeSettingsRepository(context: Context) {
         private const val KEY_TECHNOLOGY_CHANGE_VOICE = "technology_change_voice_volume"
         private const val KEY_TECHNOLOGY_CHANGE_TO_2G_TONE = "technology_change_to_2g_tone_volume"
         private const val KEY_TECHNOLOGY_CHANGE_TO_2G_VOICE_ENABLED = "technology_change_to_2g_voice_enabled"
+        private const val KEY_TECHNOLOGY_CHANGE_TO_2G_PERIODIC_VOICE_ENABLED = "technology_change_to_2g_periodic_voice_enabled"
         private const val KEY_TECHNOLOGY_CHANGE_TO_2G_VOICE = "technology_change_to_2g_voice_volume"
         private const val KEY_TECHNOLOGY_CHANGE_TO_4G_TONE = "technology_change_to_4g_tone_volume"
         private const val KEY_TECHNOLOGY_CHANGE_TO_4G_VOICE_ENABLED = "technology_change_to_4g_voice_enabled"
@@ -375,15 +418,19 @@ class AudioVolumeSettingsRepository(context: Context) {
         private const val KEY_TECHNOLOGY_CHANGE_TO_5G_ENDC_VOICE_ENABLED = "technology_change_to_5g_endc_voice_enabled"
         private const val KEY_TECHNOLOGY_CHANGE_TO_5G_ENDC_VOICE = "technology_change_to_5g_endc_voice_volume"
         private const val KEY_TIER5_ANNOUNCER_ENABLED = "tier5_announcer_enabled"
+        private const val KEY_TIER5_PERIODIC_VOICE_ENABLED = "tier5_periodic_voice_enabled"
         private const val KEY_TIER5_ANNOUNCER_VOLUME = "tier5_announcer_volume"
         private const val KEY_VOICE_ANNOUNCER_CHOICE = "voice_announcer_choice"
         private const val KEY_VOICE_ANNOUNCER_ENGINE_ID = "voice_announcer_engine_id"
+        private const val KEY_VOICE_SPEECH_RATE = "voice_speech_rate"
         private const val KEY_NO_SIGNAL_TONE = "no_signal_tone_volume"
         private const val KEY_NO_SIGNAL_VIBRATION_ENABLED = "no_signal_vibration_enabled"
         private const val KEY_NO_SIGNAL_VOICE_ENABLED = "no_signal_voice_enabled"
+        private const val KEY_NO_SIGNAL_PERIODIC_VOICE_ENABLED = "no_signal_periodic_voice_enabled"
         private const val KEY_NO_SIGNAL_VOICE = "no_signal_voice_volume"
         private const val KEY_LIMITED_SERVICE_TONE = "limited_service_tone_volume"
         private const val KEY_LIMITED_SERVICE_VOICE_ENABLED = "limited_service_voice_enabled"
+        private const val KEY_LIMITED_SERVICE_PERIODIC_VOICE_ENABLED = "limited_service_periodic_voice_enabled"
         private const val KEY_LIMITED_SERVICE_VOICE = "limited_service_voice_volume"
         private const val KEY_SPEAK_OPERATOR_NAME_ENABLED = "speak_operator_name_enabled"
         private const val KEY_SPEAK_TECHNOLOGY_ENABLED = "speak_technology_enabled"
@@ -408,5 +455,9 @@ class AudioVolumeSettingsRepository(context: Context) {
         private const val KEY_LIMITED_SERVICE_SPEAK_OPERATOR = "limited_service_phrase_speak_operator"
         private const val KEY_LIMITED_SERVICE_SPEAK_TECHNOLOGY = "limited_service_phrase_speak_technology"
         private const val KEY_LIMITED_SERVICE_SPEAK_BAND = "limited_service_phrase_speak_band"
+        private const val KEY_LIMITED_SERVICE_SPEAK_HOME_LIMITED =
+            "limited_service_phrase_speak_home_limited"
+        private const val KEY_LIMITED_SERVICE_SPEAK_VISITING_LIMITED =
+            "limited_service_phrase_speak_visiting_limited"
     }
 }

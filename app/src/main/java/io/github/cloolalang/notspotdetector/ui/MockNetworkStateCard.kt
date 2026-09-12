@@ -200,6 +200,8 @@ private fun mockScenarioLabel(scenario: MockNetworkScenario): String {
         when (scenario) {
             MockNetworkScenario.HOME_4G -> R.string.mock_scenario_home_4g
             MockNetworkScenario.HOME_2G -> R.string.mock_scenario_home_2g
+            MockNetworkScenario.HOME_LIMITED_4G -> R.string.mock_scenario_home_limited_4g
+            MockNetworkScenario.HOME_LIMITED_2G -> R.string.mock_scenario_home_limited_2g
             MockNetworkScenario.ALT_OPERATOR_4G -> R.string.mock_scenario_alt_4g
             MockNetworkScenario.ALT_OPERATOR_2G -> R.string.mock_scenario_alt_2g
             MockNetworkScenario.NO_SERVICE -> R.string.mock_scenario_no_service
@@ -216,6 +218,8 @@ private fun mockScenarioHint(scenario: MockNetworkScenario): String {
         when (scenario) {
             MockNetworkScenario.HOME_4G -> R.string.mock_scenario_home_4g_hint
             MockNetworkScenario.HOME_2G -> R.string.mock_scenario_home_2g_hint
+            MockNetworkScenario.HOME_LIMITED_4G -> R.string.mock_scenario_home_limited_4g_hint
+            MockNetworkScenario.HOME_LIMITED_2G -> R.string.mock_scenario_home_limited_2g_hint
             MockNetworkScenario.ALT_OPERATOR_4G -> R.string.mock_scenario_alt_4g_hint
             MockNetworkScenario.ALT_OPERATOR_2G -> R.string.mock_scenario_alt_2g_hint
             MockNetworkScenario.NO_SERVICE -> R.string.mock_scenario_no_service_hint

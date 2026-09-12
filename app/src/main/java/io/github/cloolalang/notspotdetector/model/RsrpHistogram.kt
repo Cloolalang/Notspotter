@@ -1,6 +1,8 @@
 package io.github.cloolalang.notspotdetector.model
 
+import java.util.Locale
 import kotlin.math.roundToInt
+import kotlin.math.sqrt
 
 /** What a histogram bar represents. */
 enum class RsrpHistogramBinKind {
@@ -31,12 +33,21 @@ enum class RsrpHistogramBand {
     CRITICAL
 }
 
-/** Traffic-light colour for a threshold-histogram bar. */
+/** Occupancy colour for a threshold-histogram bar. */
 enum class RsrpHistogramThresholdBarColor {
     GREEN,
     ORANGE,
+    YELLOW,
     RED
 }
+
+/** Mean, median, and sample standard deviation of in-window measured RSRP values. */
+data class RsrpWindowStats(
+    val meanDbm: Double,
+    val medianDbm: Double,
+    val stdevDbm: Double,
+    val sampleCount: Int
+)
 
 /** Which histogram is shown — only one mode is visible at a time. */
 enum class RsrpHistogramBinningMode {
@@ -72,6 +83,10 @@ object RsrpHistogram {
     const val THRESHOLD_BIN_COUNT = 3
     const val THRESHOLD_GREEN_MIN_PERCENT = 95
     const val THRESHOLD_ORANGE_MIN_PERCENT = 90
+    /** Occupancy below this is compressed into the bottom of the threshold-bar scale. */
+    const val THRESHOLD_BAR_PERCENT_FLOOR = 80
+    /** Share of bar height reserved for 0–[THRESHOLD_BAR_PERCENT_FLOOR]% occupancy. */
+    const val THRESHOLD_BAR_LOW_SPAN = 0.15f
 
     fun binIndexForRsrp(rsrpDbm: Int): Int {
         val clamped = rsrpDbm.coerceIn(MIN_RSRP_DBM, MAX_RSRP_DBM)
@@ -202,7 +217,7 @@ object RsrpHistogram {
     }
 
     /**
-     * Threshold bars: green at ≥95%, orange at 90–94%, red below 90%.
+     * Threshold floors: green at ≥95%, orange at 90–94%, yellow below 90%.
      * Other-samples and N/A bars are always red.
      */
     fun thresholdBarColor(
@@ -216,7 +231,70 @@ object RsrpHistogram {
         return when {
             percent >= THRESHOLD_GREEN_MIN_PERCENT -> RsrpHistogramThresholdBarColor.GREEN
             percent >= THRESHOLD_ORANGE_MIN_PERCENT -> RsrpHistogramThresholdBarColor.ORANGE
-            else -> RsrpHistogramThresholdBarColor.RED
+            else -> RsrpHistogramThresholdBarColor.YELLOW
+        }
+    }
+
+    /**
+     * Maps occupancy percent to a bar fill. 0–80% is compressed into the bottom 15% of
+     * the column so 80–100% (the range that matters for threshold floors) uses most of
+     * the height.
+     */
+    fun thresholdBarFillFraction(percent: Int): Float {
+        val p = percent.coerceIn(0, 100)
+        val floor = THRESHOLD_BAR_PERCENT_FLOOR
+        val lowSpan = THRESHOLD_BAR_LOW_SPAN
+        if (p <= floor) {
+            return (p / floor.toFloat()) * lowSpan
+        }
+        return lowSpan + ((p - floor) / (100f - floor)) * (1f - lowSpan)
+    }
+
+    /**
+     * Mean, median, and sample standard deviation of in-window non-null RSRP samples.
+     * Null when the window has no measured RSRP.
+     */
+    fun windowStats(
+        samples: List<RsrpSample>,
+        nowMs: Long,
+        windowMs: Long = DEFAULT_WINDOW_MS
+    ): RsrpWindowStats? {
+        val cutoff = nowMs - windowMs
+        val values = samples.mapNotNull { sample ->
+            if (sample.timestampMs < cutoff) null else sample.rsrpDbm
+        }
+        if (values.isEmpty()) return null
+        val mean = values.average()
+        val sorted = values.sorted()
+        val mid = sorted.size / 2
+        val median = if (sorted.size % 2 == 1) {
+            sorted[mid].toDouble()
+        } else {
+            (sorted[mid - 1] + sorted[mid]) / 2.0
+        }
+        val stdev = if (values.size == 1) {
+            0.0
+        } else {
+            val variance = values.sumOf { value ->
+                val delta = value - mean
+                delta * delta
+            } / (values.size - 1)
+            sqrt(variance)
+        }
+        return RsrpWindowStats(
+            meanDbm = mean,
+            medianDbm = median,
+            stdevDbm = stdev,
+            sampleCount = values.size
+        )
+    }
+
+    fun formatWindowStat(value: Double): String {
+        val rounded = (value * 10.0).roundToInt() / 10.0
+        return if (rounded == rounded.toLong().toDouble()) {
+            rounded.toLong().toString()
+        } else {
+            String.format(Locale.US, "%.1f", rounded)
         }
     }
 

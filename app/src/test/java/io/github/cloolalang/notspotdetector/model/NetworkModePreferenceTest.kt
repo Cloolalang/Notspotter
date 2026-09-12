@@ -49,6 +49,26 @@ class NetworkModePreferenceTest {
     }
 
     @Test
+    fun parsePreferredNetworkMode_gsmOnly_isForced2g() {
+        assertEquals(NetworkModePreference.FORCED_2G, parsePreferredNetworkModeSetting(1))
+    }
+
+    @Test
+    fun parsePreferredNetworkMode_lteOnly_isForcedLteNr() {
+        assertEquals(NetworkModePreference.FORCED_LTE_NR, parsePreferredNetworkModeSetting(11))
+    }
+
+    @Test
+    fun parsePreferredNetworkMode_nrOnly_isForcedNrOnly() {
+        assertEquals(NetworkModePreference.FORCED_NR_ONLY, parsePreferredNetworkModeSetting(23))
+    }
+
+    @Test
+    fun parsePreferredNetworkMode_nrLteGsm_isAllTechnologies() {
+        assertEquals(NetworkModePreference.ALL_TECHNOLOGIES, parsePreferredNetworkModeSetting(26))
+    }
+
+    @Test
     fun parseNetworkMode_allBits_isAllTechnologies() {
         assertEquals(
             NetworkModePreference.ALL_TECHNOLOGIES,

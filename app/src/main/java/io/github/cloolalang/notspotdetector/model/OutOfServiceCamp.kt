@@ -4,6 +4,8 @@ fun ConnectivityStats.withoutCampedRadio(): ConnectivityStats {
     return copy(
         rsrpDbm = null,
         rsrqDb = null,
+        lteSinrDb = null,
+        nrSinrDb = null,
         radioAccessType = null,
         lteEarfcn = null,
         ltePci = null,
@@ -13,6 +15,7 @@ fun ConnectivityStats.withoutCampedRadio(): ConnectivityStats {
         gsmEarfcn = null,
         gsmBsic = null,
         isOn2g = false,
+        isVoiceOnlyNoData = false,
         hasHomeGsmSignal = false,
         hasLteNrSignal = false,
         servingNetworkOperatorName = null,
@@ -23,7 +26,8 @@ fun ConnectivityStats.withoutCampedRadio(): ConnectivityStats {
 
 /**
  * The Android no-service icon follows [NetworkServiceMode.OUT_OF_SERVICE] and
- * [NetworkServiceMode.RADIO_OFF]. Those states are always RXSS 0 — leftover CellInfo must not
+ * [NetworkServiceMode.RADIO_OFF] after CS/voice camp is taken into account (see
+ * [resolveNetworkServiceMode]). Those states are always RXSS 0 — leftover LTE CellInfo must not
  * keep limited-service camp or bounce “signal restored”.
  */
 fun ConnectivityStats.reconcileOutOfServiceCamp(): ConnectivityStats {

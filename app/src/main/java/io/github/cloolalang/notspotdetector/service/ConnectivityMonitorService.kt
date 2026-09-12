@@ -112,6 +112,9 @@ class ConnectivityMonitorService : Service() {
             announcer.setVoiceSelectionProvider {
                 VoiceAnnouncerSelection.fromSettings(MonitorState.audioVolumes.value)
             }
+            announcer.setSpeechRateProvider {
+                MonitorState.audioVolumes.value.voiceSpeechRate
+            }
         }
     }
 
@@ -363,7 +366,9 @@ class ConnectivityMonitorService : Service() {
     private fun updateNoSignalPeriodicAnnouncements(forceRestart: Boolean = false) {
         val stats = MonitorState.stats.value
         val passiveSettings = MonitorState.passiveSignalSettings.value
-        val shouldAnnounce = stats.shouldPlayNoSignalVoiceAnnouncements(passiveSettings)
+        val volumes = MonitorState.audioVolumes.value.normalized()
+        val shouldAnnounce = stats.shouldPlayNoSignalVoiceAnnouncements(passiveSettings) &&
+            volumes.allowsNoSignalPeriodicVoice()
 
         if (!shouldAnnounce) {
             noSignalPeriodicAnnouncementJob?.cancel()
@@ -382,7 +387,10 @@ class ConnectivityMonitorService : Service() {
                 delay(PERIODIC_ANNOUNCEMENT_MS)
                 val current = MonitorState.stats.value
                 val settings = MonitorState.passiveSignalSettings.value
-                if (!current.shouldPlayNoSignalVoiceAnnouncements(settings)) {
+                val audio = MonitorState.audioVolumes.value.normalized()
+                if (!current.shouldPlayNoSignalVoiceAnnouncements(settings) ||
+                    !audio.allowsNoSignalPeriodicVoice()
+                ) {
                     break
                 }
                 playNoSignalAlert(MonitorState.formatNoSignalAnnouncement(current))
@@ -393,13 +401,17 @@ class ConnectivityMonitorService : Service() {
     private fun updateG2ModePeriodicAnnouncements(forceRestart: Boolean = false) {
         val stats = MonitorState.stats.value
         val passiveSettings = MonitorState.passiveSignalSettings.value
+        val volumes = MonitorState.audioVolumes.value.normalized()
         val shouldAnnounce = stats.isMonitoring &&
             !stats.isPassiveIdleMode &&
             stats.usesG2SignalTiers() &&
             (
-                stats.shouldPlayG2NoSignalVoiceAnnouncements(passiveSettings) ||
-                    stats.shouldAllowG2WeakPeriodicVoice(passiveSettings) ||
-                    stats.shouldAllowG2CampedPeriodicVoice(passiveSettings)
+                (stats.shouldPlayG2NoSignalVoiceAnnouncements(passiveSettings) &&
+                    volumes.allowsNoSignalPeriodicVoice()) ||
+                    (stats.shouldAllowG2WeakPeriodicVoice(passiveSettings) &&
+                        volumes.allowsTier5PeriodicVoice()) ||
+                    (stats.shouldAllowG2CampedPeriodicVoice(passiveSettings) &&
+                        volumes.allowsG2CampedPeriodicVoice())
                 )
 
         if (!shouldAnnounce) {
@@ -444,13 +456,16 @@ class ConnectivityMonitorService : Service() {
         stats: io.github.cloolalang.notspotdetector.model.ConnectivityStats,
         passiveSettings: io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
     ) {
+        val volumes = MonitorState.audioVolumes.value.normalized()
         when {
-            stats.shouldPlayG2NoSignalVoiceAnnouncements(passiveSettings) ->
+            stats.shouldPlayG2NoSignalVoiceAnnouncements(passiveSettings) &&
+                volumes.allowsNoSignalPeriodicVoice() ->
                 playNoSignalAlertAwait(MonitorState.formatNoSignalAnnouncement(stats))
-            stats.shouldAllowG2WeakPeriodicVoice(passiveSettings) ->
+            stats.shouldAllowG2WeakPeriodicVoice(passiveSettings) &&
+                volumes.allowsTier5PeriodicVoice() ->
                 playTier5VoiceAlertAwait(MonitorState.formatTier5Announcement(stats))
-            stats.shouldAllowG2CampedPeriodicVoice(passiveSettings) -> {
-                val volumes = MonitorState.audioVolumes.value
+            stats.shouldAllowG2CampedPeriodicVoice(passiveSettings) &&
+                volumes.allowsG2CampedPeriodicVoice() -> {
                 playG2FallbackAlertAwait(
                     SignalStateAnnouncement.formatG2CampedAnnouncement(
                         stats.networkOperatorName,
@@ -466,7 +481,9 @@ class ConnectivityMonitorService : Service() {
     private fun updateLimitedServicePeriodicAnnouncements() {
         val stats = MonitorState.stats.value
         val passiveSettings = MonitorState.passiveSignalSettings.value
-        val shouldAnnounce = stats.shouldAllowLimitedServicePeriodicVoice(passiveSettings)
+        val volumes = MonitorState.audioVolumes.value.normalized()
+        val shouldAnnounce = stats.shouldAllowLimitedServicePeriodicVoice(passiveSettings) &&
+            volumes.allowsLimitedServicePeriodicVoice()
 
         if (!shouldAnnounce) {
             limitedServicePeriodicAnnouncementJob?.cancel()
@@ -481,7 +498,10 @@ class ConnectivityMonitorService : Service() {
                 delay(PERIODIC_ANNOUNCEMENT_MS)
                 val current = MonitorState.stats.value
                 val settings = MonitorState.passiveSignalSettings.value
-                if (!current.shouldAllowLimitedServicePeriodicVoice(settings)) {
+                val audio = MonitorState.audioVolumes.value.normalized()
+                if (!current.shouldAllowLimitedServicePeriodicVoice(settings) ||
+                    !audio.allowsLimitedServicePeriodicVoice()
+                ) {
                     break
                 }
                 playPeriodicLimitedServiceAlert(MonitorState.formatLimitedServiceAnnouncement(current))
@@ -491,9 +511,11 @@ class ConnectivityMonitorService : Service() {
 
     private fun updateDeadzonePeriodicAnnouncements() {
         val stats = MonitorState.stats.value
+        val volumes = MonitorState.audioVolumes.value.normalized()
         val shouldAnnounce = stats.isMonitoring &&
             !stats.isPassiveIdleMode &&
-            stats.isCompleteNoService
+            stats.isCompleteNoService &&
+            volumes.allowsNoSignalPeriodicVoice()
 
         if (!shouldAnnounce) {
             deadzonePeriodicAnnouncementJob?.cancel()
@@ -507,9 +529,11 @@ class ConnectivityMonitorService : Service() {
             while (isActive) {
                 delay(PERIODIC_ANNOUNCEMENT_MS)
                 val current = MonitorState.stats.value
+                val audio = MonitorState.audioVolumes.value.normalized()
                 if (!current.isMonitoring ||
                     current.isPassiveIdleMode ||
-                    !current.isCompleteNoService
+                    !current.isCompleteNoService ||
+                    !audio.allowsNoSignalPeriodicVoice()
                 ) {
                     break
                 }
@@ -528,7 +552,8 @@ class ConnectivityMonitorService : Service() {
         val shouldAnnounce = stats.isMonitoring &&
             !stats.isPassiveIdleMode &&
             volumes.tier5AnnouncerEnabled &&
-            stats.shouldPlayTier5StylePeriodicVoice(passiveSettings)
+            stats.shouldPlayTier5StylePeriodicVoice(passiveSettings) &&
+            (volumes.tier5PeriodicVoiceEnabled || !skipInitialDelay)
 
         if (!shouldAnnounce) {
             tier5PeriodicAnnouncementJob?.cancel()
@@ -547,6 +572,7 @@ class ConnectivityMonitorService : Service() {
                     TIER5_INITIAL_ANNOUNCEMENT_DELAY_MS
                 }
             )
+            var firstPlay = true
             while (isActive) {
                 val current = MonitorState.stats.value
                 val settings = MonitorState.passiveSignalSettings.value
@@ -558,7 +584,14 @@ class ConnectivityMonitorService : Service() {
                 ) {
                     break
                 }
+                if (!firstPlay && !audio.tier5PeriodicVoiceEnabled) {
+                    break
+                }
                 playTier5VoiceAlert(MonitorState.formatTier5Announcement(current))
+                firstPlay = false
+                if (!audio.tier5PeriodicVoiceEnabled) {
+                    break
+                }
                 delay(PERIODIC_ANNOUNCEMENT_MS)
             }
         }

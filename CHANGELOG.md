@@ -5,6 +5,103 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.41.1] - 2026-09-12
+
+### Changed
+
+- **Band (MHz)** — The value is now just the number (for example `800`), because the unit is already in the label.
+- **Network mode** — Removed from cellular metrics.
+
+### Fixed
+
+- **SNIR** — Many phones report LTE RSSNR / NR SS-SINR in tenths of a dB (for example `126` meaning 12.6 dB). Those readings were treated as invalid, so the row stayed “—”. They are now converted to dB.
+
+## [2.41.0] - 2026-09-12
+
+### Added
+
+- **Voice speed** — Global voice settings now include a speed slider (0.6× to 1.8×) for every spoken announcement. Default stays 1.2×.
+
+### Changed
+
+- **Alternate layer(s)** — Dropped the word “resilience” from the cellular-metrics label.
+- **Stop button** — Slightly muted rose, less bright than the previous pink.
+
+### Fixed
+
+- **Network mode** — The row was blank on most phones because Android’s allowed-network-types API needs carrier privileges. The app now also reads the user’s preferred network mode from system settings.
+
+## [2.40.2] - 2026-09-12
+
+### Fixed
+
+- **Primary intra-cells / dominance** — Intra-frequency neighbours that Android reports with PCI (and RSRP) but no EARFCN or PLMN are counted on the serving layer again. The old filter treated those as unverifiable and dropped them, so the app could show `0` intra-cells and no dominance while another cell app listed several neighbours. Inter-frequency layers can still look thin under a strong primary — that is normal UE battery-save measurement, not a counting bug.
+
+## [2.40.1] - 2026-09-12
+
+### Changed
+
+- **Cellular metrics values** — Right-hand values now use the same 13 pt size as the SIM row, so the list is consistent.
+
+## [2.40.0] - 2026-09-12
+
+### Added
+
+- **Cell reselect rate** — Cellular metrics now show serving-cell reselects per minute, rolling over the last 60 s (for example `3 / min`). The first camp is not counted, and no-signal / searching flicker is ignored.
+
+## [2.39.0] - 2026-09-12
+
+### Added
+
+- **Limited home 2G (RXSS 22)** — Emergency camp on the home operator’s 2G is now its own state, with 2G good/low overlays (7/8) and no-signal overlay **21**. This is not searching 2G (**11**) and not in-service home 2G no signal (**15**).
+- **Limited home 4G (RXSS 19)** — Emergency camp on the home operator’s 4G is no longer shown as visited 4G (**12**).
+- **Home / visiting limited-service voice** — Every limited-service RXSS can speak “home limited service” or “visiting limited service”. Each phrase has its own on/off toggle.
+- **Mock home limited 2G / 4G** — Passive mock scenarios for RXSS **22** and **19**, including low-signal and no-signal overlays.
+
+### Changed
+
+- **Visited 2G limited (RXSS 13 / 23)** — Classified from the camped PLMN, even when Monitor 2G fallback is off.
+- **RXSS 12** — Visited-operator 4G limited service only. Home 4G limited service is **19**.
+
+## [2.38.13] - 2026-09-12
+
+### Added
+
+- **SNIR** — Cellular metrics now show SNIR on 4G (LTE RSSNR) and 5G (NR SS-SINR). On 5G EN-DC both legs are listed. The row is omitted on 2G, and shows “—” when the modem does not report a value.
+
+## [2.38.12] - 2026-09-12
+
+### Changed
+
+- **Threshold histogram** — Other-samples and N/A bars are red again. The three threshold floors stay green / orange / yellow.
+
+## [2.38.11] - 2026-09-12
+
+### Added
+
+- **Band (MHz)** — Cellular metrics now show the serving band as a frequency (for example 800 MHz, or 800 / 3500 MHz on 5G EN-DC).
+- **Histogram window stats** — The histogram shows mean, median, and standard deviation of RSRP in the current sample window, next to the sample count and elapsed time.
+- **30 s voice repeat toggles** — No-signal, limited service, signal-low, and 2G camp reminders each have a Repeat every 30 s switch, so you can keep the entry announcement and turn the cycling reminder off.
+- **RXSS 2–5 pulse Test** — Level ranges A–D (RXSS 2–5) each have a Test button that previews that range’s pulse duration and click interval.
+
+### Changed
+
+- **WiFi calling voice** — Speaks the word “wifi” instead of spelling W I F I.
+- **Threshold histogram colours** — Occupancy below 90% is yellow (then orange, then green). Red is no longer used on the threshold chart.
+- **Threshold histogram bars** — Bars are shorter, and height is stretched across 80–100% occupancy so the range that matters is easier to read.
+
+## [2.38.10] - 2026-09-12
+
+### Added
+
+- **Voice only, no data** — The Network service row now shows “In service, voice only” or “Limited service, voice only” when voice/CS is camped but packet data is not registered (typical after locking out 4G bands).
+
+## [2.38.9] - 2026-09-12
+
+### Fixed
+
+- **Band-lock fallback to 2G** — Locking out 4G can make Android report out of service for data while voice is still camped on limited/home 2G (no no-service icon). The app no longer treats that as dead zone (RXSS 0). Leftover 4G CellInfo with no voice camp still stays RXSS 0.
+
 ## [2.38.8] - 2026-09-11
 
 ### Changed

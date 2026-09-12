@@ -6,9 +6,8 @@ package io.github.cloolalang.notspotdetector.model
  * [android.telephony.TelephonyManager.getAllCellInfo], deduplicated/grouped by EARFCN and scoped
  * to the expected PLMN:
  *
- * - [primaryLayerCellCount]: number of detected cells (sectors) sharing the *same* EARFCN as the
- *   current serving/primary LTE channel — i.e. intra-channel resilience on the layer you're
- *   actually camped on.
+ * - [primaryLayerCellCount]: number of distinct detected cells (sectors) on the serving EARFCN,
+ *   including PCI-only neighbours that omit a channel (treated as intra-frequency).
  * - [alternateLayerCount]: number of *distinct* other EARFCNs detected (each a separate
  *   frequency layer/band the UE could potentially reselect to).
  * - [alternateLayerCellCount]: total number of detected cells across all of those alternate

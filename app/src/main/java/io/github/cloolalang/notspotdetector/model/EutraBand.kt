@@ -8,7 +8,10 @@ package io.github.cloolalang.notspotdetector.model
  * [mhzNickname] is the common informal band name used by network-scanner tools — "L" (LTE) followed
  * by the nominal downlink frequency in MHz, e.g. band 20 (791-821 MHz DL) -> "L800", band 8 -> "L900".
  */
-data class EutraBandInfo(val band: Int, val mhzNickname: String)
+data class EutraBandInfo(val band: Int, val mhzNickname: String) {
+    /** Nominal downlink MHz parsed from [mhzNickname], e.g. "L800" → 800. */
+    fun nominalMhz(): Int? = mhzNickname.removePrefix("L").toIntOrNull()
+}
 
 object EutraBand {
 

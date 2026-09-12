@@ -67,6 +67,29 @@ class OutOfServiceCampTest {
 
         assertTrue(same.isLimitedService)
         assertEquals(-110, same.rsrpDbm)
-        assertEquals(SignalMeasurementTier.LIMITED_SERVICE, same.resolveSignalMeasurementTier())
+        assertEquals(SignalMeasurementTier.LIMITED_HOME_4G, same.resolveSignalMeasurementTier())
+    }
+
+    @Test
+    fun reconcileOutOfServiceCamp_keepsLimited2gWhenVoiceIsCamped() {
+        val limited2g = ConnectivityStats(
+            isMonitoring = true,
+            signalPermissionGranted = true,
+            isLimitedService = true,
+            isOn2g = true,
+            networkServiceMode = NetworkServiceMode.LIMITED_SERVICE,
+            radioAccessType = CellularSignalReader.RADIO_2G,
+            gsmEarfcn = 62,
+            gsmBsic = 7,
+            cellularAvailable = true
+        )
+
+        val same = limited2g.reconcileOutOfServiceCamp()
+
+        assertTrue(same.isLimitedService)
+        assertTrue(same.isOn2g)
+        assertEquals(CellularSignalReader.RADIO_2G, same.radioAccessType)
+        assertEquals(62, same.gsmEarfcn)
+        assertTrue(same.resolveSignalMeasurementTier() != SignalMeasurementTier.DEADZONE)
     }
 }

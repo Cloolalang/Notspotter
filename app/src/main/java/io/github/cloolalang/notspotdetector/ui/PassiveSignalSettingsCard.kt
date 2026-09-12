@@ -29,6 +29,7 @@ import io.github.cloolalang.notspotdetector.R
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
 import io.github.cloolalang.notspotdetector.model.CellReselectBandNamingStyle
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
+import io.github.cloolalang.notspotdetector.model.PeriodicVoiceRepeat
 import io.github.cloolalang.notspotdetector.model.Rxss
 import io.github.cloolalang.notspotdetector.model.SettingsCompatibility
 import io.github.cloolalang.notspotdetector.model.CELL_CHANGE_RXSS_NUMBER
@@ -42,6 +43,8 @@ import io.github.cloolalang.notspotdetector.model.G2_STRONG_TIER_NUMBER
 import io.github.cloolalang.notspotdetector.model.G2_WEAK_TIER_NUMBER
 import io.github.cloolalang.notspotdetector.model.LIMITED_4G_NO_SIGNAL_TIER_NUMBER
 import io.github.cloolalang.notspotdetector.model.LIMITED_ALT_2G_TIER_NUMBER
+import io.github.cloolalang.notspotdetector.model.LIMITED_HOME_2G_TIER_NUMBER
+import io.github.cloolalang.notspotdetector.model.LIMITED_HOME_4G_TIER_NUMBER
 import io.github.cloolalang.notspotdetector.model.levelRangeAbcdMaxPulseDurationMs
 import io.github.cloolalang.notspotdetector.ui.theme.Sushi
 import io.github.cloolalang.notspotdetector.model.levelRangeAbcdMinClickIntervalMs
@@ -109,6 +112,7 @@ fun PassiveSignalSettingsCard(
     fiveGFeaturesEnabled: Boolean = true,
     onVoicePhrasesChange: (VoicePhraseGroup, VoicePhraseOptions) -> Unit = { _, _ -> },
     onPreviewVoicePhrase: (VoicePhraseGroup, VoicePhraseFragment) -> Unit = { _, _ -> },
+    onPeriodicVoiceRepeatChange: (PeriodicVoiceRepeat, Boolean) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
@@ -141,7 +145,8 @@ fun PassiveSignalSettingsCard(
             if (expanded) {
                 CompositionLocalProvider(
                     LocalOnVoicePhrasesChange provides onVoicePhrasesChange,
-                    LocalOnPreviewVoicePhrase provides onPreviewVoicePhrase
+                    LocalOnPreviewVoicePhrase provides onPreviewVoicePhrase,
+                    LocalOnPeriodicVoiceRepeatChange provides onPeriodicVoiceRepeatChange
                 ) {
                 if (!previewEnabled) {
                     Text(
@@ -583,6 +588,9 @@ private fun RsrpBandTierIntervalControls(
     settings: PassiveSignalSettings,
     gap: Int,
     passiveMeasurementIntervalMs: Long,
+    audioVolumes: AudioVolumeSettings,
+    previewEnabled: Boolean,
+    onPreviewLevelRangeBcdClick: (frequencyHz: Int, pulseDurationMs: Int) -> Unit,
     onSettingsChange: (PassiveSignalSettings) -> Unit
 ) {
     when (tier) {
@@ -596,6 +604,21 @@ private fun RsrpBandTierIntervalControls(
                         tierNumber = tierNumber,
                         enabled = settings.goodTierSoundEnabled,
                         onEnabledChange = { onSettingsChange(settings.copy(goodTierSoundEnabled = it)) }
+                    )
+                },
+                volumeControls = {
+                    RepeatablePreviewTestButton(
+                        enabled = previewEnabled && settings.goodTierSoundEnabled,
+                        onPreview = {
+                            onPreviewLevelRangeBcdClick(
+                                audioVolumes.levelRangeBcdPulseFrequencyHz,
+                                settings.goodTierPulseDurationMs
+                            )
+                        },
+                        repeatIntervalMs = tierPreviewRepeatIntervalMs(
+                            settings.goodTierClickIntervalMs,
+                            settings.goodTierPulseDurationMs
+                        )
                     )
                 },
                 rangeControls = {
@@ -642,6 +665,21 @@ private fun RsrpBandTierIntervalControls(
                         tierNumber = tierNumber,
                         enabled = settings.fairTierSoundEnabled,
                         onEnabledChange = { onSettingsChange(settings.copy(fairTierSoundEnabled = it)) }
+                    )
+                },
+                volumeControls = {
+                    RepeatablePreviewTestButton(
+                        enabled = previewEnabled && settings.fairTierSoundEnabled,
+                        onPreview = {
+                            onPreviewLevelRangeBcdClick(
+                                audioVolumes.levelRangeBcdPulseFrequencyHz,
+                                settings.fairTierPulseDurationMs
+                            )
+                        },
+                        repeatIntervalMs = tierPreviewRepeatIntervalMs(
+                            settings.fairTierClickIntervalMs,
+                            settings.fairTierPulseDurationMs
+                        )
                     )
                 },
                 rangeControls = {
@@ -826,6 +864,21 @@ private fun RsrpTierSettings(
                         onValueChange = { onSettingsChange(settings.copy(mildRsrpMinDbm = it)) }
                     )
                 },
+                volumeControls = {
+                    RepeatablePreviewTestButton(
+                        enabled = previewEnabled && settings.mildTierSoundEnabled,
+                        onPreview = {
+                            onPreviewLevelRangeBcdClick(
+                                audioVolumes.levelRangeBcdPulseFrequencyHz,
+                                settings.mildTierPulseDurationMs
+                            )
+                        },
+                        repeatIntervalMs = tierPreviewRepeatIntervalMs(
+                            settings.mildTierClickIntervalMs,
+                            settings.mildTierPulseDurationMs
+                        )
+                    )
+                },
                 durationControls = {
                     TierPulseDurationSlider(
                         label = stringResource(R.string.passive_signal_tier_pulse_duration, tierNumber),
@@ -856,6 +909,9 @@ private fun RsrpTierSettings(
                 settings = settings,
                 gap = gap,
                 passiveMeasurementIntervalMs = passiveMeasurementIntervalMs,
+                audioVolumes = audioVolumes,
+                previewEnabled = previewEnabled,
+                onPreviewLevelRangeBcdClick = onPreviewLevelRangeBcdClick,
                 onSettingsChange = onSettingsChange
             )
         }
@@ -869,6 +925,9 @@ private fun RsrpTierSettings(
                 settings = settings,
                 gap = gap,
                 passiveMeasurementIntervalMs = passiveMeasurementIntervalMs,
+                audioVolumes = audioVolumes,
+                previewEnabled = previewEnabled,
+                onPreviewLevelRangeBcdClick = onPreviewLevelRangeBcdClick,
                 onSettingsChange = onSettingsChange
             )
         }
@@ -901,6 +960,21 @@ private fun RsrpTierSettings(
                             (settings.fairRsrpMinDbm - gap),
                         accentColor = accent,
                         onValueChange = { onSettingsChange(settings.copy(poorRsrpMinDbm = it)) }
+                    )
+                },
+                volumeControls = {
+                    RepeatablePreviewTestButton(
+                        enabled = previewEnabled && settings.poorTierSoundEnabled,
+                        onPreview = {
+                            onPreviewLevelRangeBcdClick(
+                                audioVolumes.levelRangeBcdPulseFrequencyHz,
+                                settings.poorTierPulseDurationMs
+                            )
+                        },
+                        repeatIntervalMs = tierPreviewRepeatIntervalMs(
+                            settings.poorTierClickIntervalMs,
+                            settings.poorTierPulseDurationMs
+                        )
                     )
                 },
                 durationControls = {
@@ -1500,6 +1574,13 @@ private fun CampStateTierSettings(
             onPreviewLimitedServiceVoice = onPreviewLimitedServiceVoice,
             onPreviewSignalPulse = onPreviewSignalPulse
         )
+        LimitedHome4gCampVoiceBlock(
+            audioVolumes = audioVolumes,
+            previewEnabled = previewEnabled,
+            onLimitedServiceVoiceEnabledChange = onLimitedServiceVoiceEnabledChange,
+            onLimitedServiceVoiceVolumeChange = onLimitedServiceVoiceVolumeChange,
+            onPreviewLimitedServiceVoice = onPreviewLimitedServiceVoice
+        )
         Limited4gNoSignalCampTierBlock(
             settings = settings,
             audioVolumes = audioVolumes,
@@ -1527,6 +1608,13 @@ private fun CampStateTierSettings(
             onPreviewLimitedServiceTone = onPreviewLimitedServiceTone,
             onPreviewLimitedServiceVoice = onPreviewLimitedServiceVoice,
             onPreviewSignalPulse = onPreviewSignalPulse
+        )
+        LimitedHome2gCampVoiceBlock(
+            audioVolumes = audioVolumes,
+            previewEnabled = previewEnabled,
+            onLimitedServiceVoiceEnabledChange = onLimitedServiceVoiceEnabledChange,
+            onLimitedServiceVoiceVolumeChange = onLimitedServiceVoiceVolumeChange,
+            onPreviewLimitedServiceVoice = onPreviewLimitedServiceVoice
         )
         NoSignalCampTierBlock(
             settings = settings,
@@ -2004,6 +2092,68 @@ private fun LimitedServiceCampTierBlock(
                     onPreviewLimitedServiceVoice = onPreviewLimitedServiceVoice
                 )
             }
+        )
+    }
+}
+
+@Composable
+private fun LimitedHome4gCampVoiceBlock(
+    audioVolumes: AudioVolumeSettings,
+    previewEnabled: Boolean,
+    onLimitedServiceVoiceEnabledChange: (Boolean) -> Unit,
+    onLimitedServiceVoiceVolumeChange: (Float) -> Unit,
+    onPreviewLimitedServiceVoice: () -> Unit
+) {
+    val accentColor = SignalTierColors.forTierNumber(LIMITED_HOME_4G_TIER_NUMBER)
+    TierSettingSection(tierNumber = LIMITED_HOME_4G_TIER_NUMBER, accentColor = accentColor) {
+        Text(
+            text = stringResource(R.string.passive_signal_limited_home_4g_tier_threshold),
+            style = MaterialTheme.typography.bodySmall,
+            color = accentColor
+        )
+        Text(
+            text = stringResource(R.string.passive_signal_rxss19_voice_shared_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        LimitedServiceVoiceAnnouncementControls(
+            audioVolumes = audioVolumes,
+            previewEnabled = previewEnabled,
+            accentColor = accentColor,
+            onLimitedServiceVoiceEnabledChange = onLimitedServiceVoiceEnabledChange,
+            onLimitedServiceVoiceVolumeChange = onLimitedServiceVoiceVolumeChange,
+            onPreviewLimitedServiceVoice = onPreviewLimitedServiceVoice
+        )
+    }
+}
+
+@Composable
+private fun LimitedHome2gCampVoiceBlock(
+    audioVolumes: AudioVolumeSettings,
+    previewEnabled: Boolean,
+    onLimitedServiceVoiceEnabledChange: (Boolean) -> Unit,
+    onLimitedServiceVoiceVolumeChange: (Float) -> Unit,
+    onPreviewLimitedServiceVoice: () -> Unit
+) {
+    val accentColor = SignalTierColors.forTierNumber(LIMITED_HOME_2G_TIER_NUMBER)
+    TierSettingSection(tierNumber = LIMITED_HOME_2G_TIER_NUMBER, accentColor = accentColor) {
+        Text(
+            text = stringResource(R.string.passive_signal_limited_home_2g_tier_threshold),
+            style = MaterialTheme.typography.bodySmall,
+            color = accentColor
+        )
+        Text(
+            text = stringResource(R.string.passive_signal_rxss22_voice_shared_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        LimitedServiceVoiceAnnouncementControls(
+            audioVolumes = audioVolumes,
+            previewEnabled = previewEnabled,
+            accentColor = accentColor,
+            onLimitedServiceVoiceEnabledChange = onLimitedServiceVoiceEnabledChange,
+            onLimitedServiceVoiceVolumeChange = onLimitedServiceVoiceVolumeChange,
+            onPreviewLimitedServiceVoice = onPreviewLimitedServiceVoice
         )
     }
 }

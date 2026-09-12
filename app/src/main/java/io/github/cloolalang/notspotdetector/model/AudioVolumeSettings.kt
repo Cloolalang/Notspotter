@@ -54,6 +54,7 @@ data class AudioVolumeSettings(
     val cellChangeBandNamingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.DEFAULT,
     val technologyChangeTo2gToneVolume: Float = DEFAULT_VOLUME,
     val technologyChangeTo2gVoiceEnabled: Boolean = DEFAULT_VOICE_ANNOUNCEMENT_ENABLED,
+    val technologyChangeTo2gPeriodicVoiceEnabled: Boolean = DEFAULT_PERIODIC_VOICE_ENABLED,
     val technologyChangeTo2gVoiceVolume: Float = DEFAULT_VOLUME,
     val technologyChangeTo4gToneVolume: Float = DEFAULT_VOLUME,
     val technologyChangeTo4gVoiceEnabled: Boolean = DEFAULT_VOICE_ANNOUNCEMENT_ENABLED,
@@ -62,15 +63,20 @@ data class AudioVolumeSettings(
     val technologyChangeTo5gEndcVoiceEnabled: Boolean = DEFAULT_VOICE_ANNOUNCEMENT_ENABLED,
     val technologyChangeTo5gEndcVoiceVolume: Float = DEFAULT_VOLUME,
     val tier5AnnouncerEnabled: Boolean = DEFAULT_VOICE_ANNOUNCEMENT_ENABLED,
+    val tier5PeriodicVoiceEnabled: Boolean = DEFAULT_PERIODIC_VOICE_ENABLED,
     val tier5AnnouncerVolume: Float = DEFAULT_TIER5_ANNOUNCER_VOLUME,
     val voiceAnnouncerChoice: VoiceAnnouncerChoice = DEFAULT_VOICE_ANNOUNCER_CHOICE,
     val voiceAnnouncerEngineId: String? = null,
+    /** TTS speech rate for every VA. 1.0 is the engine default; the app default is slightly faster. */
+    val voiceSpeechRate: Float = DEFAULT_VOICE_SPEECH_RATE,
     val noSignalToneVolume: Float = DEFAULT_VOLUME,
     val noSignalVibrationEnabled: Boolean = DEFAULT_NO_SIGNAL_VIBRATION_ENABLED,
     val noSignalVoiceEnabled: Boolean = DEFAULT_VOICE_ANNOUNCEMENT_ENABLED,
+    val noSignalPeriodicVoiceEnabled: Boolean = DEFAULT_PERIODIC_VOICE_ENABLED,
     val noSignalVoiceVolume: Float = DEFAULT_NO_SIGNAL_VOICE_VOLUME,
     val limitedServiceToneVolume: Float = DEFAULT_LIMITED_SERVICE_TONE_VOLUME,
     val limitedServiceVoiceEnabled: Boolean = DEFAULT_VOICE_ANNOUNCEMENT_ENABLED,
+    val limitedServicePeriodicVoiceEnabled: Boolean = DEFAULT_PERIODIC_VOICE_ENABLED,
     val limitedServiceVoiceVolume: Float = DEFAULT_LIMITED_SERVICE_VOICE_VOLUME,
     /**
      * Legacy app-wide seed for [VoicePhraseOptions.speakOperatorName]. Per-RXSS copies live in
@@ -224,6 +230,27 @@ data class AudioVolumeSettings(
         return twoToneHighFrequencyHz(limitedServiceTierPulseFrequencyHz, limitedServiceTwoToneSpreadPercent)
     }
 
+    fun allowsNoSignalPeriodicVoice(): Boolean =
+        noSignalVoiceEnabled && noSignalPeriodicVoiceEnabled
+
+    fun allowsLimitedServicePeriodicVoice(): Boolean =
+        limitedServiceVoiceEnabled && limitedServicePeriodicVoiceEnabled
+
+    fun allowsTier5PeriodicVoice(): Boolean =
+        tier5AnnouncerEnabled && tier5PeriodicVoiceEnabled
+
+    fun allowsG2CampedPeriodicVoice(): Boolean =
+        technologyChangeTo2gVoiceEnabled && technologyChangeTo2gPeriodicVoiceEnabled
+
+    fun withPeriodicVoiceRepeat(kind: PeriodicVoiceRepeat, enabled: Boolean): AudioVolumeSettings {
+        return when (kind) {
+            PeriodicVoiceRepeat.NO_SIGNAL -> copy(noSignalPeriodicVoiceEnabled = enabled)
+            PeriodicVoiceRepeat.LIMITED_SERVICE -> copy(limitedServicePeriodicVoiceEnabled = enabled)
+            PeriodicVoiceRepeat.SIGNAL_LOW -> copy(tier5PeriodicVoiceEnabled = enabled)
+            PeriodicVoiceRepeat.G2_CAMPED -> copy(technologyChangeTo2gPeriodicVoiceEnabled = enabled)
+        }
+    }
+
     fun normalized(): AudioVolumeSettings {
         return copy(
             pingClickVolume = pingClickVolume.coerceIn(MIN_VOLUME, MAX_VOLUME),
@@ -281,7 +308,8 @@ data class AudioVolumeSettings(
             noSignalToneVolume = noSignalToneVolume.coerceIn(MIN_VOLUME, MAX_VOLUME),
             noSignalVoiceVolume = noSignalVoiceVolume.coerceIn(MIN_VOLUME, MAX_VOLUME),
             limitedServiceToneVolume = limitedServiceToneVolume.coerceIn(MIN_VOLUME, MAX_VOLUME),
-            limitedServiceVoiceVolume = limitedServiceVoiceVolume.coerceIn(MIN_VOLUME, MAX_VOLUME)
+            limitedServiceVoiceVolume = limitedServiceVoiceVolume.coerceIn(MIN_VOLUME, MAX_VOLUME),
+            voiceSpeechRate = snapVoiceSpeechRate(voiceSpeechRate)
         )
     }
 
@@ -298,10 +326,22 @@ data class AudioVolumeSettings(
         const val DEFAULT_CELL_CHANGE_VOICE_ENABLED = true
         const val DEFAULT_CELL_CHANGE_SPEAK_BAND_ENABLED = true
         const val DEFAULT_VOICE_ANNOUNCEMENT_ENABLED = true
+        const val DEFAULT_PERIODIC_VOICE_ENABLED = true
         const val DEFAULT_NO_SIGNAL_VIBRATION_ENABLED = true
         const val DEFAULT_SPEAK_OPERATOR_NAME_ENABLED = false
         const val DEFAULT_SPEAK_TECHNOLOGY_ENABLED = false
         val DEFAULT_VOICE_ANNOUNCER_CHOICE = VoiceAnnouncerChoice.SYSTEM_DEFAULT
+        const val DEFAULT_VOICE_SPEECH_RATE = 1.2f
+        const val MIN_VOICE_SPEECH_RATE = 0.6f
+        const val MAX_VOICE_SPEECH_RATE = 1.8f
+        const val VOICE_SPEECH_RATE_STEP = 0.1f
+
+        fun snapVoiceSpeechRate(rate: Float): Float {
+            val clamped = rate.coerceIn(MIN_VOICE_SPEECH_RATE, MAX_VOICE_SPEECH_RATE)
+            val steps = ((clamped - MIN_VOICE_SPEECH_RATE) / VOICE_SPEECH_RATE_STEP).roundToInt()
+            return (MIN_VOICE_SPEECH_RATE + steps * VOICE_SPEECH_RATE_STEP)
+                .coerceIn(MIN_VOICE_SPEECH_RATE, MAX_VOICE_SPEECH_RATE)
+        }
         val DEFAULT_CELL_CHANGE_PHRASES = VoicePhraseOptions(
             speakOperatorName = false,
             speakTechnology = false,
@@ -377,4 +417,12 @@ data class AudioVolumeSettings(
             return (toneDurationMs.coerceAtLeast(0).toLong() + ALERT_VOICE_GAP_MS).milliseconds
         }
     }
+}
+
+/** Independent on/off for 30 s cycling voice reminders (entry VAs stay on the main toggle). */
+enum class PeriodicVoiceRepeat {
+    NO_SIGNAL,
+    LIMITED_SERVICE,
+    SIGNAL_LOW,
+    G2_CAMPED
 }
