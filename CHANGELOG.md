@@ -5,6 +5,50 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.43.3] - 2026-09-12
+
+### Changed
+
+- **Band-number voice** — When the cell-reselect band style is band number, the announcement no longer says “B” (for example “twenty” instead of “B, twenty”). The MHz nickname style still says “B, eight hundred”.
+
+## [2.43.2] - 2026-09-12
+
+### Fixed
+
+- **Cell-reselect Test** — The Test button now speaks the selected band style (band number or MHz). It had been playing band number first every time, so toggling to MHz still sounded like band number.
+
+## [2.43.1] - 2026-09-12
+
+### Fixed
+
+- **Voice speed and mock VA** — Raising the speed slider (especially toward 5×) could make the TTS engine reject speech or finish before audio started, so short mock-mode announcements went silent. The app now falls back to a rate the engine will play, and keeps audio focus long enough for those short phrases to be heard.
+
+## [2.43.0] - 2026-09-12
+
+### Added
+
+- **In-service voice** — Leaving limited service for a normal camp now speaks “in-service”, so you can hear when full service returns. Operator / technology / band prefixes follow the limited-service VA toggles. The limited-service Test button plays the limited-service phrase, then “in-service”. No extra tone on the exit announcement.
+
+## [2.42.0] - 2026-09-12
+
+### Added
+
+- **Cell-reselect Test** — When speak-band is on, the Test button now plays both styles in order (band number, then MHz nickname) so you can hear the difference.
+
+### Changed
+
+- **Voice band wording** — Spoken band labels now say “B” instead of the word “band” (for example “B, twenty”).
+- **Voice speed** — The slider now goes up to 5× (was 1.8×).
+- **Pulse duration** — Short clicks can be set down to 10 ms, and the first half of the slider is stretched across 10–200 ms so those values are easier to hit. The same expanded lower scale is used on the low-signal and no-signal RSRP sliders.
+- **SNIR** — Removed from cellular metrics. Many phones still do not report a usable value.
+
+### Fixed
+
+- **Voice after pocket walking** — If the TTS engine dies or drops callbacks while the screen is off (alert sounds kept going, speech stopped), the app now recreates the engine and retries instead of staying silent.
+- **Serving cell vs other SIM** — RSRP/RSRQ now come from the same CellInfo as the displayed EARFCN/PCI. Identity is double-sampled in one poll, ranked against the selected SIM’s ServiceState registration, and no longer inherits an EARFCN from a different PCI. This was the likely cause of wrong-SIM EARFCN and sudden low-to-high voice jumps near another operator’s site.
+- **Mixed band / MHz cell-reselect speech** — A cell-reselect announcement no longer speaks both the RXSS-9 band style and the prefix band phrase (which always used band number).
+- **Master voice mute** — Turning the master VA switch off now stops speech immediately, clears the queue, and also silences periodic announcements.
+
 ## [2.41.1] - 2026-09-12
 
 ### Changed

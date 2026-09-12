@@ -36,6 +36,7 @@ import io.github.cloolalang.notspotdetector.model.isSignalLowVoiceCamp
 import io.github.cloolalang.notspotdetector.model.isTier5PoorSignal
 import io.github.cloolalang.notspotdetector.model.isTier6CriticalSignal
 import io.github.cloolalang.notspotdetector.model.shouldAllowCellReselectVoice
+import io.github.cloolalang.notspotdetector.model.shouldAnnounceInServiceAfterLimited
 import io.github.cloolalang.notspotdetector.model.shouldPlayG2NoSignalVoiceAnnouncements
 import io.github.cloolalang.notspotdetector.model.shouldSuppressSignalRestoredForWeakSignalRecovery
 import io.github.cloolalang.notspotdetector.model.usesG2SignalTiers
@@ -918,8 +919,7 @@ object MonitorState {
         }
 
         if (previousActive == nextActive) return null
-        // No exit voice: camp on 4G/5G without limited/no-signal/dead zone is implicit full service.
-        if (!nextActive) return null
+        if (!nextActive && !next.shouldAnnounceInServiceAfterLimited()) return null
 
         return SignalStateAnnouncement.formatLimitedServiceChange(
             stats = next,

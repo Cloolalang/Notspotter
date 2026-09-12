@@ -28,8 +28,11 @@ object CellIdentityAnnouncement {
             includeCellReselectPrefix = bandPhrase == null,
             speakOperatorNameEnabled = prefixPhrases.speakOperatorName,
             speakTechnologyEnabled = prefixPhrases.speakTechnology,
-            prefixSpeakBandEnabled = prefixPhrases.speakBand,
-            prefixBandPhrase = prefixPhrases.bandPhraseFor(PREVIEW_LTE_EARFCN)
+            prefixSpeakBandEnabled = prefixPhrases.speakBand && bandPhrase == null,
+            prefixBandPhrase = prefixPhrases.bandPhraseFor(
+                PREVIEW_LTE_EARFCN,
+                namingStyle = bandNamingStyle
+            )
         )
     }
 
@@ -65,12 +68,8 @@ object CellIdentityAnnouncement {
                 includeCellReselectPrefix = false,
                 speakOperatorNameEnabled = prefixPhrases.speakOperatorName,
                 speakTechnologyEnabled = prefixPhrases.speakTechnology,
-                prefixSpeakBandEnabled = prefixPhrases.speakBand,
-                prefixBandPhrase = prefixPhrases.bandPhraseFor(
-                    next.lteEarfcn,
-                    next.nrBand,
-                    next.gsmEarfcn
-                )
+                prefixSpeakBandEnabled = false,
+                prefixBandPhrase = null
             )
         }
 
@@ -106,20 +105,20 @@ object CellIdentityAnnouncement {
             prefixBandPhrase = prefixPhrases.bandPhraseFor(
                 next.lteEarfcn,
                 next.nrBand,
-                next.gsmEarfcn
+                next.gsmEarfcn,
+                namingStyle = bandNamingStyle
             )
         )
     }
 
     /**
-     * RXSS 9 alternative phrasing — "band, &lt;number in words&gt;" (option A, e.g. "band, twenty")
-     * or "band, &lt;MHz nickname in words, no "L" prefix&gt;" (option B, e.g. "band, eight hundred"
-     * for L800, "band, twenty-six hundred" for L2600), derived from the LTE EARFCN. Numbers are
-     * spoken as whole words (not digit-by-digit) so they read naturally, and a comma after "band"
-     * forces a short TTS pause — without it, "band" run straight into a number can be
-     * clipped/mumbled by some TTS engines (e.g. sounding like "bunt"). Returns null when there is
-     * no LTE EARFCN to map; callers should then try [formatGsmBandPhrase] before falling back to
-     * channel/PCI or channel/BSIC.
+     * RXSS 9 alternative phrasing — band number in words (option A, e.g. "twenty")
+     * or "B, &lt;MHz nickname in words, no "L" prefix&gt;" (option B, e.g. "B, eight hundred"
+     * for L800, "B, twenty-six hundred" for L2600), derived from the LTE EARFCN. Numbers are
+     * spoken as whole words (not digit-by-digit) so they read naturally. The MHz style keeps a
+     * comma after "B" so TTS does not clip the letter into the number. Returns null when there
+     * is no LTE EARFCN to map; callers should then try [formatGsmBandPhrase] before falling
+     * back to channel/PCI or channel/BSIC.
      */
     fun formatBandPhrase(
         lteEarfcn: Int?,
@@ -131,7 +130,7 @@ object CellIdentityAnnouncement {
             CellReselectBandNamingStyle.BAND_NUMBER -> NumberWords.toWords(bandInfo.band)
             CellReselectBandNamingStyle.MHZ_NICKNAME -> formatMhzNicknameForSpeech(bandInfo.mhzNickname)
         }
-        return "band, $spokenBand"
+        return spokenBandLabel(spokenBand, namingStyle)
     }
 
     /**
@@ -152,12 +151,12 @@ object CellIdentityAnnouncement {
             CellReselectBandNamingStyle.MHZ_NICKNAME ->
                 NumberWords.toHundredsWords(bandInfo.mhz)
         }
-        return "band, $spokenBand"
+        return spokenBandLabel(spokenBand, namingStyle)
     }
 
     /**
-     * Prefix band phrase spoken after operator and technology: "band, twenty" (LTE EARFCN),
-     * "band, nine hundred" (GSM ARFCN), or "band, seventy eight" (NR operating band).
+     * Prefix band phrase spoken after operator and technology: band number only
+     * (e.g. "twenty") or "B, eight hundred" for the MHz nickname style.
      */
     fun prefixBandPhrase(
         lteEarfcn: Int?,
@@ -168,13 +167,23 @@ object CellIdentityAnnouncement {
         formatBandPhrase(lteEarfcn, namingStyle)?.let { return it }
         formatGsmBandPhrase(gsmEarfcn, namingStyle)?.let { return it }
         val band = nrBand ?: return null
-        return "band, ${NumberWords.toWords(band)}"
+        return spokenBandLabel(NumberWords.toWords(band), namingStyle)
+    }
+
+    private fun spokenBandLabel(
+        spokenBand: String,
+        namingStyle: CellReselectBandNamingStyle
+    ): String {
+        return when (namingStyle) {
+            CellReselectBandNamingStyle.BAND_NUMBER -> spokenBand
+            CellReselectBandNamingStyle.MHZ_NICKNAME -> "B, $spokenBand"
+        }
     }
 
     /**
      * Converts a nickname like "L800" or "L2600" into natural spoken hundreds — "eight hundred" or
-     * "twenty-six hundred" — dropping the leading "L" (it reads better without it, e.g. "band,
-     * eight hundred" rather than "band, L eight hundred").
+     * "twenty-six hundred" — dropping the leading "L" (it reads better without it, e.g. "B,
+     * eight hundred" rather than "B, L eight hundred").
      */
     private fun formatMhzNicknameForSpeech(nickname: String): String {
         val letterPart = nickname.takeWhile { it.isLetter() }

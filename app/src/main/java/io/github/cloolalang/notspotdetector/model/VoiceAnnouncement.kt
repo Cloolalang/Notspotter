@@ -10,8 +10,9 @@ object VoiceAnnouncement {
     const val VA_2_SIGNAL_RESTORED = 2
     const val VA_3_DEADZONE_ENTRY = 3
     const val VA_4_LIMITED_SERVICE_ENTRY = 4
-    /** Retired — limited-service exit; camp on 4G/5G is implicit full service. */
-    const val VA_5_RETIRED = 5
+    /** Leaving limited service for a camped in-service state. */
+    const val VA_5_IN_SERVICE = 5
+    const val VA_5_RETIRED = VA_5_IN_SERVICE
     const val VA_6_LIMITED_SERVICE_OPERATOR = 6
     const val VA_7_G2_FALLBACK = 7
     const val VA_8_SIGNAL_LOW_IMMEDIATE = 8
@@ -42,7 +43,8 @@ object VoiceAnnouncement {
     fun vaNumbersFor(kind: MonitoringAnnouncementKind): List<Int> = when (kind) {
         MonitoringAnnouncementKind.NO_SIGNAL_STATE -> listOf(VA_1_NO_SIGNAL_ENTRY, VA_2_SIGNAL_RESTORED)
         MonitoringAnnouncementKind.DEADZONE -> listOf(VA_3_DEADZONE_ENTRY)
-        MonitoringAnnouncementKind.LIMITED_SERVICE_STATE -> listOf(VA_4_LIMITED_SERVICE_ENTRY)
+        MonitoringAnnouncementKind.LIMITED_SERVICE_STATE ->
+            listOf(VA_4_LIMITED_SERVICE_ENTRY, VA_5_IN_SERVICE)
         MonitoringAnnouncementKind.TIER5 -> listOf(VA_8_SIGNAL_LOW_IMMEDIATE)
         MonitoringAnnouncementKind.G2_FALLBACK -> listOf(VA_7_G2_FALLBACK)
         MonitoringAnnouncementKind.LIMITED_SERVICE_OPERATOR -> listOf(VA_6_LIMITED_SERVICE_OPERATOR)

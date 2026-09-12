@@ -337,6 +337,9 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
 
     fun updateMasterVoiceAnnouncementsEnabled(enabled: Boolean) {
         updateAudioVolumes(audioVolumes.value.copy(masterVoiceAnnouncementsEnabled = enabled))
+        if (!enabled) {
+            cellVoiceAnnouncer.stop()
+        }
     }
 
     fun updateSpeakOperatorNameEnabled(enabled: Boolean) {
@@ -614,10 +617,17 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         if (isRunning.value) return
         val volumes = audioVolumes.value.normalized()
         if (!volumes.limitedServiceVoiceEnabled) return
-        previewVoiceOnly(
-            announcement = SignalStateAnnouncement.previewLimitedService(
-                readCurrentOperatorName(),
-                phrases = volumes.limitedServicePhrases
+        val operatorName = readCurrentOperatorName()
+        previewVoiceSequence(
+            announcements = listOf(
+                SignalStateAnnouncement.previewLimitedService(
+                    operatorName,
+                    phrases = volumes.limitedServicePhrases
+                ),
+                SignalStateAnnouncement.previewInService(
+                    operatorName,
+                    phrases = volumes.limitedServicePhrases
+                )
             ),
             voiceVolume = volumes.limitedServiceVoiceVolume
         )
@@ -673,7 +683,7 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
                     gsmEarfcn = stats.gsmEarfcn
                 )
                     ?: CellIdentityAnnouncement.prefixBandPhrase(6400)
-                    ?: "band"
+                    ?: "B"
             VoicePhraseFragment.HOME_LIMITED_SERVICE -> "home limited service"
             VoicePhraseFragment.VISITING_LIMITED_SERVICE -> "visiting limited service"
         }
@@ -686,6 +696,19 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         if (announcement.isBlank() || voiceVolume <= 0f) return
         viewModelScope.launch {
             cellVoiceAnnouncer.speak(announcement, voiceVolume)
+        }
+    }
+
+    private fun previewVoiceSequence(
+        announcements: List<String>,
+        voiceVolume: Float
+    ) {
+        val spoken = announcements.filter { it.isNotBlank() }
+        if (spoken.isEmpty() || voiceVolume <= 0f) return
+        viewModelScope.launch {
+            spoken.forEach { announcement ->
+                cellVoiceAnnouncer.speakAwait(announcement, voiceVolume)
+            }
         }
     }
 

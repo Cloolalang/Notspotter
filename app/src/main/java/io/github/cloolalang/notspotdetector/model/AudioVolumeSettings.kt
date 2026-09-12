@@ -231,16 +231,20 @@ data class AudioVolumeSettings(
     }
 
     fun allowsNoSignalPeriodicVoice(): Boolean =
-        noSignalVoiceEnabled && noSignalPeriodicVoiceEnabled
+        masterVoiceAnnouncementsEnabled && noSignalVoiceEnabled && noSignalPeriodicVoiceEnabled
 
     fun allowsLimitedServicePeriodicVoice(): Boolean =
-        limitedServiceVoiceEnabled && limitedServicePeriodicVoiceEnabled
+        masterVoiceAnnouncementsEnabled &&
+            limitedServiceVoiceEnabled &&
+            limitedServicePeriodicVoiceEnabled
 
     fun allowsTier5PeriodicVoice(): Boolean =
-        tier5AnnouncerEnabled && tier5PeriodicVoiceEnabled
+        masterVoiceAnnouncementsEnabled && tier5AnnouncerEnabled && tier5PeriodicVoiceEnabled
 
     fun allowsG2CampedPeriodicVoice(): Boolean =
-        technologyChangeTo2gVoiceEnabled && technologyChangeTo2gPeriodicVoiceEnabled
+        masterVoiceAnnouncementsEnabled &&
+            technologyChangeTo2gVoiceEnabled &&
+            technologyChangeTo2gPeriodicVoiceEnabled
 
     fun withPeriodicVoiceRepeat(kind: PeriodicVoiceRepeat, enabled: Boolean): AudioVolumeSettings {
         return when (kind) {
@@ -333,7 +337,7 @@ data class AudioVolumeSettings(
         val DEFAULT_VOICE_ANNOUNCER_CHOICE = VoiceAnnouncerChoice.SYSTEM_DEFAULT
         const val DEFAULT_VOICE_SPEECH_RATE = 1.2f
         const val MIN_VOICE_SPEECH_RATE = 0.6f
-        const val MAX_VOICE_SPEECH_RATE = 1.8f
+        const val MAX_VOICE_SPEECH_RATE = 5.0f
         const val VOICE_SPEECH_RATE_STEP = 0.1f
 
         fun snapVoiceSpeechRate(rate: Float): Float {
@@ -380,7 +384,7 @@ data class AudioVolumeSettings(
 
         const val DEFAULT_SIGNAL_PULSE_DURATION_MS = 70
         const val DEFAULT_LEVEL_RANGE_BCD_PULSE_DURATION_MS = 60
-        const val MIN_SIGNAL_PULSE_DURATION_MS = 20
+        const val MIN_SIGNAL_PULSE_DURATION_MS = 10
         const val MAX_SIGNAL_PULSE_DURATION_MS = 5_000
         const val SIGNAL_PULSE_DURATION_STEP_MS = 10
 

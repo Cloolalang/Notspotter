@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.cloolalang.notspotdetector.R
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
+import io.github.cloolalang.notspotdetector.model.ExpandedRangeSlider
 import io.github.cloolalang.notspotdetector.ui.theme.Sushi
 import kotlin.math.roundToInt
 
@@ -176,7 +177,7 @@ private fun DurationSlider(
     val minMs = AudioVolumeSettings.MIN_SIGNAL_PULSE_DURATION_MS
     val maxMs = AudioVolumeSettings.MAX_SIGNAL_PULSE_DURATION_MS
     val stepMs = AudioVolumeSettings.SIGNAL_PULSE_DURATION_STEP_MS
-    val steps = ((maxMs - minMs) / stepMs) - 1
+    val splitMs = ExpandedRangeSlider.PULSE_DURATION_SPLIT_MS.coerceIn(minMs, maxMs)
 
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(
@@ -205,13 +206,12 @@ private fun DurationSlider(
         }
         Slider(
             enabled = settingsControlsEnabled(),
-            value = valueMs.toFloat(),
-            onValueChange = { raw ->
-                val snapped = minMs + (((raw - minMs) / stepMs).roundToInt() * stepMs)
-                onValueChange(snapped.coerceIn(minMs, maxMs))
+            value = ExpandedRangeSlider.positionFromValue(valueMs, minMs, splitMs, maxMs),
+            onValueChange = { position ->
+                val raw = ExpandedRangeSlider.valueFromPosition(position, minMs, splitMs, maxMs)
+                onValueChange(ExpandedRangeSlider.snapToStep(raw, minMs, maxMs, stepMs))
             },
-            valueRange = minMs.toFloat()..maxMs.toFloat(),
-            steps = steps.coerceAtLeast(0)
+            valueRange = 0f..1f
         )
     }
 }

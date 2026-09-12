@@ -151,7 +151,7 @@ class SignalStateAnnouncementTest {
     }
 
     @Test
-    fun formatLimitedServiceChange_announcesLimitedServiceEntryOnly() {
+    fun formatLimitedServiceChange_announcesLimitedServiceEntry() {
         val stats = ConnectivityStats(
             isLimitedService = true,
             networkOperatorName = "Vodafone UK",
@@ -163,6 +163,60 @@ class SignalStateAnnouncementTest {
         assertEquals(
             "Vodafone UK, 2 G, home limited service",
             SignalStateAnnouncement.formatLimitedServiceChange(stats)
+        )
+    }
+
+    @Test
+    fun formatInServiceAnnouncement_speaksInServiceWithOptionalPrefixes() {
+        val stats = ConnectivityStats(
+            isLimitedService = false,
+            networkServiceMode = NetworkServiceMode.IN_SERVICE,
+            networkOperatorName = "EE",
+            servingNetworkOperatorName = "EE",
+            radioAccessType = CellularSignalReader.RADIO_4G
+        )
+        assertEquals(
+            "in-service",
+            SignalStateAnnouncement.formatInServiceAnnouncement(
+                stats,
+                phrases = VoicePhraseOptions(
+                    speakOperatorName = false,
+                    speakTechnology = false,
+                    speakBand = false
+                )
+            )
+        )
+        assertEquals(
+            "E E, 4 G, in-service",
+            SignalStateAnnouncement.formatInServiceAnnouncement(
+                stats,
+                phrases = VoicePhraseOptions(
+                    speakOperatorName = true,
+                    speakTechnology = true,
+                    speakBand = false
+                )
+            )
+        )
+    }
+
+    @Test
+    fun formatLimitedServiceChange_announcesInServiceOnFullCamp() {
+        val stats = ConnectivityStats(
+            isLimitedService = false,
+            networkServiceMode = NetworkServiceMode.IN_SERVICE,
+            networkOperatorName = "EE",
+            servingNetworkOperatorName = "EE",
+            radioAccessType = CellularSignalReader.RADIO_4G
+        )
+        assertEquals(
+            "in-service",
+            SignalStateAnnouncement.formatLimitedServiceChange(
+                stats,
+                phrases = VoicePhraseOptions(
+                    speakOperatorName = false,
+                    speakTechnology = false
+                )
+            )
         )
     }
 
@@ -348,30 +402,30 @@ class SignalStateAnnouncementTest {
     @Test
     fun speakBand_isSpokenAfterOperatorAndTechnology() {
         assertEquals(
-            "E E, 4 G, band, twenty, no signal",
+            "E E, 4 G, B, twenty, no signal",
             SignalStateAnnouncement.formatNoSignalAnnouncement(
                 "EE",
                 CellularSignalReader.RADIO_4G,
                 speakBandEnabled = true,
-                bandPhrase = "band, twenty"
+                bandPhrase = "B, twenty"
             )
         )
         assertEquals(
-            "E E, 4 G, band, twenty",
+            "E E, 4 G, B, twenty",
             SignalStateAnnouncement.formatTechnologyChange(
                 CellularSignalReader.RADIO_4G,
                 "EE",
                 speakBandEnabled = true,
-                bandPhrase = "band, twenty"
+                bandPhrase = "B, twenty"
             )
         )
         assertEquals(
-            "E E, 4 G, band, twenty, home limited service",
+            "E E, 4 G, B, twenty, home limited service",
             SignalStateAnnouncement.formatLimitedServiceAnnouncement(
                 "EE",
                 CellularSignalReader.RADIO_4G,
                 speakBandEnabled = true,
-                bandPhrase = "band, twenty"
+                bandPhrase = "B, twenty"
             )
         )
     }

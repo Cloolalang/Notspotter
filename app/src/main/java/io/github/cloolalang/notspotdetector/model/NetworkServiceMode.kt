@@ -15,6 +15,14 @@ fun NetworkServiceMode.isNoCellularService(): Boolean {
     return this == NetworkServiceMode.OUT_OF_SERVICE || this == NetworkServiceMode.RADIO_OFF
 }
 
+/** True when leaving limited service for a real camp (not radio-off / no-service). */
+fun ConnectivityStats.shouldAnnounceInServiceAfterLimited(): Boolean {
+    if (isLimitedService) return false
+    if (isCompleteNoService) return false
+    if (networkServiceMode.isNoCellularService()) return false
+    return networkServiceMode == NetworkServiceMode.IN_SERVICE
+}
+
 /** Voice/CS camped (in service or limited) with no packet-switched / data registration. */
 fun isVoiceOnlyNoData(
     serviceMode: NetworkServiceMode,

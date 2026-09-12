@@ -630,42 +630,6 @@ private fun MetricsCard(
                         permissionGranted = stats.signalPermissionGranted
                     )
                 )
-                when (stats.radioAccessType) {
-                    CellularSignalReader.RADIO_5G -> MetricRow(
-                        label = stringResource(R.string.metric_snir),
-                        value = formatSignalValue(
-                            value = stats.nrSinrDb,
-                            unit = "dB",
-                            permissionGranted = stats.signalPermissionGranted
-                        )
-                    )
-                    CellularSignalReader.RADIO_5G_ENDC -> {
-                        MetricRow(
-                            label = stringResource(R.string.metric_snir_lte),
-                            value = formatSignalValue(
-                                value = stats.lteSinrDb,
-                                unit = "dB",
-                                permissionGranted = stats.signalPermissionGranted
-                            )
-                        )
-                        MetricRow(
-                            label = stringResource(R.string.metric_snir_nr),
-                            value = formatSignalValue(
-                                value = stats.nrSinrDb,
-                                unit = "dB",
-                                permissionGranted = stats.signalPermissionGranted
-                            )
-                        )
-                    }
-                    else -> MetricRow(
-                        label = stringResource(R.string.metric_snir),
-                        value = formatSignalValue(
-                            value = stats.lteSinrDb,
-                            unit = "dB",
-                            permissionGranted = stats.signalPermissionGranted
-                        )
-                    )
-                }
             }
             SignalTierMetricRow(
                 tier = stats.resolveSignalMeasurementTier(passiveSignalSettings),

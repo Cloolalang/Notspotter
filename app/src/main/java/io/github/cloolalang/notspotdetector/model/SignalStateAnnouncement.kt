@@ -15,6 +15,7 @@ object SignalStateAnnouncement {
     internal const val PHRASE_NO_SIGNAL = "no signal"
     internal const val PHRASE_SIGNAL_RESTORED = "signal restored"
     internal const val PHRASE_LIMITED_SERVICE = "limited service"
+    internal const val PHRASE_IN_SERVICE = "in-service"
     internal const val PHRASE_HOME_LIMITED_SERVICE = "home limited service"
     internal const val PHRASE_VISITING_LIMITED_SERVICE = "visiting limited service"
     internal const val PHRASE_HOME_OPERATOR_ROLE = "home"
@@ -401,11 +402,54 @@ object SignalStateAnnouncement {
             speakTechnology = speakTechnologyEnabled
         )
     ): String {
+        if (!stats.isLimitedService && stats.shouldAnnounceInServiceAfterLimited()) {
+            return formatInServiceAnnouncement(stats, lastKnownRadioAccessType, phrases)
+        }
         return formatLimitedServiceAnnouncement(
             stats,
             lastKnownRadioAccessType,
             phrases = phrases
         )
+    }
+
+    fun formatInServiceAnnouncement(
+        stats: ConnectivityStats,
+        lastKnownRadioAccessType: String? = null,
+        phrases: VoicePhraseOptions = VoicePhraseOptions()
+    ): String {
+        return joinAnnouncementParts(
+            operatorNames = listOf(
+                stats.servingNetworkOperatorName ?: stats.networkOperatorName
+            ),
+            radioAccessType = stats.resolveNoSignalAnnouncementRadioAccessType(
+                lastKnownRadioAccessType
+            ),
+            serviceState = PHRASE_IN_SERVICE,
+            speakOperatorNameEnabled = phrases.speakOperatorName,
+            speakTechnologyEnabled = phrases.speakTechnology,
+            speakBandEnabled = phrases.speakBand,
+            bandPhrase = phrases.bandPhraseFor(stats.lteEarfcn, stats.nrBand, stats.gsmEarfcn)
+        )
+    }
+
+    fun previewInService(
+        networkOperatorName: String?,
+        phrases: VoicePhraseOptions = VoicePhraseOptions()
+    ): String {
+        return joinAnnouncementParts(
+            operatorNames = listOf(networkOperatorName),
+            radioAccessType = CellularSignalReader.RADIO_4G,
+            serviceState = PHRASE_IN_SERVICE,
+            speakOperatorNameEnabled = phrases.speakOperatorName,
+            speakTechnologyEnabled = phrases.speakTechnology,
+            speakBandEnabled = phrases.speakBand,
+            bandPhrase = phrases.bandPhraseFor(PREVIEW_LTE_EARFCN)
+        )
+    }
+
+    fun isInServiceAnnouncement(message: String?): Boolean {
+        val text = message ?: return false
+        return text.contains(PHRASE_IN_SERVICE) && !text.contains(PHRASE_LIMITED_SERVICE)
     }
 
     fun formatLimitedServiceAnnouncement(

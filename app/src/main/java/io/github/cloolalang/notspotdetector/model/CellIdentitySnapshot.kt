@@ -30,6 +30,10 @@ data class CellIdentitySnapshot(
             gsmBsic != previous.gsmBsic
     }
 
+    fun isSameServingCellAs(other: CellIdentitySnapshot): Boolean {
+        return hasAnyIdentity() && other.hasAnyIdentity() && !isServingCellReselectFrom(other)
+    }
+
     companion object {
         fun fromStats(stats: ConnectivityStats): CellIdentitySnapshot {
             return CellIdentitySnapshot(

@@ -16,11 +16,17 @@ data class VoicePhraseOptions(
     fun withHomeLimitedService(enabled: Boolean) = copy(speakHomeLimitedService = enabled)
     fun withVisitingLimitedService(enabled: Boolean) = copy(speakVisitingLimitedService = enabled)
 
-    fun bandPhraseFor(lteEarfcn: Int?, nrBand: Int? = null, gsmEarfcn: Int? = null): String? {
+    fun bandPhraseFor(
+        lteEarfcn: Int?,
+        nrBand: Int? = null,
+        gsmEarfcn: Int? = null,
+        namingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.BAND_NUMBER
+    ): String? {
         if (!speakBand) return null
         return CellIdentityAnnouncement.prefixBandPhrase(
             lteEarfcn = lteEarfcn,
             nrBand = nrBand,
+            namingStyle = namingStyle,
             gsmEarfcn = gsmEarfcn
         )
     }

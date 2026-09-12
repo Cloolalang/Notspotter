@@ -51,6 +51,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.atomic.AtomicInteger
@@ -114,6 +115,21 @@ class ConnectivityMonitorService : Service() {
             }
             announcer.setSpeechRateProvider {
                 MonitorState.audioVolumes.value.voiceSpeechRate
+            }
+        }
+        startMasterVoiceMuteWatcher()
+    }
+
+    private fun startMasterVoiceMuteWatcher() {
+        serviceScope.launch {
+            var previousEnabled = MonitorState.audioVolumes.value.masterVoiceAnnouncementsEnabled
+            MonitorState.audioVolumes.collect { volumes ->
+                val enabled = volumes.normalized().masterVoiceAnnouncementsEnabled
+                if (previousEnabled && !enabled) {
+                    voiceQueue.clear()
+                    cellVoiceAnnouncer.stop()
+                }
+                previousEnabled = enabled
             }
         }
     }
@@ -719,6 +735,17 @@ class ConnectivityMonitorService : Service() {
         stillCurrent: () -> Boolean = { true }
     ) {
         val volumes = MonitorState.audioVolumes.value.normalized()
+        if (SignalStateAnnouncement.isInServiceAnnouncement(announcement)) {
+            playAlertWithVoiceAwait(
+                onPlayTone = {},
+                toneDurationMs = 0,
+                announcement = announcement,
+                voiceEnabled = volumes.limitedServiceVoiceEnabled,
+                voiceVolume = volumes.limitedServiceVoiceVolume,
+                stillCurrent = stillCurrent
+            )
+            return
+        }
         val toneMs = MonitorState.passiveSignalSettings.value.normalized().limitedServiceTierPulseDurationMs
         playAlertWithVoiceAwait(
             onPlayTone = {
@@ -827,6 +854,7 @@ class ConnectivityMonitorService : Service() {
                 geigerPlayer.previewNoSignalTone(volumes.noSignalToneVolume)
             MonitoringAnnouncementKind.LIMITED_SERVICE_STATE,
             MonitoringAnnouncementKind.LIMITED_SERVICE_OPERATOR -> {
+                if (SignalStateAnnouncement.isInServiceAnnouncement(announcement.message)) return
                 val toneMs = MonitorState.passiveSignalSettings.value
                     .normalized()
                     .limitedServiceTierPulseDurationMs

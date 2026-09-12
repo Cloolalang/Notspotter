@@ -29,6 +29,17 @@ class CellIdentityStabilizerTest {
     }
 
     @Test
+    fun coalesceWith_doesNotReuseEarfcnFromADifferentPci() {
+        val current = CellIdentitySnapshot(lteEarfcn = null, ltePci = 77)
+        val previous = CellIdentitySnapshot(lteEarfcn = 1_800, ltePci = 42)
+
+        val merged = current.coalesceWith(previous)
+
+        assertNull(merged.lteEarfcn)
+        assertEquals(77, merged.ltePci)
+    }
+
+    @Test
     fun coalesceWith_prefersCurrentNonNullValues() {
         val current = CellIdentitySnapshot(lteEarfcn = 1_900, ltePci = 77)
         val previous = CellIdentitySnapshot(lteEarfcn = 1_800, ltePci = 42)

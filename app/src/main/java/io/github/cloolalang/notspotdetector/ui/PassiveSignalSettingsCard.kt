@@ -27,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.cloolalang.notspotdetector.R
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
+import io.github.cloolalang.notspotdetector.model.ExpandedRangeSlider
 import io.github.cloolalang.notspotdetector.model.CellReselectBandNamingStyle
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
 import io.github.cloolalang.notspotdetector.model.PeriodicVoiceRepeat
@@ -447,7 +448,7 @@ private fun TierPulseDurationSlider(
     val minMs = AudioVolumeSettings.MIN_SIGNAL_PULSE_DURATION_MS
     val maxMs = AudioVolumeSettings.MAX_SIGNAL_PULSE_DURATION_MS
     val stepMs = AudioVolumeSettings.SIGNAL_PULSE_DURATION_STEP_MS
-    val steps = ((maxMs - minMs) / stepMs) - 1
+    val splitMs = ExpandedRangeSlider.PULSE_DURATION_SPLIT_MS.coerceIn(minMs, maxMs)
     val coercedMs = durationMs.coerceIn(minMs, maxMs)
 
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -477,13 +478,12 @@ private fun TierPulseDurationSlider(
         )
         Slider(
             enabled = settingsControlsEnabled(),
-            value = coercedMs.toFloat(),
-            onValueChange = { raw ->
-                val snapped = minMs + (((raw - minMs) / stepMs).roundToInt() * stepMs)
-                onDurationChange(snapped.coerceIn(minMs, maxMs))
+            value = ExpandedRangeSlider.positionFromValue(coercedMs, minMs, splitMs, maxMs),
+            onValueChange = { position ->
+                val raw = ExpandedRangeSlider.valueFromPosition(position, minMs, splitMs, maxMs)
+                onDurationChange(ExpandedRangeSlider.snapToStep(raw, minMs, maxMs, stepMs))
             },
-            valueRange = minMs.toFloat()..maxMs.toFloat(),
-            steps = steps.coerceAtLeast(0),
+            valueRange = 0f..1f,
             colors = tierSliderColors(accentColor)
         )
     }
@@ -959,6 +959,7 @@ private fun RsrpTierSettings(
                         valueRange = (settings.noSignalRsrpDbm + gap)..
                             (settings.fairRsrpMinDbm - gap),
                         accentColor = accent,
+                        expandLowerEnd = true,
                         onValueChange = { onSettingsChange(settings.copy(poorRsrpMinDbm = it)) }
                     )
                 },
@@ -1025,6 +1026,7 @@ private fun RsrpTierSettings(
                         valueRange = PassiveSignalSettings.MIN_NO_SIGNAL_RSRP_DBM..
                             PassiveSignalSettings.MAX_NO_SIGNAL_RSRP_DBM,
                         accentColor = accent,
+                        expandLowerEnd = true,
                         onValueChange = { onSettingsChange(settings.copy(noSignalRsrpDbm = it)) }
                     )
                 },
@@ -2639,13 +2641,17 @@ private fun BoundarySlider(
     valueRange: IntRange,
     accentColor: Color? = null,
     unit: String = "dBm",
+    expandLowerEnd: Boolean = false,
     onValueChange: (Int) -> Unit
 ) {
     if (!TierSliderSupport.isValidIntRange(valueRange)) return
 
     val controlColor = accentColor ?: MaterialTheme.colorScheme.primary
+    val min = valueRange.first
+    val max = valueRange.last
+    val split = min + (((max - min) * 2) / 5)
     val sliderSteps = TierSliderSupport.discreteIntRangeSteps(valueRange)
-    val sliderValue = value.toFloat().coerceIn(valueRange.first.toFloat(), valueRange.last.toFloat())
+    val sliderValue = value.toFloat().coerceIn(min.toFloat(), max.toFloat())
 
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(
@@ -2672,14 +2678,26 @@ private fun BoundarySlider(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Slider(
-            enabled = settingsControlsEnabled(),
-            value = sliderValue,
-            onValueChange = { onValueChange(it.roundToInt()) },
-            valueRange = valueRange.first.toFloat()..valueRange.last.toFloat(),
-            steps = sliderSteps,
-            colors = tierSliderColors(controlColor)
-        )
+        if (expandLowerEnd) {
+            Slider(
+                enabled = settingsControlsEnabled(),
+                value = ExpandedRangeSlider.positionFromValue(value, min, split, max),
+                onValueChange = { position ->
+                    onValueChange(ExpandedRangeSlider.valueFromPosition(position, min, split, max))
+                },
+                valueRange = 0f..1f,
+                colors = tierSliderColors(controlColor)
+            )
+        } else {
+            Slider(
+                enabled = settingsControlsEnabled(),
+                value = sliderValue,
+                onValueChange = { onValueChange(it.roundToInt()) },
+                valueRange = min.toFloat()..max.toFloat(),
+                steps = sliderSteps,
+                colors = tierSliderColors(controlColor)
+            )
+        }
     }
 }
 

@@ -96,6 +96,35 @@ class NetworkServiceModeTest {
     }
 
     @Test
+    fun shouldAnnounceInServiceAfterLimited_onlyWhenCampedInService() {
+        assertTrue(
+            ConnectivityStats(
+                isLimitedService = false,
+                networkServiceMode = NetworkServiceMode.IN_SERVICE
+            ).shouldAnnounceInServiceAfterLimited()
+        )
+        assertFalse(
+            ConnectivityStats(
+                isLimitedService = true,
+                networkServiceMode = NetworkServiceMode.LIMITED_SERVICE
+            ).shouldAnnounceInServiceAfterLimited()
+        )
+        assertFalse(
+            ConnectivityStats(
+                isLimitedService = false,
+                networkServiceMode = NetworkServiceMode.OUT_OF_SERVICE
+            ).shouldAnnounceInServiceAfterLimited()
+        )
+        assertFalse(
+            ConnectivityStats(
+                isLimitedService = false,
+                isCompleteNoService = true,
+                networkServiceMode = NetworkServiceMode.IN_SERVICE
+            ).shouldAnnounceInServiceAfterLimited()
+        )
+    }
+
+    @Test
     fun emergencyOnlyStateIsLimited() {
         assertEquals(
             NetworkServiceMode.LIMITED_SERVICE,

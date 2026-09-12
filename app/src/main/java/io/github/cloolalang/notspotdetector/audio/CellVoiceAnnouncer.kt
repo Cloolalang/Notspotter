@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.speech.tts.Voice
@@ -33,6 +34,12 @@ class CellVoiceAnnouncer(context: Context) : TextToSpeech.OnInitListener {
          * the monitoring alert mutex forever.
          */
         private const val MAX_UTTERANCE_WAIT_MS = 20_000L
+
+        /** Avoid hammering engine recreation if speak keeps failing (pocket / screen-off). */
+        private const val MIN_RECREATE_INTERVAL_MS = 2_000L
+
+        private const val MIN_ENGINE_SPEECH_RATE = TtsSpeechRate.MIN
+        private const val MAX_ENGINE_SPEECH_RATE = TtsSpeechRate.MAX
 
         /**
          * Spoken guidance usage maps to the music stream (same volume as alert clicks) but is not
@@ -66,6 +73,10 @@ class CellVoiceAnnouncer(context: Context) : TextToSpeech.OnInitListener {
     private var audioFocusRequest: AudioFocusRequest? = null
     @Volatile
     private var hasAudioFocus = false
+    private var lastRecreateAtMs = 0L
+    private var appliedSpeechRate = DEFAULT_SPEECH_RATE
+    private var speechRateCeiling = MAX_ENGINE_SPEECH_RATE
+    private val abandonFocusRunnable = Runnable { abandonTtsAudioFocus() }
 
     override fun onInit(status: Int) {
         ready = status == TextToSpeech.SUCCESS
@@ -95,7 +106,21 @@ class CellVoiceAnnouncer(context: Context) : TextToSpeech.OnInitListener {
     }
 
     private fun applySpeechRate() {
-        tts?.setSpeechRate(speechRateProvider().coerceIn(0.5f, 2.0f))
+        val engine = tts ?: return
+        val requested = speechRateProvider().coerceIn(MIN_ENGINE_SPEECH_RATE, MAX_ENGINE_SPEECH_RATE)
+        if (requested <= TtsSpeechRate.SAFE_MAX) {
+            speechRateCeiling = MAX_ENGINE_SPEECH_RATE
+        }
+        val target = requested.coerceAtMost(speechRateCeiling)
+        for (rate in TtsSpeechRate.candidates(target)) {
+            if (engine.setSpeechRate(rate) == TextToSpeech.SUCCESS) {
+                appliedSpeechRate = rate
+                return
+            }
+        }
+        if (engine.setSpeechRate(DEFAULT_SPEECH_RATE) == TextToSpeech.SUCCESS) {
+            appliedSpeechRate = DEFAULT_SPEECH_RATE
+        }
     }
 
     @Deprecated("Use setVoiceSelectionProvider")
@@ -124,7 +149,7 @@ class CellVoiceAnnouncer(context: Context) : TextToSpeech.OnInitListener {
     ) {
         if (volume <= 0f || text.isBlank()) return
         mainHandler.post {
-            attachCompletionListener { abandonTtsAudioFocus() }
+            attachCompletionListener { scheduleAbandonTtsAudioFocus() }
             speakOnMainThread(
                 text = text,
                 volume = volume,
@@ -145,7 +170,7 @@ class CellVoiceAnnouncer(context: Context) : TextToSpeech.OnInitListener {
             suspendCancellableCoroutine { continuation ->
                 fun complete() {
                     if (!finished.compareAndSet(false, true)) return
-                    abandonTtsAudioFocus()
+                    scheduleAbandonTtsAudioFocus()
                     if (continuation.isActive) {
                         continuation.resume(Unit)
                     }
@@ -180,7 +205,9 @@ class CellVoiceAnnouncer(context: Context) : TextToSpeech.OnInitListener {
         if (finished.compareAndSet(false, true)) {
             mainHandler.post {
                 tts?.stop()
+                cancelScheduledAbandonTtsAudioFocus()
                 abandonTtsAudioFocus()
+                recreateEngineIfDue()
             }
         }
     }
@@ -189,6 +216,7 @@ class CellVoiceAnnouncer(context: Context) : TextToSpeech.OnInitListener {
         mainHandler.post {
             tts?.stop()
             pending.clear()
+            cancelScheduledAbandonTtsAudioFocus()
             abandonTtsAudioFocus()
         }
     }
@@ -197,6 +225,7 @@ class CellVoiceAnnouncer(context: Context) : TextToSpeech.OnInitListener {
         mainHandler.post {
             tts?.stop()
             pending.clear()
+            cancelScheduledAbandonTtsAudioFocus()
             abandonTtsAudioFocus()
             tts?.shutdown()
             tts = null
@@ -225,17 +254,49 @@ class CellVoiceAnnouncer(context: Context) : TextToSpeech.OnInitListener {
             putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, volume.coerceIn(0f, 1f))
             putInt(TextToSpeech.Engine.KEY_PARAM_STREAM, AudioManager.STREAM_MUSIC)
         }
-        val result = tts?.speak(
+        var result = tts?.speak(
             text,
             queueMode,
             params,
             utteranceId
         ) ?: TextToSpeech.ERROR
+        if (result != TextToSpeech.SUCCESS && appliedSpeechRate > TtsSpeechRate.SAFE_MAX) {
+            speechRateCeiling = TtsSpeechRate.SAFE_MAX
+            applySpeechRate()
+            result = tts?.speak(
+                text,
+                queueMode,
+                params,
+                utteranceId
+            ) ?: TextToSpeech.ERROR
+        }
         if (result != TextToSpeech.SUCCESS) {
+            cancelScheduledAbandonTtsAudioFocus()
             abandonTtsAudioFocus()
+            replacePending(PendingSpeech(text, volume, selection))
+            recreateEngineIfDue()
             return false
         }
+        if (requestedSpeechRate() <= TtsSpeechRate.SAFE_MAX) {
+            speechRateCeiling = MAX_ENGINE_SPEECH_RATE
+        }
         return true
+    }
+
+    private fun requestedSpeechRate(): Float {
+        return speechRateProvider().coerceIn(MIN_ENGINE_SPEECH_RATE, MAX_ENGINE_SPEECH_RATE)
+    }
+
+    private fun recreateEngineIfDue() {
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastRecreateAtMs < MIN_RECREATE_INTERVAL_MS) return
+        lastRecreateAtMs = now
+        val old = tts
+        ready = false
+        old?.setOnUtteranceProgressListener(null)
+        runCatching { old?.stop() }
+        runCatching { old?.shutdown() }
+        tts = TextToSpeech(appContext, this)
     }
 
     private fun attachCompletionListener(
@@ -274,7 +335,17 @@ class CellVoiceAnnouncer(context: Context) : TextToSpeech.OnInitListener {
         tts?.setAudioAttributes(TTS_AUDIO_ATTRIBUTES)
     }
 
+    private fun scheduleAbandonTtsAudioFocus() {
+        cancelScheduledAbandonTtsAudioFocus()
+        mainHandler.postDelayed(abandonFocusRunnable, TtsSpeechRate.audioFocusHoldMs(appliedSpeechRate))
+    }
+
+    private fun cancelScheduledAbandonTtsAudioFocus() {
+        mainHandler.removeCallbacks(abandonFocusRunnable)
+    }
+
     private fun requestTtsAudioFocus() {
+        cancelScheduledAbandonTtsAudioFocus()
         if (hasAudioFocus) return
         val granted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)

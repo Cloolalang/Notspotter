@@ -5,22 +5,38 @@ package io.github.cloolalang.notspotdetector.model
  * Clears only on genuine no-service / 2G-without-fallback conditions.
  */
 fun CellIdentitySnapshot.coalesceWith(previous: CellIdentitySnapshot): CellIdentitySnapshot {
+    val nextLteEarfcn = lteEarfcn ?: previous.lteEarfcn?.takeIf {
+        ltePci == null || previous.ltePci == null || ltePci == previous.ltePci
+    }
+    val nextLtePci = ltePci ?: previous.ltePci?.takeIf {
+        val earfcn = lteEarfcn ?: nextLteEarfcn
+        earfcn == null || previous.lteEarfcn == null || earfcn == previous.lteEarfcn
+    }
+    val nextNrEarfcn = nrEarfcn ?: previous.nrEarfcn?.takeIf {
+        nrPci == null || previous.nrPci == null || nrPci == previous.nrPci
+    }
+    val nextNrPci = nrPci ?: previous.nrPci?.takeIf {
+        val earfcn = nrEarfcn ?: nextNrEarfcn
+        earfcn == null || previous.nrEarfcn == null || earfcn == previous.nrEarfcn
+    }
+    val nextGsmEarfcn = gsmEarfcn ?: previous.gsmEarfcn?.takeIf {
+        gsmBsic == null || previous.gsmBsic == null || gsmBsic == previous.gsmBsic
+    }
+    val nextGsmBsic = gsmBsic ?: previous.gsmBsic?.takeIf {
+        val earfcn = gsmEarfcn ?: nextGsmEarfcn
+        earfcn == null || previous.gsmEarfcn == null || earfcn == previous.gsmEarfcn
+    }
     return CellIdentitySnapshot(
-        lteEarfcn = lteEarfcn ?: previous.lteEarfcn,
-        ltePci = ltePci ?: previous.ltePci?.takeIf {
-            lteEarfcn == null || previous.lteEarfcn == null || lteEarfcn == previous.lteEarfcn
-        },
-        nrEarfcn = nrEarfcn ?: previous.nrEarfcn,
-        nrPci = nrPci ?: previous.nrPci?.takeIf {
-            nrEarfcn == null || previous.nrEarfcn == null || nrEarfcn == previous.nrEarfcn
-        },
+        lteEarfcn = nextLteEarfcn,
+        ltePci = nextLtePci,
+        nrEarfcn = nextNrEarfcn,
+        nrPci = nextNrPci,
         nrBand = nrBand ?: previous.nrBand?.takeIf {
-            nrEarfcn == null || previous.nrEarfcn == null || nrEarfcn == previous.nrEarfcn
+            val earfcn = nrEarfcn ?: nextNrEarfcn
+            earfcn == null || previous.nrEarfcn == null || earfcn == previous.nrEarfcn
         },
-        gsmEarfcn = gsmEarfcn ?: previous.gsmEarfcn,
-        gsmBsic = gsmBsic ?: previous.gsmBsic?.takeIf {
-            gsmEarfcn == null || previous.gsmEarfcn == null || gsmEarfcn == previous.gsmEarfcn
-        }
+        gsmEarfcn = nextGsmEarfcn,
+        gsmBsic = nextGsmBsic
     )
 }
 

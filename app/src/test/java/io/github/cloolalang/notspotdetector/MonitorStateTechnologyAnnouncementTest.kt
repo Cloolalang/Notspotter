@@ -13,7 +13,6 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -184,7 +183,7 @@ class MonitorStateTechnologyAnnouncementTest {
     }
 
     @Test
-    fun leavingLimitedService_doesNotAnnounceFullService() {
+    fun leavingLimitedService_announcesInService() {
         val homeMock = PassiveMockSettings(enabled = true, scenario = MockNetworkScenario.HOME_4G)
         val altMock = homeMock.copy(scenario = MockNetworkScenario.ALT_OPERATOR_4G)
         MonitorState.updateStats(
@@ -214,8 +213,8 @@ class MonitorStateTechnologyAnnouncementTest {
             )
         )
 
-        assertFalse(events.limitedServiceStateChanged)
-        assertNull(events.limitedServiceStateAnnouncement)
+        assertTrue(events.limitedServiceStateChanged)
+        assertEquals("in-service", events.limitedServiceStateAnnouncement)
     }
 
     @Test

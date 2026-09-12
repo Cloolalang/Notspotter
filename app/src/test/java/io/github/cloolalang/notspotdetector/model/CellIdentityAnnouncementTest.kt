@@ -112,7 +112,7 @@ class CellIdentityAnnouncementTest {
             bandNamingStyle = CellReselectBandNamingStyle.BAND_NUMBER
         )
 
-        assertEquals("4 G, band, twenty", announcement)
+        assertEquals("4 G, twenty", announcement)
     }
 
     @Test
@@ -128,7 +128,7 @@ class CellIdentityAnnouncementTest {
             bandNamingStyle = CellReselectBandNamingStyle.MHZ_NICKNAME
         )
 
-        assertEquals("4 G, band, eight hundred", announcement)
+        assertEquals("4 G, B, eight hundred", announcement)
     }
 
     @Test
@@ -145,7 +145,7 @@ class CellIdentityAnnouncementTest {
             bandNamingStyle = CellReselectBandNamingStyle.MHZ_NICKNAME
         )
 
-        assertEquals("4 G, band, twenty six hundred", announcement)
+        assertEquals("4 G, B, twenty six hundred", announcement)
     }
 
     @Test
@@ -193,7 +193,7 @@ class CellIdentityAnnouncementTest {
             bandNamingStyle = CellReselectBandNamingStyle.BAND_NUMBER
         )
 
-        assertEquals("2 G, band, eight", announcement)
+        assertEquals("2 G, eight", announcement)
     }
 
     @Test
@@ -209,7 +209,7 @@ class CellIdentityAnnouncementTest {
             bandNamingStyle = CellReselectBandNamingStyle.BAND_NUMBER
         )
 
-        assertEquals("2 G, band, three", announcement)
+        assertEquals("2 G, three", announcement)
     }
 
     @Test
@@ -225,7 +225,7 @@ class CellIdentityAnnouncementTest {
             bandNamingStyle = CellReselectBandNamingStyle.MHZ_NICKNAME
         )
 
-        assertEquals("2 G, band, nine hundred", announcement)
+        assertEquals("2 G, B, nine hundred", announcement)
     }
 
     @Test
@@ -241,7 +241,7 @@ class CellIdentityAnnouncementTest {
             bandNamingStyle = CellReselectBandNamingStyle.MHZ_NICKNAME
         )
 
-        assertEquals("2 G, band, eighteen hundred", announcement)
+        assertEquals("2 G, B, eighteen hundred", announcement)
     }
 
     @Test
@@ -252,6 +252,38 @@ class CellIdentityAnnouncementTest {
             bandNamingStyle = CellReselectBandNamingStyle.BAND_NUMBER
         )
 
-        assertEquals("4 G, band, twenty", preview)
+        assertEquals("4 G, twenty", preview)
+    }
+
+    @Test
+    fun previewText_speakBandEnabled_usesSelectedMhzStyle() {
+        val preview = CellIdentityAnnouncement.previewText(
+            networkOperatorName = null,
+            speakBandEnabled = true,
+            bandNamingStyle = CellReselectBandNamingStyle.MHZ_NICKNAME
+        )
+
+        assertEquals("4 G, B, eight hundred", preview)
+    }
+
+    @Test
+    fun format_speakBandEnabled_doesNotAlsoSpeakPrefixBand() {
+        val previous = CellIdentitySnapshot(lteEarfcn = 1_800, ltePci = 42)
+        val next = CellIdentitySnapshot(lteEarfcn = 6_400, ltePci = 123)
+
+        val announcement = CellIdentityAnnouncement.format(
+            previous,
+            next,
+            CellularSignalReader.RADIO_4G,
+            speakBandEnabled = true,
+            bandNamingStyle = CellReselectBandNamingStyle.MHZ_NICKNAME,
+            prefixPhrases = VoicePhraseOptions(
+                speakOperatorName = false,
+                speakTechnology = true,
+                speakBand = true
+            )
+        )
+
+        assertEquals("4 G, B, eight hundred", announcement)
     }
 }
