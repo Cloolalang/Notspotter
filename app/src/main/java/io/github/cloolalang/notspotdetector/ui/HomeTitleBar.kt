@@ -2,7 +2,9 @@ package io.github.cloolalang.notspotdetector.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -28,6 +30,8 @@ private val Vmo2GoodColor = Color(0xFF0066CC)
 fun HomeTitleBar(
     stats: ConnectivityStats,
     passiveSignalSettings: PassiveSignalSettings,
+    showManualSelectOperator: Boolean = false,
+    onChooseOperator: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val operatorLabel = OperatorTitleStyle.resolveLabel(stats)
@@ -58,6 +62,17 @@ fun HomeTitleBar(
                 ),
                 fontWeight = titleWeight
             )
+        }
+        if (showManualSelectOperator) {
+            OutlinedButton(
+                onClick = onChooseOperator,
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.monitoring_manual_select_operator),
+                    style = MaterialTheme.typography.labelLarge
+                )
+            }
         }
     }
 }

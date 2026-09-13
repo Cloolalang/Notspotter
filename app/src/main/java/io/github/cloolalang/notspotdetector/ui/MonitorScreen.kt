@@ -42,9 +42,12 @@ import io.github.cloolalang.notspotdetector.model.ConnectivityStats
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.LteLayerResilienceReading
 import io.github.cloolalang.notspotdetector.model.NetworkServiceMode
+import io.github.cloolalang.notspotdetector.model.isRegisteredSimRoaming
 import io.github.cloolalang.notspotdetector.model.PrimaryLayerDominance
 import io.github.cloolalang.notspotdetector.model.primaryLayerDominance
 import io.github.cloolalang.notspotdetector.model.formatHomeOperatorDisplay
+import io.github.cloolalang.notspotdetector.model.formatMobileDataEnabledSuffix
+import io.github.cloolalang.notspotdetector.model.formatSimOperatorSelectionSuffix
 import io.github.cloolalang.notspotdetector.model.formatVisitedOperatorDisplay
 import io.github.cloolalang.notspotdetector.model.ServingBandMhz
 import io.github.cloolalang.notspotdetector.model.shouldBlankStaleCellIdentity
@@ -131,6 +134,9 @@ fun MonitorScreen(
     onClearRsrpHistogram: () -> Unit = {},
     onResetPassiveSignalSettings: () -> Unit,
     onSubscriptionChange: (Int) -> Unit,
+    onMobileDataEnabledChange: (Boolean) -> Unit = {},
+    onShowManualSelectOperatorButtonChange: (Boolean) -> Unit = {},
+    onOpenNetworkOperatorPicker: () -> Unit = {},
     onVoiceAnnouncerChoiceChange: (VoiceAnnouncerChoice) -> Unit,
     onVoiceSpeechRateChange: (Float) -> Unit = {},
     onRefreshVoiceAnnouncerOptions: () -> Unit,
@@ -214,6 +220,8 @@ fun MonitorScreen(
             HomeTitleBar(
                 stats = stats,
                 passiveSignalSettings = passiveSignalSettings,
+                showManualSelectOperator = monitoringSettings.showManualSelectOperatorButton,
+                onChooseOperator = onOpenNetworkOperatorPicker,
                 modifier = Modifier.weight(1f)
             )
             Text(
@@ -311,7 +319,24 @@ fun MonitorScreen(
                 onPassiveQuietUntilCriticalChange = onPassiveQuietUntilCriticalChange,
                 onPassiveSignalSettingsChange = onPassiveSignalSettingsChange,
                 onSubscriptionChange = onSubscriptionChange,
+                onMobileDataEnabledChange = onMobileDataEnabledChange,
+                mobileDataEnabled = stats.mobileDataEnabled,
+                onShowManualSelectOperatorButtonChange = onShowManualSelectOperatorButtonChange,
                 onPassiveMeasurementIntervalChange = onPassiveMeasurementIntervalChange
+            )
+
+            SpecialCellsCard(
+                catalog = specialCellCatalog,
+                match = specialCellMatch.takeIf { audioVolumes.specialCellsDetectionEnabled },
+                servingIdentity = SpecialCellMatcher.servingIdentitySummary(stats)
+                    .takeUnless { stats.shouldBlankStaleCellIdentity(passiveSignalSettings) },
+                detectionEnabled = audioVolumes.specialCellsDetectionEnabled,
+                voiceEnabled = audioVolumes.specialCellsVoiceEnabled,
+                speakType = audioVolumes.specialCellsSpeakType,
+                speakSite = audioVolumes.specialCellsSpeakSite,
+                speakSector = audioVolumes.specialCellsSpeakSector,
+                previewEnabled = !isRunning,
+                actions = specialCellsActions
             )
 
             PassiveSignalSettingsCard(
@@ -387,19 +412,6 @@ fun MonitorScreen(
                 onImportProfile = onImportSettingsProfile,
                 onShareProfile = onShareSettingsProfile,
                 onExportProfileToDownloads = onExportSettingsProfileToDownloads
-            )
-
-            SpecialCellsCard(
-                catalog = specialCellCatalog,
-                match = specialCellMatch.takeIf { audioVolumes.specialCellsDetectionEnabled },
-                servingIdentity = SpecialCellMatcher.servingIdentitySummary(stats),
-                detectionEnabled = audioVolumes.specialCellsDetectionEnabled,
-                voiceEnabled = audioVolumes.specialCellsVoiceEnabled,
-                speakType = audioVolumes.specialCellsSpeakType,
-                speakSite = audioVolumes.specialCellsSpeakSite,
-                speakSector = audioVolumes.specialCellsSpeakSector,
-                previewEnabled = !isRunning,
-                actions = specialCellsActions
             )
 
             GlobalVoiceSettingsCard(
@@ -611,7 +623,7 @@ private fun MetricsCard(
             MetricRow(
                 label = stringResource(R.string.metric_sim),
                 value = formatSimMetric(stats, monitoringSettings),
-                valueSingleLine = true
+                wrapValue = true
             )
 
             if (specialCellMatch != null) {
@@ -649,12 +661,25 @@ private fun MetricsCard(
                 label = stringResource(R.string.metric_home_operator),
                 value = formatHomeOperator(stats)
             )
+            stats.manualSimOperatorName?.takeIf { it.isNotBlank() }?.let { selectedOperator ->
+                MetricRow(
+                    label = stringResource(R.string.metric_manual_selected_operator),
+                    value = selectedOperator,
+                    wrapValue = true
+                )
+            }
             stats.formatVisitedOperatorDisplay()?.let { visited ->
                 MetricRow(
                     label = stringResource(R.string.metric_visited_operator),
                     value = visited
                 )
             }
+            MetricRow(
+                label = stringResource(R.string.metric_apn),
+                value = stats.selectedApn?.takeIf { it.isNotBlank() }
+                    ?: stringResource(R.string.signal_unavailable),
+                wrapValue = true
+            )
             MetricRow(
                 label = stringResource(R.string.metric_service_state),
                 value = formatServiceState(stats)
@@ -747,97 +772,51 @@ private fun CellIdentityMetrics(
     val nrBand = stats.nrBand.takeUnless { staleNoSignal }
     val gsmEarfcn = stats.gsmEarfcn.takeUnless { staleNoSignal }
     val gsmBsic = stats.gsmBsic.takeUnless { staleNoSignal }
+    val is2g = stats.radioAccessType == CellularSignalReader.RADIO_2G
+    MetricRow(
+        label = stringResource(R.string.metric_band_mhz),
+        value = formatBandMhzValue(
+            permissionGranted = permissionGranted,
+            lteEarfcn = when (stats.radioAccessType) {
+                CellularSignalReader.RADIO_5G,
+                CellularSignalReader.RADIO_2G -> null
+                else -> lteEarfcn
+            },
+            gsmArfcn = if (is2g) gsmEarfcn else null,
+            nrBand = when (stats.radioAccessType) {
+                CellularSignalReader.RADIO_5G_ENDC,
+                CellularSignalReader.RADIO_5G -> nrBand
+                else -> null
+            }
+        )
+    )
     when (stats.radioAccessType) {
         CellularSignalReader.RADIO_5G_ENDC -> {
             MetricRow(
-                label = stringResource(R.string.metric_lte_earfcn),
-                value = formatCellIdentityValue(lteEarfcn, permissionGranted)
+                label = stringResource(R.string.metric_primary_carrier),
+                value = formatChannelIdentityValue(lteEarfcn, ltePci, permissionGranted)
             )
             MetricRow(
-                label = stringResource(R.string.metric_lte_pci),
-                value = formatCellIdentityValue(ltePci, permissionGranted)
-            )
-            MetricRow(
-                label = stringResource(R.string.metric_nr_arfcn),
-                value = formatCellIdentityValue(nrEarfcn, permissionGranted)
-            )
-            MetricRow(
-                label = stringResource(R.string.metric_nr_pci),
-                value = formatCellIdentityValue(nrPci, permissionGranted)
-            )
-            MetricRow(
-                label = stringResource(R.string.metric_nr_band),
-                value = formatNrBandValue(nrBand, permissionGranted)
-            )
-            MetricRow(
-                label = stringResource(R.string.metric_band_mhz),
-                value = formatBandMhzValue(
-                    permissionGranted = permissionGranted,
-                    lteEarfcn = lteEarfcn,
-                    gsmArfcn = null,
-                    nrBand = nrBand
-                )
+                label = stringResource(R.string.metric_nr_carrier),
+                value = formatChannelIdentityValue(nrEarfcn, nrPci, permissionGranted)
             )
         }
         CellularSignalReader.RADIO_5G -> {
             MetricRow(
-                label = stringResource(R.string.metric_nr_arfcn),
-                value = formatCellIdentityValue(nrEarfcn, permissionGranted)
-            )
-            MetricRow(
-                label = stringResource(R.string.metric_nr_pci),
-                value = formatCellIdentityValue(nrPci, permissionGranted)
-            )
-            MetricRow(
-                label = stringResource(R.string.metric_nr_band),
-                value = formatNrBandValue(nrBand, permissionGranted)
-            )
-            MetricRow(
-                label = stringResource(R.string.metric_band_mhz),
-                value = formatBandMhzValue(
-                    permissionGranted = permissionGranted,
-                    lteEarfcn = null,
-                    gsmArfcn = null,
-                    nrBand = nrBand
-                )
+                label = stringResource(R.string.metric_primary_carrier),
+                value = formatChannelIdentityValue(nrEarfcn, nrPci, permissionGranted)
             )
         }
         CellularSignalReader.RADIO_2G -> {
             MetricRow(
-                label = stringResource(R.string.metric_gsm_arfcn),
-                value = formatCellIdentityValue(gsmEarfcn, permissionGranted)
-            )
-            MetricRow(
-                label = stringResource(R.string.metric_gsm_bsic),
-                value = formatCellIdentityValue(gsmBsic, permissionGranted)
-            )
-            MetricRow(
-                label = stringResource(R.string.metric_band_mhz),
-                value = formatBandMhzValue(
-                    permissionGranted = permissionGranted,
-                    lteEarfcn = null,
-                    gsmArfcn = gsmEarfcn,
-                    nrBand = null
-                )
+                label = stringResource(R.string.metric_serving_cell),
+                value = formatChannelIdentityValue(gsmEarfcn, gsmBsic, permissionGranted)
             )
         }
         else -> {
             MetricRow(
-                label = stringResource(R.string.metric_earfcn),
-                value = formatCellIdentityValue(lteEarfcn, permissionGranted)
-            )
-            MetricRow(
-                label = stringResource(R.string.metric_pci),
-                value = formatCellIdentityValue(ltePci, permissionGranted)
-            )
-            MetricRow(
-                label = stringResource(R.string.metric_band_mhz),
-                value = formatBandMhzValue(
-                    permissionGranted = permissionGranted,
-                    lteEarfcn = lteEarfcn,
-                    gsmArfcn = null,
-                    nrBand = null
-                )
+                label = stringResource(R.string.metric_primary_carrier),
+                value = formatChannelIdentityValue(lteEarfcn, ltePci, permissionGranted)
             )
         }
     }
@@ -863,28 +842,38 @@ private fun CellIdentityMetrics(
     // RSRP gap between the primary sector and the next-strongest sector on the *same* EARFCN
     // (see LteLayerResilienceReading.primaryLayerDominanceDb) — undefined ("—") when there's no
     // competing intra-channel sector detected to compare against.
+    if (!is2g) {
+        MetricRow(
+            label = stringResource(R.string.metric_primary_layer_dominance),
+            value = formatPrimaryLayerDominanceValue(lteLayerResilience, permissionGranted)
+        )
+    }
     MetricRow(
-        label = stringResource(R.string.metric_primary_layer_dominance),
-        value = formatPrimaryLayerDominanceValue(lteLayerResilience, permissionGranted)
-    )
-    MetricRow(
-        label = stringResource(R.string.metric_primary_layer_resilience),
+        label = stringResource(
+            if (is2g) {
+                R.string.metric_neighbor_cells
+            } else {
+                R.string.metric_primary_layer_resilience
+            }
+        ),
         value = formatCellIdentityValue(lteLayerResilience?.primaryLayerCellCount, permissionGranted)
     )
-    MetricRow(
-        label = stringResource(R.string.metric_alternate_layer_resilience),
-        value = if (!permissionGranted) {
-            stringResource(R.string.cell_identity_permission_required)
-        } else if (lteLayerResilience == null) {
-            "—"
-        } else {
-            stringResource(
-                R.string.metric_alternate_layer_resilience_value,
-                lteLayerResilience.alternateLayerCellCount,
-                lteLayerResilience.alternateLayerCount
-            )
-        }
-    )
+    if (!is2g) {
+        MetricRow(
+            label = stringResource(R.string.metric_alternate_layer_resilience),
+            value = if (!permissionGranted) {
+                stringResource(R.string.cell_identity_permission_required)
+            } else if (lteLayerResilience == null) {
+                "—"
+            } else {
+                stringResource(
+                    R.string.metric_alternate_layer_resilience_value,
+                    lteLayerResilience.alternateLayerCellCount,
+                    lteLayerResilience.alternateLayerCount
+                )
+            }
+        )
+    }
 }
 
 @Composable
@@ -913,16 +902,19 @@ private fun formatSimMetric(
         return stringResource(R.string.signal_permission_required)
     }
 
-    if (monitoringSettings.subscriptionId == MonitoringSettings.DEFAULT_SUBSCRIPTION_ID) {
+    val simName = if (monitoringSettings.subscriptionId == MonitoringSettings.DEFAULT_SUBSCRIPTION_ID) {
         val resolved = stats.simDisplayName
-        return if (resolved != null) {
+        if (resolved != null) {
             stringResource(R.string.monitoring_sim_system_default_resolved, resolved)
         } else {
             stringResource(R.string.monitoring_sim_system_default)
         }
+    } else {
+        stats.simDisplayName ?: stringResource(R.string.signal_unavailable)
     }
-
-    return stats.simDisplayName ?: stringResource(R.string.signal_unavailable)
+    val selection = formatSimOperatorSelectionSuffix(stats.simOperatorSelectionMode)
+    val mobileData = formatMobileDataEnabledSuffix(stats.mobileDataEnabled)
+    return listOfNotNull(simName, selection, mobileData).joinToString(" · ")
 }
 
 @Composable
@@ -931,10 +923,12 @@ private fun formatServiceState(stats: ConnectivityStats): String {
         return stringResource(R.string.signal_permission_required)
     }
     return when (stats.networkServiceMode) {
-        NetworkServiceMode.IN_SERVICE -> if (stats.isVoiceOnlyNoData) {
-            stringResource(R.string.service_state_in_service_voice_only)
-        } else {
-            stringResource(R.string.service_state_in_service)
+        NetworkServiceMode.IN_SERVICE -> when {
+            stats.isRegisteredSimRoaming() && stats.isVoiceOnlyNoData ->
+                stringResource(R.string.service_state_in_service_voice_only_roaming)
+            stats.isRegisteredSimRoaming() -> stringResource(R.string.service_state_in_service_roaming)
+            stats.isVoiceOnlyNoData -> stringResource(R.string.service_state_in_service_voice_only)
+            else -> stringResource(R.string.service_state_in_service)
         }
         NetworkServiceMode.LIMITED_SERVICE -> if (stats.isVoiceOnlyNoData) {
             stringResource(R.string.service_state_limited_voice_only)
@@ -997,19 +991,16 @@ private fun formatCellIdentityValue(
     return value.toString()
 }
 
-/** Formats an NR band number as its 3GPP band name, e.g. 78 -> "n78". */
 @Composable
-private fun formatNrBandValue(
-    value: Int?,
+private fun formatChannelIdentityValue(
+    channel: Int?,
+    identity: Int?,
     permissionGranted: Boolean
 ): String {
     if (!permissionGranted) {
         return stringResource(R.string.cell_identity_permission_required)
     }
-    if (value == null) {
-        return "—"
-    }
-    return "n$value"
+    return RadioDebugSnapshot.formatEarfcnPci(channel, identity)
 }
 
 @Composable
@@ -1022,10 +1013,10 @@ private fun formatBandMhzValue(
     if (!permissionGranted) {
         return stringResource(R.string.cell_identity_permission_required)
     }
-    return ServingBandMhz.formatMhz(
-        ServingBandMhz.fromLteEarfcn(lteEarfcn),
-        ServingBandMhz.fromGsmArfcn(gsmArfcn),
-        ServingBandMhz.fromNrBand(nrBand)
+    return ServingBandMhz.formatDisplay(
+        lteEarfcn = lteEarfcn,
+        gsmArfcn = gsmArfcn,
+        nrBand = nrBand
     ) ?: "—"
 }
 
@@ -1066,12 +1057,14 @@ private fun MetricRow(
     value: String,
     valueColor: Color = MaterialTheme.colorScheme.onSurface,
     valueFontSize: TextUnit = 13.sp,
-    valueSingleLine: Boolean = false
+    valueSingleLine: Boolean = false,
+    wrapValue: Boolean = false
 ) {
+    val constrainValue = valueSingleLine || wrapValue
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = if (wrapValue) Alignment.Top else Alignment.CenterVertically
     ) {
         Text(
             text = label,
@@ -1081,7 +1074,7 @@ private fun MetricRow(
         )
         Text(
             text = value,
-            modifier = if (valueSingleLine) {
+            modifier = if (constrainValue) {
                 Modifier.weight(1f)
             } else {
                 Modifier
@@ -1094,7 +1087,7 @@ private fun MetricRow(
             } else {
                 FontWeight.Normal
             },
-            textAlign = if (valueSingleLine) TextAlign.End else TextAlign.Unspecified,
+            textAlign = if (constrainValue) TextAlign.End else TextAlign.Unspecified,
             maxLines = if (valueSingleLine) 1 else Int.MAX_VALUE,
             softWrap = !valueSingleLine,
             overflow = if (valueSingleLine) TextOverflow.Ellipsis else TextOverflow.Clip

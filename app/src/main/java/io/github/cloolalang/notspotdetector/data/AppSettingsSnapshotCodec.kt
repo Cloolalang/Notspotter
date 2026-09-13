@@ -175,6 +175,7 @@ object AppSettingsSnapshotCodec {
             .put("rsrpHistogramThreshold2Dbm", settings.rsrpHistogramThreshold2Dbm)
             .put("rsrpHistogramThreshold3Dbm", settings.rsrpHistogramThreshold3Dbm)
             .put("fiveGFeaturesEnabled", settings.fiveGFeaturesEnabled)
+            .put("showManualSelectOperatorButton", settings.showManualSelectOperatorButton)
     }
 
     private fun decodeMonitoring(json: JSONObject?): MonitoringSettings {
@@ -218,6 +219,10 @@ object AppSettingsSnapshotCodec {
             fiveGFeaturesEnabled = json.optBoolean(
                 "fiveGFeaturesEnabled",
                 MonitoringSettings.DEFAULT_FIVE_G_FEATURES_ENABLED
+            ),
+            showManualSelectOperatorButton = json.optBoolean(
+                "showManualSelectOperatorButton",
+                MonitoringSettings.DEFAULT_SHOW_MANUAL_SELECT_OPERATOR_BUTTON
             )
         )
     }

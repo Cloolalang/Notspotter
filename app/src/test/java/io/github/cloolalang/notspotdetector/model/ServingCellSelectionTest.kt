@@ -119,6 +119,66 @@ class ServingCellSelectionTest {
     }
 
     @Test
+    fun preferCampedPair_samePciDifferentEarfcnUsesPrimaryCell() {
+        assertTrue(
+            ServingCellSelection.preferCampedPairOverRegistered(
+                campedEarfcn = 3501,
+                campedPci = 328,
+                campedConnectionRank = 3,
+                registeredEarfcn = 6300,
+                registeredPci = 328,
+                keyMatchEarfcn = 6300,
+                keyMatchPci = 328,
+                keyMatchConnectionRank = 2
+            )
+        )
+        val (earfcn, pci) = ServingCellSelection.resolveLteIdentity(
+            rankedEarfcn = 3501,
+            rankedPci = 328,
+            keyMatchEarfcn = 6300,
+            keyMatchPci = 328,
+            registeredEarfcn = 6300,
+            registeredPci = 328,
+            rankedConnectionRank = 3,
+            keyMatchConnectionRank = 2
+        )
+        assertEquals(3501, earfcn)
+        assertEquals(328, pci)
+    }
+
+    @Test
+    fun preferCampedPair_neighbourSamePciKeepsServiceState() {
+        assertFalse(
+            ServingCellSelection.preferCampedPairOverRegistered(
+                campedEarfcn = 6400,
+                campedPci = 328,
+                campedConnectionRank = 0,
+                registeredEarfcn = 3501,
+                registeredPci = 328,
+                keyMatchEarfcn = 6400,
+                keyMatchPci = 328,
+                keyMatchConnectionRank = 0
+            )
+        )
+    }
+
+    @Test
+    fun preferCampedPair_otherSimDifferentPciKeepsServiceState() {
+        assertFalse(
+            ServingCellSelection.preferCampedPairOverRegistered(
+                campedEarfcn = 6400,
+                campedPci = 118,
+                campedConnectionRank = 3,
+                registeredEarfcn = 6300,
+                registeredPci = 107,
+                keyMatchEarfcn = 6300,
+                keyMatchPci = 107,
+                keyMatchConnectionRank = 1
+            )
+        )
+    }
+
+    @Test
     fun resolveLteIdentity_usesServiceStateWhenKeyMatchMissing() {
         val (earfcn, pci) = ServingCellSelection.resolveLteIdentity(
             rankedEarfcn = 6400,

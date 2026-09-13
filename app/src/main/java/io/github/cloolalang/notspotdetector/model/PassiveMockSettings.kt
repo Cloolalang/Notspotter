@@ -344,6 +344,7 @@ data class PassiveMockSettings(
             servingNetworkOperatorName = servingNetworkOperatorName,
             plmn = plmn,
             homePlmn = homePlmn,
+            selectedApn = MOCK_APN,
             permissionGranted = true,
             cellIdentityPermissionGranted = true
         )
@@ -361,6 +362,7 @@ data class PassiveMockSettings(
         const val MOCK_VISITED_OPERATOR = "EE"
         /** @deprecated Use [MOCK_VISITED_OPERATOR]. */
         const val MOCK_ALT_OPERATOR = MOCK_VISITED_OPERATOR
+        const val MOCK_APN = "everywhere"
         const val MOCK_HOME_PLMN = "23415"
         const val MOCK_VISITED_PLMN = "23430"
         /** @deprecated Use [MOCK_VISITED_PLMN]. */
@@ -416,6 +418,7 @@ fun PassiveMockSettings.toConnectivityStats(
         isLimitedService = radio.isLimitedService,
         networkServiceMode = radio.networkServiceMode,
         isVoiceOnlyNoData = radio.isVoiceOnlyNoData,
+        isNetworkRoaming = radio.isNetworkRoaming,
         isWifiCallingActive = radio.isWifiCallingActive,
         hasLimitedServiceOnAnySim = radio.hasLimitedServiceOnAnySim,
         isCompleteNoService = radio.isCompleteNoService,
@@ -430,6 +433,10 @@ fun PassiveMockSettings.toConnectivityStats(
         subscriptionId = radio.subscriptionId,
         simSlotIndex = radio.simSlotIndex,
         simDisplayName = radio.simDisplayName,
+        simOperatorSelectionMode = radio.simOperatorSelectionMode,
+        manualSimOperatorName = radio.manualSimOperatorName,
+        mobileDataEnabled = radio.mobileDataEnabled,
+        selectedApn = radio.selectedApn,
         signalPermissionGranted = radio.permissionGranted,
         cellIdentityPermissionGranted = radio.cellIdentityPermissionGranted
     )

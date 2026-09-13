@@ -4,7 +4,8 @@
 #
 # Required columns: site, type, mno, rat, sector, channel, pci
 # Optional: plmn, speak, speak_as, notes
-# Match key is rat + channel + pci (and plmn when the phone reports one).
+# Matching is 4G EARFCN/PCI only. PLMN is only a tie-break when two rows share a channel/PCI.
+# A roaming SIM in limited service still matches. 2G and 5G come later.
 #
 site,type,mno,rat,sector,channel,pci,plmn,speak,speak_as,notes
 Robin Hood,Streetworks,Vodafone,4G,S1,6300,107,23415,yes,Robin Hood,

@@ -11,6 +11,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -40,6 +41,9 @@ fun MonitoringSettingsCard(
     onPassiveQuietUntilCriticalChange: (Boolean) -> Unit,
     onPassiveSignalSettingsChange: (PassiveSignalSettings) -> Unit,
     onSubscriptionChange: (Int) -> Unit,
+    onMobileDataEnabledChange: (Boolean) -> Unit = {},
+    mobileDataEnabled: Boolean? = null,
+    onShowManualSelectOperatorButtonChange: (Boolean) -> Unit = {},
     onPassiveMeasurementIntervalChange: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -82,6 +86,16 @@ fun MonitoringSettingsCard(
                     simSubscriptions = simSubscriptions,
                     phoneStatePermissionGranted = phoneStatePermissionGranted,
                     onSubscriptionChange = onSubscriptionChange
+                )
+
+                MobileDataToggleRow(
+                    enabled = mobileDataEnabled,
+                    onEnabledChange = onMobileDataEnabledChange
+                )
+
+                ManualSelectOperatorToggleRow(
+                    enabled = monitoringSettings.showManualSelectOperatorButton,
+                    onEnabledChange = onShowManualSelectOperatorButtonChange
                 )
 
                 PassiveMeasurementIntervalSlider(
@@ -211,6 +225,66 @@ private fun QuietAlertSlider(
             onValueChange = { onValueChange(it.roundToInt()) },
             valueRange = valueRange.first.toFloat()..valueRange.last.toFloat(),
             steps = (valueRange.last - valueRange.first).coerceAtMost(76)
+        )
+    }
+}
+
+@Composable
+private fun MobileDataToggleRow(
+    enabled: Boolean?,
+    onEnabledChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.monitoring_mobile_data),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = stringResource(R.string.monitoring_mobile_data_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Switch(
+            checked = enabled == true,
+            onCheckedChange = onEnabledChange,
+            enabled = settingsControlsEnabled()
+        )
+    }
+}
+
+@Composable
+private fun ManualSelectOperatorToggleRow(
+    enabled: Boolean,
+    onEnabledChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.monitoring_manual_select_operator),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = stringResource(R.string.monitoring_manual_select_operator_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Switch(
+            checked = enabled,
+            onCheckedChange = onEnabledChange,
+            enabled = settingsControlsEnabled()
         )
     }
 }

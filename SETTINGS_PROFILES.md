@@ -36,7 +36,7 @@ Multi-profile export uses a top-level `"profiles"` array with the same object sh
 |---------|----------|-------------|---------|
 | Ping / active test | `thresholds` | `ThresholdSettings` | RTT, jitter, packet loss, good-connection click suppression |
 | Ping target | `ping` | `PingSettings` | Host, port, pings per test, interval |
-| Monitoring | `monitoring` | `MonitoringSettings` | 2G fallback, SIM, quiet passive alerts, measurement interval, RSRP histogram window / binning mode / three threshold floors, 5G features |
+| Monitoring | `monitoring` | `MonitoringSettings` | 2G fallback, SIM, quiet passive alerts, measurement interval, RSRP histogram window / binning mode / three threshold floors, 5G features, home Manual select operator button |
 | Signal thresholds & tiers | `passiveSignal` | `PassiveSignalSettings` | RSRP/RSRQ bands, per-RXSS click interval, pulse duration, sound toggles (tiers 0–15, 12, 13, RSRQ 14) |
 | **Mock network** | `passiveMock` | `PassiveMockSettings` | Mock enable, scenario, RSRP, RSRQ — see below |
 | Alert audio & voice | `audio` | `AudioVolumeSettings` | Volumes, voice toggles, TTS engine choice, tier-5 announcer |

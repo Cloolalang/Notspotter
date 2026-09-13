@@ -25,6 +25,7 @@ import android.telephony.TelephonyManager
 import androidx.core.content.ContextCompat
 import io.github.cloolalang.notspotdetector.data.RadioDebugLogger
 import io.github.cloolalang.notspotdetector.model.CellularRadioMetrics
+import io.github.cloolalang.notspotdetector.model.GsmBand
 import io.github.cloolalang.notspotdetector.model.RadioDebugSnapshot
 import io.github.cloolalang.notspotdetector.model.ServingCellSelection
 import io.github.cloolalang.notspotdetector.model.DetectedLteCell
@@ -36,6 +37,11 @@ import io.github.cloolalang.notspotdetector.model.NetworkServiceMode
 import io.github.cloolalang.notspotdetector.model.isNoCellularService
 import io.github.cloolalang.notspotdetector.model.isRadioPoweredOff
 import io.github.cloolalang.notspotdetector.model.readNetworkModePreference
+import io.github.cloolalang.notspotdetector.model.readManualNetworkSelectionPlmn
+import io.github.cloolalang.notspotdetector.model.readSimOperatorSelectionMode
+import io.github.cloolalang.notspotdetector.model.resolveManualSelectedOperatorName
+import io.github.cloolalang.notspotdetector.model.SimOperatorSelectionMode
+import io.github.cloolalang.notspotdetector.model.isRegisteredSimRoaming
 import io.github.cloolalang.notspotdetector.model.isVoiceOnlyNoData
 import io.github.cloolalang.notspotdetector.model.SinrMetric
 import io.github.cloolalang.notspotdetector.model.resolveNetworkServiceMode
@@ -89,6 +95,22 @@ object CellularSignalReader {
         val isWifiCallingActive = readWifiCallingActive(telephonyManager)
         val simSlotIndex = SimSubscriptionHelper.resolveSlotIndex(context, subscriptionId)
         val simDisplayName = SimSubscriptionHelper.resolveSubscriptionLabel(context, subscriptionId)
+        val simOperatorSelectionMode = readSimOperatorSelectionMode(telephonyManager, serviceState)
+        val manualSimOperatorName = if (simOperatorSelectionMode == SimOperatorSelectionMode.MANUAL) {
+            resolveManualSelectedOperatorName(
+                selectedPlmn = readManualNetworkSelectionPlmn(telephonyManager)
+                    ?: serviceState?.operatorNumeric?.filter { it.isDigit() }?.takeIf { it.length >= 5 },
+                homePlmn = operatorInfo.homePlmn,
+                servingPlmn = operatorInfo.servingPlmn,
+                homeOperatorName = operatorInfo.homeOperatorName,
+                servingOperatorName = operatorInfo.servingOperatorName
+                    ?: normalizeOperatorName(serviceState?.operatorAlphaLong)
+            )
+        } else {
+            null
+        }
+        val mobileDataEnabled = MobileDataControl.isEnabled(context, telephonyManager)
+        val selectedApn = SelectedApnReader.read(context, subscriptionId)
         val hasLimitedServiceOnAnySim = hasLimitedServiceOnAnySubscription(context)
         val isDualSimActive = SimSubscriptionHelper.listActiveSubscriptions(context).size > 1
         val radioOff = networkServiceMode.isRadioPoweredOff()
@@ -213,6 +235,12 @@ object CellularSignalReader {
             isLimitedService = isLimitedService,
             networkServiceMode = networkServiceMode,
             isVoiceOnlyNoData = isVoiceOnlyNoData(networkServiceMode, packetSwitchedRegistered),
+            isNetworkRoaming = isRegisteredSimRoaming(
+                modemRoaming = readIsNetworkRoaming(telephonyManager, serviceState),
+                serviceMode = networkServiceMode,
+                isLimitedService = isLimitedService,
+                emergencyCamp = serviceState?.let { hasEmergencyVoiceCamp(it) } == true
+            ),
             isWifiCallingActive = isWifiCallingActive,
             hasHomeGsmSignal = hasHomeGsmSignal,
             subscriptionId = subscriptionId.takeIf {
@@ -220,6 +248,10 @@ object CellularSignalReader {
             },
             simSlotIndex = simSlotIndex,
             simDisplayName = simDisplayName,
+            simOperatorSelectionMode = simOperatorSelectionMode,
+            manualSimOperatorName = manualSimOperatorName,
+            mobileDataEnabled = mobileDataEnabled,
+            selectedApn = selectedApn,
             lteLayerResilience = lteLayerResilience
         )
 
@@ -501,6 +533,15 @@ object CellularSignalReader {
 
     private fun normalizeOperatorName(raw: String?): String? {
         return raw?.trim()?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun readIsNetworkRoaming(
+        telephonyManager: TelephonyManager,
+        serviceState: ServiceState?
+    ): Boolean {
+        val fromManager = runCatching { telephonyManager.isNetworkRoaming }.getOrDefault(false)
+        return fromManager || serviceState?.roaming == true
     }
 
     @SuppressLint("MissingPermission")
@@ -1166,13 +1207,33 @@ object CellularSignalReader {
         registeredPci: Int?,
         overlay: (RankedServingCell, Int?, Int?) -> RankedServingCell
     ): RankedServingCell? {
+        val rankedEarfcn = ranked?.let { it.lteEarfcn ?: it.nrEarfcn ?: it.gsmEarfcn }
+        val rankedPci = ranked?.let { it.ltePci ?: it.nrPci ?: it.gsmBsic }
+        val keyMatchEarfcn = keyMatch?.let { it.lteEarfcn ?: it.nrEarfcn ?: it.gsmEarfcn }
+        val keyMatchPci = keyMatch?.let { it.ltePci ?: it.nrPci ?: it.gsmBsic }
+        if (ranked != null &&
+            ServingCellSelection.preferCampedPairOverRegistered(
+                campedEarfcn = rankedEarfcn,
+                campedPci = rankedPci,
+                campedConnectionRank = ranked.connectionRank,
+                registeredEarfcn = registeredEarfcn,
+                registeredPci = registeredPci,
+                keyMatchEarfcn = keyMatchEarfcn,
+                keyMatchPci = keyMatchPci,
+                keyMatchConnectionRank = keyMatch?.connectionRank ?: 0
+            )
+        ) {
+            return ranked
+        }
         val (earfcn, pci) = ServingCellSelection.resolveLteIdentity(
-            rankedEarfcn = ranked?.let { it.lteEarfcn ?: it.nrEarfcn ?: it.gsmEarfcn },
-            rankedPci = ranked?.let { it.ltePci ?: it.nrPci ?: it.gsmBsic },
-            keyMatchEarfcn = keyMatch?.let { it.lteEarfcn ?: it.nrEarfcn ?: it.gsmEarfcn },
-            keyMatchPci = keyMatch?.let { it.ltePci ?: it.nrPci ?: it.gsmBsic },
+            rankedEarfcn = rankedEarfcn,
+            rankedPci = rankedPci,
+            keyMatchEarfcn = keyMatchEarfcn,
+            keyMatchPci = keyMatchPci,
             registeredEarfcn = registeredEarfcn,
-            registeredPci = registeredPci
+            registeredPci = registeredPci,
+            rankedConnectionRank = ranked?.connectionRank ?: 0,
+            keyMatchConnectionRank = keyMatch?.connectionRank ?: 0
         )
         val usableKeyMatch = keyMatch?.takeIf {
             ServingCellSelection.matchesRegisteredKeys(
@@ -1191,8 +1252,6 @@ object CellularSignalReader {
                 pci
             )
         }
-        val rankedEarfcn = ranked.lteEarfcn ?: ranked.nrEarfcn ?: ranked.gsmEarfcn
-        val rankedPci = ranked.ltePci ?: ranked.nrPci ?: ranked.gsmBsic
         if (earfcn == rankedEarfcn && pci == rankedPci) return ranked
         return overlay(ranked, earfcn, pci)
     }
@@ -1238,26 +1297,35 @@ object CellularSignalReader {
         bestNr: RankedServingCell?,
         bestGsm: RankedServingCell?
     ): ServingCellIdentity? {
+        val rawGsmEarfcn = bestGsm?.gsmEarfcn
+        val rawGsmBsic = bestGsm?.gsmBsic
+        val gsmIsPlausible = rawGsmEarfcn != null && rawGsmBsic != null &&
+            GsmBand.isPlausibleIdentity(rawGsmEarfcn, rawGsmBsic)
+        val promoteGsmToLte = !gsmIsPlausible &&
+            rawGsmEarfcn != null &&
+            rawGsmBsic != null &&
+            bestLte == null
         val radioAccessType = when {
-            bestLte != null && bestNr != null -> RADIO_5G_ENDC
+            (bestLte != null || promoteGsmToLte) && bestNr != null -> RADIO_5G_ENDC
             bestNr != null -> RADIO_5G
-            bestLte != null -> RADIO_4G
-            bestGsm != null -> RADIO_2G
+            bestLte != null || promoteGsmToLte -> RADIO_4G
+            gsmIsPlausible -> RADIO_2G
             else -> null
         }
         val primary = when (radioAccessType) {
-            RADIO_5G_ENDC, RADIO_4G -> bestLte
+            RADIO_5G_ENDC, RADIO_4G -> bestLte ?: bestGsm
             RADIO_5G -> bestNr
             RADIO_2G -> bestGsm
             else -> bestLte ?: bestNr ?: bestGsm
         }
-        val lteEarfcn = bestLte?.lteEarfcn
-        val ltePci = bestLte?.ltePci
+        val lteEarfcn = bestLte?.lteEarfcn ?: rawGsmEarfcn.takeIf { promoteGsmToLte }
+        val ltePci = bestLte?.ltePci ?: rawGsmBsic.takeIf { promoteGsmToLte }
         val nrEarfcn = bestNr?.nrEarfcn
         val nrPci = bestNr?.nrPci
         val nrBand = bestNr?.nrBand
-        val gsmEarfcn = bestGsm?.gsmEarfcn
-        val gsmBsic = bestGsm?.gsmBsic
+        val attachGsm = radioAccessType == RADIO_2G && gsmIsPlausible
+        val gsmEarfcn = rawGsmEarfcn.takeIf { attachGsm }
+        val gsmBsic = rawGsmBsic.takeIf { attachGsm }
 
         if (lteEarfcn == null && ltePci == null && nrEarfcn == null && nrPci == null &&
             gsmEarfcn == null && gsmBsic == null
@@ -1540,16 +1608,12 @@ object CellularSignalReader {
         }
 
         fun fillGapsFrom(fallback: ServingCellIdentity): ServingCellIdentity {
-            val nextLteEarfcn = lteEarfcn ?: fallback.lteEarfcn?.takeIf {
-                ltePci == null || fallback.ltePci == null || ltePci == fallback.ltePci
-            }
+            val nextLteEarfcn = lteEarfcn ?: fallback.lteEarfcn?.takeIf { ltePci == null }
             val nextLtePci = ltePci ?: fallback.ltePci?.takeIf {
                 val earfcn = lteEarfcn ?: nextLteEarfcn
                 earfcn == null || fallback.lteEarfcn == null || earfcn == fallback.lteEarfcn
             }
-            val nextNrEarfcn = nrEarfcn ?: fallback.nrEarfcn?.takeIf {
-                nrPci == null || fallback.nrPci == null || nrPci == fallback.nrPci
-            }
+            val nextNrEarfcn = nrEarfcn ?: fallback.nrEarfcn?.takeIf { nrPci == null }
             val nextNrPci = nrPci ?: fallback.nrPci?.takeIf {
                 val earfcn = nrEarfcn ?: nextNrEarfcn
                 earfcn == null || fallback.nrEarfcn == null || earfcn == fallback.nrEarfcn

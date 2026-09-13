@@ -47,6 +47,7 @@ data class ConnectivityStats(
     val networkServiceMode: NetworkServiceMode = NetworkServiceMode.UNKNOWN,
     /** Voice/CS camped, packet data not registered (e.g. 4G bands locked, 2G voice remains). */
     val isVoiceOnlyNoData: Boolean = false,
+    val isNetworkRoaming: Boolean = false,
     /** WiFi calling / VoWiFi registered as the in-service transport — see [CellularRadioMetrics.isWifiCallingActive]. */
     val isWifiCallingActive: Boolean = false,
     val hasLimitedServiceOnAnySim: Boolean = false,
@@ -62,6 +63,10 @@ data class ConnectivityStats(
     val subscriptionId: Int? = null,
     val simSlotIndex: Int? = null,
     val simDisplayName: String? = null,
+    val simOperatorSelectionMode: SimOperatorSelectionMode = SimOperatorSelectionMode.UNKNOWN,
+    val manualSimOperatorName: String? = null,
+    val mobileDataEnabled: Boolean? = null,
+    val selectedApn: String? = null,
     val signalPermissionGranted: Boolean = false,
     val cellIdentityPermissionGranted: Boolean = false,
     /** Debounced no-signal state (two consecutive polls to enter/exit). */

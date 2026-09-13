@@ -65,10 +65,13 @@ class MonitorStateSpecialCellAnnouncementTest {
     fun listedCellSpeaksSiteThenUnlistedCellSpeaksMacroCell() {
         val listed = camped4g(earfcn = 6300, pci = 106)
         val entry = MonitorState.updateStats(listed)
-        assertEquals("Robin Hood, streetworks, sector two", entry.specialCellAnnouncement)
+        assertEquals("Robin Hood, Streetworks, sector two", entry.specialCellAnnouncement)
 
         assertNull(MonitorState.updateStats(listed).specialCellAnnouncement)
 
+        val held = MonitorState.updateStats(camped4g(earfcn = 6300, pci = 42))
+        assertNull(held.specialCellAnnouncement)
+        MonitorState.expireSpecialCellReselectHoldForTest()
         val exit = MonitorState.updateStats(camped4g(earfcn = 6300, pci = 42))
         assertEquals(SpecialCellAnnouncement.EXIT_UNKNOWN_CELL, exit.specialCellAnnouncement)
     }
@@ -91,6 +94,43 @@ class MonitorStateSpecialCellAnnouncementTest {
             rsrqDb = null
         )
         assertNull(MonitorState.updateStats(noSignal).specialCellAnnouncement)
+    }
+
+    @Test
+    fun twoGDoesNotMatch_thenKnown4gSpeaksWhenLteIdentityArrives() {
+        assertNull(MonitorState.updateStats(camped2g(arfcn = 62, bsic = 12)).specialCellAnnouncement)
+
+        val reselectBeforeLte = MonitorState.updateStats(
+            camped4g(earfcn = 6300, pci = 106).copy(
+                lteEarfcn = null,
+                ltePci = null,
+                gsmEarfcn = 62,
+                gsmBsic = 12
+            )
+        )
+        assertNull(reselectBeforeLte.specialCellAnnouncement)
+
+        val lateLte = MonitorState.updateStats(camped4g(earfcn = 6300, pci = 106))
+        assertEquals("Robin Hood, Streetworks, sector two", lateLte.specialCellAnnouncement)
+    }
+
+    private fun camped2g(arfcn: Int, bsic: Int): ConnectivityStats {
+        return ConnectivityStats(
+            isMonitoring = true,
+            isPassiveOnlySession = true,
+            cellularAvailable = true,
+            isOn2g = true,
+            monitor2gFallbackEnabled = true,
+            radioAccessType = CellularSignalReader.RADIO_2G,
+            gsmEarfcn = arfcn,
+            gsmBsic = bsic,
+            rsrpDbm = -85,
+            plmn = "23415",
+            homePlmn = "23415",
+            networkOperatorName = "Vodafone",
+            signalPermissionGranted = true,
+            cellIdentityPermissionGranted = true
+        )
     }
 
     private fun camped4g(earfcn: Int, pci: Int): ConnectivityStats {

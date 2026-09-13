@@ -74,7 +74,7 @@ class SpecialCellCsvTest {
     }
 
     @Test
-    fun match_nrRow_usesServingNrIdentity() {
+    fun match_nrRow_isIgnoredWhileMatchingIs4gOnly() {
         val catalog = SpecialCellCsv.parse(
             """
             site,type,mno,rat,sector,channel,pci
@@ -90,10 +90,7 @@ class SpecialCellCsvTest {
             cellIdentityPermissionGranted = true
         )
 
-        val match = SpecialCellMatcher.match(stats, catalog)
-
-        assertEquals("Ikea-Oxfordst", match?.cell?.site)
-        assertEquals(SpecialCellLayer.NR, match?.layer)
+        assertNull(SpecialCellMatcher.match(stats, catalog))
     }
 
     @Test
@@ -111,6 +108,26 @@ class SpecialCellCsvTest {
         )
 
         assertNull(SpecialCellMatcher.match(stats, catalog))
+    }
+
+    @Test
+    fun match_roamingHomePlmnDoesNotHideListedCell() {
+        val catalog = SpecialCellCsv.parse(
+            """
+            site,type,mno,rat,sector,channel,pci,plmn
+            Hill Farm,Macro,Vodafone,4G,S3,3501,328,23415
+            """.trimIndent()
+        )
+        val stats = ConnectivityStats(
+            lteEarfcn = 3501,
+            ltePci = 328,
+            plmn = null,
+            homePlmn = "20801",
+            isLimitedService = true,
+            cellIdentityPermissionGranted = true
+        )
+
+        assertEquals("Hill Farm", SpecialCellMatcher.match(stats, catalog)?.cell?.site)
     }
 
     @Test

@@ -49,6 +49,10 @@ class MonitoringSettingsRepository(context: Context) {
             fiveGFeaturesEnabled = prefs.getBoolean(
                 KEY_FIVE_G_FEATURES_ENABLED,
                 MonitoringSettings.DEFAULT_FIVE_G_FEATURES_ENABLED
+            ),
+            showManualSelectOperatorButton = prefs.getBoolean(
+                KEY_SHOW_MANUAL_SELECT_OPERATOR_BUTTON,
+                MonitoringSettings.DEFAULT_SHOW_MANUAL_SELECT_OPERATOR_BUTTON
             )
         ).normalized()
     }
@@ -66,6 +70,7 @@ class MonitoringSettingsRepository(context: Context) {
             .putInt(KEY_RSRP_HISTOGRAM_THRESHOLD_2, normalized.rsrpHistogramThreshold2Dbm)
             .putInt(KEY_RSRP_HISTOGRAM_THRESHOLD_3, normalized.rsrpHistogramThreshold3Dbm)
             .putBoolean(KEY_FIVE_G_FEATURES_ENABLED, normalized.fiveGFeaturesEnabled)
+            .putBoolean(KEY_SHOW_MANUAL_SELECT_OPERATOR_BUTTON, normalized.showManualSelectOperatorButton)
             .apply()
     }
 
@@ -81,5 +86,6 @@ class MonitoringSettingsRepository(context: Context) {
         private const val KEY_RSRP_HISTOGRAM_THRESHOLD_2 = "rsrp_histogram_threshold_2_dbm"
         private const val KEY_RSRP_HISTOGRAM_THRESHOLD_3 = "rsrp_histogram_threshold_3_dbm"
         private const val KEY_FIVE_G_FEATURES_ENABLED = "five_g_features_enabled"
+        private const val KEY_SHOW_MANUAL_SELECT_OPERATOR_BUTTON = "show_manual_select_operator_button"
     }
 }

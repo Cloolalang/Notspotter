@@ -1,7 +1,9 @@
 package io.github.cloolalang.notspotdetector.model
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class GsmBandTest {
@@ -36,5 +38,13 @@ class GsmBandTest {
     fun forArfcn_unknown_returnsNull() {
         assertNull(GsmBand.forArfcn(-1))
         assertNull(GsmBand.forArfcn(2000))
+        assertNull(GsmBand.forArfcn(3501))
+    }
+
+    @Test
+    fun isPlausibleIdentity_rejectsLteEarfcnPciPair() {
+        assertTrue(GsmBand.isPlausibleIdentity(62, 12))
+        assertFalse(GsmBand.isPlausibleIdentity(3501, 328))
+        assertFalse(GsmBand.isPlausibleIdentity(223, 328))
     }
 }

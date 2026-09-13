@@ -3,6 +3,7 @@ package io.github.cloolalang.notspotdetector.model
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
+
 class RsrpHistogramTest {
 
     @Test
@@ -233,12 +234,63 @@ class RsrpHistogramTest {
     }
 
     @Test
-    fun thresholdBarFillFraction_compressesBelowEightyPercent() {
+    fun thresholdBarFillFraction_isLinearZeroToOneHundred() {
         assertEquals(0f, RsrpHistogram.thresholdBarFillFraction(0), 0.001f)
-        assertEquals(0.15f, RsrpHistogram.thresholdBarFillFraction(80), 0.001f)
+        assertEquals(0.5f, RsrpHistogram.thresholdBarFillFraction(50), 0.001f)
+        assertEquals(0.8f, RsrpHistogram.thresholdBarFillFraction(80), 0.001f)
         assertEquals(1f, RsrpHistogram.thresholdBarFillFraction(100), 0.001f)
-        val mid = RsrpHistogram.thresholdBarFillFraction(90)
-        assertEquals(0.575f, mid, 0.001f)
+    }
+
+    @Test
+    fun sigmaBarFillFraction_isLinearToThirtyDb() {
+        assertEquals(0f, RsrpHistogram.sigmaBarFillFraction(0.0), 0.001f)
+        assertEquals(0.5f, RsrpHistogram.sigmaBarFillFraction(15.0), 0.001f)
+        assertEquals(1f, RsrpHistogram.sigmaBarFillFraction(30.0), 0.001f)
+        assertEquals(1f, RsrpHistogram.sigmaBarFillFraction(40.0), 0.001f)
+    }
+
+    @Test
+    fun meanBarFillFraction_mapsMinus128ToMinus50() {
+        assertEquals(0f, RsrpHistogram.meanBarFillFraction(-128.0), 0.001f)
+        assertEquals(1f, RsrpHistogram.meanBarFillFraction(-50.0), 0.001f)
+        assertEquals(0.5f, RsrpHistogram.meanBarFillFraction(-89.0), 0.001f)
+    }
+
+    @Test
+    fun meanColorBand_usesRequestedEdges() {
+        assertEquals(RsrpMeanColorBand.RED, RsrpHistogram.meanColorBand(-128.0))
+        assertEquals(RsrpMeanColorBand.ORANGE, RsrpHistogram.meanColorBand(-123.0))
+        assertEquals(RsrpMeanColorBand.YELLOW, RsrpHistogram.meanColorBand(-115.0))
+        assertEquals(RsrpMeanColorBand.GREEN, RsrpHistogram.meanColorBand(-105.0))
+        assertEquals(RsrpMeanColorBand.LIGHT_BLUE, RsrpHistogram.meanColorBand(-95.0))
+        assertEquals(RsrpMeanColorBand.LIGHTER_BLUE, RsrpHistogram.meanColorBand(-80.0))
+        assertEquals(RsrpMeanColorBand.LIGHTER_BLUE, RsrpHistogram.meanColorBand(-50.0))
+    }
+
+    @Test
+    fun sampleTrend_detectsUpFlatAndDown() {
+        val nowMs = 20_000L
+        val rising = (0 until 8).map { index ->
+            RsrpSample(timestampMs = 10_000L + index * 1_000L, rsrpDbm = -110 + index)
+        }
+        assertEquals(
+            RsrpSampleTrend.UP,
+            RsrpHistogram.sampleTrend(rising, nowMs, windowMs = 20_000L)
+        )
+        val flat = (0 until 8).map { index ->
+            RsrpSample(timestampMs = 10_000L + index * 1_000L, rsrpDbm = -100)
+        }
+        assertEquals(
+            RsrpSampleTrend.FLAT,
+            RsrpHistogram.sampleTrend(flat, nowMs, windowMs = 20_000L)
+        )
+        val falling = (0 until 8).map { index ->
+            RsrpSample(timestampMs = 10_000L + index * 1_000L, rsrpDbm = -90 - index)
+        }
+        assertEquals(
+            RsrpSampleTrend.DOWN,
+            RsrpHistogram.sampleTrend(falling, nowMs, windowMs = 20_000L)
+        )
     }
 
     @Test

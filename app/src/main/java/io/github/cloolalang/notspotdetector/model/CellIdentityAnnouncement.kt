@@ -53,9 +53,10 @@ object CellIdentityAnnouncement {
     ): String {
         if (previous == next) return ""
 
-        val bandPhrase = if (speakBandEnabled) {
+        val is2g = radioAccessType == CellularSignalReader.RADIO_2G
+        // 2G cell reselect always speaks channel/BSIC — never the band alternative or prefix.
+        val bandPhrase = if (speakBandEnabled && !is2g) {
             formatBandPhrase(next.lteEarfcn, bandNamingStyle)
-                ?: formatGsmBandPhrase(next.gsmEarfcn, bandNamingStyle)
         } else {
             null
         }
@@ -101,13 +102,17 @@ object CellIdentityAnnouncement {
             campedOnVisitedOperator = campedOnVisitedOperator,
             speakOperatorNameEnabled = prefixPhrases.speakOperatorName,
             speakTechnologyEnabled = prefixPhrases.speakTechnology,
-            prefixSpeakBandEnabled = prefixPhrases.speakBand,
-            prefixBandPhrase = prefixPhrases.bandPhraseFor(
-                next.lteEarfcn,
-                next.nrBand,
-                next.gsmEarfcn,
-                namingStyle = bandNamingStyle
-            )
+            prefixSpeakBandEnabled = prefixPhrases.speakBand && !is2g,
+            prefixBandPhrase = if (is2g) {
+                null
+            } else {
+                prefixPhrases.bandPhraseFor(
+                    next.lteEarfcn,
+                    next.nrBand,
+                    next.gsmEarfcn,
+                    namingStyle = bandNamingStyle
+                )
+            }
         )
     }
 

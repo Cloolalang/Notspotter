@@ -48,6 +48,8 @@ import io.github.cloolalang.notspotdetector.R
 import java.io.File
 import io.github.cloolalang.notspotdetector.network.CarrierConfigReader
 import io.github.cloolalang.notspotdetector.network.CellularSignalReader
+import io.github.cloolalang.notspotdetector.network.MobileDataControl
+import io.github.cloolalang.notspotdetector.network.NetworkOperatorControl
 import io.github.cloolalang.notspotdetector.network.SimSubscriptionHelper
 import io.github.cloolalang.notspotdetector.audio.CellVoiceAnnouncer
 import io.github.cloolalang.notspotdetector.audio.AlertVibrator
@@ -298,6 +300,33 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
             else -> current
         }
         updateMonitoringSettings(updated)
+    }
+
+    fun updateShowManualSelectOperatorButton(enabled: Boolean) {
+        updateMonitoringSettings(
+            monitoringSettings.value.copy(showManualSelectOperatorButton = enabled)
+        )
+    }
+
+    fun openNetworkOperatorPicker() {
+        val context = getApplication<Application>()
+        val subId = SimSubscriptionHelper.resolveEffectiveSubscriptionId(
+            context,
+            monitoringSettings.value.subscriptionId
+        )
+        NetworkOperatorControl.openSystemSettings(context, subId)
+    }
+
+    fun setMobileDataEnabled(enabled: Boolean) {
+        val context = getApplication<Application>()
+        val telephonyManager = SimSubscriptionHelper.telephonyManagerFor(
+            context,
+            monitoringSettings.value.subscriptionId
+        )
+        if (!MobileDataControl.setEnabled(telephonyManager, enabled)) {
+            MobileDataControl.openSystemPanel(context)
+        }
+        refreshCellularSignal()
     }
 
     fun updateSelectedSubscription(subscriptionId: Int) {

@@ -68,6 +68,39 @@ class NetworkServiceModeTest {
     }
 
     @Test
+    fun registeredSimRoaming_ignoresLimitedServiceFallback() {
+        assertTrue(
+            isRegisteredSimRoaming(
+                modemRoaming = true,
+                serviceMode = NetworkServiceMode.IN_SERVICE,
+                isLimitedService = false
+            )
+        )
+        assertFalse(
+            isRegisteredSimRoaming(
+                modemRoaming = true,
+                serviceMode = NetworkServiceMode.LIMITED_SERVICE,
+                isLimitedService = true
+            )
+        )
+        assertFalse(
+            isRegisteredSimRoaming(
+                modemRoaming = true,
+                serviceMode = NetworkServiceMode.IN_SERVICE,
+                isLimitedService = false,
+                emergencyCamp = true
+            )
+        )
+        assertFalse(
+            isRegisteredSimRoaming(
+                modemRoaming = true,
+                serviceMode = NetworkServiceMode.IN_SERVICE,
+                isLimitedService = true
+            )
+        )
+    }
+
+    @Test
     fun voiceOnlyWhenCampedWithoutPacketData() {
         assertTrue(
             isVoiceOnlyNoData(

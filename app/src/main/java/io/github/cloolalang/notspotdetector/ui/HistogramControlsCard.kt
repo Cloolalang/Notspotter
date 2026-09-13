@@ -1,5 +1,6 @@
 package io.github.cloolalang.notspotdetector.ui
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -33,6 +35,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -45,8 +49,11 @@ import io.github.cloolalang.notspotdetector.model.RsrpHistogramBin
 import io.github.cloolalang.notspotdetector.model.RsrpHistogramBinKind
 import io.github.cloolalang.notspotdetector.model.RsrpHistogramBinningMode
 import io.github.cloolalang.notspotdetector.model.RsrpHistogramThresholdBarColor
+import io.github.cloolalang.notspotdetector.model.RsrpMeanColorBand
 import io.github.cloolalang.notspotdetector.model.RsrpSample
+import io.github.cloolalang.notspotdetector.model.RsrpSampleTrend
 import io.github.cloolalang.notspotdetector.model.coerceToHistogramWindowStep
+import io.github.cloolalang.notspotdetector.ui.theme.BondiBlue
 import io.github.cloolalang.notspotdetector.ui.theme.Sushi
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
@@ -253,6 +260,8 @@ private fun RsrpHistogramDisplay(
     } else {
         displayedBins.maxOfOrNull { it.value.count }?.coerceAtLeast(1) ?: 1
     }
+    val windowStats = RsrpHistogram.windowStats(samples, nowMs, windowMs)
+    val sampleTrend = RsrpHistogram.sampleTrend(samples, nowMs, windowMs)
 
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -287,6 +296,12 @@ private fun RsrpHistogramDisplay(
                         modifier = Modifier.weight(1f)
                     )
                 }
+                if (windowStats != null) {
+                    SigmaHistogramBarColumn(
+                        stdevDbm = windowStats.stdevDbm,
+                        modifier = Modifier.width(40.dp)
+                    )
+                }
             }
             val countText = if (binningMode == RsrpHistogramBinningMode.THRESHOLD) {
                 stringResource(R.string.rsrp_histogram_sample_count, totalSamples)
@@ -303,17 +318,20 @@ private fun RsrpHistogramDisplay(
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            val stats = RsrpHistogram.windowStats(samples, nowMs, windowMs)
-            if (stats != null) {
+            if (windowStats != null) {
                 Text(
                     text = stringResource(
                         R.string.rsrp_histogram_window_stats,
-                        RsrpHistogram.formatWindowStat(stats.meanDbm),
-                        RsrpHistogram.formatWindowStat(stats.medianDbm),
-                        RsrpHistogram.formatWindowStat(stats.stdevDbm)
+                        RsrpHistogram.formatWindowStat(windowStats.meanDbm),
+                        RsrpHistogram.formatWindowStat(windowStats.medianDbm),
+                        RsrpHistogram.formatWindowStat(windowStats.stdevDbm)
                     ),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                MeanRsrpBar(
+                    meanDbm = windowStats.meanDbm,
+                    trend = sampleTrend
                 )
             }
         }
@@ -422,6 +440,196 @@ private fun RsrpHistogramBarColumn(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun SigmaHistogramBarColumn(
+    stdevDbm: Double,
+    modifier: Modifier = Modifier
+) {
+    val fillFraction = RsrpHistogram.sigmaBarFillFraction(stdevDbm)
+    BoxWithConstraints(
+        modifier = modifier.widthIn(min = 28.dp),
+        contentAlignment = Alignment.BottomCenter
+    ) {
+        val barWidth = (maxWidth * 0.42f).coerceIn(HistogramMinBarWidth, HistogramMaxBarWidth)
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Bottom
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(bottom = 4.dp)
+            ) {
+                Text(
+                    text = RsrpHistogram.formatWindowStat(stdevDbm),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 9.sp,
+                    maxLines = 1,
+                    softWrap = false,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = stringResource(R.string.rsrp_histogram_sigma_unit),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 8.sp,
+                    maxLines = 1,
+                    softWrap = false,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .width(barWidth)
+                    .height(HistogramBarAreaHeight)
+                    .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
+                contentAlignment = Alignment.BottomCenter
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight(fillFraction)
+                        .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+                        .background(BondiBlue)
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(40.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = stringResource(R.string.rsrp_histogram_sigma_label),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 11.sp,
+                    maxLines = 2,
+                    softWrap = true,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MeanRsrpBar(
+    meanDbm: Double,
+    trend: RsrpSampleTrend?,
+    modifier: Modifier = Modifier
+) {
+    val fraction = RsrpHistogram.meanBarFillFraction(meanDbm)
+    val markerColor = meanRsrpBandColor(RsrpHistogram.meanColorBand(meanDbm))
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.rsrp_histogram_mean_title),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = Sushi
+            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(
+                        R.string.rsrp_histogram_mean_value,
+                        RsrpHistogram.formatWindowStat(meanDbm)
+                    ),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Medium
+                )
+                RsrpTrendIcon(trend = trend)
+            }
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(18.dp)
+                .clip(RoundedCornerShape(9.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(fraction)
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(9.dp))
+                    .background(markerColor)
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = stringResource(R.string.rsrp_histogram_mean_min),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = stringResource(R.string.rsrp_histogram_mean_max),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun RsrpTrendIcon(trend: RsrpSampleTrend?) {
+    val (drawable, tint, description) = when (trend) {
+        RsrpSampleTrend.UP -> Triple(
+            R.drawable.ic_rsrp_trend_up,
+            Sushi,
+            stringResource(R.string.rsrp_histogram_trend_up)
+        )
+        RsrpSampleTrend.DOWN -> Triple(
+            R.drawable.ic_rsrp_trend_down,
+            ThresholdRed,
+            stringResource(R.string.rsrp_histogram_trend_down)
+        )
+        RsrpSampleTrend.FLAT -> Triple(
+            R.drawable.ic_rsrp_trend_flat,
+            MaterialTheme.colorScheme.onSurfaceVariant,
+            stringResource(R.string.rsrp_histogram_trend_flat)
+        )
+        null -> return
+    }
+    Image(
+        painter = painterResource(drawable),
+        contentDescription = description,
+        colorFilter = ColorFilter.tint(tint),
+        modifier = Modifier.size(18.dp)
+    )
+}
+
+private val MeanRsrpRed = Color(0xFFFF1744)
+private val MeanRsrpOrange = Color(0xFFFF9800)
+private val MeanRsrpYellow = Color(0xFFFFEB3B)
+private val MeanRsrpGreen = Color(0xFF66BB6A)
+private val MeanRsrpLightBlue = Color(0xFF81D4FA)
+private val MeanRsrpLighterBlue = Color(0xFFB3E5FC)
+
+private fun meanRsrpBandColor(band: RsrpMeanColorBand): Color {
+    return when (band) {
+        RsrpMeanColorBand.RED -> MeanRsrpRed
+        RsrpMeanColorBand.ORANGE -> MeanRsrpOrange
+        RsrpMeanColorBand.YELLOW -> MeanRsrpYellow
+        RsrpMeanColorBand.GREEN -> MeanRsrpGreen
+        RsrpMeanColorBand.LIGHT_BLUE -> MeanRsrpLightBlue
+        RsrpMeanColorBand.LIGHTER_BLUE -> MeanRsrpLighterBlue
     }
 }
 

@@ -5,6 +5,154 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.58.1] - 2026-09-13
+
+### Changed
+
+- **Mean RSRP bar** — The colour now fills only up to the current mean, on a grey track, like the histogram bars.
+
+## [2.58.0] - 2026-09-13
+
+### Added
+
+- **Sigma and Mean RSRP** — The level histogram has a blue Sigma bar (0–30 dB) and a Mean RSRP bar (−128 to −50 dBm) with colour bands and up / flat / down trend icons.
+
+### Changed
+
+- **Threshold bars are linear 0–100%** — Occupancy height is no longer compressed below 80%.
+
+## [2.57.3] - 2026-09-13
+
+### Changed
+
+- **Manually selected operator** — That metrics row is hidden when network selection is automatic or no locked operator is available.
+
+## [2.57.2] - 2026-09-13
+
+### Fixed
+
+- **Known cells on a roaming SIM** — Limited service on a roaming SIM no longer hides a listed 4G EARFCN/PCI just because the SIM home PLMN is not the cell’s PLMN. Matching uses the camped channel/PCI; PLMN only breaks ties when two rows share the same pair.
+
+## [2.57.1] - 2026-09-13
+
+### Fixed
+
+- **Known cell 3501/328 shown as 6300/328** — After 2G↔4G flips, a stale 800 MHz EARFCN was glued onto the live PCI. The camped 4G carrier (for example Hill Farm 3501/328) is used instead of mixing it with another channel that shares the same PCI.
+
+## [2.57.0] - 2026-09-13
+
+### Added
+
+- **Manually selected operator** — Cellular metrics has a new row under Home operator for the locked network. SIM still shows only Auto or Manual.
+
+### Fixed
+
+- **APN shows “—”** — The APN row now also reads the mobile NetworkInfo extra, the last data-state broadcast, and the SIM APN list, not only the privileged preferapn table.
+
+## [2.56.0] - 2026-09-13
+
+### Changed
+
+- **Known cells are 4G only** — Matching uses the serving 4G EARFCN/PCI. 2G and 5G list rows are ignored for now. The Known cells panel now sits in Passive mode monitoring.
+
+## [2.55.3] - 2026-09-13
+
+### Fixed
+
+- **Known cell 3501/328 shown as 2G** — A 4G EARFCN/PCI such as 3501/328 was being decoded as 2G, so the list row did not match. Known-cell matching now uses the camped technology (and rejects impossible 2G ARFCN/BSIC pairs) so that cell is 4G 3501/328.
+
+## [2.55.2] - 2026-09-13
+
+### Fixed
+
+- **Known cell after 2G→4G** — After a reselect, known-cell matching waits a few seconds for the new technology identity (for example 4G EARFCN/PCI) before treating the cell as unknown. Leftover 2G channel/BSIC is ignored once the phone has left 2G.
+
+## [2.55.1] - 2026-09-13
+
+### Fixed
+
+- **SIM metric wrap** — The SIM value in cellular metrics now wraps onto the next line instead of being cut off.
+
+## [2.55.0] - 2026-09-13
+
+### Changed
+
+- **Manual select operator** — The home button is now **Manual select operator (with roaming SIM)**. Monitoring options has a password-locked switch that shows or hides that button. The Automatic / Manual radios were removed from that panel.
+
+## [2.54.2] - 2026-09-13
+
+### Fixed
+
+- **Choose operator destination** — Choose operator now opens Android’s Network operators page when the phone exposes it, instead of stopping at a parent mobile-network or wireless screen.
+
+## [2.54.1] - 2026-09-13
+
+### Changed
+
+- **Home Choose operator** — The top Choose operator button only appears when the phone is on Manual. It is hidden while operator selection is Automatic.
+
+## [2.54.0] - 2026-09-13
+
+### Added
+
+- **Choose operator on the home title** — A Choose operator button now sits under NotSpotter and the operator name so you can open the network list from the top of the screen.
+
+## [2.53.0] - 2026-09-13
+
+### Added
+
+- **Network operator panel** — Monitoring options now has Automatic / Manual and Choose operator. These controls are not password-locked. If the app cannot change the modem, Android’s Network operators screen opens.
+
+## [2.52.3] - 2026-09-13
+
+### Fixed
+
+- **APN showed —** — Android blocks the APN settings table for normal apps. The metric now reads the APN from the active mobile-data connection (for example `everywhere`). It still shows — if mobile data is off or the phone does not expose the name.
+
+## [2.52.2] - 2026-09-13
+
+### Added
+
+- **APN in cellular metrics** — The selected APN now sits under the operator rows (profile name and host when they differ, for example `EE Internet · eeinternet`).
+
+## [2.52.1] - 2026-09-13
+
+### Fixed
+
+- **Roaming vs limited service** — Service says Roaming only for registered SIM roaming. Visiting limited-service fallback (SOS / emergency camp on another operator) stays **Limited service**, even if Android’s roaming bit is set.
+
+## [2.52.0] - 2026-09-13
+
+### Changed
+
+- **Service while roaming** — When the SIM is registered as roaming, Service shows **In service, Roaming** (or **In service, voice only, Roaming** if data is not registered).
+
+## [2.51.0] - 2026-09-13
+
+### Added
+
+- **Mobile data lock** — The phone’s mobile data switch is now in Monitoring options and only moves after you unlock settings. The SIM metric also shows Data on or Data off. If Android will not let the app flip the switch, unlock still opens the system internet panel.
+
+## [2.50.0] - 2026-09-13
+
+### Added
+
+- **SIM operator selection** — The SIM metric now shows whether the phone’s network-operator list is Auto or Manual. When Manual, the locked operator is included if it differs from the SIM name (for example `Vodafone UK · Manual · EE`).
+
+## [2.49.1] - 2026-09-13
+
+### Changed
+
+- **2G cell reselect voice** — VA-10 no longer speaks band on 2G. A 2G reselect stays “cell reselect, channel …, BSIC …”, even when Speak band is on.
+
+## [2.49.0] - 2026-09-13
+
+### Changed
+
+- **Cellular metrics labels** — Network service is now Service. 4G EARFCN and PCI are one Primary Carrier row (`3501/123`). 2G ARFCN and BSIC are one Serving cell row (`221/12`). Band sits under Technology as Band (MHz/band) with values such as `800/20`.
+- **4G neighbour rows** — Primary intra-cells is now Intra-cells. Alternate layer(s) is now Inter-cells.
+- **2G neighbour rows** — Primary intra dominance and Inter-cells are hidden. Intra-cells is Neighbor cells. Signal (2G dBm) is RX Level.
+
 ## [2.48.2] - 2026-09-12
 
 ### Changed

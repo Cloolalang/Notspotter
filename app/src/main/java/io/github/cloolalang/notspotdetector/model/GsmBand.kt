@@ -29,4 +29,9 @@ object GsmBand {
         val range = RANGES.find { arfcn in it.arfcn } ?: return null
         return GsmBandInfo(range.mhz, range.eutraBand)
     }
+
+    /** BSIC is 0–63. LTE EARFCN/PCI pairs such as 3501/328 must not be treated as 2G. */
+    fun isPlausibleIdentity(arfcn: Int, bsic: Int): Boolean {
+        return bsic in 0..63 && forArfcn(arfcn) != null
+    }
 }

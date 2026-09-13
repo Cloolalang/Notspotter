@@ -342,6 +342,7 @@ class CellularPingMonitor(
             isLimitedService = metrics.isLimitedService,
             networkServiceMode = metrics.networkServiceMode,
             isVoiceOnlyNoData = metrics.isVoiceOnlyNoData,
+            isNetworkRoaming = metrics.isNetworkRoaming,
             isWifiCallingActive = metrics.isWifiCallingActive,
             hasLimitedServiceOnAnySim = metrics.hasLimitedServiceOnAnySim,
             isCompleteNoService = metrics.isCompleteNoService,
@@ -356,6 +357,10 @@ class CellularPingMonitor(
             subscriptionId = metrics.subscriptionId,
             simSlotIndex = metrics.simSlotIndex,
             simDisplayName = metrics.simDisplayName,
+            simOperatorSelectionMode = metrics.simOperatorSelectionMode,
+            manualSimOperatorName = metrics.manualSimOperatorName,
+            mobileDataEnabled = metrics.mobileDataEnabled,
+            selectedApn = metrics.selectedApn,
             signalPermissionGranted = metrics.permissionGranted,
             cellIdentityPermissionGranted = metrics.cellIdentityPermissionGranted,
             lteLayerResilience = metrics.lteLayerResilience

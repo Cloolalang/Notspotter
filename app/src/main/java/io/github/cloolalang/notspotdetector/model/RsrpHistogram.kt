@@ -41,6 +41,23 @@ enum class RsrpHistogramThresholdBarColor {
     RED
 }
 
+/** Colour band for the Mean RSRP horizontal bar. */
+enum class RsrpMeanColorBand {
+    RED,
+    ORANGE,
+    YELLOW,
+    GREEN,
+    LIGHT_BLUE,
+    LIGHTER_BLUE
+}
+
+/** Direction of in-window RSRP samples (newer half vs older half). */
+enum class RsrpSampleTrend {
+    UP,
+    FLAT,
+    DOWN
+}
+
 /** Mean, median, and sample standard deviation of in-window measured RSRP values. */
 data class RsrpWindowStats(
     val meanDbm: Double,
@@ -83,10 +100,11 @@ object RsrpHistogram {
     const val THRESHOLD_BIN_COUNT = 3
     const val THRESHOLD_GREEN_MIN_PERCENT = 95
     const val THRESHOLD_ORANGE_MIN_PERCENT = 90
-    /** Occupancy below this is compressed into the bottom of the threshold-bar scale. */
-    const val THRESHOLD_BAR_PERCENT_FLOOR = 80
-    /** Share of bar height reserved for 0–[THRESHOLD_BAR_PERCENT_FLOOR]% occupancy. */
-    const val THRESHOLD_BAR_LOW_SPAN = 0.15f
+    const val MEAN_BAR_MIN_DBM = -128
+    const val MEAN_BAR_MAX_DBM = -50
+    const val SIGMA_BAR_MAX_DB = 30.0
+    const val TREND_DEADBAND_DB = 2.0
+    const val TREND_MIN_SAMPLES = 6
 
     fun binIndexForRsrp(rsrpDbm: Int): Int {
         val clamped = rsrpDbm.coerceIn(MIN_RSRP_DBM, MAX_RSRP_DBM)
@@ -235,19 +253,56 @@ object RsrpHistogram {
         }
     }
 
-    /**
-     * Maps occupancy percent to a bar fill. 0–80% is compressed into the bottom 15% of
-     * the column so 80–100% (the range that matters for threshold floors) uses most of
-     * the height.
-     */
+    /** Linear 0–100% occupancy → bar height. */
     fun thresholdBarFillFraction(percent: Int): Float {
-        val p = percent.coerceIn(0, 100)
-        val floor = THRESHOLD_BAR_PERCENT_FLOOR
-        val lowSpan = THRESHOLD_BAR_LOW_SPAN
-        if (p <= floor) {
-            return (p / floor.toFloat()) * lowSpan
+        return percent.coerceIn(0, 100) / 100f
+    }
+
+    fun sigmaBarFillFraction(stdevDbm: Double): Float {
+        return (stdevDbm / SIGMA_BAR_MAX_DB).toFloat().coerceIn(0f, 1f)
+    }
+
+    fun meanBarFillFraction(meanDbm: Double): Float {
+        val span = (MEAN_BAR_MAX_DBM - MEAN_BAR_MIN_DBM).toFloat()
+        return ((meanDbm - MEAN_BAR_MIN_DBM) / span).toFloat().coerceIn(0f, 1f)
+    }
+
+    fun meanColorBand(meanDbm: Double): RsrpMeanColorBand {
+        return when {
+            meanDbm < -123.0 -> RsrpMeanColorBand.RED
+            meanDbm < -115.0 -> RsrpMeanColorBand.ORANGE
+            meanDbm < -105.0 -> RsrpMeanColorBand.YELLOW
+            meanDbm < -95.0 -> RsrpMeanColorBand.GREEN
+            meanDbm < -80.0 -> RsrpMeanColorBand.LIGHT_BLUE
+            else -> RsrpMeanColorBand.LIGHTER_BLUE
         }
-        return lowSpan + ((p - floor) / (100f - floor)) * (1f - lowSpan)
+    }
+
+    /**
+     * Compares the newer half of in-window samples to the older half.
+     * Null when there are too few measured values.
+     */
+    fun sampleTrend(
+        samples: List<RsrpSample>,
+        nowMs: Long,
+        windowMs: Long = DEFAULT_WINDOW_MS,
+        deadbandDb: Double = TREND_DEADBAND_DB
+    ): RsrpSampleTrend? {
+        val cutoff = nowMs - windowMs
+        val values = samples
+            .filter { it.timestampMs >= cutoff && it.rsrpDbm != null }
+            .sortedBy { it.timestampMs }
+            .mapNotNull { it.rsrpDbm }
+        if (values.size < TREND_MIN_SAMPLES) return null
+        val mid = values.size / 2
+        val older = values.subList(0, mid).average()
+        val newer = values.subList(mid, values.size).average()
+        val delta = newer - older
+        return when {
+            delta >= deadbandDb -> RsrpSampleTrend.UP
+            delta <= -deadbandDb -> RsrpSampleTrend.DOWN
+            else -> RsrpSampleTrend.FLAT
+        }
     }
 
     /**

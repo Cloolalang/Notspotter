@@ -174,7 +174,8 @@ class AppSettingsSnapshotCodecCompletenessTest {
                 rsrpHistogramThreshold1Dbm = -90,
                 rsrpHistogramThreshold2Dbm = -100,
                 rsrpHistogramThreshold3Dbm = -120,
-                fiveGFeaturesEnabled = true
+                fiveGFeaturesEnabled = true,
+                showManualSelectOperatorButton = true
             ),
             passiveSignalSettings = PassiveSignalSettings(
                 noSignalRsrpDbm = -128,
@@ -339,7 +340,8 @@ class AppSettingsSnapshotCodecCompletenessTest {
             "rsrpHistogramThreshold1Dbm",
             "rsrpHistogramThreshold2Dbm",
             "rsrpHistogramThreshold3Dbm",
-            "fiveGFeaturesEnabled"
+            "fiveGFeaturesEnabled",
+            "showManualSelectOperatorButton"
         )
 
         private val PASSIVE_MOCK_KEYS = setOf(

@@ -40,6 +40,9 @@ object ServingCellSelection {
     /**
      * ServiceState is the subscription serving identity. allCellInfo may still list a
      * removed-SIM cell (same PCI, wrong EARFCN) for many minutes.
+     *
+     * Same-PCI multi-carrier sites (Hill Farm 6300/328 and 3501/328) are the exception:
+     * a camped CellInfo pair beats a stale or SCell ServiceState EARFCN.
      */
     fun resolveLteIdentity(
         rankedEarfcn: Int?,
@@ -47,8 +50,23 @@ object ServingCellSelection {
         keyMatchEarfcn: Int?,
         keyMatchPci: Int?,
         registeredEarfcn: Int?,
-        registeredPci: Int?
+        registeredPci: Int?,
+        rankedConnectionRank: Int = 0,
+        keyMatchConnectionRank: Int = 0
     ): Pair<Int?, Int?> {
+        if (preferCampedPairOverRegistered(
+                campedEarfcn = rankedEarfcn,
+                campedPci = rankedPci,
+                campedConnectionRank = rankedConnectionRank,
+                registeredEarfcn = registeredEarfcn,
+                registeredPci = registeredPci,
+                keyMatchEarfcn = keyMatchEarfcn,
+                keyMatchPci = keyMatchPci,
+                keyMatchConnectionRank = keyMatchConnectionRank
+            )
+        ) {
+            return rankedEarfcn to rankedPci
+        }
         if (registeredEarfcn != null) {
             return registeredEarfcn to (registeredPci ?: keyMatchPci ?: rankedPci)
         }
@@ -56,6 +74,30 @@ object ServingCellSelection {
             return keyMatchEarfcn to keyMatchPci
         }
         return rankedEarfcn to rankedPci
+    }
+
+    /**
+     * True when CellInfo has a camped carrier on the same PCI as ServiceState but a different
+     * EARFCN — typical after 2G↔4G or intra-site CA. Do not overlay the stale channel.
+     */
+    fun preferCampedPairOverRegistered(
+        campedEarfcn: Int?,
+        campedPci: Int?,
+        campedConnectionRank: Int,
+        registeredEarfcn: Int?,
+        registeredPci: Int?,
+        keyMatchEarfcn: Int? = null,
+        keyMatchPci: Int? = null,
+        keyMatchConnectionRank: Int = 0
+    ): Boolean {
+        if (campedEarfcn == null || campedPci == null) return false
+        if (campedConnectionRank < 1) return false
+        if (registeredEarfcn == null || registeredEarfcn == campedEarfcn) return false
+        val samePci = registeredPci == null ||
+            registeredPci == campedPci ||
+            keyMatchPci == campedPci
+        if (!samePci) return false
+        return campedConnectionRank > keyMatchConnectionRank
     }
 
     fun isStaleCell(ageMs: Long?, newestAgeMs: Long?): Boolean {

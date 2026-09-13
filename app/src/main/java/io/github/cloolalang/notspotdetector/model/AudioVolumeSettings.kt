@@ -46,8 +46,8 @@ data class AudioVolumeSettings(
     val cellChangeVoiceVolume: Float = DEFAULT_VOLUME,
     /**
      * RXSS 9 alternative announcement — speak the E-UTRA band (derived from the LTE EARFCN)
-     * instead of "cell reselect, channel …, PCI …", or the GSM band (900 / 1800) instead of
-     * channel/BSIC on 2G. Falls back to the normal phrasing when the channel cannot be mapped.
+     * instead of "cell reselect, channel …, PCI …". 2G cell reselect always keeps channel/BSIC
+     * and never speaks band. Falls back to the normal phrasing when the channel cannot be mapped.
      */
     val cellChangeSpeakBandEnabled: Boolean = DEFAULT_CELL_CHANGE_SPEAK_BAND_ENABLED,
     /** How [cellChangeSpeakBandEnabled] speaks the resolved band — number vs. MHz nickname. */

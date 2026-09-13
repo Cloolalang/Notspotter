@@ -93,6 +93,7 @@ class CellularPassiveSignalMonitor(
                 isLimitedService = radio.isLimitedService,
                 networkServiceMode = radio.networkServiceMode,
                 isVoiceOnlyNoData = radio.isVoiceOnlyNoData,
+                isNetworkRoaming = radio.isNetworkRoaming,
                 isWifiCallingActive = radio.isWifiCallingActive,
                 hasLimitedServiceOnAnySim = radio.hasLimitedServiceOnAnySim,
                 isCompleteNoService = radio.isCompleteNoService,
@@ -107,6 +108,10 @@ class CellularPassiveSignalMonitor(
                 subscriptionId = radio.subscriptionId,
                 simSlotIndex = radio.simSlotIndex,
                 simDisplayName = radio.simDisplayName,
+                simOperatorSelectionMode = radio.simOperatorSelectionMode,
+                manualSimOperatorName = radio.manualSimOperatorName,
+                mobileDataEnabled = radio.mobileDataEnabled,
+                selectedApn = radio.selectedApn,
                 signalPermissionGranted = radio.permissionGranted,
                 cellIdentityPermissionGranted = radio.cellIdentityPermissionGranted,
                 lteLayerResilience = radio.lteLayerResilience

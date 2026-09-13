@@ -94,6 +94,7 @@ object MonitorState {
     val rsrpHistory: StateFlow<List<RsrpSample>> = _rsrpHistory.asStateFlow()
 
     private var lastSpokenSpecialCellKey: String? = null
+    private var specialCellMatchHoldUntilMs: Long = 0L
     private var cellIdentityBaselineReady = false
     private val cellReselectTimestamps = mutableListOf<Long>()
     private var radioTechnologyBaselineReady = false
@@ -415,6 +416,7 @@ object MonitorState {
             isLimitedService = metrics.isLimitedService,
             networkServiceMode = metrics.networkServiceMode,
             isVoiceOnlyNoData = metrics.isVoiceOnlyNoData,
+            isNetworkRoaming = metrics.isNetworkRoaming,
             isWifiCallingActive = metrics.isWifiCallingActive,
             hasLimitedServiceOnAnySim = metrics.hasLimitedServiceOnAnySim,
             isCompleteNoService = metrics.isCompleteNoService,
@@ -429,6 +431,10 @@ object MonitorState {
             subscriptionId = metrics.subscriptionId,
             simSlotIndex = metrics.simSlotIndex,
             simDisplayName = metrics.simDisplayName,
+            simOperatorSelectionMode = metrics.simOperatorSelectionMode,
+            manualSimOperatorName = metrics.manualSimOperatorName,
+            mobileDataEnabled = metrics.mobileDataEnabled,
+            selectedApn = metrics.selectedApn,
             signalPermissionGranted = metrics.permissionGranted,
             cellIdentityPermissionGranted = metrics.cellIdentityPermissionGranted,
             lteLayerResilience = metrics.lteLayerResilience
@@ -482,6 +488,7 @@ object MonitorState {
             isLimitedService = metrics.isLimitedService,
             networkServiceMode = metrics.networkServiceMode,
             isVoiceOnlyNoData = metrics.isVoiceOnlyNoData,
+            isNetworkRoaming = metrics.isNetworkRoaming,
             isWifiCallingActive = metrics.isWifiCallingActive,
             hasLimitedServiceOnAnySim = metrics.hasLimitedServiceOnAnySim,
             isCompleteNoService = metrics.isCompleteNoService,
@@ -496,6 +503,10 @@ object MonitorState {
             subscriptionId = metrics.subscriptionId,
             simSlotIndex = metrics.simSlotIndex,
             simDisplayName = metrics.simDisplayName,
+            simOperatorSelectionMode = metrics.simOperatorSelectionMode,
+            manualSimOperatorName = metrics.manualSimOperatorName,
+            mobileDataEnabled = metrics.mobileDataEnabled,
+            selectedApn = metrics.selectedApn,
             signalPermissionGranted = metrics.permissionGranted,
             cellIdentityPermissionGranted = metrics.cellIdentityPermissionGranted,
             lteLayerResilience = metrics.lteLayerResilience
@@ -621,7 +632,15 @@ object MonitorState {
             nextDebounced.isMonitoring &&
             nextDebounced.shouldAllowCellReselectVoice(passiveSettings) &&
             nextIdentity.isServingCellReselectFrom(previousIdentity)
+        val technologyChanged = !previous.radioAccessType.isNullOrBlank() &&
+            !nextDebounced.radioAccessType.isNullOrBlank() &&
+            previous.radioAccessType != nextDebounced.radioAccessType
         val nowMs = System.currentTimeMillis()
+        if (reselectOccurred || technologyChanged) {
+            specialCellMatchHoldUntilMs = nowMs + SpecialCellMatcher.reselectHoldMs(
+                _monitoringSettings.value.passiveMeasurementIntervalMs
+            )
+        }
         val updatedTimestamps = CellReselectRate.record(
             timestampsMs = cellReselectTimestamps,
             nowMs = nowMs,
@@ -636,7 +655,8 @@ object MonitorState {
             cellChangeAnnouncement = cellChangeAnnouncement,
             specialCellAnnouncement = consumeSpecialCellAnnouncement(
                 stats = nextDebounced,
-                passiveSettings = passiveSettings
+                passiveSettings = passiveSettings,
+                nowMs = nowMs
             ),
             technologyChangeAnnouncement = technologyChangeAnnouncement,
             technologyChangeTargetRadioAccessType = nextDebounced.radioAccessType?.takeIf {
@@ -1049,7 +1069,8 @@ object MonitorState {
 
     private fun consumeSpecialCellAnnouncement(
         stats: ConnectivityStats,
-        passiveSettings: PassiveSignalSettings
+        passiveSettings: PassiveSignalSettings,
+        nowMs: Long = System.currentTimeMillis()
     ): String? {
         publishSpecialCellMatch(stats, passiveSettings)
         if (!_isRunning.value || !stats.isMonitoring) return null
@@ -1069,8 +1090,10 @@ object MonitorState {
                 speakSector = volumes.specialCellsSpeakSector
             ).takeIf { it.isNotBlank() } ?: return null
             lastSpokenSpecialCellKey = key
+            specialCellMatchHoldUntilMs = 0L
             return spoken
         }
+        if (nowMs < specialCellMatchHoldUntilMs) return null
         val leavingListedCell = lastSpokenSpecialCellKey != null
         lastSpokenSpecialCellKey = null
         if (!leavingListedCell) return null
@@ -1096,8 +1119,13 @@ object MonitorState {
         }
     }
 
+    internal fun expireSpecialCellReselectHoldForTest() {
+        specialCellMatchHoldUntilMs = 0L
+    }
+
     private fun resetCellIdentityTracking() {
         lastSpokenSpecialCellKey = null
+        specialCellMatchHoldUntilMs = 0L
         cellReselectTimestamps.clear()
         cellIdentityBaselineReady = false
         radioTechnologyBaselineReady = false

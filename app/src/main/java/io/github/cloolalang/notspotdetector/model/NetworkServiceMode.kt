@@ -23,6 +23,31 @@ fun ConnectivityStats.shouldAnnounceInServiceAfterLimited(): Boolean {
     return networkServiceMode == NetworkServiceMode.IN_SERVICE
 }
 
+/**
+ * True SIM roaming for the Service metric: registered in-service on a roaming network.
+ *
+ * This is **not** visiting limited-service fallback (SOS / emergency camp on another
+ * operator). Android often sets [android.telephony.ServiceState.getRoaming] in that case too.
+ */
+fun isRegisteredSimRoaming(
+    modemRoaming: Boolean,
+    serviceMode: NetworkServiceMode,
+    isLimitedService: Boolean,
+    emergencyCamp: Boolean = false
+): Boolean {
+    if (!modemRoaming) return false
+    if (isLimitedService || emergencyCamp) return false
+    return serviceMode == NetworkServiceMode.IN_SERVICE
+}
+
+fun ConnectivityStats.isRegisteredSimRoaming(): Boolean {
+    return isRegisteredSimRoaming(
+        modemRoaming = isNetworkRoaming,
+        serviceMode = networkServiceMode,
+        isLimitedService = isLimitedService
+    )
+}
+
 /** Voice/CS camped (in service or limited) with no packet-switched / data registration. */
 fun isVoiceOnlyNoData(
     serviceMode: NetworkServiceMode,

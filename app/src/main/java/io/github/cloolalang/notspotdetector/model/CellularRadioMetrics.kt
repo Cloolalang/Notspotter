@@ -37,6 +37,11 @@ data class CellularRadioMetrics(
     val networkServiceMode: NetworkServiceMode = NetworkServiceMode.UNKNOWN,
     /** Voice/CS camped, packet data not registered (e.g. 4G bands locked, 2G voice remains). */
     val isVoiceOnlyNoData: Boolean = false,
+    /**
+     * Registered SIM roaming (in-service). False for visiting limited-service fallback,
+     * even when Android’s roaming bit is set.
+     */
+    val isNetworkRoaming: Boolean = false,
     val hasLimitedServiceOnAnySim: Boolean = false,
     val isCompleteNoService: Boolean = false,
     val hasHomeGsmSignal: Boolean = false,
@@ -51,6 +56,14 @@ data class CellularRadioMetrics(
     val subscriptionId: Int? = null,
     val simSlotIndex: Int? = null,
     val simDisplayName: String? = null,
+    /** Phone operator-list mode: automatic selection vs a user-locked network. */
+    val simOperatorSelectionMode: SimOperatorSelectionMode = SimOperatorSelectionMode.UNKNOWN,
+    /** Locked operator name or PLMN when [simOperatorSelectionMode] is manual. */
+    val manualSimOperatorName: String? = null,
+    /** Phone mobile-data switch for the monitored SIM, or null when unread. */
+    val mobileDataEnabled: Boolean? = null,
+    /** Preferred/selected APN display, e.g. `EE Internet · eeinternet`. */
+    val selectedApn: String? = null,
     val permissionGranted: Boolean = false,
     val cellIdentityPermissionGranted: Boolean = false,
     /**

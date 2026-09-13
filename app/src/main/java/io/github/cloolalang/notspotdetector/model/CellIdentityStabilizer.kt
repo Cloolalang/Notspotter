@@ -6,15 +6,15 @@ package io.github.cloolalang.notspotdetector.model
  */
 fun CellIdentitySnapshot.coalesceWith(previous: CellIdentitySnapshot): CellIdentitySnapshot {
     val nextLteEarfcn = lteEarfcn ?: previous.lteEarfcn?.takeIf {
-        ltePci == null || previous.ltePci == null || ltePci == previous.ltePci
+        // A PCI-only poll must not keep the last EARFCN: same PCI is reused on
+        // other carriers at the same site (e.g. Hill Farm 6300/328 vs 3501/328).
+        ltePci == null
     }
     val nextLtePci = ltePci ?: previous.ltePci?.takeIf {
         val earfcn = lteEarfcn ?: nextLteEarfcn
         earfcn == null || previous.lteEarfcn == null || earfcn == previous.lteEarfcn
     }
-    val nextNrEarfcn = nrEarfcn ?: previous.nrEarfcn?.takeIf {
-        nrPci == null || previous.nrPci == null || nrPci == previous.nrPci
-    }
+    val nextNrEarfcn = nrEarfcn ?: previous.nrEarfcn?.takeIf { nrPci == null }
     val nextNrPci = nrPci ?: previous.nrPci?.takeIf {
         val earfcn = nrEarfcn ?: nextNrEarfcn
         earfcn == null || previous.nrEarfcn == null || earfcn == previous.nrEarfcn
@@ -85,7 +85,16 @@ fun ConnectivityStats.withStabilizedCellIdentity(
             gsmBsic = current.gsmBsic ?: previous.gsmBsic
         )
     } else {
-        current.coalesceWith(previous)
+        val merged = current.coalesceWith(previous)
+        if (isOn2g) {
+            merged
+        } else {
+            // Do not keep a 2G ARFCN/BSIC after the UE has already left 2G.
+            merged.copy(
+                gsmEarfcn = current.gsmEarfcn,
+                gsmBsic = current.gsmBsic
+            )
+        }
     }
     return copy(
         lteEarfcn = stabilized.lteEarfcn,
