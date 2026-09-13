@@ -13,7 +13,7 @@ class SignalPulseScheduleTest {
     fun rsrpBandChange_usesDistinctScheduleKeys() {
         val strong = lteStats(rsrpDbm = -70)
         val mid = lteStats(rsrpDbm = -90)
-        val weak = lteStats(rsrpDbm = -122)
+        val weak = lteStats(rsrpDbm = -128)
 
         val strongKey = strong.resolveSignalPulseScheduleKey(settings)
         val midKey = mid.resolveSignalPulseScheduleKey(settings)

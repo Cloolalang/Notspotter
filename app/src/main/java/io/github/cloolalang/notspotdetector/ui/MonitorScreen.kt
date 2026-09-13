@@ -41,8 +41,8 @@ import io.github.cloolalang.notspotdetector.model.CellReselectBandNamingStyle
 import io.github.cloolalang.notspotdetector.model.ConnectivityStats
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.LteLayerResilienceReading
-import io.github.cloolalang.notspotdetector.model.NetworkServiceMode
-import io.github.cloolalang.notspotdetector.model.isRegisteredSimRoaming
+import io.github.cloolalang.notspotdetector.model.ServiceStateMetricLabel
+import io.github.cloolalang.notspotdetector.model.resolveServiceStateMetricLabel
 import io.github.cloolalang.notspotdetector.model.PrimaryLayerDominance
 import io.github.cloolalang.notspotdetector.model.primaryLayerDominance
 import io.github.cloolalang.notspotdetector.model.formatHomeOperatorDisplay
@@ -136,6 +136,9 @@ fun MonitorScreen(
     onSubscriptionChange: (Int) -> Unit,
     onMobileDataEnabledChange: (Boolean) -> Unit = {},
     onShowManualSelectOperatorButtonChange: (Boolean) -> Unit = {},
+    onInhibit2gChange: (Boolean) -> Unit = {},
+    inhibit2gBusy: Boolean = false,
+    inhibit2gFailed: Boolean = false,
     onOpenNetworkOperatorPicker: () -> Unit = {},
     onVoiceAnnouncerChoiceChange: (VoiceAnnouncerChoice) -> Unit,
     onVoiceSpeechRateChange: (Float) -> Unit = {},
@@ -322,6 +325,9 @@ fun MonitorScreen(
                 onMobileDataEnabledChange = onMobileDataEnabledChange,
                 mobileDataEnabled = stats.mobileDataEnabled,
                 onShowManualSelectOperatorButtonChange = onShowManualSelectOperatorButtonChange,
+                onInhibit2gChange = onInhibit2gChange,
+                inhibit2gBusy = inhibit2gBusy,
+                inhibit2gFailed = inhibit2gFailed,
                 onPassiveMeasurementIntervalChange = onPassiveMeasurementIntervalChange
             )
 
@@ -486,14 +492,6 @@ fun MonitorScreen(
                 onEnabledChange = onRadioDebugEnabledChange,
                 onShare = onShareRadioDebugLog,
                 onClear = onClearRadioDebugLog
-            )
-        }
-
-        if (!stats.cellularAvailable && isRunning) {
-            Text(
-                text = stringResource(R.string.waiting_for_cellular),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error
             )
         }
 
@@ -919,25 +917,25 @@ private fun formatSimMetric(
 
 @Composable
 private fun formatServiceState(stats: ConnectivityStats): String {
-    if (!stats.signalPermissionGranted) {
-        return stringResource(R.string.signal_permission_required)
-    }
-    return when (stats.networkServiceMode) {
-        NetworkServiceMode.IN_SERVICE -> when {
-            stats.isRegisteredSimRoaming() && stats.isVoiceOnlyNoData ->
-                stringResource(R.string.service_state_in_service_voice_only_roaming)
-            stats.isRegisteredSimRoaming() -> stringResource(R.string.service_state_in_service_roaming)
-            stats.isVoiceOnlyNoData -> stringResource(R.string.service_state_in_service_voice_only)
-            else -> stringResource(R.string.service_state_in_service)
-        }
-        NetworkServiceMode.LIMITED_SERVICE -> if (stats.isVoiceOnlyNoData) {
+    return when (stats.resolveServiceStateMetricLabel()) {
+        ServiceStateMetricLabel.PERMISSION_REQUIRED ->
+            stringResource(R.string.signal_permission_required)
+        ServiceStateMetricLabel.IN_SERVICE -> stringResource(R.string.service_state_in_service)
+        ServiceStateMetricLabel.IN_SERVICE_ROAMING ->
+            stringResource(R.string.service_state_in_service_roaming)
+        ServiceStateMetricLabel.IN_SERVICE_VOICE_ONLY ->
+            stringResource(R.string.service_state_in_service_voice_only)
+        ServiceStateMetricLabel.IN_SERVICE_VOICE_ONLY_ROAMING ->
+            stringResource(R.string.service_state_in_service_voice_only_roaming)
+        ServiceStateMetricLabel.LIMITED_SERVICE -> stringResource(R.string.service_state_limited)
+        ServiceStateMetricLabel.LIMITED_SERVICE_VOICE_ONLY ->
             stringResource(R.string.service_state_limited_voice_only)
-        } else {
-            stringResource(R.string.service_state_limited)
-        }
-        NetworkServiceMode.OUT_OF_SERVICE,
-        NetworkServiceMode.RADIO_OFF -> stringResource(R.string.service_state_no_service)
-        NetworkServiceMode.UNKNOWN -> stringResource(R.string.service_state_unknown)
+        ServiceStateMetricLabel.VISITING_LIMITED_SERVICE ->
+            stringResource(R.string.service_state_visiting_limited)
+        ServiceStateMetricLabel.VISITING_LIMITED_SERVICE_VOICE_ONLY ->
+            stringResource(R.string.service_state_visiting_limited_voice_only)
+        ServiceStateMetricLabel.NO_SERVICE -> stringResource(R.string.service_state_no_service)
+        ServiceStateMetricLabel.UNKNOWN -> stringResource(R.string.service_state_unknown)
     }
 }
 

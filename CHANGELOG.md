@@ -5,6 +5,85 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.65.2] - 2026-09-13
+
+### Changed
+
+- **Service metric (RXSS 12)** — Visiting limited service on a visited-operator 4G/5G camp now reads **Visiting limited service** instead of **Limited service**. Home limited service is unchanged.
+
+## [2.65.1] - 2026-09-13
+
+### Changed
+
+- **RSRP bar charts** — Mean RSRP, last measurement, and the 5 dB histogram now run down to −135 dBm (was −113 dBm on the horizontal bars and −126 dBm on the level bins).
+
+## [2.65.0] - 2026-09-13
+
+### Added
+
+- **Inhibit 2G** — Password-locked switch in Monitoring options. Rooted access required. When it succeeds, 2G is dropped from the phone’s allowed network types (3G/4G/5G stay). The switch only moves after a successful root command.
+
+## [2.64.1] - 2026-09-13
+
+### Removed
+
+- **“No cellular…” footer** — The pink warning at the bottom of the main screen no longer appears during RXSS 10 (camped no signal). That state is already shown by the RXSS display; the old line incorrectly suggested turning off Wi‑Fi or turning on mobile data.
+
+## [2.64.0] - 2026-09-13
+
+### Changed
+
+- **RXSS 6 range** — The high-end control now runs from the RXSS 10 floor up to −125 dBm, instead of the previous −128 to −125 dBm mark. Lowering it widens RXSS 5 the same way RXSS 8 fills down to RXSS 15.
+
+## [2.63.0] - 2026-09-13
+
+### Changed
+
+- **RXSS 8 range** — The high-end control now runs from the RXSS 15 floor up to −85 dBm, instead of the previous −100 to −95 dBm mark.
+
+## [2.62.0] - 2026-09-13
+
+### Changed
+
+- **Mock RSRP/RX Lev** — The slider now goes down to −140 dBm so you can simulate values below the RXSS 10 / RXSS 15 floors.
+
+## [2.61.0] - 2026-09-13
+
+### Changed
+
+- **RXSS 15** — Renamed to **2G no signal**. Its RX-level floor is adjustable from −135 to −95 dBm and stays below RXSS 8.
+- **2G RSRP bands** — RXSS 7 is fixed at stronger than −85 dBm. RXSS 8 runs from the RXSS 15 floor up through −85 dBm, with a high-end mark adjustable from −95 to −100 dBm.
+
+## [2.60.1] - 2026-09-13
+
+### Changed
+
+- **RXSS 10 range** — The no-signal floor is adjustable again, from −135 to −125 dBm. It always stays at least 1 dB below the RXSS 6 high end so the bands do not overlap.
+
+## [2.60.0] - 2026-09-13
+
+### Changed
+
+- **Fixed RSRP bands** — RXSS 2–5 are now fixed 10 dB ranges (−95/−105/−115 and down to the RXSS 6 high end). Range sliders on those RXSS sections are removed.
+- **RXSS 1** — The signal-high floor is the only strong-end control, adjustable from −75 to −50 dBm.
+- **RXSS 6 / 10** — RXSS 6 high end is adjustable from −125 to −128 dBm; its floor is fixed at −135 dBm. RXSS 10 is RSRP at or below −135 dBm, so it no longer overlaps RXSS 6.
+
+## [2.59.1] - 2026-09-13
+
+### Fixed
+
+- **Threshold histogram colours** — Occupancy of 90–94% is yellow and below 90% is orange, so orange sits next to red instead of between green and yellow.
+
+## [2.59.0] - 2026-09-13
+
+### Added
+
+- **Last measurement RSRP bar** — A second horizontal bar under Mean RSRP shows the latest sample on the same −113 to −50 dBm scale and colour bands.
+
+### Changed
+
+- **Mean RSRP scale** — The horizontal bar now runs from −113 to −50 dBm instead of −128 to −50.
+
 ## [2.58.1] - 2026-09-13
 
 ### Changed

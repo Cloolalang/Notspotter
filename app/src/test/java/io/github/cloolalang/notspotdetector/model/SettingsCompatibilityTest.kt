@@ -74,7 +74,7 @@ class SettingsCompatibilityTest {
     @Test
     fun normalizedClampsNoSignalRsrpToConfigurableRange() {
         assertEquals(
-            PassiveSignalSettings.MAX_NO_SIGNAL_RSRP_DBM,
+            -126,
             PassiveSignalSettings(noSignalRsrpDbm = -110).normalized().noSignalRsrpDbm
         )
         assertEquals(
@@ -82,16 +82,8 @@ class SettingsCompatibilityTest {
             PassiveSignalSettings(noSignalRsrpDbm = -140).normalized().noSignalRsrpDbm
         )
         assertEquals(
-            -125,
-            PassiveSignalSettings(noSignalRsrpDbm = -125).normalized().noSignalRsrpDbm
-        )
-        assertEquals(
-            -133,
-            PassiveSignalSettings(noSignalRsrpDbm = -133).normalized().noSignalRsrpDbm
-        )
-        assertEquals(
-            -123,
-            PassiveSignalSettings(noSignalRsrpDbm = -123).normalized().noSignalRsrpDbm
+            -128,
+            PassiveSignalSettings(noSignalRsrpDbm = -128).normalized().noSignalRsrpDbm
         )
     }
 

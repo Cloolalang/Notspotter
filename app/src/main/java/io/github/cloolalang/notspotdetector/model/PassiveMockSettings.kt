@@ -353,7 +353,7 @@ data class PassiveMockSettings(
     companion object {
         const val DEFAULT_ENABLED = false
         /** Mock RSRP slider floor — below tier-setting minimum so very weak values can be simulated. */
-        const val MIN_MOCK_RSRP_DBM = -133
+        const val MIN_MOCK_RSRP_DBM = -140
         const val DEFAULT_RSRP_DBM = -115
         const val DEFAULT_RSRQ_DB = -18
         /** Home SIM operator — real UK name for easier voice-announcement testing. */

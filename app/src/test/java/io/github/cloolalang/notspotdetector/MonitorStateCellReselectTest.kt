@@ -142,7 +142,7 @@ class MonitorStateCellReselectTest {
             )
         )
 
-        val noSignalCamp = mock.copy(rsrpDbm = -130).toConnectivityStats(
+        val noSignalCamp = mock.copy(rsrpDbm = -135).toConnectivityStats(
             monitor2gFallback = true,
             passiveSettings = passiveSettings,
             passiveIdleMode = false,
@@ -180,7 +180,7 @@ class MonitorStateCellReselectTest {
         val mock = PassiveMockSettings(
             enabled = true,
             scenario = MockNetworkScenario.HOME_2G,
-            rsrpDbm = -95
+            rsrpDbm = -80
         )
         val stats = mock.toConnectivityStats(
             monitor2gFallback = true,
@@ -196,7 +196,7 @@ class MonitorStateCellReselectTest {
         val mock = PassiveMockSettings(
             enabled = true,
             scenario = MockNetworkScenario.ALT_OPERATOR_2G,
-            rsrpDbm = -95
+            rsrpDbm = -80
         )
         val stats = mock.toConnectivityStats(
             monitor2gFallback = true,
@@ -234,7 +234,7 @@ class MonitorStateCellReselectTest {
         val mock = PassiveMockSettings(
             enabled = true,
             scenario = MockNetworkScenario.ALT_OPERATOR_4G,
-            rsrpDbm = -122
+            rsrpDbm = -128
         )
         val stats = mock.toConnectivityStats(
             monitor2gFallback = true,
@@ -252,7 +252,7 @@ class MonitorStateCellReselectTest {
         val mock = PassiveMockSettings(
             enabled = true,
             scenario = MockNetworkScenario.ALT_OPERATOR_4G,
-            rsrpDbm = -130
+            rsrpDbm = -135
         )
         val stats = mock.toConnectivityStats(
             monitor2gFallback = true,
@@ -360,7 +360,7 @@ class MonitorStateCellReselectTest {
         MonitorState.updateStats(campedHome4g(pci = 99))
         assertEquals(1, MonitorState.stats.value.cellReselectsPerMinute)
 
-        val noSignalCamp = mock.copy(rsrpDbm = -130).toConnectivityStats(
+        val noSignalCamp = mock.copy(rsrpDbm = -135).toConnectivityStats(
             monitor2gFallback = true,
             passiveSettings = passiveSettings,
             passiveIdleMode = false,

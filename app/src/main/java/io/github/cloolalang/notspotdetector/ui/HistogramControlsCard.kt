@@ -329,11 +329,16 @@ private fun RsrpHistogramDisplay(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                MeanRsrpBar(
-                    meanDbm = windowStats.meanDbm,
+                HorizontalRsrpBar(
+                    title = stringResource(R.string.rsrp_histogram_mean_title),
+                    rsrpDbm = windowStats.meanDbm,
                     trend = sampleTrend
                 )
             }
+            HorizontalRsrpBar(
+                title = stringResource(R.string.rsrp_histogram_last_title),
+                rsrpDbm = RsrpHistogram.lastSampleRsrpDbm(samples, nowMs, windowMs)?.toDouble()
+            )
         }
     }
 }
@@ -516,13 +521,22 @@ private fun SigmaHistogramBarColumn(
 }
 
 @Composable
-private fun MeanRsrpBar(
-    meanDbm: Double,
-    trend: RsrpSampleTrend?,
+private fun HorizontalRsrpBar(
+    title: String,
+    rsrpDbm: Double?,
+    trend: RsrpSampleTrend? = null,
     modifier: Modifier = Modifier
 ) {
-    val fraction = RsrpHistogram.meanBarFillFraction(meanDbm)
-    val markerColor = meanRsrpBandColor(RsrpHistogram.meanColorBand(meanDbm))
+    val fraction = rsrpDbm?.let { RsrpHistogram.meanBarFillFraction(it) } ?: 0f
+    val markerColor = rsrpDbm?.let { meanRsrpBandColor(RsrpHistogram.meanColorBand(it)) }
+    val valueText = if (rsrpDbm != null) {
+        stringResource(
+            R.string.rsrp_histogram_mean_value,
+            RsrpHistogram.formatWindowStat(rsrpDbm)
+        )
+    } else {
+        stringResource(R.string.rsrp_histogram_null_bin_label)
+    }
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -533,7 +547,7 @@ private fun MeanRsrpBar(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = stringResource(R.string.rsrp_histogram_mean_title),
+                text = title,
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = Sushi
@@ -543,10 +557,7 @@ private fun MeanRsrpBar(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = stringResource(
-                        R.string.rsrp_histogram_mean_value,
-                        RsrpHistogram.formatWindowStat(meanDbm)
-                    ),
+                    text = valueText,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Medium
                 )
@@ -561,13 +572,15 @@ private fun MeanRsrpBar(
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
             contentAlignment = Alignment.CenterStart
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(fraction)
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(9.dp))
-                    .background(markerColor)
-            )
+            if (markerColor != null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(fraction)
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(9.dp))
+                        .background(markerColor)
+                )
+            }
         }
         Row(
             modifier = Modifier.fillMaxWidth(),

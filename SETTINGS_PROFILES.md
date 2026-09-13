@@ -36,7 +36,7 @@ Multi-profile export uses a top-level `"profiles"` array with the same object sh
 |---------|----------|-------------|---------|
 | Ping / active test | `thresholds` | `ThresholdSettings` | RTT, jitter, packet loss, good-connection click suppression |
 | Ping target | `ping` | `PingSettings` | Host, port, pings per test, interval |
-| Monitoring | `monitoring` | `MonitoringSettings` | 2G fallback, SIM, quiet passive alerts, measurement interval, RSRP histogram window / binning mode / three threshold floors, 5G features, home Manual select operator button |
+| Monitoring | `monitoring` | `MonitoringSettings` | 2G fallback, inhibit 2G (root), SIM, quiet passive alerts, measurement interval, RSRP histogram window / binning mode / three threshold floors, 5G features, home Manual select operator button |
 | Signal thresholds & tiers | `passiveSignal` | `PassiveSignalSettings` | RSRP/RSRQ bands, per-RXSS click interval, pulse duration, sound toggles (tiers 0–15, 12, 13, RSRQ 14) |
 | **Mock network** | `passiveMock` | `PassiveMockSettings` | Mock enable, scenario, RSRP, RSRQ — see below |
 | Alert audio & voice | `audio` | `AudioVolumeSettings` | Volumes, voice toggles, TTS engine choice, tier-5 announcer |
@@ -47,7 +47,7 @@ Multi-profile export uses a top-level `"profiles"` array with the same object sh
 |-----|------|-------------|
 | `enabled` | boolean | Mock network card master toggle |
 | `scenario` | string | One of `MockNetworkScenario` enum names — see [MOCK_NETWORK_SCENARIOS.md](MOCK_NETWORK_SCENARIOS.md) |
-| `rsrpDbm` | int | Mock RSRP / 2G RX level (−133 … max tier RSRP) |
+| `rsrpDbm` | int | Mock RSRP / 2G RX level (−140 … max tier RSRP) |
 | `rsrqDb` | int | Mock RSRQ (LTE/NR scenarios only) |
 
 Scenario reference and trigger states: [MOCK_NETWORK_SCENARIOS.md](MOCK_NETWORK_SCENARIOS.md).
@@ -71,7 +71,8 @@ All tier click intervals, pulse durations, and sound-enable flags for:
 - Camp tiers **0**, **10**, **11**, **12**, **13**, **31** (WiFi calling)
 - RSRQ overlay **14**
 - No-signal / dead-zone / searching / limited-service / limited-alt-2G / WiFi-calling camp settings
-- RXSS 10 no-signal RSRP threshold (`noSignalRsrpDbm`, −133 to −123 dBm)
+- RXSS 1 floor (`veryStrongRsrpMinDbm`, −75 to −50 dBm), RXSS 6 high end (`poorRsrpMinDbm`, from the RXSS 10 floor up to −125 dBm), and RXSS 10 no-signal floor (`noSignalRsrpDbm`, −135 to −125 dBm, always below RXSS 6).
+- 2G: RXSS 8 high end (`g2WeakMaxDbm`, from the RXSS 15 floor up to −85 dBm) and RXSS 15 no-signal floor (`g2NoSignalRsrpDbm`, −135 to −95 dBm, always below RXSS 8). RXSS 7 is fixed stronger than −85 dBm.
 
 Full key list: `PASSIVE_SIGNAL_KEYS` in `AppSettingsSnapshotCodecCompletenessTest`.
 

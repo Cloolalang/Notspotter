@@ -10,17 +10,21 @@ class G2SignalTierTest {
     private val settings = PassiveSignalSettings()
 
     @Test
-    fun resolveG2SignalStrengthTier_splitsAtMinus100Dbm() {
+    fun resolveG2SignalStrengthTier_usesFixedMinus85SplitAndRxss15Floor() {
         assertEquals(SignalStrengthTier.G2_STRONG, settings.resolveG2SignalStrengthTier(-65))
-        assertEquals(SignalStrengthTier.G2_STRONG, settings.resolveG2SignalStrengthTier(-99))
-        assertEquals(SignalStrengthTier.G2_STRONG, settings.resolveG2SignalStrengthTier(-100))
+        assertEquals(SignalStrengthTier.G2_STRONG, settings.resolveG2SignalStrengthTier(-84))
+        assertEquals(SignalStrengthTier.G2_WEAK, settings.resolveG2SignalStrengthTier(-85))
         assertEquals(SignalStrengthTier.G2_WEAK, settings.resolveG2SignalStrengthTier(-105))
-        assertEquals(null, settings.resolveG2SignalStrengthTier(-126))
+        assertEquals(SignalStrengthTier.G2_WEAK, settings.resolveG2SignalStrengthTier(-126))
+        assertEquals(null, settings.resolveG2SignalStrengthTier(-135))
+        val raisedFloor = settings.copy(g2NoSignalRsrpDbm = -120).normalized()
+        assertEquals(null, raisedFloor.resolveG2SignalStrengthTier(-120))
+        assertEquals(SignalStrengthTier.G2_WEAK, raisedFloor.resolveG2SignalStrengthTier(-119))
     }
 
     @Test
     fun resolveSignalMeasurementTier_usesG2TiersOn2gFallback() {
-        val strong = g2Stats(rsrpDbm = -85)
+        val strong = g2Stats(rsrpDbm = -80)
         val weak = g2Stats(rsrpDbm = -105)
 
         assertEquals(SignalMeasurementTier.G2_STRONG, strong.resolveSignalMeasurementTier(settings))
@@ -29,7 +33,7 @@ class G2SignalTierTest {
 
     @Test
     fun resolveSignalMeasurementTier_ignoresRegularTiersOn2gFallback() {
-        val stats = g2Stats(rsrpDbm = -85, rsrqDb = -20)
+        val stats = g2Stats(rsrpDbm = -80, rsrqDb = -20)
 
         assertEquals(SignalMeasurementTier.G2_STRONG, stats.resolveSignalMeasurementTier(settings))
     }
@@ -97,7 +101,7 @@ class G2SignalTierTest {
 
     @Test
     fun shouldPlayCurrentTierSignalPulse_respectsG2TierToggle() {
-        val stats = g2Stats(rsrpDbm = -85)
+        val stats = g2Stats(rsrpDbm = -80)
         val disabled = settings.copy(g2StrongTierSoundEnabled = false)
 
         assertFalse(stats.shouldPlayCurrentTierSignalPulse(disabled))

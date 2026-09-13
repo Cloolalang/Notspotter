@@ -176,6 +176,7 @@ object AppSettingsSnapshotCodec {
             .put("rsrpHistogramThreshold3Dbm", settings.rsrpHistogramThreshold3Dbm)
             .put("fiveGFeaturesEnabled", settings.fiveGFeaturesEnabled)
             .put("showManualSelectOperatorButton", settings.showManualSelectOperatorButton)
+            .put("inhibit2g", settings.inhibit2g)
     }
 
     private fun decodeMonitoring(json: JSONObject?): MonitoringSettings {
@@ -223,6 +224,10 @@ object AppSettingsSnapshotCodec {
             showManualSelectOperatorButton = json.optBoolean(
                 "showManualSelectOperatorButton",
                 MonitoringSettings.DEFAULT_SHOW_MANUAL_SELECT_OPERATOR_BUTTON
+            ),
+            inhibit2g = json.optBoolean(
+                "inhibit2g",
+                MonitoringSettings.DEFAULT_INHIBIT_2G
             )
         )
     }
@@ -267,6 +272,8 @@ object AppSettingsSnapshotCodec {
             .put("g2WeakTierPulseDurationMs", settings.g2WeakTierPulseDurationMs)
             .put("g2StrongTierSoundEnabled", settings.g2StrongTierSoundEnabled)
             .put("g2WeakTierSoundEnabled", settings.g2WeakTierSoundEnabled)
+            .put("g2WeakMaxDbm", settings.g2WeakMaxDbm)
+            .put("g2NoSignalRsrpDbm", settings.g2NoSignalRsrpDbm)
             .put("g2NoSignalTierClickIntervalMs", settings.g2NoSignalTierClickIntervalMs)
             .put("g2NoSignalTierSoundEnabled", settings.g2NoSignalTierSoundEnabled)
             .put("g2NoSignalTierPulseDurationMs", settings.g2NoSignalTierPulseDurationMs)
@@ -428,6 +435,14 @@ object AppSettingsSnapshotCodec {
             g2WeakTierSoundEnabled = json.optBoolean(
                 "g2WeakTierSoundEnabled",
                 PassiveSignalSettings.DEFAULT_TIER_SOUND_ENABLED
+            ),
+            g2WeakMaxDbm = json.optInt(
+                "g2WeakMaxDbm",
+                PassiveSignalSettings.DEFAULT_G2_WEAK_MAX_DBM
+            ),
+            g2NoSignalRsrpDbm = json.optInt(
+                "g2NoSignalRsrpDbm",
+                PassiveSignalSettings.DEFAULT_G2_NO_SIGNAL_RSRP_DBM
             ),
             g2NoSignalTierClickIntervalMs = json.optInt(
                 "g2NoSignalTierClickIntervalMs",

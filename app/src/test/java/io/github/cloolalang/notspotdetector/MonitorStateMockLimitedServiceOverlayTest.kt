@@ -33,13 +33,9 @@ import org.junit.Test
 class MonitorStateMockLimitedServiceOverlayTest {
 
     private val passiveSettings = PassiveSignalSettings(
-        noSignalRsrpDbm = -125,
-        poorRsrpMinDbm = -120,
-        fairRsrpMinDbm = -105,
-        goodRsrpMinDbm = -100,
-        mildRsrpMinDbm = -95,
-        veryStrongRsrpMinDbm = -80
-    )
+        veryStrongRsrpMinDbm = -75,
+        poorRsrpMinDbm = -125
+    ).normalized()
 
     @Before
     fun setUp() {
@@ -72,9 +68,9 @@ class MonitorStateMockLimitedServiceOverlayTest {
 
     @Test
     fun mockVisited4g_rsrpSlider_updatesOverlayThroughMonitorState() {
-        pushMockRsrp(MockNetworkScenario.ALT_OPERATOR_4G, -75)
+        pushMockRsrp(MockNetworkScenario.ALT_OPERATOR_4G, -70)
         var stats = MonitorState.stats.value
-        assertEquals(-75, stats.rsrpDbm)
+        assertEquals(-70, stats.rsrpDbm)
         assertEquals(SignalMeasurementTier.LIMITED_SERVICE, stats.resolveSignalMeasurementTier(passiveSettings))
         assertEquals(Rxss.SIGNAL_HIGH, stats.resolveLimitedServiceSignalOverlayRxss(passiveSettings))
         assertTrue(stats.shouldPlayLimitedServiceSignalOverlay(passiveSettings))
@@ -82,9 +78,9 @@ class MonitorStateMockLimitedServiceOverlayTest {
         assertFalse(stats.noSignalActive)
         assertTrue(stats.shouldPlaySignalStrengthInterval(passiveSettings))
 
-        pushMockRsrp(MockNetworkScenario.ALT_OPERATOR_4G, -122)
+        pushMockRsrp(MockNetworkScenario.ALT_OPERATOR_4G, -128)
         stats = MonitorState.stats.value
-        assertEquals(-122, stats.rsrpDbm)
+        assertEquals(-128, stats.rsrpDbm)
         assertEquals(Rxss.SIGNAL_LOW, stats.resolveLimitedServiceSignalOverlayRxss(passiveSettings))
         assertTrue(stats.shouldPlayTier5StylePeriodicVoice(passiveSettings))
         assertEquals(
@@ -92,9 +88,9 @@ class MonitorStateMockLimitedServiceOverlayTest {
             SignalStateAnnouncement.formatTier5SignalLowAnnouncement(stats)
         )
 
-        pushMockRsrp(MockNetworkScenario.ALT_OPERATOR_4G, -130)
+        pushMockRsrp(MockNetworkScenario.ALT_OPERATOR_4G, -135)
         stats = MonitorState.stats.value
-        assertEquals(-130, stats.rsrpDbm)
+        assertEquals(-135, stats.rsrpDbm)
         assertEquals(
             SignalMeasurementTier.LIMITED_4G_NO_SIGNAL,
             stats.resolveSignalMeasurementTier(passiveSettings)
@@ -111,9 +107,9 @@ class MonitorStateMockLimitedServiceOverlayTest {
 
     @Test
     fun mockVisited2g_rsrpSlider_updatesOverlayThroughMonitorState() {
-        pushMockRsrp(MockNetworkScenario.ALT_OPERATOR_2G, -95)
+        pushMockRsrp(MockNetworkScenario.ALT_OPERATOR_2G, -80)
         var stats = MonitorState.stats.value
-        assertEquals(-95, stats.rsrpDbm)
+        assertEquals(-80, stats.rsrpDbm)
         assertEquals(SignalMeasurementTier.LIMITED_ALT_2G, stats.resolveSignalMeasurementTier(passiveSettings))
         assertEquals(Rxss.G2_GOOD, stats.resolveLimitedServiceSignalOverlayRxss(passiveSettings))
         assertTrue(stats.shouldPlayLimitedServiceSignalOverlay(passiveSettings))
@@ -131,7 +127,7 @@ class MonitorStateMockLimitedServiceOverlayTest {
             SignalStateAnnouncement.formatTier5SignalLowAnnouncement(stats)
         )
 
-        pushMockRsrp(MockNetworkScenario.ALT_OPERATOR_2G, -130)
+        pushMockRsrp(MockNetworkScenario.ALT_OPERATOR_2G, -135)
         stats = MonitorState.stats.value
         assertEquals(
             SignalMeasurementTier.LIMITED_ALT_2G_NO_SIGNAL,
@@ -149,8 +145,8 @@ class MonitorStateMockLimitedServiceOverlayTest {
     fun mockVisited4gNoSignalToStrong_announcesSignalRestored() {
         val events = transitionMockRsrp(
             scenario = MockNetworkScenario.ALT_OPERATOR_4G,
-            fromRsrp = -130,
-            toRsrp = -75
+            fromRsrp = -135,
+            toRsrp = -70
         )
 
         assertTrue(events.noSignalStateChanged)
@@ -165,8 +161,8 @@ class MonitorStateMockLimitedServiceOverlayTest {
     fun mockVisited4gNoSignalToWeak_announcesSignalLowNotRestored() {
         val events = transitionMockRsrp(
             scenario = MockNetworkScenario.ALT_OPERATOR_4G,
-            fromRsrp = -130,
-            toRsrp = -122
+            fromRsrp = -135,
+            toRsrp = -128
         )
 
         assertNull(events.noSignalStateAnnouncement)
@@ -183,8 +179,8 @@ class MonitorStateMockLimitedServiceOverlayTest {
     fun mockVisited2gNoSignalToStrong_announcesSignalRestored() {
         val events = transitionMockRsrp(
             scenario = MockNetworkScenario.ALT_OPERATOR_2G,
-            fromRsrp = -130,
-            toRsrp = -95
+            fromRsrp = -135,
+            toRsrp = -80
         )
 
         assertTrue(events.noSignalStateChanged)
@@ -198,7 +194,7 @@ class MonitorStateMockLimitedServiceOverlayTest {
     fun mockVisited2gNoSignalToWeak_announcesSignalLowNotRestored() {
         val events = transitionMockRsrp(
             scenario = MockNetworkScenario.ALT_OPERATOR_2G,
-            fromRsrp = -130,
+            fromRsrp = -135,
             toRsrp = -110
         )
 
@@ -212,12 +208,12 @@ class MonitorStateMockLimitedServiceOverlayTest {
 
     @Test
     fun home4gNoSignalThenVisited4gStrong_restoresRsrpForOverlay() {
-        pushMockRsrp(MockNetworkScenario.HOME_4G, -130)
+        pushMockRsrp(MockNetworkScenario.HOME_4G, -135)
         assertTrue(MonitorState.stats.value.noSignalActive)
 
-        pushMockRsrp(MockNetworkScenario.ALT_OPERATOR_4G, -75)
+        pushMockRsrp(MockNetworkScenario.ALT_OPERATOR_4G, -70)
         val stats = MonitorState.stats.value
-        assertEquals(-75, stats.rsrpDbm)
+        assertEquals(-70, stats.rsrpDbm)
         assertEquals(Rxss.SIGNAL_HIGH, stats.resolveLimitedServiceSignalOverlayRxss(passiveSettings))
     }
 
@@ -227,11 +223,11 @@ class MonitorStateMockLimitedServiceOverlayTest {
             PassiveMockSettings(
                 enabled = true,
                 scenario = MockNetworkScenario.ALT_OPERATOR_4G,
-                rsrpDbm = -122
+                rsrpDbm = -128
             )
         )
         val stats = MonitorState.stats.value
-        assertEquals(-122, stats.rsrpDbm)
+        assertEquals(-128, stats.rsrpDbm)
         assertEquals(Rxss.SIGNAL_LOW, stats.resolveLimitedServiceSignalOverlayRxss(passiveSettings))
     }
 

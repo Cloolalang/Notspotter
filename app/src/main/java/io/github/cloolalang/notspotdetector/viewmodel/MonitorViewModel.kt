@@ -49,6 +49,7 @@ import java.io.File
 import io.github.cloolalang.notspotdetector.network.CarrierConfigReader
 import io.github.cloolalang.notspotdetector.network.CellularSignalReader
 import io.github.cloolalang.notspotdetector.network.MobileDataControl
+import io.github.cloolalang.notspotdetector.network.NetworkModeControl
 import io.github.cloolalang.notspotdetector.network.NetworkOperatorControl
 import io.github.cloolalang.notspotdetector.network.SimSubscriptionHelper
 import io.github.cloolalang.notspotdetector.audio.CellVoiceAnnouncer
@@ -91,6 +92,12 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
     private val _carrierConfigSnapshot = MutableStateFlow(CarrierConfigSnapshot())
     val carrierConfigSnapshot: StateFlow<CarrierConfigSnapshot> = _carrierConfigSnapshot.asStateFlow()
 
+    private val _inhibit2gBusy = MutableStateFlow(false)
+    val inhibit2gBusy: StateFlow<Boolean> = _inhibit2gBusy.asStateFlow()
+
+    private val _inhibit2gFailed = MutableStateFlow(false)
+    val inhibit2gFailed: StateFlow<Boolean> = _inhibit2gFailed.asStateFlow()
+
     init {
         MonitorState.setThresholds(thresholdRepository.load())
         MonitorState.setPingSettings(pingSettingsRepository.load())
@@ -117,6 +124,9 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         refreshSimSubscriptions()
         refreshCellularSignal()
         refreshCarrierConfigSnapshot()
+        if (MonitorState.monitoringSettings.value.inhibit2g) {
+            applyInhibit2gToPhone(true, persistOnSuccess = false)
+        }
     }
 
     val stats = MonitorState.stats.stateIn(
@@ -306,6 +316,10 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         updateMonitoringSettings(
             monitoringSettings.value.copy(showManualSelectOperatorButton = enabled)
         )
+    }
+
+    fun setInhibit2g(enabled: Boolean) {
+        applyInhibit2gToPhone(enabled, persistOnSuccess = true)
     }
 
     fun openNetworkOperatorPicker() {
@@ -981,6 +995,30 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         MonitorState.setMonitoringSettings(normalized)
     }
 
+    private fun applyInhibit2gToPhone(enabled: Boolean, persistOnSuccess: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _inhibit2gBusy.value = true
+            _inhibit2gFailed.value = false
+            val context = getApplication<Application>()
+            val current = MonitorState.monitoringSettings.value
+            val subId = SimSubscriptionHelper.resolveEffectiveSubscriptionId(
+                context,
+                current.subscriptionId
+            )
+            val applied = NetworkModeControl.setInhibit2g(enabled, subId)
+            if (applied) {
+                if (persistOnSuccess) {
+                    updateMonitoringSettings(current.copy(inhibit2g = enabled))
+                }
+                _inhibit2gFailed.value = false
+                refreshCellularSignal()
+            } else {
+                _inhibit2gFailed.value = true
+            }
+            _inhibit2gBusy.value = false
+        }
+    }
+
     private fun updateAudioVolumes(settings: AudioVolumeSettings) {
         val normalized = settings.normalized()
         audioVolumeRepository.save(normalized)
@@ -1014,6 +1052,7 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         updateThresholds(normalized.thresholds)
         updatePingSettings(normalized.pingSettings)
         updateMonitoringSettings(normalized.monitoringSettings)
+        applyInhibit2gToPhone(normalized.monitoringSettings.inhibit2g, persistOnSuccess = false)
         updatePassiveSignalSettings(normalized.passiveSignalSettings)
         updatePassiveMockSettings(normalized.passiveMockSettings)
         updateAudioVolumes(normalized.audioVolumes)

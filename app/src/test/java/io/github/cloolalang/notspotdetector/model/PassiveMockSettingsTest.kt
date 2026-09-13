@@ -17,9 +17,10 @@ class PassiveMockSettingsTest {
     }
 
     @Test
-    fun normalized_acceptsMockRsrpDownToMinus133() {
-        val settings = PassiveMockSettings(rsrpDbm = -133).normalized()
-        assertEquals(-133, settings.rsrpDbm)
+    fun normalized_acceptsMockRsrpDownToMinus140() {
+        val settings = PassiveMockSettings(rsrpDbm = -140).normalized()
+        assertEquals(-140, settings.rsrpDbm)
+        assertEquals(-140, PassiveMockSettings(rsrpDbm = -150).normalized().rsrpDbm)
     }
 
     @Test

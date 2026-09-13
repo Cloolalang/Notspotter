@@ -583,10 +583,22 @@ private fun TierClickSpeedSlider(
 }
 
 @Composable
+private fun FixedRsrpRangeLabel(
+    lowDbm: Int,
+    highDbm: Int,
+    accentColor: Color
+) {
+    Text(
+        text = stringResource(R.string.passive_signal_rsrp_band_range, lowDbm, highDbm),
+        style = MaterialTheme.typography.bodySmall,
+        color = accentColor
+    )
+}
+
+@Composable
 private fun RsrpBandTierIntervalControls(
     tier: SignalStrengthTier,
     settings: PassiveSignalSettings,
-    gap: Int,
     passiveMeasurementIntervalMs: Long,
     audioVolumes: AudioVolumeSettings,
     previewEnabled: Boolean,
@@ -622,17 +634,10 @@ private fun RsrpBandTierIntervalControls(
                     )
                 },
                 rangeControls = {
-                    BoundarySlider(
-                        label = rxssBoundaryAboveLabel(tierNumber),
-                        rangeLabel = stringResource(
-                            R.string.passive_signal_rsrp_band_range,
-                            settings.goodRsrpMinDbm + gap,
-                            settings.mildRsrpMinDbm
-                        ),
-                        value = settings.goodRsrpMinDbm,
-                        valueRange = (settings.fairRsrpMinDbm + gap)..(settings.mildRsrpMinDbm - gap),
-                        accentColor = accent,
-                        onValueChange = { onSettingsChange(settings.copy(goodRsrpMinDbm = it)) }
+                    FixedRsrpRangeLabel(
+                        lowDbm = settings.goodRsrpMinDbm,
+                        highDbm = settings.mildRsrpMinDbm,
+                        accentColor = accent
                     )
                 },
                 durationControls = {
@@ -683,17 +688,10 @@ private fun RsrpBandTierIntervalControls(
                     )
                 },
                 rangeControls = {
-                    BoundarySlider(
-                        label = rxssBoundaryAboveLabel(tierNumber),
-                        rangeLabel = stringResource(
-                            R.string.passive_signal_rsrp_band_range,
-                            settings.fairRsrpMinDbm + gap,
-                            settings.goodRsrpMinDbm
-                        ),
-                        value = settings.fairRsrpMinDbm,
-                        valueRange = (settings.poorRsrpMinDbm + gap)..(settings.goodRsrpMinDbm - gap),
-                        accentColor = accent,
-                        onValueChange = { onSettingsChange(settings.copy(fairRsrpMinDbm = it)) }
+                    FixedRsrpRangeLabel(
+                        lowDbm = settings.fairRsrpMinDbm,
+                        highDbm = settings.goodRsrpMinDbm,
+                        accentColor = accent
                     )
                 },
                 durationControls = {
@@ -744,7 +742,6 @@ private fun RsrpTierSettings(
 ) {
     val levelRangeBcdAccent = SignalTierColors.forStrengthTier(SignalStrengthTier.MILD)
     val gap = PassiveSignalSettings.MIN_RSRP_BAND_GAP_DBM
-    val maxMild = settings.veryStrongRsrpMinDbm - gap
     val rxss1Accent = SignalTierColors.forTierNumber(VERY_STRONG_TIER_NUMBER)
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -771,7 +768,8 @@ private fun RsrpTierSettings(
                             PassiveSignalSettings.MAX_RSRP_DBM
                         ),
                         value = settings.veryStrongRsrpMinDbm,
-                        valueRange = (settings.mildRsrpMinDbm + gap)..PassiveSignalSettings.MAX_VERY_STRONG_RSRP_DBM,
+                        valueRange = PassiveSignalSettings.MIN_VERY_STRONG_RSRP_DBM..
+                            PassiveSignalSettings.MAX_VERY_STRONG_RSRP_DBM,
                         accentColor = rxss1Accent,
                         onValueChange = { onSettingsChange(settings.copy(veryStrongRsrpMinDbm = it)) }
                     )
@@ -851,17 +849,10 @@ private fun RsrpTierSettings(
                     )
                 },
                 rangeControls = {
-                    BoundarySlider(
-                        label = rxssBoundaryAboveLabel(tierNumber),
-                        rangeLabel = stringResource(
-                            R.string.passive_signal_rsrp_band_range,
-                            settings.mildRsrpMinDbm + gap,
-                            settings.veryStrongRsrpMinDbm
-                        ),
-                        value = settings.mildRsrpMinDbm,
-                        valueRange = (settings.goodRsrpMinDbm + gap)..maxMild,
-                        accentColor = accent,
-                        onValueChange = { onSettingsChange(settings.copy(mildRsrpMinDbm = it)) }
+                    FixedRsrpRangeLabel(
+                        lowDbm = settings.mildRsrpMinDbm,
+                        highDbm = settings.veryStrongRsrpMinDbm,
+                        accentColor = accent
                     )
                 },
                 volumeControls = {
@@ -907,7 +898,6 @@ private fun RsrpTierSettings(
             RsrpBandTierIntervalControls(
                 tier = SignalStrengthTier.GOOD,
                 settings = settings,
-                gap = gap,
                 passiveMeasurementIntervalMs = passiveMeasurementIntervalMs,
                 audioVolumes = audioVolumes,
                 previewEnabled = previewEnabled,
@@ -923,7 +913,6 @@ private fun RsrpTierSettings(
             RsrpBandTierIntervalControls(
                 tier = SignalStrengthTier.FAIR,
                 settings = settings,
-                gap = gap,
                 passiveMeasurementIntervalMs = passiveMeasurementIntervalMs,
                 audioVolumes = audioVolumes,
                 previewEnabled = previewEnabled,
@@ -948,19 +937,10 @@ private fun RsrpTierSettings(
                     )
                 },
                 rangeControls = {
-                    BoundarySlider(
-                        label = rxssBoundaryAboveLabel(tierNumber),
-                        rangeLabel = stringResource(
-                            R.string.passive_signal_rsrp_band_range,
-                            settings.poorRsrpMinDbm + gap,
-                            settings.fairRsrpMinDbm
-                        ),
-                        value = settings.poorRsrpMinDbm,
-                        valueRange = (settings.noSignalRsrpDbm + gap)..
-                            (settings.fairRsrpMinDbm - gap),
-                        accentColor = accent,
-                        expandLowerEnd = true,
-                        onValueChange = { onSettingsChange(settings.copy(poorRsrpMinDbm = it)) }
+                    FixedRsrpRangeLabel(
+                        lowDbm = settings.poorRsrpMinDbm,
+                        highDbm = settings.fairRsrpMinDbm,
+                        accentColor = accent
                     )
                 },
                 volumeControls = {
@@ -1016,18 +996,20 @@ private fun RsrpTierSettings(
                 },
                 rangeControls = {
                     BoundarySlider(
-                        label = stringResource(R.string.passive_signal_boundary_no_signal),
+                        label = stringResource(R.string.passive_signal_rxss6_high_end),
                         rangeLabel = stringResource(
                             R.string.passive_signal_rsrp_band_range,
                             settings.noSignalRsrpDbm + gap,
                             settings.poorRsrpMinDbm
                         ),
-                        value = settings.noSignalRsrpDbm,
-                        valueRange = PassiveSignalSettings.MIN_NO_SIGNAL_RSRP_DBM..
-                            PassiveSignalSettings.MAX_NO_SIGNAL_RSRP_DBM,
+                        value = settings.poorRsrpMinDbm,
+                        valueRange = (settings.noSignalRsrpDbm + gap)
+                            .coerceAtLeast(PassiveSignalSettings.MIN_RXSS6_HIGH_DBM)
+                            .coerceAtMost(PassiveSignalSettings.MAX_RXSS6_HIGH_DBM)..
+                            PassiveSignalSettings.MAX_RXSS6_HIGH_DBM,
                         accentColor = accent,
                         expandLowerEnd = true,
-                        onValueChange = { onSettingsChange(settings.copy(noSignalRsrpDbm = it)) }
+                        onValueChange = { onSettingsChange(settings.copy(poorRsrpMinDbm = it)) }
                     )
                 },
                 volumeControls = {
@@ -1206,7 +1188,7 @@ private fun G2TierSettings(
                     Text(
                         text = stringResource(
                             R.string.passive_signal_g2_tier7_threshold,
-                            PassiveSignalSettings.G2_TIER_RX_LEVEL_SPLIT_DBM
+                            PassiveSignalSettings.G2_STRONG_MIN_DBM
                         ),
                         style = MaterialTheme.typography.bodySmall,
                         color = accent
@@ -1276,13 +1258,20 @@ private fun G2TierSettings(
                     )
                 },
                 rangeControls = {
-                    Text(
-                        text = stringResource(
-                            R.string.passive_signal_g2_tier8_threshold,
-                            PassiveSignalSettings.G2_TIER_RX_LEVEL_SPLIT_DBM
+                    BoundarySlider(
+                        label = stringResource(R.string.passive_signal_g2_rxss8_high_end),
+                        rangeLabel = stringResource(
+                            R.string.passive_signal_rsrp_band_range,
+                            settings.g2NoSignalRsrpDbm + PassiveSignalSettings.MIN_RSRP_BAND_GAP_DBM,
+                            settings.g2WeakMaxDbm
                         ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = accent
+                        value = settings.g2WeakMaxDbm,
+                        valueRange = (settings.g2NoSignalRsrpDbm + PassiveSignalSettings.MIN_RSRP_BAND_GAP_DBM)
+                            .coerceAtLeast(PassiveSignalSettings.MIN_G2_WEAK_MAX_DBM)..
+                            PassiveSignalSettings.MAX_G2_WEAK_MAX_DBM,
+                        accentColor = accent,
+                        expandLowerEnd = true,
+                        onValueChange = { onSettingsChange(settings.copy(g2WeakMaxDbm = it)) }
                     )
                 },
                 volumeControls = {
@@ -1683,13 +1672,15 @@ private fun NoSignalCampTierBlock(
                 BoundarySlider(
                     label = stringResource(R.string.passive_signal_boundary_no_signal),
                     rangeLabel = stringResource(
-                        R.string.passive_signal_rsrp_band_range,
-                        PassiveSignalSettings.MIN_NO_SIGNAL_RSRP_DBM,
+                        R.string.passive_signal_rsrp_band_range_at_or_below,
                         settings.noSignalRsrpDbm
                     ),
                     value = settings.noSignalRsrpDbm,
                     valueRange = PassiveSignalSettings.MIN_NO_SIGNAL_RSRP_DBM..
-                        PassiveSignalSettings.MAX_NO_SIGNAL_RSRP_DBM,
+                        minOf(
+                            PassiveSignalSettings.MAX_NO_SIGNAL_RSRP_DBM,
+                            settings.poorRsrpMinDbm - PassiveSignalSettings.MIN_RSRP_BAND_GAP_DBM
+                        ),
                     accentColor = accentColor,
                     expandLowerEnd = true,
                     onValueChange = { onSettingsChange(settings.copy(noSignalRsrpDbm = it)) }
@@ -1867,10 +1858,21 @@ private fun G2NoSignalCampTierBlock(
                 )
             },
             rangeControls = {
-                Text(
-                    text = stringResource(R.string.passive_signal_g2_no_signal_tier_threshold),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = accentColor
+                BoundarySlider(
+                    label = stringResource(R.string.passive_signal_boundary_no_signal),
+                    rangeLabel = stringResource(
+                        R.string.passive_signal_rsrp_band_range_at_or_below,
+                        settings.g2NoSignalRsrpDbm
+                    ),
+                    value = settings.g2NoSignalRsrpDbm,
+                    valueRange = PassiveSignalSettings.MIN_G2_NO_SIGNAL_RSRP_DBM..
+                        minOf(
+                            PassiveSignalSettings.MAX_G2_NO_SIGNAL_RSRP_DBM,
+                            settings.g2WeakMaxDbm - PassiveSignalSettings.MIN_RSRP_BAND_GAP_DBM
+                        ),
+                    accentColor = accentColor,
+                    expandLowerEnd = true,
+                    onValueChange = { onSettingsChange(settings.copy(g2NoSignalRsrpDbm = it)) }
                 )
             },
             volumeControls = {

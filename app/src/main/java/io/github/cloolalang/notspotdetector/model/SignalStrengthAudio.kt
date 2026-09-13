@@ -15,7 +15,7 @@ enum class SignalStrengthTier {
     G2_STRONG,
     /** RXSS 8 — 2G weak. */
     G2_WEAK,
-    /** RXSS 15 — Home 2G no signal (debounced). */
+    /** RXSS 15 — 2G no signal (debounced). */
     G2_NO_SIGNAL,
     /** RXSS 0 — Dead zone. */
     DEADZONE,
@@ -484,7 +484,11 @@ const val VERY_STRONG_SIGNAL_RSRP_DBM = PassiveSignalSettings.DEFAULT_VERY_STRON
 fun ConnectivityStats.isRsrpTooWeakForService(
     settings: PassiveSignalSettings = PassiveSignalSettings()
 ): Boolean {
-    return settings.isRsrpTooWeakForService(rsrpDbm)
+    return if (usesG2SignalTiers()) {
+        settings.isG2RsrpTooWeak(rsrpDbm)
+    } else {
+        settings.isRsrpTooWeakForService(rsrpDbm)
+    }
 }
 
 fun CellularRadioMetrics.hasUsableSignalForMonitoring(
@@ -492,7 +496,14 @@ fun CellularRadioMetrics.hasUsableSignalForMonitoring(
     settings: PassiveSignalSettings = PassiveSignalSettings()
 ): Boolean {
     if (isLimitedService) return true
-    if (rsrpDbm != null && settings.isRsrpTooWeakForService(rsrpDbm)) return false
+    if (rsrpDbm != null) {
+        val tooWeak = if (isOn2g && monitor2gFallback) {
+            settings.isG2RsrpTooWeak(rsrpDbm)
+        } else {
+            settings.isRsrpTooWeakForService(rsrpDbm)
+        }
+        if (tooWeak) return false
+    }
 
     return when {
         isOn2g && !monitor2gFallback -> true

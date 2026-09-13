@@ -47,6 +47,8 @@ fun MonitorApp(
     val rttHistory by viewModel.rttHistory.collectAsStateWithLifecycle()
     val rsrpHistory by viewModel.rsrpHistory.collectAsStateWithLifecycle()
     val carrierConfigSnapshot by viewModel.carrierConfigSnapshot.collectAsStateWithLifecycle()
+    val inhibit2gBusy by viewModel.inhibit2gBusy.collectAsStateWithLifecycle()
+    val inhibit2gFailed by viewModel.inhibit2gFailed.collectAsStateWithLifecycle()
 
     var phoneStatePermissionGranted by remember {
         mutableStateOf(viewModel.phoneStatePermissionGranted)
@@ -114,6 +116,9 @@ fun MonitorApp(
             onSubscriptionChange = viewModel::updateSelectedSubscription,
             onMobileDataEnabledChange = viewModel::setMobileDataEnabled,
             onShowManualSelectOperatorButtonChange = viewModel::updateShowManualSelectOperatorButton,
+            onInhibit2gChange = viewModel::setInhibit2g,
+            inhibit2gBusy = inhibit2gBusy,
+            inhibit2gFailed = inhibit2gFailed,
             onOpenNetworkOperatorPicker = viewModel::openNetworkOperatorPicker,
             onVoiceAnnouncerChoiceChange = viewModel::updateVoiceAnnouncerChoice,
             onVoiceSpeechRateChange = viewModel::updateVoiceSpeechRate,

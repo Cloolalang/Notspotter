@@ -67,7 +67,7 @@ class MonitorStateG2NoSignalAnnouncementTest {
         val mock = PassiveMockSettings(
             enabled = true,
             scenario = MockNetworkScenario.HOME_2G,
-            rsrpDbm = -95
+            rsrpDbm = -80
         )
         MonitorState.updateStats(
             mock.toConnectivityStats(

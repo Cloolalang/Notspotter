@@ -13,7 +13,9 @@ data class MonitoringSettings(
     val rsrpHistogramThreshold2Dbm: Int = RsrpHistogram.DEFAULT_THRESHOLD_2_DBM,
     val rsrpHistogramThreshold3Dbm: Int = RsrpHistogram.DEFAULT_THRESHOLD_3_DBM,
     val fiveGFeaturesEnabled: Boolean = DEFAULT_FIVE_G_FEATURES_ENABLED,
-    val showManualSelectOperatorButton: Boolean = DEFAULT_SHOW_MANUAL_SELECT_OPERATOR_BUTTON
+    val showManualSelectOperatorButton: Boolean = DEFAULT_SHOW_MANUAL_SELECT_OPERATOR_BUTTON,
+    /** When true, the phone’s allowed RATs exclude 2G. Requires root to apply. */
+    val inhibit2g: Boolean = DEFAULT_INHIBIT_2G
 ) {
     fun normalized(): MonitoringSettings {
         return copy(
@@ -49,6 +51,7 @@ data class MonitoringSettings(
         const val RSRP_HISTOGRAM_WINDOW_STEP_MS = 30_000L
         const val DEFAULT_FIVE_G_FEATURES_ENABLED = false
         const val DEFAULT_SHOW_MANUAL_SELECT_OPERATOR_BUTTON = false
+        const val DEFAULT_INHIBIT_2G = false
     }
 }
 

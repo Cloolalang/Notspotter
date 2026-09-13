@@ -74,6 +74,30 @@ class AppSettingsSnapshotCodecCompletenessTest {
         )
         val decoded = AppSettingsSnapshotCodec.decodeProfiles(encoded).single().settings
         assertEquals(snapshot, decoded)
+        assertEquals(-97, decoded.passiveSignalSettings.g2WeakMaxDbm)
+        assertEquals(-128, decoded.passiveSignalSettings.g2NoSignalRsrpDbm)
+        assertEquals(-60, decoded.passiveSignalSettings.veryStrongRsrpMinDbm)
+        assertEquals(-127, decoded.passiveSignalSettings.poorRsrpMinDbm)
+        assertEquals(-140, decoded.passiveMockSettings.rsrpDbm)
+    }
+
+    @Test
+    fun fullyCustomizedSnapshotExercisesEveryAdjustableField() {
+        val defaults = AppSettingsSnapshot.defaults()
+        val custom = fullyCustomizedSnapshot().normalized()
+        val leftover = matchingDefaultFields(custom.thresholds, defaults.thresholds) +
+            matchingDefaultFields(custom.pingSettings, defaults.pingSettings) +
+            matchingDefaultFields(custom.monitoringSettings, defaults.monitoringSettings) +
+            matchingDefaultFields(custom.passiveSignalSettings, defaults.passiveSignalSettings) +
+            matchingDefaultFields(custom.passiveMockSettings, defaults.passiveMockSettings) +
+            matchingDefaultFields(custom.audioVolumes, defaults.audioVolumes)
+        val allowedSameAsDefault = setOf(
+            "fairRsrpMinDbm",
+            "goodRsrpMinDbm",
+            "mildRsrpMinDbm"
+        )
+        val unexpected = leftover - allowedSameAsDefault
+        assertEquals(emptySet<String>(), unexpected)
     }
 
     private fun encodeSettingsJson(snapshot: AppSettingsSnapshot): JSONObject {
@@ -107,6 +131,16 @@ class AppSettingsSnapshotCodecCompletenessTest {
                     !field.name.startsWith("$")
             }
             .map { it.name }
+            .toSet()
+    }
+
+    private fun matchingDefaultFields(custom: Any, defaults: Any): Set<String> {
+        return persistedPropertyNames(custom.javaClass)
+            .filter { name ->
+                val field = custom.javaClass.getDeclaredField(name)
+                field.isAccessible = true
+                field.get(custom) == field.get(defaults)
+            }
             .toSet()
     }
 
@@ -170,23 +204,24 @@ class AppSettingsSnapshotCodecCompletenessTest {
                 passiveQuietUntilCritical = true,
                 passiveMeasurementIntervalMs = 4_000L,
                 rsrpHistogramWindowMs = 90_000L,
-                rsrpHistogramBinningMode = RsrpHistogramBinningMode.THRESHOLD,
+                rsrpHistogramBinningMode = RsrpHistogramBinningMode.LEVEL,
                 rsrpHistogramThreshold1Dbm = -90,
                 rsrpHistogramThreshold2Dbm = -100,
                 rsrpHistogramThreshold3Dbm = -120,
                 fiveGFeaturesEnabled = true,
-                showManualSelectOperatorButton = true
+                showManualSelectOperatorButton = true,
+                inhibit2g = true
             ),
             passiveSignalSettings = PassiveSignalSettings(
-                noSignalRsrpDbm = -128,
-                poorRsrpMinDbm = -118,
+                noSignalRsrpDbm = -130,
+                poorRsrpMinDbm = -127,
                 fairRsrpMinDbm = -104,
                 goodRsrpMinDbm = -99,
                 mildRsrpMinDbm = -94,
-                veryStrongRsrpMinDbm = -79,
+                veryStrongRsrpMinDbm = -60,
                 rsrqFairMinDb = -17,
-                rsrqTierSoundEnabled = true,
-                rsrqTierCoupledToSignalTier = false,
+                rsrqTierSoundEnabled = false,
+                rsrqTierCoupledToSignalTier = true,
                 rsrqTierWhiteNoiseVolume = 0.55f,
                 rsrqTierClickIntervalMs = 900,
                 rsrqTierPulseDurationMs = 180,
@@ -206,16 +241,18 @@ class AppSettingsSnapshotCodecCompletenessTest {
                 veryStrongTierClickIntervalMs = 1_300,
                 veryStrongTierSoundEnabled = false,
                 mildTierSoundEnabled = false,
-                goodTierSoundEnabled = true,
-                fairTierSoundEnabled = true,
+                goodTierSoundEnabled = false,
+                fairTierSoundEnabled = false,
                 poorTierSoundEnabled = false,
-                criticalTierSoundEnabled = true,
+                criticalTierSoundEnabled = false,
                 g2StrongTierClickIntervalMs = 1_700,
                 g2StrongTierPulseDurationMs = 210,
                 g2WeakTierClickIntervalMs = 480,
                 g2WeakTierPulseDurationMs = 130,
                 g2StrongTierSoundEnabled = false,
-                g2WeakTierSoundEnabled = true,
+                g2WeakTierSoundEnabled = false,
+                g2WeakMaxDbm = -97,
+                g2NoSignalRsrpDbm = -128,
                 g2NoSignalTierClickIntervalMs = 650,
                 g2NoSignalTierSoundEnabled = false,
                 g2NoSignalTierPulseDurationMs = 220,
@@ -226,7 +263,7 @@ class AppSettingsSnapshotCodecCompletenessTest {
                 noSignalTierSoundEnabled = false,
                 noSignalTierPulseDurationMs = 230,
                 searching2gTierClickIntervalMs = 620,
-                searching2gTierSoundEnabled = false,
+                searching2gTierSoundEnabled = true,
                 searching2gTierPulseDurationMs = 240,
                 limitedServiceTierClickIntervalMs = 880,
                 limitedServiceTierSoundEnabled = false,
@@ -241,14 +278,14 @@ class AppSettingsSnapshotCodecCompletenessTest {
             passiveMockSettings = PassiveMockSettings(
                 enabled = true,
                 scenario = MockNetworkScenario.ALT_OPERATOR_2G,
-                rsrpDbm = -112,
+                rsrpDbm = -140,
                 rsrqDb = -16
             ),
             audioVolumes = AudioVolumeSettings(
                 masterVoiceAnnouncementsEnabled = false,
                 pingClickVolume = 0.4f,
                 lowSignalClickVolume = 0.55f,
-                signalPulseFrequencyHz = 720,
+                signalPulseFrequencyHz = 810,
                 noSignalTierPulseFrequencyHz = 540,
                 limitedServiceTierPulseFrequencyHz = 475,
                 limitedServiceTwoToneSpreadPercent = 22,
@@ -260,42 +297,42 @@ class AppSettingsSnapshotCodecCompletenessTest {
                 levelRangeBcdPulseDurationMs = 290,
                 levelRangeBcdClickVolume = 0.62f,
                 cellChangeBellVolume = 0.45f,
-                cellChangeVoiceEnabled = true,
-                cellChangeVoiceVolume = 0.5f,
-                cellChangeSpeakBandEnabled = true,
-                cellChangeBandNamingStyle = CellReselectBandNamingStyle.MHZ_NICKNAME,
+                cellChangeVoiceEnabled = false,
+                cellChangeVoiceVolume = 0.35f,
+                cellChangeSpeakBandEnabled = false,
+                cellChangeBandNamingStyle = CellReselectBandNamingStyle.BAND_NUMBER,
                 technologyChangeTo2gToneVolume = 0.41f,
-                technologyChangeTo2gVoiceEnabled = true,
+                technologyChangeTo2gVoiceEnabled = false,
                 technologyChangeTo2gPeriodicVoiceEnabled = false,
                 technologyChangeTo2gVoiceVolume = 0.42f,
                 technologyChangeTo4gToneVolume = 0.43f,
-                technologyChangeTo4gVoiceEnabled = true,
+                technologyChangeTo4gVoiceEnabled = false,
                 technologyChangeTo4gVoiceVolume = 0.44f,
                 technologyChangeTo5gEndcToneVolume = 0.46f,
-                technologyChangeTo5gEndcVoiceEnabled = true,
+                technologyChangeTo5gEndcVoiceEnabled = false,
                 technologyChangeTo5gEndcVoiceVolume = 0.47f,
-                tier5AnnouncerEnabled = true,
+                tier5AnnouncerEnabled = false,
                 tier5PeriodicVoiceEnabled = false,
                 tier5AnnouncerVolume = 0.48f,
-                voiceAnnouncerChoice = VoiceAnnouncerChoice.SYSTEM_DEFAULT,
+                voiceAnnouncerChoice = VoiceAnnouncerChoice.MALE_1,
                 voiceAnnouncerEngineId = "engine-test",
                 voiceSpeechRate = 1.4f,
                 noSignalToneVolume = 0.49f,
-                noSignalVibrationEnabled = true,
-                noSignalVoiceEnabled = true,
+                noSignalVibrationEnabled = false,
+                noSignalVoiceEnabled = false,
                 noSignalPeriodicVoiceEnabled = false,
                 noSignalVoiceVolume = 0.51f,
                 limitedServiceToneVolume = 0.52f,
-                limitedServiceVoiceEnabled = true,
+                limitedServiceVoiceEnabled = false,
                 limitedServicePeriodicVoiceEnabled = false,
                 limitedServiceVoiceVolume = 0.53f,
-                speakOperatorNameEnabled = false,
-                speakTechnologyEnabled = false,
+                speakOperatorNameEnabled = true,
+                speakTechnologyEnabled = true,
                 cellChangePhrases = VoicePhraseOptions(speakOperatorName = false, speakTechnology = true, speakBand = true),
                 technologyChangeTo2gPhrases = VoicePhraseOptions(speakOperatorName = true, speakTechnology = false, speakBand = true),
                 technologyChangeTo4gPhrases = VoicePhraseOptions(speakOperatorName = false, speakTechnology = false, speakBand = false),
                 technologyChangeTo5gEndcPhrases = VoicePhraseOptions(speakOperatorName = true, speakTechnology = true, speakBand = true),
-                signalLowPhrases = VoicePhraseOptions(speakOperatorName = false, speakTechnology = true, speakBand = false),
+                signalLowPhrases = VoicePhraseOptions(speakOperatorName = true, speakTechnology = false, speakBand = true),
                 noSignalPhrases = VoicePhraseOptions(speakOperatorName = true, speakTechnology = false, speakBand = true),
                 limitedServicePhrases = VoicePhraseOptions(
                     speakOperatorName = false,
@@ -341,7 +378,8 @@ class AppSettingsSnapshotCodecCompletenessTest {
             "rsrpHistogramThreshold2Dbm",
             "rsrpHistogramThreshold3Dbm",
             "fiveGFeaturesEnabled",
-            "showManualSelectOperatorButton"
+            "showManualSelectOperatorButton",
+            "inhibit2g"
         )
 
         private val PASSIVE_MOCK_KEYS = setOf(
@@ -390,6 +428,8 @@ class AppSettingsSnapshotCodecCompletenessTest {
             "g2WeakTierPulseDurationMs",
             "g2StrongTierSoundEnabled",
             "g2WeakTierSoundEnabled",
+            "g2WeakMaxDbm",
+            "g2NoSignalRsrpDbm",
             "g2NoSignalTierClickIntervalMs",
             "g2NoSignalTierSoundEnabled",
             "g2NoSignalTierPulseDurationMs",

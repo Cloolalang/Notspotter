@@ -44,6 +44,9 @@ fun MonitoringSettingsCard(
     onMobileDataEnabledChange: (Boolean) -> Unit = {},
     mobileDataEnabled: Boolean? = null,
     onShowManualSelectOperatorButtonChange: (Boolean) -> Unit = {},
+    onInhibit2gChange: (Boolean) -> Unit = {},
+    inhibit2gBusy: Boolean = false,
+    inhibit2gFailed: Boolean = false,
     onPassiveMeasurementIntervalChange: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -155,6 +158,13 @@ fun MonitoringSettingsCard(
                         )
                     }
                 }
+
+                Inhibit2gToggleRow(
+                    enabled = monitoringSettings.inhibit2g,
+                    busy = inhibit2gBusy,
+                    failed = inhibit2gFailed,
+                    onEnabledChange = onInhibit2gChange
+                )
             }
         }
     }
@@ -255,6 +265,45 @@ private fun MobileDataToggleRow(
             checked = enabled == true,
             onCheckedChange = onEnabledChange,
             enabled = settingsControlsEnabled()
+        )
+    }
+}
+
+@Composable
+private fun Inhibit2gToggleRow(
+    enabled: Boolean,
+    busy: Boolean,
+    failed: Boolean,
+    onEnabledChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.monitoring_inhibit_2g),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = stringResource(R.string.monitoring_inhibit_2g_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (failed) {
+                Text(
+                    text = stringResource(R.string.monitoring_inhibit_2g_failed),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+        }
+        Switch(
+            checked = enabled,
+            onCheckedChange = onEnabledChange,
+            enabled = settingsControlsEnabled() && !busy
         )
     }
 }

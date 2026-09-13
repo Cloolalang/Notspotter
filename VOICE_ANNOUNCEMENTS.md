@@ -233,7 +233,7 @@ UI controls live under **Signal thresholds** (per RXSS) and **Alert sound volume
 |------|--------|
 | **0** | Dead zone |
 | **10** | LTE/NR no signal |
-| **15** | Home 2G no signal |
+| **15** | 2G no signal |
 | **20** | Limited 4G no signal (placeholder) |
 | **21** | Limited home 2G no signal (placeholder) |
 | **23** | Limited alt 2G no signal (placeholder) |

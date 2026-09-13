@@ -51,7 +51,7 @@ fun ConnectivityStats.isG2FlatlineActive(
 }
 
 /**
- * Home 2G no signal (RXSS 15) voice — entry, exit, and 30 s repeats.
+ * 2G no signal (RXSS 15) voice — entry, exit, and 30 s repeats.
  * Uses [noSignalActive] on the 2G fallback path; independent of camp-tier click sound toggles.
  */
 fun ConnectivityStats.shouldPlayG2NoSignalVoiceAnnouncements(

@@ -155,7 +155,7 @@ class SignalMeasurementTierTest {
             monitor2gFallbackEnabled = true,
             signalPermissionGranted = true,
             cellularAvailable = true,
-            rsrpDbm = -95
+            rsrpDbm = -80
         )
         assertFalse(stats.isG2WeakSignal(settings))
         assertEquals(SignalMeasurementTier.G2_STRONG, stats.resolveSignalMeasurementTier(settings))

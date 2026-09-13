@@ -148,6 +148,14 @@ class PassiveSignalSettingsRepository(context: Context) {
                 KEY_G2_WEAK_TIER_SOUND,
                 PassiveSignalSettings.DEFAULT_TIER_SOUND_ENABLED
             ),
+            g2WeakMaxDbm = prefs.getInt(
+                KEY_G2_WEAK_MAX_DBM,
+                PassiveSignalSettings.DEFAULT_G2_WEAK_MAX_DBM
+            ),
+            g2NoSignalRsrpDbm = prefs.getInt(
+                KEY_G2_NO_SIGNAL_RSRP,
+                PassiveSignalSettings.DEFAULT_G2_NO_SIGNAL_RSRP_DBM
+            ),
             g2NoSignalTierClickIntervalMs = prefs.getInt(
                 KEY_G2_NO_SIGNAL_TIER_CLICK_MS,
                 PassiveSignalSettings.DEFAULT_G2_NO_SIGNAL_TIER_CLICK_INTERVAL_MS
@@ -276,6 +284,8 @@ class PassiveSignalSettingsRepository(context: Context) {
             .putInt(KEY_G2_WEAK_TIER_PULSE_MS, normalized.g2WeakTierPulseDurationMs)
             .putBoolean(KEY_G2_STRONG_TIER_SOUND, normalized.g2StrongTierSoundEnabled)
             .putBoolean(KEY_G2_WEAK_TIER_SOUND, normalized.g2WeakTierSoundEnabled)
+            .putInt(KEY_G2_WEAK_MAX_DBM, normalized.g2WeakMaxDbm)
+            .putInt(KEY_G2_NO_SIGNAL_RSRP, normalized.g2NoSignalRsrpDbm)
             .putInt(KEY_G2_NO_SIGNAL_TIER_CLICK_MS, normalized.g2NoSignalTierClickIntervalMs)
             .putBoolean(KEY_G2_NO_SIGNAL_TIER_SOUND, normalized.g2NoSignalTierSoundEnabled)
             .putInt(KEY_G2_NO_SIGNAL_TIER_PULSE_MS, normalized.g2NoSignalTierPulseDurationMs)
@@ -356,6 +366,8 @@ class PassiveSignalSettingsRepository(context: Context) {
         private const val KEY_G2_WEAK_TIER_PULSE_MS = "g2_weak_tier_pulse_ms"
         private const val KEY_G2_STRONG_TIER_SOUND = "g2_strong_tier_sound_enabled"
         private const val KEY_G2_WEAK_TIER_SOUND = "g2_weak_tier_sound_enabled"
+        private const val KEY_G2_WEAK_MAX_DBM = "g2_weak_max_dbm"
+        private const val KEY_G2_NO_SIGNAL_RSRP = "g2_no_signal_rsrp_dbm"
         private const val KEY_G2_NO_SIGNAL_TIER_CLICK_MS = "g2_no_signal_tier_click_ms"
         private const val KEY_G2_NO_SIGNAL_TIER_SOUND = "g2_no_signal_tier_sound_enabled"
         private const val KEY_G2_NO_SIGNAL_TIER_PULSE_MS = "g2_no_signal_tier_pulse_ms"

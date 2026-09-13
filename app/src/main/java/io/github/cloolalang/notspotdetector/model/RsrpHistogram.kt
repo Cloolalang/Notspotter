@@ -68,7 +68,7 @@ data class RsrpWindowStats(
 
 /** Which histogram is shown — only one mode is visible at a time. */
 enum class RsrpHistogramBinningMode {
-    /** Existing 5 dB level bins from −70 to −126 dBm. */
+    /** Existing 5 dB level bins from −70 to −135 dBm. */
     LEVEL,
     /** Three “stronger than” floors plus other-samples and no-signal (N/A) bars. */
     THRESHOLD;
@@ -84,13 +84,13 @@ enum class RsrpHistogramBinningMode {
 }
 
 object RsrpHistogram {
-    const val MIN_RSRP_DBM = -126
+    const val MIN_RSRP_DBM = -135
     const val MAX_RSRP_DBM = -70
     const val BIN_SIZE_DB = 5
     const val DEFAULT_WINDOW_MS = 300_000L
     /** Histogram occupancy sample rate while monitoring (one last-known RSRP per tick). */
     const val SAMPLE_INTERVAL_MS = 1_000L
-    const val BIN_COUNT = (MAX_RSRP_DBM - MIN_RSRP_DBM + BIN_SIZE_DB - 1) / BIN_SIZE_DB
+    const val BIN_COUNT = (MAX_RSRP_DBM - MIN_RSRP_DBM) / BIN_SIZE_DB + 1
 
     const val DEFAULT_THRESHOLD_1_DBM = -95
     const val DEFAULT_THRESHOLD_2_DBM = -105
@@ -99,8 +99,8 @@ object RsrpHistogram {
     const val MAX_THRESHOLD_DBM = MAX_RSRP_DBM
     const val THRESHOLD_BIN_COUNT = 3
     const val THRESHOLD_GREEN_MIN_PERCENT = 95
-    const val THRESHOLD_ORANGE_MIN_PERCENT = 90
-    const val MEAN_BAR_MIN_DBM = -128
+    const val THRESHOLD_YELLOW_MIN_PERCENT = 90
+    const val MEAN_BAR_MIN_DBM = -135
     const val MEAN_BAR_MAX_DBM = -50
     const val SIGMA_BAR_MAX_DB = 30.0
     const val TREND_DEADBAND_DB = 2.0
@@ -235,7 +235,7 @@ object RsrpHistogram {
     }
 
     /**
-     * Threshold floors: green at ≥95%, orange at 90–94%, yellow below 90%.
+     * Threshold floors: green at ≥95%, yellow at 90–94%, orange below 90%.
      * Other-samples and N/A bars are always red.
      */
     fun thresholdBarColor(
@@ -248,8 +248,8 @@ object RsrpHistogram {
         val percent = occupancyPercent(bin.count, totalSamples)
         return when {
             percent >= THRESHOLD_GREEN_MIN_PERCENT -> RsrpHistogramThresholdBarColor.GREEN
-            percent >= THRESHOLD_ORANGE_MIN_PERCENT -> RsrpHistogramThresholdBarColor.ORANGE
-            else -> RsrpHistogramThresholdBarColor.YELLOW
+            percent >= THRESHOLD_YELLOW_MIN_PERCENT -> RsrpHistogramThresholdBarColor.YELLOW
+            else -> RsrpHistogramThresholdBarColor.ORANGE
         }
     }
 
@@ -265,6 +265,22 @@ object RsrpHistogram {
     fun meanBarFillFraction(meanDbm: Double): Float {
         val span = (MEAN_BAR_MAX_DBM - MEAN_BAR_MIN_DBM).toFloat()
         return ((meanDbm - MEAN_BAR_MIN_DBM) / span).toFloat().coerceIn(0f, 1f)
+    }
+
+    /**
+     * RSRP of the newest in-window sample. Null when the window is empty or the last
+     * sample was recorded with no signal.
+     */
+    fun lastSampleRsrpDbm(
+        samples: List<RsrpSample>,
+        nowMs: Long,
+        windowMs: Long = DEFAULT_WINDOW_MS
+    ): Int? {
+        val cutoff = nowMs - windowMs
+        return samples
+            .filter { it.timestampMs >= cutoff }
+            .maxByOrNull { it.timestampMs }
+            ?.rsrpDbm
     }
 
     fun meanColorBand(meanDbm: Double): RsrpMeanColorBand {

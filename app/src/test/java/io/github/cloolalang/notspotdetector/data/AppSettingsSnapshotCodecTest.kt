@@ -48,6 +48,8 @@ class AppSettingsSnapshotCodecTest {
                 rsrpHistogramThreshold3Dbm = -118
             ),
             passiveSignalSettings = PassiveSignalSettings(
+                g2WeakMaxDbm = -98,
+                g2NoSignalRsrpDbm = -122,
                 criticalTierClickIntervalMs = 400,
                 poorTierClickIntervalMs = 600,
                 fairTierClickIntervalMs = 1_300,
@@ -68,7 +70,7 @@ class AppSettingsSnapshotCodecTest {
                 rsrqTierSoundEnabled = true,
                 rsrqTierCoupledToSignalTier = true
             ),
-            passiveMockSettings = PassiveMockSettings(enabled = true, rsrpDbm = -110, rsrqDb = -15),
+            passiveMockSettings = PassiveMockSettings(enabled = true, rsrpDbm = -140, rsrqDb = -15),
             audioVolumes = AudioVolumeSettings(
                 signalPulseFrequencyHz = 750,
                 veryStrongTierPulseFrequencyHz = 880,
@@ -94,6 +96,9 @@ class AppSettingsSnapshotCodecTest {
         val decoded = AppSettingsSnapshotCodec.decodeProfiles(encoded).single().settings
 
         assertEquals(snapshot, decoded)
+        assertEquals(-98, decoded.passiveSignalSettings.g2WeakMaxDbm)
+        assertEquals(-122, decoded.passiveSignalSettings.g2NoSignalRsrpDbm)
+        assertEquals(-140, decoded.passiveMockSettings.rsrpDbm)
     }
 
     @Test

@@ -48,6 +48,44 @@ fun ConnectivityStats.isRegisteredSimRoaming(): Boolean {
     )
 }
 
+/** Cellular metrics Service row — distinguishes RXSS 12 visiting limited service. */
+enum class ServiceStateMetricLabel {
+    IN_SERVICE,
+    IN_SERVICE_ROAMING,
+    IN_SERVICE_VOICE_ONLY,
+    IN_SERVICE_VOICE_ONLY_ROAMING,
+    LIMITED_SERVICE,
+    LIMITED_SERVICE_VOICE_ONLY,
+    VISITING_LIMITED_SERVICE,
+    VISITING_LIMITED_SERVICE_VOICE_ONLY,
+    NO_SERVICE,
+    UNKNOWN,
+    PERMISSION_REQUIRED
+}
+
+fun ConnectivityStats.resolveServiceStateMetricLabel(): ServiceStateMetricLabel {
+    if (!signalPermissionGranted) return ServiceStateMetricLabel.PERMISSION_REQUIRED
+    return when (networkServiceMode) {
+        NetworkServiceMode.IN_SERVICE -> when {
+            isRegisteredSimRoaming() && isVoiceOnlyNoData ->
+                ServiceStateMetricLabel.IN_SERVICE_VOICE_ONLY_ROAMING
+            isRegisteredSimRoaming() -> ServiceStateMetricLabel.IN_SERVICE_ROAMING
+            isVoiceOnlyNoData -> ServiceStateMetricLabel.IN_SERVICE_VOICE_ONLY
+            else -> ServiceStateMetricLabel.IN_SERVICE
+        }
+        NetworkServiceMode.LIMITED_SERVICE -> when {
+            isLimitedServiceVisited4g() && isVoiceOnlyNoData ->
+                ServiceStateMetricLabel.VISITING_LIMITED_SERVICE_VOICE_ONLY
+            isLimitedServiceVisited4g() -> ServiceStateMetricLabel.VISITING_LIMITED_SERVICE
+            isVoiceOnlyNoData -> ServiceStateMetricLabel.LIMITED_SERVICE_VOICE_ONLY
+            else -> ServiceStateMetricLabel.LIMITED_SERVICE
+        }
+        NetworkServiceMode.OUT_OF_SERVICE,
+        NetworkServiceMode.RADIO_OFF -> ServiceStateMetricLabel.NO_SERVICE
+        NetworkServiceMode.UNKNOWN -> ServiceStateMetricLabel.UNKNOWN
+    }
+}
+
 /** Voice/CS camped (in service or limited) with no packet-switched / data registration. */
 fun isVoiceOnlyNoData(
     serviceMode: NetworkServiceMode,

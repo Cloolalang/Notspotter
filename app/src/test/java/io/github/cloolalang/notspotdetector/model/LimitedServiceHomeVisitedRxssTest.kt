@@ -11,6 +11,7 @@ class LimitedServiceHomeVisitedRxssTest {
 
     private val settings = PassiveSignalSettings(
         noSignalRsrpDbm = -125,
+        g2NoSignalRsrpDbm = -125,
         poorRsrpMinDbm = -120,
         fairRsrpMinDbm = -105,
         goodRsrpMinDbm = -100,
@@ -20,7 +21,7 @@ class LimitedServiceHomeVisitedRxssTest {
 
     @Test
     fun limitedHome2g_mapsToRxss22() {
-        val stats = limitedHome2g(rsrpDbm = -95)
+        val stats = limitedHome2g(rsrpDbm = -80)
         assertTrue(stats.isLimitedServiceHome2g())
         assertFalse(stats.isLimitedServiceAlt2g())
         assertEquals(SignalMeasurementTier.LIMITED_HOME_2G, stats.resolveSignalMeasurementTier(settings))
@@ -50,7 +51,7 @@ class LimitedServiceHomeVisitedRxssTest {
 
     @Test
     fun limitedVisited2g_mapsToRxss13WithoutFallbackToggle() {
-        val stats = limitedVisited2g(rsrpDbm = -95).copy(monitor2gFallbackEnabled = false)
+        val stats = limitedVisited2g(rsrpDbm = -80).copy(monitor2gFallbackEnabled = false)
         assertTrue(stats.isLimitedServiceAlt2g())
         assertEquals(SignalMeasurementTier.LIMITED_ALT_2G, stats.resolveSignalMeasurementTier(settings))
         assertEquals(Rxss.G2_GOOD, stats.resolveLimitedServiceSignalOverlayRxss(settings))

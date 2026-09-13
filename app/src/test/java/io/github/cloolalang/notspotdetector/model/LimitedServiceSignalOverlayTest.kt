@@ -11,6 +11,7 @@ class LimitedServiceSignalOverlayTest {
 
     private val settings = PassiveSignalSettings(
         noSignalRsrpDbm = -125,
+        g2NoSignalRsrpDbm = -125,
         poorRsrpMinDbm = -120,
         fairRsrpMinDbm = -105,
         goodRsrpMinDbm = -100,
@@ -75,7 +76,7 @@ class LimitedServiceSignalOverlayTest {
 
     @Test
     fun limitedAlt2gStrongRxShowsOverlay7() {
-        val stats = limitedAlt2g(rsrpDbm = -95)
+        val stats = limitedAlt2g(rsrpDbm = -80)
         assertEquals(Rxss.G2_GOOD, stats.resolveLimitedServiceSignalOverlayRxss(settings))
         assertFalse(stats.isG2WeakSignal(settings))
         // Strong 2G overlay is not the critical/weak "signal low" case — VA-14 must cycle every 30s.

@@ -12,12 +12,14 @@ class RsrpHistogramTest {
         assertEquals(1, RsrpHistogram.binIndexForRsrp(-79))
         assertEquals(2, RsrpHistogram.binIndexForRsrp(-80))
         assertEquals(11, RsrpHistogram.binIndexForRsrp(-126))
+        assertEquals(13, RsrpHistogram.binIndexForRsrp(-135))
+        assertEquals(-135, RsrpHistogram.labelDbmForBin(13))
     }
 
     @Test
     fun binIndex_clampsOutsideRange() {
         assertEquals(0, RsrpHistogram.binIndexForRsrp(-60))
-        assertEquals(11, RsrpHistogram.binIndexForRsrp(-130))
+        assertEquals(13, RsrpHistogram.binIndexForRsrp(-140))
     }
 
     @Test
@@ -202,15 +204,15 @@ class RsrpHistogramTest {
             RsrpHistogram.thresholdBarColor(threshold.copy(count = 95), totalSamples = 100)
         )
         assertEquals(
-            RsrpHistogramThresholdBarColor.ORANGE,
+            RsrpHistogramThresholdBarColor.YELLOW,
             RsrpHistogram.thresholdBarColor(threshold.copy(count = 94), totalSamples = 100)
         )
         assertEquals(
-            RsrpHistogramThresholdBarColor.ORANGE,
+            RsrpHistogramThresholdBarColor.YELLOW,
             RsrpHistogram.thresholdBarColor(threshold.copy(count = 90), totalSamples = 100)
         )
         assertEquals(
-            RsrpHistogramThresholdBarColor.YELLOW,
+            RsrpHistogramThresholdBarColor.ORANGE,
             RsrpHistogram.thresholdBarColor(threshold.copy(count = 89), totalSamples = 100)
         )
     }
@@ -250,10 +252,32 @@ class RsrpHistogramTest {
     }
 
     @Test
-    fun meanBarFillFraction_mapsMinus128ToMinus50() {
-        assertEquals(0f, RsrpHistogram.meanBarFillFraction(-128.0), 0.001f)
+    fun meanBarFillFraction_mapsMinus135ToMinus50() {
+        assertEquals(0f, RsrpHistogram.meanBarFillFraction(-135.0), 0.001f)
+        assertEquals(0f, RsrpHistogram.meanBarFillFraction(-140.0), 0.001f)
         assertEquals(1f, RsrpHistogram.meanBarFillFraction(-50.0), 0.001f)
-        assertEquals(0.5f, RsrpHistogram.meanBarFillFraction(-89.0), 0.001f)
+        assertEquals(0.5f, RsrpHistogram.meanBarFillFraction(-92.5), 0.001f)
+    }
+
+    @Test
+    fun lastSampleRsrpDbm_usesNewestInWindow() {
+        val nowMs = 10_000L
+        val samples = listOf(
+            RsrpSample(timestampMs = 8_000L, rsrpDbm = -100),
+            RsrpSample(timestampMs = 9_500L, rsrpDbm = -92),
+            RsrpSample(timestampMs = 1_000L, rsrpDbm = -70)
+        )
+        assertEquals(-92, RsrpHistogram.lastSampleRsrpDbm(samples, nowMs, windowMs = 3_000L))
+    }
+
+    @Test
+    fun lastSampleRsrpDbm_isNullWhenLastSampleHasNoSignal() {
+        val nowMs = 10_000L
+        val samples = listOf(
+            RsrpSample(timestampMs = 8_000L, rsrpDbm = -100),
+            RsrpSample(timestampMs = 9_500L, rsrpDbm = null)
+        )
+        assertEquals(null, RsrpHistogram.lastSampleRsrpDbm(samples, nowMs, windowMs = 5_000L))
     }
 
     @Test
