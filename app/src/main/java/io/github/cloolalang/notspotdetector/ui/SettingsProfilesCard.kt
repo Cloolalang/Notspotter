@@ -27,6 +27,7 @@ import io.github.cloolalang.notspotdetector.R
 import io.github.cloolalang.notspotdetector.model.ProfileExportOutcome
 import io.github.cloolalang.notspotdetector.model.ProfileExportResult
 import io.github.cloolalang.notspotdetector.model.ProfileImportResult
+import io.github.cloolalang.notspotdetector.model.ProfileQuickSaveOutcome
 import io.github.cloolalang.notspotdetector.model.ProfileSaveResult
 import io.github.cloolalang.notspotdetector.model.SettingsProfileSummary
 import io.github.cloolalang.notspotdetector.ui.theme.Sushi
@@ -37,6 +38,7 @@ import java.util.Date
 fun SettingsProfilesCard(
     profiles: List<SettingsProfileSummary>,
     onSaveProfile: (String) -> ProfileSaveResult,
+    onSaveDatedProfileToDownloads: () -> ProfileQuickSaveOutcome,
     onLoadProfile: (String) -> Unit,
     onDeleteProfile: (String) -> Unit,
     onImportProfile: (onResult: (ProfileImportResult) -> Unit) -> Unit,
@@ -47,6 +49,7 @@ fun SettingsProfilesCard(
     var expanded by rememberSaveable { mutableStateOf(false) }
     var profileName by rememberSaveable { mutableStateOf("") }
     var lastSaveResult by rememberSaveable { mutableStateOf<ProfileSaveResult?>(null) }
+    var lastQuickSaveOutcome by remember { mutableStateOf<ProfileQuickSaveOutcome?>(null) }
     var lastImportResult by rememberSaveable { mutableStateOf<ProfileImportResult?>(null) }
     var lastExportOutcome by remember { mutableStateOf<ProfileExportOutcome?>(null) }
 
@@ -87,6 +90,7 @@ fun SettingsProfilesCard(
                     onValueChange = {
                         profileName = it
                         lastSaveResult = null
+                        lastQuickSaveOutcome = null
                     },
                     enabled = settingsControlsEnabled(),
                     modifier = Modifier.fillMaxWidth(),
@@ -99,6 +103,7 @@ fun SettingsProfilesCard(
                     onClick = {
                         val result = onSaveProfile(profileName)
                         lastSaveResult = result
+                        lastQuickSaveOutcome = null
                         if (result == ProfileSaveResult.Saved) {
                             profileName = ""
                         }
@@ -113,6 +118,30 @@ fun SettingsProfilesCard(
                         text = message,
                         style = MaterialTheme.typography.bodySmall,
                         color = if (lastSaveResult == ProfileSaveResult.Saved) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.error
+                        }
+                    )
+                }
+
+                OutlinedButton(
+                    enabled = settingsControlsEnabled(),
+                    onClick = {
+                        lastSaveResult = null
+                        lastExportOutcome = null
+                        lastQuickSaveOutcome = onSaveDatedProfileToDownloads()
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(text = stringResource(R.string.settings_profiles_save_dated))
+                }
+
+                quickSaveResultMessage(lastQuickSaveOutcome)?.let { (message, success) ->
+                    Text(
+                        text = message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (success) {
                             MaterialTheme.colorScheme.primary
                         } else {
                             MaterialTheme.colorScheme.error
@@ -173,6 +202,7 @@ fun SettingsProfilesCard(
                             onShare = { onShareProfile(profile.id) },
                             onExportToDownloads = {
                                 lastExportOutcome = onExportProfileToDownloads(profile.id)
+                                lastQuickSaveOutcome = null
                             },
                             onDelete = { onDeleteProfile(profile.id) }
                         )
@@ -194,6 +224,27 @@ private fun saveResultMessage(result: ProfileSaveResult?): String? {
         ProfileSaveResult.NameTooLong -> stringResource(R.string.settings_profiles_error_name_too_long)
         ProfileSaveResult.Failed -> stringResource(R.string.settings_profiles_error_save_failed)
         null -> null
+    }
+}
+
+@Composable
+private fun quickSaveResultMessage(outcome: ProfileQuickSaveOutcome?): Pair<String, Boolean>? {
+    if (outcome == null) return null
+    if (outcome.saveResult != ProfileSaveResult.Saved) {
+        return saveResultMessage(outcome.saveResult)?.let { it to false }
+    }
+    val name = outcome.profileName.orEmpty()
+    val export = outcome.exportOutcome
+    return when (export?.result) {
+        ProfileExportResult.Exported -> {
+            val path = export.relativePath
+            if (path.isNullOrBlank()) {
+                stringResource(R.string.settings_profiles_saved_dated, name) to true
+            } else {
+                stringResource(R.string.settings_profiles_saved_dated_to, name, path) to true
+            }
+        }
+        else -> stringResource(R.string.settings_profiles_saved_dated_export_failed, name) to false
     }
 }
 

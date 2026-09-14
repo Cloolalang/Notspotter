@@ -65,6 +65,13 @@ enum class ProfileSaveResult {
     Failed
 }
 
+/** One-tap dated save: in-app profile plus an immediate Downloads export. */
+data class ProfileQuickSaveOutcome(
+    val saveResult: ProfileSaveResult,
+    val profileName: String? = null,
+    val exportOutcome: ProfileExportOutcome? = null
+)
+
 /** Which settings bundle the app is currently running. */
 data class ActiveSettingsSource(
     val profileId: String? = null,

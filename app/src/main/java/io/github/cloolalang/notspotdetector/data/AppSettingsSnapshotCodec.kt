@@ -23,7 +23,7 @@ import org.json.JSONObject
  * JSON codec for settings profiles (schema v1).
  *
  * `settings` sections: `thresholds`, `ping`, `monitoring`, `passiveSignal`, `passiveMock`, `audio`.
- * Mock block keys: `enabled`, `scenario` ([MockNetworkScenario.name]), `rsrpDbm`, `rsrqDb`.
+ * Mock block keys: `enabled`, `scenario` ([MockNetworkScenario.name]), `rsrpDbm`, `rsrqDb`, `voiceOnlyNoData`.
  * Full field lists: [AppSettingsSnapshotCodecCompletenessTest].
  * Documentation: [SETTINGS_PROFILES.md].
  */
@@ -301,6 +301,8 @@ object AppSettingsSnapshotCodec {
             .put("wifiCallingTierClickIntervalMs", settings.wifiCallingTierClickIntervalMs)
             .put("wifiCallingTierSoundEnabled", settings.wifiCallingTierSoundEnabled)
             .put("wifiCallingTierPulseDurationMs", settings.wifiCallingTierPulseDurationMs)
+            .put("levelRangeCFilter", encodeRxssStateFilter(settings.levelRangeCFilter))
+            .put("levelRangeDFilter", encodeRxssStateFilter(settings.levelRangeDFilter))
             .put("lowSignalFilter", encodeRxssStateFilter(settings.lowSignalFilter))
             .put("noSignalFilter", encodeRxssStateFilter(settings.noSignalFilter))
             .put("deadzoneFilter", encodeRxssStateFilter(settings.deadzoneFilter))
@@ -538,6 +540,14 @@ object AppSettingsSnapshotCodec {
                 "wifiCallingTierPulseDurationMs",
                 PassiveSignalSettings.DEFAULT_WIFI_CALLING_TIER_PULSE_DURATION_MS
             ),
+            levelRangeCFilter = decodeRxssStateFilter(
+                json.optJSONObject("levelRangeCFilter"),
+                RxssStateFilterSettings.INACTIVE
+            ),
+            levelRangeDFilter = decodeRxssStateFilter(
+                json.optJSONObject("levelRangeDFilter"),
+                RxssStateFilterSettings.INACTIVE
+            ),
             lowSignalFilter = decodeRxssStateFilter(
                 json.optJSONObject("lowSignalFilter"),
                 RxssStateFilterSettings.INACTIVE
@@ -582,6 +592,7 @@ object AppSettingsSnapshotCodec {
             .put("scenario", settings.scenario.name)
             .put("rsrpDbm", settings.rsrpDbm)
             .put("rsrqDb", settings.rsrqDb)
+            .put("voiceOnlyNoData", settings.voiceOnlyNoData)
     }
 
     private fun decodePassiveMock(json: JSONObject?): PassiveMockSettings {
@@ -590,7 +601,11 @@ object AppSettingsSnapshotCodec {
             enabled = json.optBoolean("enabled", PassiveMockSettings.DEFAULT_ENABLED),
             scenario = MockNetworkScenario.fromStoredName(json.optString("scenario", null)),
             rsrpDbm = json.optInt("rsrpDbm", PassiveMockSettings.DEFAULT_RSRP_DBM),
-            rsrqDb = json.optInt("rsrqDb", PassiveMockSettings.DEFAULT_RSRQ_DB)
+            rsrqDb = json.optInt("rsrqDb", PassiveMockSettings.DEFAULT_RSRQ_DB),
+            voiceOnlyNoData = json.optBoolean(
+                "voiceOnlyNoData",
+                PassiveMockSettings.DEFAULT_VOICE_ONLY_NO_DATA
+            )
         )
     }
 
@@ -604,6 +619,8 @@ object AppSettingsSnapshotCodec {
             .put("limitedServiceTierPulseFrequencyHz", settings.limitedServiceTierPulseFrequencyHz)
             .put("limitedServiceTwoToneSpreadPercent", settings.limitedServiceTwoToneSpreadPercent)
             .put("levelRangeBcdPulseFrequencyHz", settings.levelRangeBcdPulseFrequencyHz)
+            .put("levelRangeCPulseFrequencyHz", settings.levelRangeCPulseFrequencyHz)
+            .put("levelRangeDPulseFrequencyHz", settings.levelRangeDPulseFrequencyHz)
             .put("veryStrongTierPulseFrequencyHz", settings.veryStrongTierPulseFrequencyHz)
             .put("g2StrongTierPulseFrequencyHz", settings.g2StrongTierPulseFrequencyHz)
             .put("g2WeakTierPulseFrequencyHz", settings.g2WeakTierPulseFrequencyHz)
@@ -773,6 +790,17 @@ object AppSettingsSnapshotCodec {
         )
     }
 
+    private fun decodeLevelRangeBandPulseFrequencyHz(
+        json: JSONObject,
+        key: String,
+        fallbackHz: Int
+    ): Int {
+        if (json.has(key)) {
+            return json.optInt(key, fallbackHz)
+        }
+        return fallbackHz
+    }
+
     private fun decodeLevelRangeBcdPulseDurationMs(json: JSONObject): Int {
         if (json.has("levelRangeBcdPulseDurationMs")) {
             return json.optInt(
@@ -823,6 +851,16 @@ object AppSettingsSnapshotCodec {
                 AudioVolumeSettings.DEFAULT_LIMITED_SERVICE_TWO_TONE_SPREAD_PERCENT
             ),
             levelRangeBcdPulseFrequencyHz = decodeLevelRangeBcdPulseFrequencyHz(json),
+            levelRangeCPulseFrequencyHz = decodeLevelRangeBandPulseFrequencyHz(
+                json,
+                "levelRangeCPulseFrequencyHz",
+                decodeLevelRangeBcdPulseFrequencyHz(json)
+            ),
+            levelRangeDPulseFrequencyHz = decodeLevelRangeBandPulseFrequencyHz(
+                json,
+                "levelRangeDPulseFrequencyHz",
+                decodeLevelRangeBcdPulseFrequencyHz(json)
+            ),
             veryStrongTierPulseFrequencyHz = decodeVeryStrongTierPulseFrequencyHz(json),
             g2StrongTierPulseFrequencyHz = decodeG2TierPulseFrequencyHz(json, "g2StrongTierPulseFrequencyHz"),
             g2WeakTierPulseFrequencyHz = decodeG2TierPulseFrequencyHz(json, "g2WeakTierPulseFrequencyHz"),

@@ -43,8 +43,11 @@ import io.github.cloolalang.notspotdetector.model.isG2WeakSignal
 import io.github.cloolalang.notspotdetector.model.isLimitedServiceAlt2g
 import io.github.cloolalang.notspotdetector.model.isLimitedServiceNoSignalCamp
 import io.github.cloolalang.notspotdetector.model.isSignalLowVoiceCamp
+import io.github.cloolalang.notspotdetector.model.isRawTier5PoorSignal
+import io.github.cloolalang.notspotdetector.model.isTier4FairSignal
 import io.github.cloolalang.notspotdetector.model.isTier5PoorSignal
 import io.github.cloolalang.notspotdetector.model.isTier6CriticalSignal
+import io.github.cloolalang.notspotdetector.model.resolveSignalStrengthTier
 import io.github.cloolalang.notspotdetector.model.shouldAllowCellReselectVoice
 import io.github.cloolalang.notspotdetector.model.shouldAnnounceInServiceAfterLimited
 import io.github.cloolalang.notspotdetector.model.shouldPlayG2NoSignalVoiceAnnouncements
@@ -109,8 +112,12 @@ object MonitorState {
     private val noSignalFilter = RollingTriggerFilter()
     private val deadzoneFilter = RollingTriggerFilter()
     private val lowSignalFilter = RollingTriggerFilter()
+    private val levelRangeCFilter = RollingTriggerFilter()
+    private val levelRangeDFilter = RollingTriggerFilter()
     private val rsrqFilter = RollingTriggerFilter()
     private var heldInServiceSignalTier: SignalStrengthTier? = null
+    private var heldFairNeighborTier: SignalStrengthTier? = null
+    private var heldPoorNeighborTier: SignalStrengthTier? = null
     private val lteLayerResilienceDebouncer = LteLayerResilienceDebouncer()
     private var lastKnownRadioAccessType: String? = null
     /** Camped RAT the current histogram belongs to; a change wipes the sample window. */
@@ -447,6 +454,7 @@ object MonitorState {
             monitor2gFallbackEnabled = monitor2gFallback,
             networkOperatorName = metrics.networkOperatorName,
             homeNetworkOperatorName = metrics.homeNetworkOperatorName,
+            virtualNetworkOperatorName = metrics.virtualNetworkOperatorName,
             servingNetworkOperatorName = metrics.servingNetworkOperatorName,
             plmn = metrics.plmn,
             homePlmn = metrics.homePlmn,
@@ -519,6 +527,7 @@ object MonitorState {
             monitor2gFallbackEnabled = monitor2gFallback,
             networkOperatorName = metrics.networkOperatorName,
             homeNetworkOperatorName = metrics.homeNetworkOperatorName,
+            virtualNetworkOperatorName = metrics.virtualNetworkOperatorName,
             servingNetworkOperatorName = metrics.servingNetworkOperatorName,
             plmn = metrics.plmn,
             homePlmn = metrics.homePlmn,
@@ -569,14 +578,22 @@ object MonitorState {
             noSignalFilter.reset()
             deadzoneFilter.reset()
             lowSignalFilter.reset()
+            levelRangeCFilter.reset()
+            levelRangeDFilter.reset()
             rsrqFilter.reset()
             heldInServiceSignalTier = null
+            heldFairNeighborTier = null
+            heldPoorNeighborTier = null
             return stats.copy(
                 noSignalActive = false,
                 deadzoneActive = false,
                 lowSignalActive = false,
+                levelRangeCActive = false,
+                levelRangeDActive = false,
                 rsrqPoorActive = false,
-                heldInServiceSignalTier = null
+                heldInServiceSignalTier = null,
+                heldFairNeighborTier = null,
+                heldPoorNeighborTier = null
             )
         }
 
@@ -590,6 +607,8 @@ object MonitorState {
         val lowSignalRaw = stats.copy(lowSignalActive = null).let { raw ->
             raw.isTier6CriticalSignal(passiveSettings) || raw.isG2WeakSignal(passiveSettings)
         }
+        val levelRangeCRaw = stats.copy(levelRangeCActive = null).isTier4FairSignal(passiveSettings)
+        val levelRangeDRaw = stats.isRawTier5PoorSignal(passiveSettings)
         val rsrqRaw = stats.copy(rsrqPoorActive = null).evaluateRsrqPoor(passiveSettings)
 
         val filtered = stats.copy(
@@ -611,6 +630,18 @@ object MonitorState {
                 passiveSettings.lowSignalFilter,
                 recordSample
             ),
+            levelRangeCActive = rollingConfirmed(
+                levelRangeCFilter,
+                levelRangeCRaw,
+                passiveSettings.levelRangeCFilter,
+                recordSample
+            ),
+            levelRangeDActive = rollingConfirmed(
+                levelRangeDFilter,
+                levelRangeDRaw,
+                passiveSettings.levelRangeDFilter,
+                recordSample
+            ),
             rsrqPoorActive = rollingConfirmed(
                 rsrqFilter,
                 rsrqRaw,
@@ -618,9 +649,67 @@ object MonitorState {
                 recordSample
             )
         )
-        val nextHeld = nextHeldInServiceSignalTier(filtered, passiveSettings)
+        val nextPoorNeighbor = nextHeldPoorNeighborTier(filtered, passiveSettings)
+        heldPoorNeighborTier = nextPoorNeighbor
+        val nextFairNeighbor = nextHeldFairNeighborTier(
+            filtered.copy(heldPoorNeighborTier = nextPoorNeighbor),
+            passiveSettings
+        )
+        heldFairNeighborTier = nextFairNeighbor
+        val withNeighbors = filtered.copy(
+            heldPoorNeighborTier = nextPoorNeighbor,
+            heldFairNeighborTier = nextFairNeighbor
+        )
+        val nextHeld = nextHeldInServiceSignalTier(withNeighbors, passiveSettings)
         heldInServiceSignalTier = nextHeld
-        return filtered.copy(heldInServiceSignalTier = nextHeld)
+        return withNeighbors.copy(heldInServiceSignalTier = nextHeld)
+    }
+
+    /**
+     * Remember the in-service band on either side of RXSS 4 while the Level Range C filter
+     * is still waiting to enter.
+     */
+    private fun nextHeldFairNeighborTier(
+        stats: ConnectivityStats,
+        settings: PassiveSignalSettings
+    ): SignalStrengthTier? {
+        if (!stats.isMonitoring || stats.usesG2SignalTiers()) return null
+        val raw = settings.resolveSignalStrengthTier(stats.rsrpDbm)
+        val holdingFair = stats.levelRangeCActive == true ||
+            (stats.levelRangeCActive == false && raw == SignalStrengthTier.FAIR)
+        if (holdingFair) return heldFairNeighborTier
+        val afterLow = when (stats.lowSignalActive) {
+            true -> SignalStrengthTier.CRITICAL
+            false -> if (raw == SignalStrengthTier.CRITICAL) SignalStrengthTier.POOR else raw
+            null -> raw
+        }
+        val displayed = when {
+            stats.lowSignalActive == true -> afterLow
+            stats.levelRangeDActive == true -> SignalStrengthTier.POOR
+            else -> afterLow
+        }
+        return displayed?.takeIf { it.isInServiceRsrpPulseBand() && it != SignalStrengthTier.FAIR }
+    }
+
+    /**
+     * Remember the in-service band on either side of RXSS 5 while the Level Range D filter
+     * is still waiting to enter.
+     */
+    private fun nextHeldPoorNeighborTier(
+        stats: ConnectivityStats,
+        settings: PassiveSignalSettings
+    ): SignalStrengthTier? {
+        if (!stats.isMonitoring || stats.usesG2SignalTiers()) return null
+        val raw = settings.resolveSignalStrengthTier(stats.rsrpDbm)
+        val holdingPoor = stats.levelRangeDActive == true ||
+            (stats.levelRangeDActive == false && raw == SignalStrengthTier.POOR)
+        if (holdingPoor) return heldPoorNeighborTier
+        val afterLow = when (stats.lowSignalActive) {
+            true -> SignalStrengthTier.CRITICAL
+            false -> if (raw == SignalStrengthTier.CRITICAL) SignalStrengthTier.POOR else raw
+            null -> raw
+        }
+        return afterLow?.takeIf { it.isInServiceRsrpPulseBand() && it != SignalStrengthTier.POOR }
     }
 
     /**
@@ -1099,10 +1188,27 @@ object MonitorState {
             return null
         }
 
-        if (previousActive == nextActive) return null
-        if (!nextActive && !next.shouldAnnounceInServiceAfterLimited()) return null
+        if (previousActive != nextActive) {
+            if (!nextActive && !next.shouldAnnounceInServiceAfterLimited()) return null
+            return SignalStateAnnouncement.formatLimitedServiceChange(
+                stats = next,
+                lastKnownRadioAccessType = lastKnownRadioAccessType,
+                phrases = _audioVolumes.value.limitedServicePhrases,
+                bandNamingStyle = _audioVolumes.value.cellChangeBandNamingStyle
+            )
+        }
 
-        return SignalStateAnnouncement.formatLimitedServiceChange(
+        if (previousActive ||
+            !previous.shouldAnnounceInServiceAfterLimited() ||
+            !next.shouldAnnounceInServiceAfterLimited()
+        ) {
+            return null
+        }
+        val previousPhrase = SignalStateAnnouncement.inServiceSpeechPhrase(previous)
+        val nextPhrase = SignalStateAnnouncement.inServiceSpeechPhrase(next)
+        if (previousPhrase == nextPhrase) return null
+
+        return SignalStateAnnouncement.formatInServiceAnnouncement(
             stats = next,
             lastKnownRadioAccessType = lastKnownRadioAccessType,
             phrases = _audioVolumes.value.limitedServicePhrases,
@@ -1248,8 +1354,12 @@ object MonitorState {
         noSignalFilter.reset()
         deadzoneFilter.reset()
         lowSignalFilter.reset()
+        levelRangeCFilter.reset()
+        levelRangeDFilter.reset()
         rsrqFilter.reset()
         heldInServiceSignalTier = null
+        heldFairNeighborTier = null
+        heldPoorNeighborTier = null
         lteLayerResilienceDebouncer.reset()
         lastKnownRadioAccessType = null
         lteRatBeforeNoSignalEpisode = null
@@ -1268,15 +1378,14 @@ object MonitorState {
                     }
                     return computeSearching2gFallbackActive(debounced, lteRatBeforeNoSignalEpisode)
                 }
-                MockNetworkScenario.HOME_4G, MockNetworkScenario.HOME_LIMITED_4G,
-                MockNetworkScenario.ALT_OPERATOR_4G, MockNetworkScenario.HOME_5G_ENDC -> {
-                    if (!debounced.noSignalActive) {
+                else -> {
+                    if (mock.scenario.usesLteNrSignalStrength() && !debounced.noSignalActive) {
                         lteRatBeforeNoSignalEpisode = null
                     }
-                    // Mock LTE camp stays on tier 10 (no signal), not tier 11 (searching 2G).
-                    return false
-                }
-                else -> {
+                    if (mock.scenario.usesLteNrSignalStrength()) {
+                        // Mock LTE/NR camp stays on tier 10 (no signal), not tier 11 (searching 2G).
+                        return false
+                    }
                     if (!debounced.noSignalActive) {
                         lteRatBeforeNoSignalEpisode = null
                     }

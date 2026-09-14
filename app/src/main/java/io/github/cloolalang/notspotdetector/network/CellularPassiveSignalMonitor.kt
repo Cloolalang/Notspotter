@@ -102,6 +102,7 @@ class CellularPassiveSignalMonitor(
                 monitor2gFallbackEnabled = monitor2gFallback,
                 networkOperatorName = radio.networkOperatorName,
                 homeNetworkOperatorName = radio.homeNetworkOperatorName,
+                virtualNetworkOperatorName = radio.virtualNetworkOperatorName,
                 servingNetworkOperatorName = radio.servingNetworkOperatorName,
                 plmn = radio.plmn,
                 homePlmn = radio.homePlmn,

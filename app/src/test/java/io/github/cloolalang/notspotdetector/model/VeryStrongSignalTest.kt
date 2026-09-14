@@ -47,6 +47,8 @@ class VeryStrongSignalTest {
             signalPulseDurationMs = 250,
             lowSignalClickVolume = 0.5f,
             levelRangeBcdPulseFrequencyHz = 700,
+            levelRangeCPulseFrequencyHz = 720,
+            levelRangeDPulseFrequencyHz = 740,
             levelRangeBcdPulseDurationMs = 300,
             levelRangeBcdClickVolume = 0.8f
         ).normalized()
@@ -54,6 +56,8 @@ class VeryStrongSignalTest {
         assertEquals(300, volumes.pulseDurationMsForTier(SignalStrengthTier.FAIR))
         assertEquals(0.8f, volumes.clickVolumeForTier(SignalStrengthTier.POOR))
         assertEquals(700, volumes.pulseFrequencyHzForTier(SignalStrengthTier.MILD))
+        assertEquals(720, volumes.pulseFrequencyHzForTier(SignalStrengthTier.FAIR))
+        assertEquals(740, volumes.pulseFrequencyHzForTier(SignalStrengthTier.POOR))
         assertEquals(0.8f, volumes.clickVolumeForTier(SignalStrengthTier.MILD))
     }
 

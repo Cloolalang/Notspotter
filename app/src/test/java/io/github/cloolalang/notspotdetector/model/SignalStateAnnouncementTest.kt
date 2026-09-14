@@ -70,6 +70,15 @@ class SignalStateAnnouncementTest {
     }
 
     @Test
+    fun formatMockNetworkAnnouncement_isFixedPhraseWithoutOperatorOrTech() {
+        assertEquals("mock network", SignalStateAnnouncement.formatMockNetworkAnnouncement())
+        assertEquals(
+            SignalStateAnnouncement.PHRASE_MOCK_NETWORK,
+            SignalStateAnnouncement.formatMockNetworkAnnouncement()
+        )
+    }
+
+    @Test
     fun formatNoSignalChange_announcesEnterAndExit() {
         assertEquals(
             "4 G, no signal",
@@ -167,57 +176,96 @@ class SignalStateAnnouncementTest {
     }
 
     @Test
-    fun formatInServiceAnnouncement_speaksInServiceWithOptionalPrefixes() {
-        val stats = ConnectivityStats(
-            isLimitedService = false,
-            networkServiceMode = NetworkServiceMode.IN_SERVICE,
-            networkOperatorName = "EE",
-            servingNetworkOperatorName = "EE",
-            radioAccessType = CellularSignalReader.RADIO_4G
+    fun formatInServiceAnnouncement_speaksHomeInServiceOn2gAnd4g() {
+        val silent = VoicePhraseOptions(
+            speakOperatorName = false,
+            speakTechnology = false,
+            speakBand = false
+        )
+        val spoken = VoicePhraseOptions(
+            speakOperatorName = true,
+            speakTechnology = true,
+            speakBand = false
         )
         assertEquals(
-            "in-service",
-            SignalStateAnnouncement.formatInServiceAnnouncement(
-                stats,
-                phrases = VoicePhraseOptions(
-                    speakOperatorName = false,
-                    speakTechnology = false,
-                    speakBand = false
-                )
-            )
+            "home in service",
+            SignalStateAnnouncement.formatInServiceAnnouncement(homeInService(CellularSignalReader.RADIO_4G), phrases = silent)
         )
         assertEquals(
-            "E E, 4 G, in-service",
-            SignalStateAnnouncement.formatInServiceAnnouncement(
-                stats,
-                phrases = VoicePhraseOptions(
-                    speakOperatorName = true,
-                    speakTechnology = true,
-                    speakBand = false
-                )
-            )
+            "Vodafone, 4 G, home in service",
+            SignalStateAnnouncement.formatInServiceAnnouncement(homeInService(CellularSignalReader.RADIO_4G), phrases = spoken)
+        )
+        assertEquals(
+            "home in service",
+            SignalStateAnnouncement.formatInServiceAnnouncement(homeInService(CellularSignalReader.RADIO_2G), phrases = silent)
+        )
+        assertEquals(
+            "Vodafone, 2 G, home in service",
+            SignalStateAnnouncement.formatInServiceAnnouncement(homeInService(CellularSignalReader.RADIO_2G), phrases = spoken)
         )
     }
 
     @Test
-    fun formatLimitedServiceChange_announcesInServiceOnFullCamp() {
-        val stats = ConnectivityStats(
-            isLimitedService = false,
-            networkServiceMode = NetworkServiceMode.IN_SERVICE,
-            networkOperatorName = "EE",
-            servingNetworkOperatorName = "EE",
-            radioAccessType = CellularSignalReader.RADIO_4G
+    fun formatInServiceAnnouncement_speaksRoamingInServiceOn2gAnd4g() {
+        val silent = VoicePhraseOptions(
+            speakOperatorName = false,
+            speakTechnology = false,
+            speakBand = false
+        )
+        val spoken = VoicePhraseOptions(
+            speakOperatorName = true,
+            speakTechnology = true,
+            speakBand = false
         )
         assertEquals(
-            "in-service",
+            "roaming in service",
+            SignalStateAnnouncement.formatInServiceAnnouncement(roamingInService(CellularSignalReader.RADIO_4G), phrases = silent)
+        )
+        assertEquals(
+            "E E, 4 G, roaming in service",
+            SignalStateAnnouncement.formatInServiceAnnouncement(roamingInService(CellularSignalReader.RADIO_4G), phrases = spoken)
+        )
+        assertEquals(
+            "roaming in service",
+            SignalStateAnnouncement.formatInServiceAnnouncement(roamingInService(CellularSignalReader.RADIO_2G), phrases = silent)
+        )
+        assertEquals(
+            "E E, 2 G, roaming in service",
+            SignalStateAnnouncement.formatInServiceAnnouncement(roamingInService(CellularSignalReader.RADIO_2G), phrases = spoken)
+        )
+    }
+
+    @Test
+    fun formatLimitedServiceChange_announcesHomeInServiceOnFullCamp() {
+        assertEquals(
+            "home in service",
             SignalStateAnnouncement.formatLimitedServiceChange(
-                stats,
+                homeInService(CellularSignalReader.RADIO_4G),
                 phrases = VoicePhraseOptions(
                     speakOperatorName = false,
                     speakTechnology = false
                 )
             )
         )
+        assertEquals(
+            "home in service",
+            SignalStateAnnouncement.formatLimitedServiceChange(
+                homeInService(CellularSignalReader.RADIO_2G),
+                phrases = VoicePhraseOptions(
+                    speakOperatorName = false,
+                    speakTechnology = false
+                )
+            )
+        )
+    }
+
+    @Test
+    fun isInServiceAnnouncement_matchesHomeAndRoamingPhrases() {
+        assertTrue(SignalStateAnnouncement.isInServiceAnnouncement("home in service"))
+        assertTrue(SignalStateAnnouncement.isInServiceAnnouncement("roaming in service"))
+        assertTrue(SignalStateAnnouncement.isInServiceAnnouncement("in-service"))
+        assertFalse(SignalStateAnnouncement.isInServiceAnnouncement("home limited service"))
+        assertFalse(SignalStateAnnouncement.isInServiceAnnouncement(null))
     }
 
     @Test
@@ -481,7 +529,7 @@ class SignalStateAnnouncementTest {
             )
         )
         assertEquals(
-            "E E, 4 G, twenty, in-service",
+            "E E, 4 G, twenty, home in service",
             SignalStateAnnouncement.previewInService(
                 "EE",
                 phrases = speakBand,
@@ -654,6 +702,35 @@ class SignalStateAnnouncementTest {
         assertEquals(
             "E E visited, 2 G, no signal, visiting limited service",
             SignalStateAnnouncement.formatNoSignalAnnouncement(stats)
+        )
+    }
+
+    private fun homeInService(radioAccessType: String): ConnectivityStats {
+        return ConnectivityStats(
+            isLimitedService = false,
+            networkServiceMode = NetworkServiceMode.IN_SERVICE,
+            isOn2g = radioAccessType == CellularSignalReader.RADIO_2G,
+            networkOperatorName = "Vodafone",
+            homeNetworkOperatorName = "Vodafone",
+            servingNetworkOperatorName = "Vodafone",
+            homePlmn = "23415",
+            plmn = "23415",
+            radioAccessType = radioAccessType
+        )
+    }
+
+    private fun roamingInService(radioAccessType: String): ConnectivityStats {
+        return ConnectivityStats(
+            isLimitedService = false,
+            networkServiceMode = NetworkServiceMode.IN_SERVICE,
+            isNetworkRoaming = true,
+            isOn2g = radioAccessType == CellularSignalReader.RADIO_2G,
+            networkOperatorName = "EE",
+            homeNetworkOperatorName = "Vodafone",
+            servingNetworkOperatorName = "EE",
+            homePlmn = "23415",
+            plmn = "23430",
+            radioAccessType = radioAccessType
         )
     }
 }

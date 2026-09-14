@@ -3,6 +3,11 @@ package io.github.cloolalang.notspotdetector.model
 /** Visited-operator 2G in limited service (RXSS 13). Independent of 2G-fallback monitoring. */
 fun ConnectivityStats.isLimitedServiceAlt2g(): Boolean = isLimitedServiceVisited2g()
 
+/** Visited-operator limited service on 2G (RXSS 13) or 4G/5G (RXSS 12). */
+fun ConnectivityStats.isLimitedServiceVisited(): Boolean {
+    return resolveLimitedServiceVisitedOperatorName() != null
+}
+
 fun ConnectivityStats.isLimitedServiceVisited2g(): Boolean {
     if (!isLimitedService || !isOn2g) return false
     return resolveLimitedServiceVisitedOperatorName() != null

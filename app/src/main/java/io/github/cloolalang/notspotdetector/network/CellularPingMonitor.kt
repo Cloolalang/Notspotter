@@ -351,6 +351,7 @@ class CellularPingMonitor(
             monitor2gFallbackEnabled = monitor2gFallback,
             networkOperatorName = metrics.networkOperatorName,
             homeNetworkOperatorName = metrics.homeNetworkOperatorName,
+            virtualNetworkOperatorName = metrics.virtualNetworkOperatorName,
             servingNetworkOperatorName = metrics.servingNetworkOperatorName,
             plmn = metrics.plmn,
             homePlmn = metrics.homePlmn,

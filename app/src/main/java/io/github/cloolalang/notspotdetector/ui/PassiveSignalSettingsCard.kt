@@ -108,6 +108,8 @@ fun PassiveSignalSettingsCard(
     onPreviewSignalPulse: (volume: Float, frequencyHz: Int, pulseDurationMs: Int) -> Unit,
     onLevelRangeBcdClickVolumeChange: (Float) -> Unit,
     onLevelRangeBcdPulseFrequencyChange: (Int) -> Unit,
+    onLevelRangeCPulseFrequencyChange: (Int) -> Unit,
+    onLevelRangeDPulseFrequencyChange: (Int) -> Unit,
     onPreviewLevelRangeBcdClick: (frequencyHz: Int, pulseDurationMs: Int) -> Unit,
     onPreviewRsrqWhiteNoise: () -> Unit,
     onSignalPulseFrequencyChange: (Int) -> Unit,
@@ -179,6 +181,8 @@ fun PassiveSignalSettingsCard(
                     onPreviewSignalPulse = onPreviewSignalPulse,
                     onLevelRangeBcdClickVolumeChange = onLevelRangeBcdClickVolumeChange,
                     onLevelRangeBcdPulseFrequencyChange = onLevelRangeBcdPulseFrequencyChange,
+                    onLevelRangeCPulseFrequencyChange = onLevelRangeCPulseFrequencyChange,
+                    onLevelRangeDPulseFrequencyChange = onLevelRangeDPulseFrequencyChange,
                     onPreviewLevelRangeBcdClick = onPreviewLevelRangeBcdClick,
                     onSignalPulseFrequencyChange = onSignalPulseFrequencyChange
                 )
@@ -744,6 +748,7 @@ private fun RsrpBandTierIntervalControls(
     audioVolumes: AudioVolumeSettings,
     previewEnabled: Boolean,
     onPreviewLevelRangeBcdClick: (frequencyHz: Int, pulseDurationMs: Int) -> Unit,
+    onLevelRangeCPulseFrequencyChange: (Int) -> Unit = {},
     onSettingsChange: (PassiveSignalSettings) -> Unit
 ) {
     when (tier) {
@@ -818,7 +823,7 @@ private fun RsrpBandTierIntervalControls(
                         enabled = previewEnabled && settings.fairTierSoundEnabled,
                         onPreview = {
                             onPreviewLevelRangeBcdClick(
-                                audioVolumes.levelRangeBcdPulseFrequencyHz,
+                                audioVolumes.levelRangeCPulseFrequencyHz,
                                 settings.fairTierPulseDurationMs
                             )
                         },
@@ -833,6 +838,14 @@ private fun RsrpBandTierIntervalControls(
                         lowDbm = settings.fairRsrpMinDbm,
                         highDbm = settings.goodRsrpMinDbm,
                         accentColor = accent
+                    )
+                },
+                filterControls = {
+                    RxssStateFilterControls(
+                        filter = settings.levelRangeCFilter,
+                        accentColor = accent,
+                        hint = stringResource(R.string.passive_signal_rxss_filter_hint_level_range_c),
+                        onFilterChange = { onSettingsChange(settings.copy(levelRangeCFilter = it)) }
                     )
                 },
                 durationControls = {
@@ -851,6 +864,14 @@ private fun RsrpBandTierIntervalControls(
                         passiveMeasurementIntervalMs = passiveMeasurementIntervalMs,
                         accentColor = accent,
                         onIntervalChange = { onSettingsChange(settings.copy(fairTierClickIntervalMs = it)) }
+                    )
+                },
+                frequencyControls = {
+                    TierPulseFrequencySlider(
+                        label = stringResource(R.string.passive_signal_tier_pulse_frequency, tierNumber),
+                        frequencyHz = audioVolumes.levelRangeCPulseFrequencyHz,
+                        accentColor = accent,
+                        onFrequencyChange = onLevelRangeCPulseFrequencyChange
                     )
                 }
             )
@@ -878,6 +899,8 @@ private fun RsrpTierSettings(
     onPreviewSignalPulse: (volume: Float, frequencyHz: Int, pulseDurationMs: Int) -> Unit,
     onLevelRangeBcdClickVolumeChange: (Float) -> Unit,
     onLevelRangeBcdPulseFrequencyChange: (Int) -> Unit,
+    onLevelRangeCPulseFrequencyChange: (Int) -> Unit,
+    onLevelRangeDPulseFrequencyChange: (Int) -> Unit,
     onPreviewLevelRangeBcdClick: (frequencyHz: Int, pulseDurationMs: Int) -> Unit,
     onSignalPulseFrequencyChange: (Int) -> Unit
 ) {
@@ -1058,6 +1081,7 @@ private fun RsrpTierSettings(
                 audioVolumes = audioVolumes,
                 previewEnabled = previewEnabled,
                 onPreviewLevelRangeBcdClick = onPreviewLevelRangeBcdClick,
+                onLevelRangeCPulseFrequencyChange = onLevelRangeCPulseFrequencyChange,
                 onSettingsChange = onSettingsChange
             )
         }
@@ -1084,12 +1108,20 @@ private fun RsrpTierSettings(
                         accentColor = accent
                     )
                 },
+                filterControls = {
+                    RxssStateFilterControls(
+                        filter = settings.levelRangeDFilter,
+                        accentColor = accent,
+                        hint = stringResource(R.string.passive_signal_rxss_filter_hint_level_range_d),
+                        onFilterChange = { onSettingsChange(settings.copy(levelRangeDFilter = it)) }
+                    )
+                },
                 volumeControls = {
                     RepeatablePreviewTestButton(
                         enabled = previewEnabled && settings.poorTierSoundEnabled,
                         onPreview = {
                             onPreviewLevelRangeBcdClick(
-                                audioVolumes.levelRangeBcdPulseFrequencyHz,
+                                audioVolumes.levelRangeDPulseFrequencyHz,
                                 settings.poorTierPulseDurationMs
                             )
                         },
@@ -1115,6 +1147,14 @@ private fun RsrpTierSettings(
                         passiveMeasurementIntervalMs = passiveMeasurementIntervalMs,
                         accentColor = accent,
                         onIntervalChange = { onSettingsChange(settings.copy(poorTierClickIntervalMs = it)) }
+                    )
+                },
+                frequencyControls = {
+                    TierPulseFrequencySlider(
+                        label = stringResource(R.string.passive_signal_tier_pulse_frequency, tierNumber),
+                        frequencyHz = audioVolumes.levelRangeDPulseFrequencyHz,
+                        accentColor = accent,
+                        onFrequencyChange = onLevelRangeDPulseFrequencyChange
                     )
                 }
             )
@@ -1488,9 +1528,10 @@ private fun G2TierSettings(
 }
 
 /**
- * Collapsible sub-panel ("RXSS 2-5 common settings") for the signal-pulse volume/frequency
- * shared by RXSS 2-5 (Level Ranges A-D). Each of those tiers still keeps its own enable toggle,
- * RSRP boundary, pulse duration, and click interval in its own [TierSettingSection].
+ * Collapsible sub-panel ("RXSS 2-5 common settings") for the signal-pulse volume shared by
+ * RXSS 2-5 (Level Ranges A-D) and the frequency shared by RXSS 2-3. RXSS 4 and 5 have their
+ * own frequency sliders. Each of those tiers still keeps its own enable toggle, RSRP boundary,
+ * pulse duration, and click interval in its own [TierSettingSection].
  */
 @Composable
 private fun LevelRangeBcdSharedSoundControls(

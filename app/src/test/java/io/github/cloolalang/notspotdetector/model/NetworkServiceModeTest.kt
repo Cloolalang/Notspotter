@@ -180,12 +180,54 @@ class NetworkServiceModeTest {
     }
 
     @Test
+    fun serviceMetric_visitedLimited2gReadsVisitingLimitedService() {
+        val visited = ConnectivityStats(
+            signalPermissionGranted = true,
+            isLimitedService = true,
+            networkServiceMode = NetworkServiceMode.LIMITED_SERVICE,
+            radioAccessType = "2G",
+            isOn2g = true,
+            homeNetworkOperatorName = "Vodafone",
+            servingNetworkOperatorName = "EE",
+            homePlmn = "23415",
+            plmn = "23430"
+        )
+        assertEquals(
+            ServiceStateMetricLabel.VISITING_LIMITED_SERVICE,
+            visited.resolveServiceStateMetricLabel()
+        )
+        assertEquals(
+            ServiceStateMetricLabel.VISITING_LIMITED_SERVICE_VOICE_ONLY,
+            visited.copy(isVoiceOnlyNoData = true).resolveServiceStateMetricLabel()
+        )
+    }
+
+    @Test
     fun serviceMetric_homeLimited4gStaysLimitedService() {
         val home = ConnectivityStats(
             signalPermissionGranted = true,
             isLimitedService = true,
             networkServiceMode = NetworkServiceMode.LIMITED_SERVICE,
             radioAccessType = "4G",
+            homeNetworkOperatorName = "Vodafone",
+            servingNetworkOperatorName = "Vodafone",
+            homePlmn = "23415",
+            plmn = "23415"
+        )
+        assertEquals(
+            ServiceStateMetricLabel.LIMITED_SERVICE,
+            home.resolveServiceStateMetricLabel()
+        )
+    }
+
+    @Test
+    fun serviceMetric_homeLimited2gStaysLimitedService() {
+        val home = ConnectivityStats(
+            signalPermissionGranted = true,
+            isLimitedService = true,
+            networkServiceMode = NetworkServiceMode.LIMITED_SERVICE,
+            radioAccessType = "2G",
+            isOn2g = true,
             homeNetworkOperatorName = "Vodafone",
             servingNetworkOperatorName = "Vodafone",
             homePlmn = "23415",

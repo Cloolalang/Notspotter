@@ -112,6 +112,7 @@ class RsrpHistogramTest {
         assertEquals(-115, bins[2].labelDbm)
         assertEquals(4, bins[2].count)
         assertEquals(RsrpHistogramBinKind.OTHER, bins[3].kind)
+        assertEquals(-115, bins[3].labelDbm)
         assertEquals(0, bins[3].count)
         assertEquals(RsrpHistogramBinKind.NO_SIGNAL, bins[4].kind)
         assertEquals(1, bins[4].count)
@@ -133,6 +134,7 @@ class RsrpHistogramTest {
 
         assertEquals(0, bins[0].count)
         assertEquals(RsrpHistogramBinKind.OTHER, bins[1].kind)
+        assertEquals(-105, bins[1].labelDbm)
         assertEquals(1, bins[1].count)
         assertEquals(RsrpHistogramBinKind.NO_SIGNAL, bins[2].kind)
         assertEquals(0, bins[2].count)
@@ -158,6 +160,7 @@ class RsrpHistogramTest {
         assertEquals(1, bins[1].count)
         assertEquals(1, bins[2].count)
         assertEquals(RsrpHistogramBinKind.OTHER, bins[3].kind)
+        assertEquals(-115, bins[3].labelDbm)
         assertEquals(2, bins[3].count)
         assertEquals(0, bins[4].count)
     }
@@ -356,6 +359,7 @@ class RsrpHistogramTest {
 
         assertEquals(listOf(0, 0, 0, 0, 2), bins.map { it.count })
         assertEquals(RsrpHistogramBinKind.OTHER, bins[3].kind)
+        assertEquals(-115, bins[3].labelDbm)
         assertEquals(RsrpHistogramBinKind.NO_SIGNAL, bins.last().kind)
     }
 }

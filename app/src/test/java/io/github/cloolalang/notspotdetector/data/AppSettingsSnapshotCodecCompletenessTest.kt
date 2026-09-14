@@ -278,6 +278,8 @@ class AppSettingsSnapshotCodecCompletenessTest {
                 wifiCallingTierClickIntervalMs = 590,
                 wifiCallingTierSoundEnabled = false,
                 wifiCallingTierPulseDurationMs = 280,
+                levelRangeCFilter = RxssStateFilterSettings(enabled = true, windowSeconds = 2, balancePercent = 40),
+                levelRangeDFilter = RxssStateFilterSettings(enabled = true, windowSeconds = 7, balancePercent = 55),
                 lowSignalFilter = RxssStateFilterSettings(enabled = true, windowSeconds = 3, balancePercent = 70),
                 noSignalFilter = RxssStateFilterSettings(enabled = false, windowSeconds = 4, balancePercent = 30),
                 deadzoneFilter = RxssStateFilterSettings(enabled = true, windowSeconds = 5, balancePercent = 80),
@@ -287,7 +289,8 @@ class AppSettingsSnapshotCodecCompletenessTest {
                 enabled = true,
                 scenario = MockNetworkScenario.ALT_OPERATOR_2G,
                 rsrpDbm = -140,
-                rsrqDb = -16
+                rsrqDb = -16,
+                voiceOnlyNoData = true
             ),
             audioVolumes = AudioVolumeSettings(
                 masterVoiceAnnouncementsEnabled = false,
@@ -298,6 +301,8 @@ class AppSettingsSnapshotCodecCompletenessTest {
                 limitedServiceTierPulseFrequencyHz = 475,
                 limitedServiceTwoToneSpreadPercent = 22,
                 levelRangeBcdPulseFrequencyHz = 680,
+                levelRangeCPulseFrequencyHz = 640,
+                levelRangeDPulseFrequencyHz = 600,
                 veryStrongTierPulseFrequencyHz = 860,
                 g2StrongTierPulseFrequencyHz = 630,
                 g2WeakTierPulseFrequencyHz = 510,
@@ -398,7 +403,8 @@ class AppSettingsSnapshotCodecCompletenessTest {
             "enabled",
             "scenario",
             "rsrpDbm",
-            "rsrqDb"
+            "rsrqDb",
+            "voiceOnlyNoData"
         )
 
         private val PASSIVE_SIGNAL_KEYS = setOf(
@@ -463,6 +469,8 @@ class AppSettingsSnapshotCodecCompletenessTest {
             "wifiCallingTierClickIntervalMs",
             "wifiCallingTierSoundEnabled",
             "wifiCallingTierPulseDurationMs",
+            "levelRangeCFilter",
+            "levelRangeDFilter",
             "lowSignalFilter",
             "noSignalFilter",
             "deadzoneFilter",
@@ -478,6 +486,8 @@ class AppSettingsSnapshotCodecCompletenessTest {
             "limitedServiceTierPulseFrequencyHz",
             "limitedServiceTwoToneSpreadPercent",
             "levelRangeBcdPulseFrequencyHz",
+            "levelRangeCPulseFrequencyHz",
+            "levelRangeDPulseFrequencyHz",
             "veryStrongTierPulseFrequencyHz",
             "g2StrongTierPulseFrequencyHz",
             "g2WeakTierPulseFrequencyHz",

@@ -186,7 +186,43 @@ Each row is the **agreed trigger state** the mock simulates. Live detection uses
 | **Mock slider** | RSRP + RSRQ |
 | **Not** | Limited service, dead zone, RXSS 10/11, 2G |
 
-**Voice (examples):** switching into this scenario from another RAT fires **RXSS 30** technology-change voice — “Vodafone, 5 G E N D C”; tier 6 → “Vodafone, 5 G E N D C, signal low”.
+**Voice:** switching into this scenario from another RAT fires **RXSS 30** technology-change voice — “Vodafone, 5 G E N D C”; tier 6 → “Vodafone, 5 G E N D C, signal low”.
+
+---
+
+### 7a. Home operator 5G SA — `HOME_5G`
+
+| Field | Value |
+|-------|--------|
+| **Primary RXSS** | **1–6** (from mock RSRP/RSRQ slider) · optional **14** (RSRQ overlay) |
+| **Operator** | Vodafone home |
+| **Tech** | 5G standalone (`radioAccessType = "5G"`, NR only, no LTE anchor) |
+| **Service** | Full home — `isLimitedService = false` |
+| **Mock slider** | RSRP + RSRQ |
+| **Not** | EN-DC (that is `HOME_5G_ENDC`) |
+
+**Voice:** technology-change speaks “5 G” (not “5 G E N D C”).
+
+---
+
+### 7b. Roaming in service — `ROAMING_4G` · `ROAMING_2G` · `ROAMING_5G` · `ROAMING_5G_ENDC`
+
+Registered SIM roaming on the visited operator (EE), **not** visiting limited service.
+
+| Scenario | Tech | RXSS | Service metric |
+|----------|------|------|----------------|
+| `ROAMING_4G` | 4G | **1–6** / **10** | **In service, Roaming** |
+| `ROAMING_2G` | 2G | **7–8** / **15** | **In service, Roaming** |
+| `ROAMING_5G` | 5G SA | **1–6** / **10** | **In service, Roaming** |
+| `ROAMING_5G_ENDC` | 5G EN-DC | **1–6** / **10** | **In service, Roaming** |
+
+| Field | Value |
+|-------|--------|
+| **Operator** | Vodafone home · **EE** serving (`homePlmn ≠ plmn`) |
+| **Service** | `isLimitedService = false`, `networkServiceMode = IN_SERVICE`, `isNetworkRoaming = true` |
+| **Voice** | **VA-5** “roaming in service” when entering from limited or from home in-service |
+
+`ROAMING_2G` requires **Monitor 2G fallback**, same as `HOME_2G`.
 
 ---
 
@@ -205,6 +241,10 @@ Each row is the **agreed trigger state** the mock simulates. Live detection uses
 
 **Voice:** **VA-1** / **VA-12** — “Vodafone, wifi calling, no cellular signal”; exit **VA-2** — “Vodafone, cellular signal restored”. See [VOICE_ANNOUNCEMENTS.md](VOICE_ANNOUNCEMENTS.md#rxss-31--wifi-calling-no-cellular-signal).
 
+### Voice only, no data (checkbox)
+
+Camped 2G / 4G / 5G scenarios (home, roaming, or limited) can tick **Voice only, no data**. That sets `isVoiceOnlyNoData` so Service shows **voice only** or **voice only, Roaming**. It is ignored on dead zone, searching 2G, and WiFi calling.
+
 ---
 
 ## Using mock in the app
@@ -213,7 +253,8 @@ Each row is the **agreed trigger state** the mock simulates. Live detection uses
 2. Pick a **scenario** (table above).
 3. Adjust **RSRP/RSRQ** when the slider is shown.
 4. Start **Passive mock** monitoring (or passive-only session).
-5. Scenario + slider values are **saved in settings profiles** — see [SETTINGS_PROFILES.md](SETTINGS_PROFILES.md).
+5. While mock is on, **VA-20** speaks **“mock network”** every 30 s (master voice mute still applies).
+6. Scenario + slider values are **saved in settings profiles** — see [SETTINGS_PROFILES.md](SETTINGS_PROFILES.md).
 
 **Immediate stats refresh:** Changing scenario or RSRP calls `MonitorState.pushMockStatsIfActive()` so the cellular metrics update at once. RXSS state filters still wait for the 1 Hz measurement cycle — dragging the mock slider does not skip the flicker wait.
 
@@ -223,6 +264,6 @@ Each row is the **agreed trigger state** the mock simulates. Live detection uses
 
 Profile JSON stores `passiveMock.scenario` as the enum name:
 
-`HOME_4G` · `HOME_2G` · `ALT_OPERATOR_4G` · `ALT_OPERATOR_2G` · `NO_SERVICE` · `SEARCHING_2G` · `HOME_5G_ENDC` · `WIFI_CALLING`
+`HOME_4G` · `HOME_2G` · `HOME_5G` · `HOME_5G_ENDC` · `HOME_LIMITED_4G` · `HOME_LIMITED_2G` · `ROAMING_4G` · `ROAMING_2G` · `ROAMING_5G` · `ROAMING_5G_ENDC` · `ALT_OPERATOR_4G` · `ALT_OPERATOR_2G` · `NO_SERVICE` · `SEARCHING_2G` · `WIFI_CALLING`
 
 Unknown values fall back to `HOME_4G` on import.

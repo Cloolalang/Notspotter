@@ -12,6 +12,11 @@ fun ConnectivityStats.formatVisitedOperatorDisplay(): String? {
     return resolveLimitedServiceVisitedOperatorName()
 }
 
+/** MVNO / virtual-network brand when it differs from the home MNO. */
+fun ConnectivityStats.formatVirtualOperatorDisplay(): String? {
+    return virtualNetworkOperatorName?.trim()?.takeIf { it.isNotBlank() }
+}
+
 /** Home operator for the network metric row. */
 fun ConnectivityStats.formatNetworkOperatorDisplay(): String? {
     return formatHomeOperatorDisplay()

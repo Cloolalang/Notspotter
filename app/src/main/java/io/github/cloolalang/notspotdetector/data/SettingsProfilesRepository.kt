@@ -98,7 +98,7 @@ class SettingsProfilesRepository(context: Context) {
         val decoded = AppSettingsSnapshotCodec.decodeProfile(json) ?: return ProfileImportResult.InvalidFile
         val profile = SettingsProfile(
             id = UUID.randomUUID().toString(),
-            name = uniqueImportName(decoded.name.trim()),
+            name = uniqueProfileName(decoded.name.trim()),
             savedAtMs = System.currentTimeMillis(),
             settings = decoded.settings.normalized()
         )
@@ -165,13 +165,13 @@ class SettingsProfilesRepository(context: Context) {
         }.getOrDefault(false)
     }
 
-    private fun uniqueImportName(baseName: String): String {
-        if (baseName.isBlank()) return "Imported profile"
-        if (!hasName(baseName)) return baseName
+    fun uniqueProfileName(baseName: String, blankFallback: String = "Imported profile"): String {
+        val base = baseName.trim().ifBlank { blankFallback }
+        if (!hasName(base)) return base
 
         var suffix = 2
         while (true) {
-            val candidate = "$baseName ($suffix)"
+            val candidate = "$base ($suffix)"
             if (!hasName(candidate)) return candidate
             suffix++
         }

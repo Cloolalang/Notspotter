@@ -105,6 +105,10 @@ data class PassiveSignalSettings(
     val wifiCallingTierClickIntervalMs: Int = DEFAULT_WIFI_CALLING_TIER_CLICK_INTERVAL_MS,
     val wifiCallingTierSoundEnabled: Boolean = DEFAULT_TIER_SOUND_ENABLED,
     val wifiCallingTierPulseDurationMs: Int = DEFAULT_WIFI_CALLING_TIER_PULSE_DURATION_MS,
+    /** RXSS 4 — rolling confirmation before Level Range C (fair RSRP) is adopted. */
+    val levelRangeCFilter: RxssStateFilterSettings = RxssStateFilterSettings.INACTIVE,
+    /** RXSS 5 — rolling confirmation before Level Range D (poor RSRP) is adopted. */
+    val levelRangeDFilter: RxssStateFilterSettings = RxssStateFilterSettings.INACTIVE,
     /** RXSS 6 / 8 — rolling confirmation before signal-low is adopted. */
     val lowSignalFilter: RxssStateFilterSettings = RxssStateFilterSettings.INACTIVE,
     /** RXSS 10 / 15 / 31 — rolling confirmation before no-signal is adopted. */
@@ -197,6 +201,8 @@ data class PassiveSignalSettings(
             limitedAlt2gTierPulseDurationMs = limitedAlt2gTierPulseDurationMs.coerceCampTierPulseDuration(),
             wifiCallingTierClickIntervalMs = wifiCallingTierClickIntervalMs.coerceTierClickInterval(),
             wifiCallingTierPulseDurationMs = wifiCallingTierPulseDurationMs.coerceCampTierPulseDuration(),
+            levelRangeCFilter = levelRangeCFilter.normalized(),
+            levelRangeDFilter = levelRangeDFilter.normalized(),
             lowSignalFilter = lowSignalFilter.normalized(),
             noSignalFilter = noSignalFilter.normalized(),
             deadzoneFilter = deadzoneFilter.normalized(),
@@ -307,7 +313,7 @@ data class PassiveSignalSettings(
     }
 }
 
-/** Longest pulse among Level Ranges A–D (RXSS 2–5) — used for the shared volume/frequency preview. */
+/** Longest pulse among Level Ranges A–D (RXSS 2–5) — used for the shared volume preview. */
 fun PassiveSignalSettings.levelRangeAbcdMaxPulseDurationMs(): Int {
     return maxOf(
         mildTierPulseDurationMs,
@@ -317,7 +323,7 @@ fun PassiveSignalSettings.levelRangeAbcdMaxPulseDurationMs(): Int {
     )
 }
 
-/** Fastest click interval among Level Ranges A–D (RXSS 2–5) — used for the shared volume/frequency preview. */
+/** Fastest click interval among Level Ranges A–D (RXSS 2–5) — used for the shared volume preview. */
 fun PassiveSignalSettings.levelRangeAbcdMinClickIntervalMs(): Int {
     return minOf(
         mildTierClickIntervalMs,

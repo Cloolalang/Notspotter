@@ -23,8 +23,12 @@ data class AudioVolumeSettings(
     val limitedServiceTierPulseFrequencyHz: Int = DEFAULT_LIMITED_SERVICE_TIER_PULSE_FREQUENCY_HZ,
     /** RXSS 12 two-tone: upper tone is this percent above [limitedServiceTierPulseFrequencyHz]. */
     val limitedServiceTwoToneSpreadPercent: Int = DEFAULT_LIMITED_SERVICE_TWO_TONE_SPREAD_PERCENT,
-    /** Level Ranges A–D (RXSS 2–5) tone frequency — independent of [signalPulseFrequencyHz]. */
+    /** Level Ranges A–B (RXSS 2–3) tone frequency — independent of [signalPulseFrequencyHz]. */
     val levelRangeBcdPulseFrequencyHz: Int = DEFAULT_LEVEL_RANGE_BCD_PULSE_FREQUENCY_HZ,
+    /** RXSS 4 (Level Range C) tone frequency — independent of [levelRangeBcdPulseFrequencyHz]. */
+    val levelRangeCPulseFrequencyHz: Int = DEFAULT_LEVEL_RANGE_C_PULSE_FREQUENCY_HZ,
+    /** RXSS 5 (Level Range D) tone frequency — independent of [levelRangeBcdPulseFrequencyHz]. */
+    val levelRangeDPulseFrequencyHz: Int = DEFAULT_LEVEL_RANGE_D_PULSE_FREQUENCY_HZ,
     /** Tier 1 (very strong RSRP) tone frequency — independent of [signalPulseFrequencyHz]. */
     val veryStrongTierPulseFrequencyHz: Int = DEFAULT_VERY_STRONG_TIER_PULSE_FREQUENCY_HZ,
     /** Tier 7 (2G strong) tone frequency — independent of [signalPulseFrequencyHz]. */
@@ -107,8 +111,9 @@ data class AudioVolumeSettings(
         return when (tier) {
             SignalStrengthTier.G2_STRONG -> g2StrongTierPulseFrequencyHz
             SignalStrengthTier.G2_WEAK -> g2WeakTierPulseFrequencyHz
-            SignalStrengthTier.MILD, SignalStrengthTier.GOOD, SignalStrengthTier.FAIR,
-            SignalStrengthTier.POOR -> levelRangeBcdPulseFrequencyHz
+            SignalStrengthTier.MILD, SignalStrengthTier.GOOD -> levelRangeBcdPulseFrequencyHz
+            SignalStrengthTier.FAIR -> levelRangeCPulseFrequencyHz
+            SignalStrengthTier.POOR -> levelRangeDPulseFrequencyHz
             SignalStrengthTier.NO_SIGNAL,
             SignalStrengthTier.G2_NO_SIGNAL,
             SignalStrengthTier.DEADZONE,
@@ -303,6 +308,14 @@ data class AudioVolumeSettings(
                 MIN_SIGNAL_PULSE_FREQUENCY_HZ,
                 MAX_SIGNAL_PULSE_FREQUENCY_HZ
             ),
+            levelRangeCPulseFrequencyHz = levelRangeCPulseFrequencyHz.coerceIn(
+                MIN_SIGNAL_PULSE_FREQUENCY_HZ,
+                MAX_SIGNAL_PULSE_FREQUENCY_HZ
+            ),
+            levelRangeDPulseFrequencyHz = levelRangeDPulseFrequencyHz.coerceIn(
+                MIN_SIGNAL_PULSE_FREQUENCY_HZ,
+                MAX_SIGNAL_PULSE_FREQUENCY_HZ
+            ),
             veryStrongTierPulseFrequencyHz = veryStrongTierPulseFrequencyHz.coerceIn(
                 MIN_SIGNAL_PULSE_FREQUENCY_HZ,
                 MAX_SIGNAL_PULSE_FREQUENCY_HZ
@@ -422,6 +435,8 @@ data class AudioVolumeSettings(
         const val DEFAULT_NO_SIGNAL_TIER_PULSE_FREQUENCY_HZ = 910
         const val DEFAULT_LIMITED_SERVICE_TIER_PULSE_FREQUENCY_HZ = 880
         const val DEFAULT_LEVEL_RANGE_BCD_PULSE_FREQUENCY_HZ = 890
+        const val DEFAULT_LEVEL_RANGE_C_PULSE_FREQUENCY_HZ = DEFAULT_LEVEL_RANGE_BCD_PULSE_FREQUENCY_HZ
+        const val DEFAULT_LEVEL_RANGE_D_PULSE_FREQUENCY_HZ = DEFAULT_LEVEL_RANGE_BCD_PULSE_FREQUENCY_HZ
         const val DEFAULT_VERY_STRONG_TIER_PULSE_FREQUENCY_HZ = 4_140
         const val DEFAULT_G2_STRONG_TIER_PULSE_FREQUENCY_HZ = 740
         const val DEFAULT_G2_WEAK_TIER_PULSE_FREQUENCY_HZ = 740

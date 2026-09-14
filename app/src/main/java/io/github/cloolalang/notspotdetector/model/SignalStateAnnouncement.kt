@@ -16,6 +16,8 @@ object SignalStateAnnouncement {
     internal const val PHRASE_SIGNAL_RESTORED = "signal restored"
     internal const val PHRASE_LIMITED_SERVICE = "limited service"
     internal const val PHRASE_IN_SERVICE = "in-service"
+    internal const val PHRASE_HOME_IN_SERVICE = "home in service"
+    internal const val PHRASE_ROAMING_IN_SERVICE = "roaming in service"
     internal const val PHRASE_HOME_LIMITED_SERVICE = "home limited service"
     internal const val PHRASE_VISITING_LIMITED_SERVICE = "visiting limited service"
     internal const val PHRASE_HOME_OPERATOR_ROLE = "home"
@@ -25,6 +27,8 @@ object SignalStateAnnouncement {
     /** RXSS 31 — in service via WiFi calling only, no cellular RAT/RSRP. */
     internal const val PHRASE_WIFI_CALLING_NO_SIGNAL = "wifi calling, no cellular signal"
     internal const val PHRASE_CELLULAR_SIGNAL_RESTORED = "cellular signal restored"
+    /** VA-20 — spoken every 30 s while mock network mode is on. */
+    const val PHRASE_MOCK_NETWORK = "mock network"
 
     private const val PREVIEW_LTE_EARFCN = 6400
 
@@ -458,7 +462,7 @@ object SignalStateAnnouncement {
             radioAccessType = stats.resolveNoSignalAnnouncementRadioAccessType(
                 lastKnownRadioAccessType
             ),
-            serviceState = PHRASE_IN_SERVICE,
+            serviceState = inServiceSpeechPhrase(stats),
             speakOperatorNameEnabled = phrases.speakOperatorName,
             speakTechnologyEnabled = phrases.speakTechnology,
             speakBandEnabled = phrases.speakBand,
@@ -474,12 +478,13 @@ object SignalStateAnnouncement {
     fun previewInService(
         networkOperatorName: String?,
         phrases: VoicePhraseOptions = VoicePhraseOptions(),
-        bandNamingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.DEFAULT
+        bandNamingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.DEFAULT,
+        roaming: Boolean = false
     ): String {
         return joinAnnouncementParts(
             operatorNames = listOf(networkOperatorName),
             radioAccessType = CellularSignalReader.RADIO_4G,
-            serviceState = PHRASE_IN_SERVICE,
+            serviceState = if (roaming) PHRASE_ROAMING_IN_SERVICE else PHRASE_HOME_IN_SERVICE,
             speakOperatorNameEnabled = phrases.speakOperatorName,
             speakTechnologyEnabled = phrases.speakTechnology,
             speakBandEnabled = phrases.speakBand,
@@ -489,7 +494,19 @@ object SignalStateAnnouncement {
 
     fun isInServiceAnnouncement(message: String?): Boolean {
         val text = message ?: return false
-        return text.contains(PHRASE_IN_SERVICE) && !text.contains(PHRASE_LIMITED_SERVICE)
+        if (text.contains(PHRASE_LIMITED_SERVICE)) return false
+        return text.contains(PHRASE_IN_SERVICE) ||
+            text.contains(PHRASE_HOME_IN_SERVICE) ||
+            text.contains(PHRASE_ROAMING_IN_SERVICE)
+    }
+
+    /** Home vs registered-roaming service phrase for VA-5 (2G and 4G/5G). */
+    internal fun inServiceSpeechPhrase(stats: ConnectivityStats): String {
+        return when {
+            stats.isRegisteredSimRoaming() -> PHRASE_ROAMING_IN_SERVICE
+            stats.resolveCampedVisitedOperatorName() == null -> PHRASE_HOME_IN_SERVICE
+            else -> PHRASE_IN_SERVICE
+        }
     }
 
     fun formatLimitedServiceAnnouncement(
@@ -680,6 +697,9 @@ object SignalStateAnnouncement {
             speakOperatorNameEnabled = speakOperatorNameEnabled
         )
     }
+
+    /** VA-20 — reminder that metrics are simulated, not live radio. */
+    fun formatMockNetworkAnnouncement(): String = PHRASE_MOCK_NETWORK
 
     fun formatTechnologyForSpeech(radioAccessType: String): String {
         return when (radioAccessType) {

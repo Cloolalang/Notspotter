@@ -646,18 +646,27 @@ fun ConnectivityStats.resolveSignalMeasurementTier(
     }
 
     val rsrp = rsrpDbm
-    if (rsrp != null && settings.isVeryStrongRsrp(rsrp) && lowSignalActive != true) {
+    if (rsrp != null &&
+        settings.isVeryStrongRsrp(rsrp) &&
+        lowSignalActive != true &&
+        levelRangeDActive != true &&
+        levelRangeCActive != true
+    ) {
         return SignalMeasurementTier.VERY_STRONG
     }
 
     val filteredLow = lowSignalActive
     if (filteredLow == true) return SignalMeasurementTier.CRITICAL
     val rawTier = resolveSignalStrengthTier(settings)
-    if (filteredLow == false && rawTier == SignalStrengthTier.CRITICAL) {
-        return SignalMeasurementTier.POOR
+    val afterLow = if (filteredLow == false && rawTier == SignalStrengthTier.CRITICAL) {
+        SignalStrengthTier.POOR
+    } else {
+        rawTier
     }
+    val afterPoor = applyLevelRangeDHold(afterLow, rawTier)
+    val afterFair = applyLevelRangeCHold(afterPoor, rawTier)
 
-    return when (rawTier) {
+    return when (afterFair) {
         SignalStrengthTier.MILD -> SignalMeasurementTier.MILD
         SignalStrengthTier.GOOD -> SignalMeasurementTier.GOOD
         SignalStrengthTier.FAIR -> SignalMeasurementTier.FAIR
@@ -684,10 +693,39 @@ fun ConnectivityStats.isTier5PoorSignal(
     if (!signalPermissionGranted) return false
     if (isLimitedService) {
         if (isOn2g || isLimitedServiceNoSignalCamp(settings)) return false
+        val filtered = filteredLtePulseTier(settings)
+        if (filtered != null) return filtered == SignalStrengthTier.POOR
         return settings.resolveSignalStrengthTier(rsrpDbm) == SignalStrengthTier.POOR
     }
     if (usesG2SignalTiers()) return false
+    val filtered = filteredLtePulseTier(settings)
+    if (filtered != null) return filtered == SignalStrengthTier.POOR
     return settings.resolveSignalStrengthTier(rsrpDbm) == SignalStrengthTier.POOR
+}
+
+/** Raw RXSS 5 band, ignoring flicker-filter confirmation. Used as the Level Range D trigger. */
+fun ConnectivityStats.isRawTier5PoorSignal(
+    settings: PassiveSignalSettings = PassiveSignalSettings()
+): Boolean {
+    if (!signalPermissionGranted) return false
+    if (isLimitedService && (isOn2g || isLimitedServiceNoSignalCamp(settings))) return false
+    if (usesG2SignalTiers()) return false
+    return settings.resolveSignalStrengthTier(rsrpDbm) == SignalStrengthTier.POOR
+}
+
+/** True when the latest measurement maps to RXSS 4 (Level Range C / fair RSRP band). */
+fun ConnectivityStats.isTier4FairSignal(
+    settings: PassiveSignalSettings = PassiveSignalSettings()
+): Boolean {
+    if (!signalPermissionGranted) return false
+    if (isLimitedService) {
+        if (isOn2g || isLimitedServiceNoSignalCamp(settings)) return false
+        if (levelRangeCActive != null) return levelRangeCActive
+        return settings.resolveSignalStrengthTier(rsrpDbm) == SignalStrengthTier.FAIR
+    }
+    if (usesG2SignalTiers()) return false
+    if (levelRangeCActive != null) return levelRangeCActive
+    return settings.resolveSignalStrengthTier(rsrpDbm) == SignalStrengthTier.FAIR
 }
 
 /** True when the latest measurement maps to RXSS 6 (signal low / critical RSRP band). */
@@ -768,7 +806,12 @@ fun ConnectivityStats.currentInServicePulseTier(
     }
     if (usesG2SignalTiers()) return filteredG2PulseTier(settings)
     val rsrp = rsrpDbm
-    if (rsrp != null && settings.isVeryStrongRsrp(rsrp) && lowSignalActive != true) {
+    if (rsrp != null &&
+        settings.isVeryStrongRsrp(rsrp) &&
+        lowSignalActive != true &&
+        levelRangeDActive != true &&
+        levelRangeCActive != true
+    ) {
         return SignalStrengthTier.MILD
     }
     return filteredLtePulseTier(settings)?.takeIf { it.isInServiceRsrpPulseBand() }
@@ -782,18 +825,63 @@ private fun ConnectivityStats.pendingNoSignalHeldPulseTier(): SignalStrengthTier
 }
 
 /**
- * RSRP pulse / interval tier after RXSS 6 (and 2G RXSS 8) flicker filtering.
- * While the low-signal filter is holding, keep the previous band so pulses do not jump
- * the moment raw RSRP crosses the RXSS 5/6 (or 7/8) boundary.
+ * RSRP pulse / interval tier after RXSS 6, 5, and 4 flicker filtering.
+ * While a filter is holding, keep the previous band so pulses do not jump the moment raw
+ * RSRP crosses an RXSS 3/4/5/6 boundary.
  */
 fun ConnectivityStats.filteredLtePulseTier(
     settings: PassiveSignalSettings = PassiveSignalSettings()
 ): SignalStrengthTier? {
     val raw = settings.resolveSignalStrengthTier(rsrpDbm)
-    return when (lowSignalActive) {
+    val afterLow = when (lowSignalActive) {
         true -> SignalStrengthTier.CRITICAL
         false -> if (raw == SignalStrengthTier.CRITICAL) SignalStrengthTier.POOR else raw
         null -> raw
+    }
+    val afterPoor = applyLevelRangeDHold(afterLow, raw)
+    return applyLevelRangeCHold(afterPoor, raw)
+}
+
+/**
+ * Hold RXSS 5 until its filter confirms entry, and stay on RXSS 5 until it confirms exit.
+ * Pending entry uses [heldPoorNeighborTier] (RXSS 4 or 6). Confirmed RXSS 6 still wins.
+ */
+private fun ConnectivityStats.applyLevelRangeDHold(
+    afterLow: SignalStrengthTier?,
+    raw: SignalStrengthTier?
+): SignalStrengthTier? {
+    if (lowSignalActive == true) return afterLow
+    return when (levelRangeDActive) {
+        true -> SignalStrengthTier.POOR
+        false -> if (raw == SignalStrengthTier.POOR) {
+            heldPoorNeighborTier?.takeIf { it != SignalStrengthTier.POOR }
+                ?: SignalStrengthTier.FAIR
+        } else {
+            afterLow
+        }
+        null -> afterLow
+    }
+}
+
+/**
+ * Hold RXSS 4 until its filter confirms entry, and stay on RXSS 4 until it confirms exit.
+ * Pending entry uses [heldFairNeighborTier] (RXSS 3 or 5) so a one-poll flicker does not
+ * adopt Level Range C. Confirmed RXSS 5 or 6 still wins.
+ */
+private fun ConnectivityStats.applyLevelRangeCHold(
+    afterPoor: SignalStrengthTier?,
+    raw: SignalStrengthTier?
+): SignalStrengthTier? {
+    if (lowSignalActive == true || levelRangeDActive == true) return afterPoor
+    return when (levelRangeCActive) {
+        true -> SignalStrengthTier.FAIR
+        false -> if (raw == SignalStrengthTier.FAIR) {
+            heldFairNeighborTier?.takeIf { it != SignalStrengthTier.FAIR }
+                ?: SignalStrengthTier.GOOD
+        } else {
+            afterPoor
+        }
+        null -> afterPoor
     }
 }
 

@@ -54,6 +54,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.atomic.AtomicInteger
@@ -78,6 +79,8 @@ class ConnectivityMonitorService : Service() {
     private var tier5PeriodicAnnouncementJob: Job? = null
     private var searching2gAnnouncementJob: Job? = null
     private var rsrpHistogramSampleJob: Job? = null
+    private var mockNetworkPeriodicWatcherJob: Job? = null
+    private var mockNetworkPeriodicAnnouncementJob: Job? = null
     private val monitoringAlertMutex = Mutex()
     private val monitoringEventsHandlerMutex = Mutex()
     private val voiceQueue = VoiceAnnouncementQueue()
@@ -136,6 +139,20 @@ class ConnectivityMonitorService : Service() {
         }
     }
 
+    private fun startMockNetworkPeriodicVoiceWatcher() {
+        mockNetworkPeriodicWatcherJob?.cancel()
+        mockNetworkPeriodicWatcherJob = serviceScope.launch {
+            combine(
+                MonitorState.passiveMockSettings,
+                MonitorState.audioVolumes
+            ) { mock, volumes ->
+                mock.enabled && volumes.normalized().masterVoiceAnnouncementsEnabled
+            }.collect { shouldAnnounce ->
+                updateMockNetworkPeriodicAnnouncements(shouldAnnounce)
+            }
+        }
+    }
+
     private fun registerMonitoringEventsListener() {
         MonitorState.setMonitoringEventsListener { events ->
             if (!isMonitoringActive) return@setMonitoringEventsListener
@@ -166,6 +183,7 @@ class ConnectivityMonitorService : Service() {
         registerMonitoringEventsListener()
         MonitorState.setRunning(true)
         startRsrpHistogramSampler()
+        startMockNetworkPeriodicVoiceWatcher()
         acquireWakeLock()
 
         val notificationText = if (isPassiveOnlyStart) {
@@ -562,6 +580,28 @@ class ConnectivityMonitorService : Service() {
         }
     }
 
+    private fun updateMockNetworkPeriodicAnnouncements(shouldAnnounce: Boolean) {
+        if (!isMonitoringActive || !shouldAnnounce) {
+            mockNetworkPeriodicAnnouncementJob?.cancel()
+            mockNetworkPeriodicAnnouncementJob = null
+            return
+        }
+        if (mockNetworkPeriodicAnnouncementJob?.isActive == true) return
+
+        mockNetworkPeriodicAnnouncementJob = serviceScope.launch {
+            while (isActive) {
+                delay(PERIODIC_ANNOUNCEMENT_MS)
+                if (!isMonitoringActive ||
+                    !MonitorState.passiveMockSettings.value.enabled ||
+                    !MonitorState.audioVolumes.value.normalized().masterVoiceAnnouncementsEnabled
+                ) {
+                    break
+                }
+                playMockNetworkAlert()
+            }
+        }
+    }
+
     private fun updateTier5PeriodicAnnouncements(
         forceRestart: Boolean = false,
         skipInitialDelay: Boolean = false
@@ -755,6 +795,27 @@ class ConnectivityMonitorService : Service() {
             }
             playDeadzoneAlertAwait(MonitorState.formatDeadzoneAnnouncement(current))
         }
+    }
+
+    private fun playMockNetworkAlert() {
+        serviceScope.launch {
+            monitoringAlertMutex.withLock {
+                playMockNetworkVoiceAwait()
+            }
+        }
+    }
+
+    private suspend fun playMockNetworkVoiceAwait() {
+        val volumes = MonitorState.audioVolumes.value.normalized()
+        if (!isMonitoringActive ||
+            !MonitorState.passiveMockSettings.value.enabled ||
+            !volumes.masterVoiceAnnouncementsEnabled
+        ) {
+            return
+        }
+        val announcement = SignalStateAnnouncement.formatMockNetworkAnnouncement()
+        if (announcement.isBlank()) return
+        cellVoiceAnnouncer.speakAwait(announcement, AudioVolumeSettings.DEFAULT_VOLUME)
     }
 
     private fun playPeriodicAlert(block: suspend () -> Unit) {
@@ -955,6 +1016,10 @@ class ConnectivityMonitorService : Service() {
         tier5PeriodicAnnouncementJob = null
         searching2gAnnouncementJob?.cancel()
         searching2gAnnouncementJob = null
+        mockNetworkPeriodicWatcherJob?.cancel()
+        mockNetworkPeriodicWatcherJob = null
+        mockNetworkPeriodicAnnouncementJob?.cancel()
+        mockNetworkPeriodicAnnouncementJob = null
         rsrpHistogramSampleJob?.cancel()
         rsrpHistogramSampleJob = null
         voiceQueue.clear()

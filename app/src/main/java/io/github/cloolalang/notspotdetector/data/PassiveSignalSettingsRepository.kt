@@ -241,6 +241,18 @@ class PassiveSignalSettingsRepository(context: Context) {
                 KEY_WIFI_CALLING_TIER_PULSE_MS,
                 PassiveSignalSettings.DEFAULT_WIFI_CALLING_TIER_PULSE_DURATION_MS
             ),
+            levelRangeCFilter = loadFilter(
+                KEY_LEVEL_RANGE_C_FILTER_ENABLED,
+                KEY_LEVEL_RANGE_C_FILTER_SECONDS,
+                KEY_LEVEL_RANGE_C_FILTER_BALANCE,
+                RxssStateFilterSettings.INACTIVE
+            ),
+            levelRangeDFilter = loadFilter(
+                KEY_LEVEL_RANGE_D_FILTER_ENABLED,
+                KEY_LEVEL_RANGE_D_FILTER_SECONDS,
+                KEY_LEVEL_RANGE_D_FILTER_BALANCE,
+                RxssStateFilterSettings.INACTIVE
+            ),
             lowSignalFilter = loadFilter(
                 KEY_LOW_SIGNAL_FILTER_ENABLED,
                 KEY_LOW_SIGNAL_FILTER_SECONDS,
@@ -332,6 +344,12 @@ class PassiveSignalSettingsRepository(context: Context) {
             .putInt(KEY_WIFI_CALLING_TIER_CLICK_MS, normalized.wifiCallingTierClickIntervalMs)
             .putBoolean(KEY_WIFI_CALLING_TIER_SOUND, normalized.wifiCallingTierSoundEnabled)
             .putInt(KEY_WIFI_CALLING_TIER_PULSE_MS, normalized.wifiCallingTierPulseDurationMs)
+            .putBoolean(KEY_LEVEL_RANGE_C_FILTER_ENABLED, normalized.levelRangeCFilter.enabled)
+            .putInt(KEY_LEVEL_RANGE_C_FILTER_SECONDS, normalized.levelRangeCFilter.windowSeconds)
+            .putInt(KEY_LEVEL_RANGE_C_FILTER_BALANCE, normalized.levelRangeCFilter.balancePercent)
+            .putBoolean(KEY_LEVEL_RANGE_D_FILTER_ENABLED, normalized.levelRangeDFilter.enabled)
+            .putInt(KEY_LEVEL_RANGE_D_FILTER_SECONDS, normalized.levelRangeDFilter.windowSeconds)
+            .putInt(KEY_LEVEL_RANGE_D_FILTER_BALANCE, normalized.levelRangeDFilter.balancePercent)
             .putBoolean(KEY_LOW_SIGNAL_FILTER_ENABLED, normalized.lowSignalFilter.enabled)
             .putInt(KEY_LOW_SIGNAL_FILTER_SECONDS, normalized.lowSignalFilter.windowSeconds)
             .putInt(KEY_LOW_SIGNAL_FILTER_BALANCE, normalized.lowSignalFilter.balancePercent)
@@ -439,6 +457,12 @@ class PassiveSignalSettingsRepository(context: Context) {
         private const val KEY_WIFI_CALLING_TIER_CLICK_MS = "wifi_calling_tier_click_ms"
         private const val KEY_WIFI_CALLING_TIER_SOUND = "wifi_calling_tier_sound_enabled"
         private const val KEY_WIFI_CALLING_TIER_PULSE_MS = "wifi_calling_tier_pulse_ms"
+        private const val KEY_LEVEL_RANGE_C_FILTER_ENABLED = "level_range_c_filter_enabled"
+        private const val KEY_LEVEL_RANGE_C_FILTER_SECONDS = "level_range_c_filter_seconds"
+        private const val KEY_LEVEL_RANGE_C_FILTER_BALANCE = "level_range_c_filter_balance"
+        private const val KEY_LEVEL_RANGE_D_FILTER_ENABLED = "level_range_d_filter_enabled"
+        private const val KEY_LEVEL_RANGE_D_FILTER_SECONDS = "level_range_d_filter_seconds"
+        private const val KEY_LEVEL_RANGE_D_FILTER_BALANCE = "level_range_d_filter_balance"
         private const val KEY_LOW_SIGNAL_FILTER_ENABLED = "low_signal_filter_enabled"
         private const val KEY_LOW_SIGNAL_FILTER_SECONDS = "low_signal_filter_seconds"
         private const val KEY_LOW_SIGNAL_FILTER_BALANCE = "low_signal_filter_balance"

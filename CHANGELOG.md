@@ -5,6 +5,72 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.82.0] - 2026-09-14
+
+### Added
+
+- **Virtual operator** — When the SIM is an MVNO, cellular metrics show **Home operator** as the underlying host network and a **Virtual operator** line under it with the SIM brand. The extra line is hidden on a normal host SIM.
+
+## [2.81.0] - 2026-09-14
+
+### Added
+
+- **Mock network voice reminder** — While mock network mode is on and monitoring is running, the app speaks **mock network** every 30 seconds so it is obvious that metrics are simulated. Master voice mute still silences it.
+
+## [2.80.0] - 2026-09-14
+
+### Added
+
+- **RXSS 4 and 5 alert pulse frequency** — Level Range C and D each have their own **Alert pulse frequency** slider. RXSS 2–3 still share the common-settings frequency. Existing installs and older profiles keep their current pitch until you change it.
+
+## [2.79.0] - 2026-09-14
+
+### Added
+
+- **Save dated copy to Downloads** — Settings profiles has a one-tap button that saves the current settings as a unique profile named with the date and time (`2026-09-14 13-48-22`) and immediately writes the same JSON to `Downloads/NotSpotter`.
+
+## [2.78.0] - 2026-09-14
+
+### Changed
+
+- **Settings lock** — Locking settings (password Lock, 10-minute idle, or app restart) now turns **mock mode** off and returns to live radio. Mock stays off until you unlock and switch it on again.
+
+## [2.77.0] - 2026-09-14
+
+### Added
+
+- **RXSS 5 flicker filter** — Level Range D now has the same optional rolling wait as RXSS 4 and 6. Brief hops into or out of the poor RSRP band no longer switch the displayed band or pulses until the filter confirms. Default is off. Confirmed RXSS 6 still wins over RXSS 5.
+
+## [2.76.0] - 2026-09-14
+
+### Added
+
+- **RXSS 4 flicker filter** — Level Range C now has the same optional rolling wait as RXSS 6. Brief hops into or out of −115 to −105 dBm no longer switch the displayed band or pulses until the filter confirms. Default is off.
+
+### Changed
+
+- **Threshold histogram** — The leftover-samples bar is labelled **<-115 dBm** (or the weakest floor you set), instead of “other samples”.
+- **Settings lock** — Unlocking with the password now re-locks after **10 minutes** of no touches in the app, including if you leave the app in the background.
+
+## [2.75.0] - 2026-09-14
+
+### Added
+
+- **Mock roaming and 5G SA** — Mock network state now has **Roaming 4G / 2G / 5G SA / 5G EN-DC** (registered in-service on EE) and **Home operator 5G SA**. Use these to test “roaming in service” voice and the Service **In service, Roaming** line without a live roam.
+- **Mock voice only** — A **Voice only, no data** tick box on camped mock scenarios makes Service show **voice only** (or **voice only, Roaming**). Dead zone, searching 2G, and WiFi calling ignore it.
+
+## [2.74.1] - 2026-09-14
+
+### Fixed
+
+- **Visiting limited service on 2G** — The Service metric now shows **Visiting limited service** (or **Visiting limited service, voice only**) on visited-operator 2G SOS camp, matching 4G and the spoken “visiting limited service” phrase. It previously stayed on **Limited service** for 2G.
+
+## [2.74.0] - 2026-09-14
+
+### Changed
+
+- **In-service voice (VA-5)** — Leaving limited service now speaks **home in service** when the new camp is the home operator, or **roaming in service** when it is registered roaming. The same phrases are used on **2G and 4G**. Switching between home and roaming while already in service also speaks the new phrase. The limited-service Test button still plays the limited-service line, then home in service.
+
 ## [2.73.0] - 2026-09-14
 
 ### Changed

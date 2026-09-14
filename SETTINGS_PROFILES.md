@@ -38,7 +38,7 @@ Multi-profile export uses a top-level `"profiles"` array with the same object sh
 | Ping target | `ping` | `PingSettings` | Host, port, pings per test, interval |
 | Monitoring | `monitoring` | `MonitoringSettings` | 2G fallback, inhibit 2G (root), SIM, RSRP histogram window / binning mode / three threshold floors, 5G features, home Manual select operator button, keep screen on while monitoring. Measurement cycle is fixed at 1 s; quiet passive alerts are off. |
 | Signal thresholds & tiers | `passiveSignal` | `PassiveSignalSettings` | RSRP/RSRQ bands, per-RXSS click interval, pulse duration, sound toggles (tiers 0–15, 12, 13, RSRQ 14) |
-| **Mock network** | `passiveMock` | `PassiveMockSettings` | Mock enable, scenario, RSRP, RSRQ — see below |
+| **Mock network** | `passiveMock` | `PassiveMockSettings` | Mock enable, scenario, RSRP, RSRQ, voice-only — see below |
 | Alert audio & voice | `audio` | `AudioVolumeSettings` | Volumes, voice toggles, TTS engine choice, tier-5 announcer |
 
 ### `passiveMock` keys (full capture)
@@ -49,6 +49,7 @@ Multi-profile export uses a top-level `"profiles"` array with the same object sh
 | `scenario` | string | One of `MockNetworkScenario` enum names — see [MOCK_NETWORK_SCENARIOS.md](MOCK_NETWORK_SCENARIOS.md) |
 | `rsrpDbm` | int | Mock RSRP / 2G RX level (−140 … max tier RSRP) |
 | `rsrqDb` | int | Mock RSRQ (LTE/NR scenarios only) |
+| `voiceOnlyNoData` | boolean | CS camped with no packet data — Service “voice only” (ignored on dead zone, searching 2G, WiFi calling) |
 
 Scenario reference and trigger states: [MOCK_NETWORK_SCENARIOS.md](MOCK_NETWORK_SCENARIOS.md).
 
@@ -71,7 +72,7 @@ All tier click intervals, pulse durations, and sound-enable flags for:
 - Camp tiers **0**, **10**, **11**, **12**, **13**, **31** (WiFi calling)
 - RSRQ overlay **14**
 - No-signal / dead-zone / searching / limited-service / limited-alt-2G / WiFi-calling camp settings
-- Rolling **state filters** for RXSS 6/8 (low signal), 10/15/31 (no signal), 0 (dead zone), and 14 (RSRQ): `lowSignalFilter`, `noSignalFilter`, `deadzoneFilter`, `rsrqFilter` objects with `enabled`, `windowSeconds` (0–10), `balancePercent` (0–100).
+- Rolling **state filters** for RXSS 4 (Level Range C), 5 (Level Range D), 6/8 (low signal), 10/15/31 (no signal), 0 (dead zone), and 14 (RSRQ): `levelRangeCFilter`, `levelRangeDFilter`, `lowSignalFilter`, `noSignalFilter`, `deadzoneFilter`, `rsrqFilter` objects with `enabled`, `windowSeconds` (0–10), `balancePercent` (0–100).
 - RXSS 1 floor (`veryStrongRsrpMinDbm`, −85 to −50 dBm; RXSS 2’s high end follows this value), RXSS 6 high end (`poorRsrpMinDbm`, from the RXSS 10 floor up to −125 dBm), and RXSS 10 no-signal floor (`noSignalRsrpDbm`, −135 to −125 dBm, always below RXSS 6).
 - 2G: RXSS 8 high end (`g2WeakMaxDbm`, from the RXSS 15 floor up to −85 dBm) and RXSS 15 no-signal floor (`g2NoSignalRsrpDbm`, −135 to −95 dBm, always below RXSS 8). RXSS 7 is RX level stronger than the RXSS 8 high end.
 
@@ -108,6 +109,7 @@ Loading a profile **applies settings immediately** to repositories and `MonitorS
 - Up to **24** named profiles on device (app document storage).
 - Save rejected if settings match factory defaults (`AppSettingsSnapshot.isDefault()`).
 - Duplicate profile names rejected.
+- **Save dated copy to Downloads** names the profile `yyyy-MM-dd HH-mm-ss` (unique if you tap twice in the same second) and immediately writes `Downloads/NotSpotter/NotSpotter - {name}.json`.
 - Export: `Downloads/NotSpotter/NotSpotter - {name}.json`
 - On load, passive signal settings are **normalized** with audio pulse durations (`SettingsCompatibility`).
 

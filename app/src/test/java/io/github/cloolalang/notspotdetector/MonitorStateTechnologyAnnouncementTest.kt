@@ -183,38 +183,35 @@ class MonitorStateTechnologyAnnouncementTest {
     }
 
     @Test
-    fun leavingLimitedService_announcesInService() {
-        val homeMock = PassiveMockSettings(enabled = true, scenario = MockNetworkScenario.HOME_4G)
-        val altMock = homeMock.copy(scenario = MockNetworkScenario.ALT_OPERATOR_4G)
-        MonitorState.updateStats(
-            homeMock.toConnectivityStats(
-                monitor2gFallback = true,
-                passiveSettings = passiveSettings,
-                passiveIdleMode = false,
-                passiveOnlySession = true
+    fun leavingLimitedService_announcesHomeInServiceOn4g() {
+        assertEquals(
+            "home in service",
+            leaveLimitedServiceAnnouncement(
+                MockNetworkScenario.HOME_4G,
+                MockNetworkScenario.ALT_OPERATOR_4G
             )
         )
-        val enterLimited = MonitorState.updateStats(
-            altMock.toConnectivityStats(
-                monitor2gFallback = true,
-                passiveSettings = passiveSettings,
-                passiveIdleMode = false,
-                passiveOnlySession = true
-            )
-        )
-        assertTrue(enterLimited.limitedServiceStateChanged)
+    }
 
-        val events = MonitorState.updateStats(
-            homeMock.toConnectivityStats(
-                monitor2gFallback = true,
-                passiveSettings = passiveSettings,
-                passiveIdleMode = false,
-                passiveOnlySession = true
+    @Test
+    fun leavingLimitedService_announcesHomeInServiceOn2g() {
+        assertEquals(
+            "home in service",
+            leaveLimitedServiceAnnouncement(
+                MockNetworkScenario.HOME_2G,
+                MockNetworkScenario.ALT_OPERATOR_2G
             )
         )
+    }
 
-        assertTrue(events.limitedServiceStateChanged)
-        assertEquals("in-service", events.limitedServiceStateAnnouncement)
+    @Test
+    fun homeToRoamingInService_announcesRoamingInServiceOn4g() {
+        assertEquals("roaming in service", homeToRoamingAnnouncement(MockNetworkScenario.HOME_4G))
+    }
+
+    @Test
+    fun homeToRoamingInService_announcesRoamingInServiceOn2g() {
+        assertEquals("roaming in service", homeToRoamingAnnouncement(MockNetworkScenario.HOME_2G))
     }
 
     @Test
@@ -267,6 +264,42 @@ class MonitorStateTechnologyAnnouncementTest {
         assertNotNull(events.technologyChangeAnnouncement)
         assertTrue(events.technologyChangeAnnouncement!!.contains("4 G"))
         assertEquals(CellularSignalReader.RADIO_4G, events.technologyChangeTargetRadioAccessType)
+    }
+
+    private fun mockStats(scenario: MockNetworkScenario): ConnectivityStats {
+        return PassiveMockSettings(enabled = true, scenario = scenario).toConnectivityStats(
+            monitor2gFallback = true,
+            passiveSettings = passiveSettings,
+            passiveIdleMode = false,
+            passiveOnlySession = true
+        )
+    }
+
+    private fun leaveLimitedServiceAnnouncement(
+        homeScenario: MockNetworkScenario,
+        limitedScenario: MockNetworkScenario
+    ): String? {
+        MonitorState.updateStats(mockStats(homeScenario))
+        val enterLimited = MonitorState.updateStats(mockStats(limitedScenario))
+        assertTrue(enterLimited.limitedServiceStateChanged)
+        val events = MonitorState.updateStats(mockStats(homeScenario))
+        assertTrue(events.limitedServiceStateChanged)
+        return events.limitedServiceStateAnnouncement
+    }
+
+    private fun homeToRoamingAnnouncement(homeScenario: MockNetworkScenario): String? {
+        val home = mockStats(homeScenario)
+        MonitorState.updateStats(home)
+        val events = MonitorState.updateStats(
+            home.copy(
+                isNetworkRoaming = true,
+                networkOperatorName = PassiveMockSettings.MOCK_VISITED_OPERATOR,
+                servingNetworkOperatorName = PassiveMockSettings.MOCK_VISITED_OPERATOR,
+                plmn = PassiveMockSettings.MOCK_VISITED_PLMN
+            )
+        )
+        assertTrue(events.limitedServiceStateChanged)
+        return events.limitedServiceStateAnnouncement
     }
 
     private fun live4gStats(): ConnectivityStats {

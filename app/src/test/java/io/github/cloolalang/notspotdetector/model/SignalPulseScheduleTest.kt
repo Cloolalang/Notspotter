@@ -46,6 +46,48 @@ class SignalPulseScheduleTest {
     }
 
     @Test
+    fun levelRangeCFilterHold_keepsRxss3PulseKeyWhileRawIsRxss4() {
+        val pending = lteStats(rsrpDbm = -110).copy(
+            levelRangeCActive = false,
+            heldFairNeighborTier = SignalStrengthTier.GOOD
+        )
+        val confirmed = lteStats(rsrpDbm = -110).copy(levelRangeCActive = true)
+
+        assertEquals(Rxss.LEVEL_RANGE_B, pending.resolveSignalPulseScheduleKey(settings).rxssNumber)
+        assertEquals(Rxss.LEVEL_RANGE_C, confirmed.resolveSignalPulseScheduleKey(settings).rxssNumber)
+    }
+
+    @Test
+    fun levelRangeCFilterHold_keepsRxss4PulseKeyWhileRawHasRecoveredToRxss3() {
+        val pendingExit = lteStats(rsrpDbm = -100).copy(levelRangeCActive = true)
+        val confirmedExit = lteStats(rsrpDbm = -100).copy(levelRangeCActive = false)
+
+        assertEquals(Rxss.LEVEL_RANGE_C, pendingExit.resolveSignalPulseScheduleKey(settings).rxssNumber)
+        assertEquals(Rxss.LEVEL_RANGE_B, confirmedExit.resolveSignalPulseScheduleKey(settings).rxssNumber)
+    }
+
+    @Test
+    fun levelRangeDFilterHold_keepsRxss4PulseKeyWhileRawIsRxss5() {
+        val pending = lteStats(rsrpDbm = -120).copy(
+            levelRangeDActive = false,
+            heldPoorNeighborTier = SignalStrengthTier.FAIR
+        )
+        val confirmed = lteStats(rsrpDbm = -120).copy(levelRangeDActive = true)
+
+        assertEquals(Rxss.LEVEL_RANGE_C, pending.resolveSignalPulseScheduleKey(settings).rxssNumber)
+        assertEquals(Rxss.LEVEL_RANGE_D, confirmed.resolveSignalPulseScheduleKey(settings).rxssNumber)
+    }
+
+    @Test
+    fun levelRangeDFilterHold_keepsRxss5PulseKeyWhileRawHasRecoveredToRxss4() {
+        val pendingExit = lteStats(rsrpDbm = -110).copy(levelRangeDActive = true)
+        val confirmedExit = lteStats(rsrpDbm = -110).copy(levelRangeDActive = false)
+
+        assertEquals(Rxss.LEVEL_RANGE_D, pendingExit.resolveSignalPulseScheduleKey(settings).rxssNumber)
+        assertEquals(Rxss.LEVEL_RANGE_C, confirmedExit.resolveSignalPulseScheduleKey(settings).rxssNumber)
+    }
+
+    @Test
     fun pendingNoSignal_keepsPreviousRsrpPulseKey() {
         val pendingFrom5 = lteStats(rsrpDbm = PassiveSignalSettings.MIN_RSRP_DBM).copy(
             cellularAvailable = false,

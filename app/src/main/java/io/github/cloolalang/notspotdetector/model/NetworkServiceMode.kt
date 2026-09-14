@@ -48,7 +48,7 @@ fun ConnectivityStats.isRegisteredSimRoaming(): Boolean {
     )
 }
 
-/** Cellular metrics Service row — distinguishes RXSS 12 visiting limited service. */
+/** Cellular metrics Service row — distinguishes visiting limited service (RXSS 12 / 13). */
 enum class ServiceStateMetricLabel {
     IN_SERVICE,
     IN_SERVICE_ROAMING,
@@ -74,9 +74,9 @@ fun ConnectivityStats.resolveServiceStateMetricLabel(): ServiceStateMetricLabel 
             else -> ServiceStateMetricLabel.IN_SERVICE
         }
         NetworkServiceMode.LIMITED_SERVICE -> when {
-            isLimitedServiceVisited4g() && isVoiceOnlyNoData ->
+            isLimitedServiceVisited() && isVoiceOnlyNoData ->
                 ServiceStateMetricLabel.VISITING_LIMITED_SERVICE_VOICE_ONLY
-            isLimitedServiceVisited4g() -> ServiceStateMetricLabel.VISITING_LIMITED_SERVICE
+            isLimitedServiceVisited() -> ServiceStateMetricLabel.VISITING_LIMITED_SERVICE
             isVoiceOnlyNoData -> ServiceStateMetricLabel.LIMITED_SERVICE_VOICE_ONLY
             else -> ServiceStateMetricLabel.LIMITED_SERVICE
         }

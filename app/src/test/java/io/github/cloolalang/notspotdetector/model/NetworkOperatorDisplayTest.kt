@@ -48,4 +48,17 @@ class NetworkOperatorDisplayTest {
         assertEquals("EE", stats.formatHomeOperatorDisplay())
         assertEquals("23415", stats.formatVisitedOperatorDisplay())
     }
+
+    @Test
+    fun formatVirtualOperatorDisplay_onlyWhenMvnoNamePresent() {
+        val hostOnly = ConnectivityStats(
+            homeNetworkOperatorName = "EE",
+            servingNetworkOperatorName = "EE"
+        )
+        assertNull(hostOnly.formatVirtualOperatorDisplay())
+
+        val mvno = hostOnly.copy(virtualNetworkOperatorName = "BT Mobile")
+        assertEquals("BT Mobile", mvno.formatVirtualOperatorDisplay())
+        assertEquals("EE", mvno.formatHomeOperatorDisplay())
+    }
 }

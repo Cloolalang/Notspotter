@@ -75,13 +75,18 @@ class G2SignalTierTest {
         val volumes = AudioVolumeSettings(
             signalPulseFrequencyHz = 500,
             levelRangeBcdPulseFrequencyHz = 610,
+            levelRangeCPulseFrequencyHz = 650,
+            levelRangeDPulseFrequencyHz = 670,
             g2StrongTierPulseFrequencyHz = 720,
             g2WeakTierPulseFrequencyHz = 480
         )
 
         assertEquals(720, volumes.pulseFrequencyHzForTier(SignalStrengthTier.G2_STRONG))
         assertEquals(480, volumes.pulseFrequencyHzForTier(SignalStrengthTier.G2_WEAK))
-        assertEquals(610, volumes.pulseFrequencyHzForTier(SignalStrengthTier.FAIR))
+        assertEquals(610, volumes.pulseFrequencyHzForTier(SignalStrengthTier.MILD))
+        assertEquals(610, volumes.pulseFrequencyHzForTier(SignalStrengthTier.GOOD))
+        assertEquals(650, volumes.pulseFrequencyHzForTier(SignalStrengthTier.FAIR))
+        assertEquals(670, volumes.pulseFrequencyHzForTier(SignalStrengthTier.POOR))
     }
 
     @Test

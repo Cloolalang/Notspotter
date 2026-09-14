@@ -48,6 +48,7 @@ import io.github.cloolalang.notspotdetector.model.primaryLayerDominance
 import io.github.cloolalang.notspotdetector.model.formatHomeOperatorDisplay
 import io.github.cloolalang.notspotdetector.model.formatMobileDataEnabledSuffix
 import io.github.cloolalang.notspotdetector.model.formatSimOperatorSelectionSuffix
+import io.github.cloolalang.notspotdetector.model.formatVirtualOperatorDisplay
 import io.github.cloolalang.notspotdetector.model.formatVisitedOperatorDisplay
 import io.github.cloolalang.notspotdetector.model.ServingBandMhz
 import io.github.cloolalang.notspotdetector.model.shouldBlankStaleCellIdentity
@@ -61,6 +62,7 @@ import io.github.cloolalang.notspotdetector.model.RsrpSample
 import io.github.cloolalang.notspotdetector.model.RttSample
 import io.github.cloolalang.notspotdetector.model.ProfileExportOutcome
 import io.github.cloolalang.notspotdetector.model.ProfileImportResult
+import io.github.cloolalang.notspotdetector.model.ProfileQuickSaveOutcome
 import io.github.cloolalang.notspotdetector.model.ProfileSaveResult
 import io.github.cloolalang.notspotdetector.model.SettingsProfileSummary
 import io.github.cloolalang.notspotdetector.model.SimSubscriptionOption
@@ -183,6 +185,8 @@ fun MonitorScreen(
     onPreviewSignalPulse: (volume: Float, frequencyHz: Int, pulseDurationMs: Int) -> Unit,
     onLevelRangeBcdClickVolumeChange: (Float) -> Unit,
     onLevelRangeBcdPulseFrequencyChange: (Int) -> Unit,
+    onLevelRangeCPulseFrequencyChange: (Int) -> Unit,
+    onLevelRangeDPulseFrequencyChange: (Int) -> Unit,
     onPreviewLevelRangeBcdClick: (frequencyHz: Int, pulseDurationMs: Int) -> Unit,
     onPreviewCellChangeBell: () -> Unit,
     onPreviewCellChangeVoice: () -> Unit,
@@ -196,6 +200,7 @@ fun MonitorScreen(
     onPreviewRsrqWhiteNoise: () -> Unit,
     onResetAudioVolumes: () -> Unit,
     onSaveSettingsProfile: (String) -> ProfileSaveResult,
+    onSaveDatedSettingsProfileToDownloads: () -> ProfileQuickSaveOutcome,
     onLoadSettingsProfile: (String) -> Unit,
     onDeleteSettingsProfile: (String) -> Unit,
     onImportSettingsProfile: (onResult: (ProfileImportResult) -> Unit) -> Unit,
@@ -384,6 +389,8 @@ fun MonitorScreen(
                 onPreviewSignalPulse = onPreviewSignalPulse,
                 onLevelRangeBcdClickVolumeChange = onLevelRangeBcdClickVolumeChange,
                 onLevelRangeBcdPulseFrequencyChange = onLevelRangeBcdPulseFrequencyChange,
+                onLevelRangeCPulseFrequencyChange = onLevelRangeCPulseFrequencyChange,
+                onLevelRangeDPulseFrequencyChange = onLevelRangeDPulseFrequencyChange,
                 onPreviewLevelRangeBcdClick = onPreviewLevelRangeBcdClick,
                 onPreviewRsrqWhiteNoise = onPreviewRsrqWhiteNoise,
                 onSignalPulseFrequencyChange = onSignalPulseFrequencyChange,
@@ -411,6 +418,7 @@ fun MonitorScreen(
             SettingsProfilesCard(
                 profiles = settingsProfiles,
                 onSaveProfile = onSaveSettingsProfile,
+                onSaveDatedProfileToDownloads = onSaveDatedSettingsProfileToDownloads,
                 onLoadProfile = onLoadSettingsProfile,
                 onDeleteProfile = onDeleteSettingsProfile,
                 onImportProfile = onImportSettingsProfile,
@@ -656,6 +664,12 @@ private fun MetricsCard(
                 label = stringResource(R.string.metric_home_operator),
                 value = formatHomeOperator(stats)
             )
+            stats.formatVirtualOperatorDisplay()?.let { virtualOperator ->
+                MetricRow(
+                    label = stringResource(R.string.metric_virtual_operator),
+                    value = virtualOperator
+                )
+            }
             stats.manualSimOperatorName?.takeIf { it.isNotBlank() }?.let { selectedOperator ->
                 MetricRow(
                     label = stringResource(R.string.metric_manual_selected_operator),

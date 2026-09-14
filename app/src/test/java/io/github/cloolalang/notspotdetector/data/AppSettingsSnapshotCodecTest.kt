@@ -174,4 +174,30 @@ class AppSettingsSnapshotCodecTest {
         assertEquals(333, decoded.settings.passiveSignalSettings.fairTierPulseDurationMs)
         assertEquals(333, decoded.settings.passiveSignalSettings.poorTierPulseDurationMs)
     }
+
+    @Test
+    fun decodingLegacyProfileWithoutRxss45FrequencyKeysSeedsFromSharedBcdFrequency() {
+        val legacyJson = """
+            {
+              "schemaVersion": 1,
+              "profile": {
+                "id": "legacy-bcd-freq",
+                "name": "Legacy BCD frequency",
+                "savedAtMs": 1,
+                "settings": {
+                  "audio": {
+                    "levelRangeBcdPulseFrequencyHz": 770
+                  }
+                }
+              }
+            }
+        """.trimIndent()
+
+        val decoded = AppSettingsSnapshotCodec.decodeProfile(legacyJson)
+
+        requireNotNull(decoded)
+        assertEquals(770, decoded.settings.audioVolumes.levelRangeBcdPulseFrequencyHz)
+        assertEquals(770, decoded.settings.audioVolumes.levelRangeCPulseFrequencyHz)
+        assertEquals(770, decoded.settings.audioVolumes.levelRangeDPulseFrequencyHz)
+    }
 }

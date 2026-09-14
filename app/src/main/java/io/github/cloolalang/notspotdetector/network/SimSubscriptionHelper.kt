@@ -69,6 +69,45 @@ object SimSubscriptionHelper {
             ?.carrierName
     }
 
+    fun resolveDisplayName(context: Context, subscriptionId: Int): String? {
+        if (!CellularSignalReader.hasPhoneStatePermission(context)) {
+            return null
+        }
+
+        val effectiveId = resolveEffectiveSubscriptionId(context, subscriptionId) ?: return null
+        return listActiveSubscriptions(context)
+            .firstOrNull { it.subscriptionId == effectiveId }
+            ?.displayName
+    }
+
+    fun resolveSimCarrierId(telephonyManager: TelephonyManager): Int? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return null
+        return runCatching {
+            telephonyManager.simCarrierId.takeIf { it > 0 }
+        }.getOrNull()
+    }
+
+    fun resolveSimSpecificCarrierId(telephonyManager: TelephonyManager): Int? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
+        return runCatching {
+            telephonyManager.simSpecificCarrierId.takeIf { it > 0 }
+        }.getOrNull()
+    }
+
+    fun resolveSimCarrierIdName(telephonyManager: TelephonyManager): String? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return null
+        return runCatching {
+            telephonyManager.simCarrierIdName?.toString()?.takeIf { it.isNotBlank() }
+        }.getOrNull()
+    }
+
+    fun resolveSimSpecificCarrierIdName(telephonyManager: TelephonyManager): String? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
+        return runCatching {
+            telephonyManager.simSpecificCarrierIdName?.toString()?.takeIf { it.isNotBlank() }
+        }.getOrNull()
+    }
+
     @SuppressLint("MissingPermission")
     fun resolveSlotIndex(
         context: Context,

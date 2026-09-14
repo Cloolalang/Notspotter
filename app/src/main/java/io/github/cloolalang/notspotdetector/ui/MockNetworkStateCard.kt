@@ -107,7 +107,7 @@ fun MockNetworkStateCard(
 
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         MockNetworkScenario.entries
-                            .filter { fiveGFeaturesEnabled || it != MockNetworkScenario.HOME_5G_ENDC }
+                            .filter { fiveGFeaturesEnabled || !it.isFiveGScenario() }
                             .forEach { scenario ->
                             MockScenarioRadioOption(
                                 selected = mockSettings.scenario == scenario,
@@ -115,6 +115,33 @@ fun MockNetworkStateCard(
                                 hint = mockScenarioHint(scenario),
                                 onSelect = { onMockSettingsChange(mockSettings.copy(scenario = scenario)) }
                             )
+                        }
+                    }
+
+                    if (mockSettings.scenario.supportsVoiceOnlyNoData()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = mockSettings.voiceOnlyNoData,
+                                onCheckedChange = {
+                                    onMockSettingsChange(mockSettings.copy(voiceOnlyNoData = it))
+                                },
+                                enabled = settingsControlsEnabled()
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = stringResource(R.string.mock_voice_only_no_data),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    text = stringResource(R.string.mock_voice_only_no_data_hint),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
 
@@ -200,13 +227,18 @@ private fun mockScenarioLabel(scenario: MockNetworkScenario): String {
         when (scenario) {
             MockNetworkScenario.HOME_4G -> R.string.mock_scenario_home_4g
             MockNetworkScenario.HOME_2G -> R.string.mock_scenario_home_2g
+            MockNetworkScenario.HOME_5G -> R.string.mock_scenario_home_5g
+            MockNetworkScenario.HOME_5G_ENDC -> R.string.mock_scenario_home_5g_endc
             MockNetworkScenario.HOME_LIMITED_4G -> R.string.mock_scenario_home_limited_4g
             MockNetworkScenario.HOME_LIMITED_2G -> R.string.mock_scenario_home_limited_2g
+            MockNetworkScenario.ROAMING_4G -> R.string.mock_scenario_roaming_4g
+            MockNetworkScenario.ROAMING_2G -> R.string.mock_scenario_roaming_2g
+            MockNetworkScenario.ROAMING_5G -> R.string.mock_scenario_roaming_5g
+            MockNetworkScenario.ROAMING_5G_ENDC -> R.string.mock_scenario_roaming_5g_endc
             MockNetworkScenario.ALT_OPERATOR_4G -> R.string.mock_scenario_alt_4g
             MockNetworkScenario.ALT_OPERATOR_2G -> R.string.mock_scenario_alt_2g
             MockNetworkScenario.NO_SERVICE -> R.string.mock_scenario_no_service
             MockNetworkScenario.SEARCHING_2G -> R.string.mock_scenario_searching_2g
-            MockNetworkScenario.HOME_5G_ENDC -> R.string.mock_scenario_home_5g_endc
             MockNetworkScenario.WIFI_CALLING -> R.string.mock_scenario_wifi_calling
         }
     )
@@ -218,13 +250,18 @@ private fun mockScenarioHint(scenario: MockNetworkScenario): String {
         when (scenario) {
             MockNetworkScenario.HOME_4G -> R.string.mock_scenario_home_4g_hint
             MockNetworkScenario.HOME_2G -> R.string.mock_scenario_home_2g_hint
+            MockNetworkScenario.HOME_5G -> R.string.mock_scenario_home_5g_hint
+            MockNetworkScenario.HOME_5G_ENDC -> R.string.mock_scenario_home_5g_endc_hint
             MockNetworkScenario.HOME_LIMITED_4G -> R.string.mock_scenario_home_limited_4g_hint
             MockNetworkScenario.HOME_LIMITED_2G -> R.string.mock_scenario_home_limited_2g_hint
+            MockNetworkScenario.ROAMING_4G -> R.string.mock_scenario_roaming_4g_hint
+            MockNetworkScenario.ROAMING_2G -> R.string.mock_scenario_roaming_2g_hint
+            MockNetworkScenario.ROAMING_5G -> R.string.mock_scenario_roaming_5g_hint
+            MockNetworkScenario.ROAMING_5G_ENDC -> R.string.mock_scenario_roaming_5g_endc_hint
             MockNetworkScenario.ALT_OPERATOR_4G -> R.string.mock_scenario_alt_4g_hint
             MockNetworkScenario.ALT_OPERATOR_2G -> R.string.mock_scenario_alt_2g_hint
             MockNetworkScenario.NO_SERVICE -> R.string.mock_scenario_no_service_hint
             MockNetworkScenario.SEARCHING_2G -> R.string.mock_scenario_searching_2g_hint
-            MockNetworkScenario.HOME_5G_ENDC -> R.string.mock_scenario_home_5g_endc_hint
             MockNetworkScenario.WIFI_CALLING -> R.string.mock_scenario_wifi_calling_hint
         }
     )

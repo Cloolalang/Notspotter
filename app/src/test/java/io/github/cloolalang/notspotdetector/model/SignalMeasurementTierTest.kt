@@ -207,6 +207,100 @@ class SignalMeasurementTierTest {
     }
 
     @Test
+    fun levelRangeCFilterHold_keepsFairWhileRawHasRecoveredToGood() {
+        val defaults = PassiveSignalSettings()
+        val stats = ConnectivityStats(
+            isMonitoring = true,
+            cellularAvailable = true,
+            signalPermissionGranted = true,
+            rsrpDbm = -100,
+            rsrqDb = -12,
+            levelRangeCActive = true
+        )
+        assertEquals(SignalMeasurementTier.FAIR, stats.resolveSignalMeasurementTier(defaults))
+        assertEquals(SignalStrengthTier.FAIR, stats.resolvePassiveClickRateTier(defaults))
+    }
+
+    @Test
+    fun levelRangeCFilterPending_holdsGoodNeighborWhileRawIsFair() {
+        val defaults = PassiveSignalSettings()
+        val stats = ConnectivityStats(
+            isMonitoring = true,
+            cellularAvailable = true,
+            signalPermissionGranted = true,
+            rsrpDbm = -110,
+            rsrqDb = -12,
+            levelRangeCActive = false,
+            heldFairNeighborTier = SignalStrengthTier.GOOD
+        )
+        assertEquals(SignalMeasurementTier.GOOD, stats.resolveSignalMeasurementTier(defaults))
+        assertEquals(SignalStrengthTier.GOOD, stats.resolvePassiveClickRateTier(defaults))
+    }
+
+    @Test
+    fun levelRangeCFilterPending_holdsPoorNeighborWhileRawIsFair() {
+        val defaults = PassiveSignalSettings()
+        val stats = ConnectivityStats(
+            isMonitoring = true,
+            cellularAvailable = true,
+            signalPermissionGranted = true,
+            rsrpDbm = -110,
+            rsrqDb = -12,
+            levelRangeCActive = false,
+            heldFairNeighborTier = SignalStrengthTier.POOR
+        )
+        assertEquals(SignalMeasurementTier.POOR, stats.resolveSignalMeasurementTier(defaults))
+        assertEquals(SignalStrengthTier.POOR, stats.resolvePassiveClickRateTier(defaults))
+    }
+
+    @Test
+    fun levelRangeDFilterHold_keepsPoorWhileRawHasRecoveredToFair() {
+        val defaults = PassiveSignalSettings()
+        val stats = ConnectivityStats(
+            isMonitoring = true,
+            cellularAvailable = true,
+            signalPermissionGranted = true,
+            rsrpDbm = -110,
+            rsrqDb = -12,
+            levelRangeDActive = true
+        )
+        assertEquals(SignalMeasurementTier.POOR, stats.resolveSignalMeasurementTier(defaults))
+        assertEquals(SignalStrengthTier.POOR, stats.resolvePassiveClickRateTier(defaults))
+    }
+
+    @Test
+    fun levelRangeDFilterPending_holdsFairNeighborWhileRawIsPoor() {
+        val defaults = PassiveSignalSettings()
+        val stats = ConnectivityStats(
+            isMonitoring = true,
+            cellularAvailable = true,
+            signalPermissionGranted = true,
+            rsrpDbm = -120,
+            rsrqDb = -12,
+            levelRangeDActive = false,
+            heldPoorNeighborTier = SignalStrengthTier.FAIR
+        )
+        assertEquals(SignalMeasurementTier.FAIR, stats.resolveSignalMeasurementTier(defaults))
+        assertEquals(SignalStrengthTier.FAIR, stats.resolvePassiveClickRateTier(defaults))
+    }
+
+    @Test
+    fun levelRangeDFilterPending_holdsCriticalNeighborWhileRawIsPoor() {
+        val defaults = PassiveSignalSettings()
+        val stats = ConnectivityStats(
+            isMonitoring = true,
+            cellularAvailable = true,
+            signalPermissionGranted = true,
+            rsrpDbm = -120,
+            rsrqDb = -12,
+            levelRangeDActive = false,
+            heldPoorNeighborTier = SignalStrengthTier.CRITICAL
+        )
+        assertEquals(SignalMeasurementTier.CRITICAL, stats.resolveSignalMeasurementTier(defaults))
+        assertEquals(SignalStrengthTier.CRITICAL, stats.resolvePassiveClickRateTier(defaults))
+    }
+
+    @Test
     fun searching2gFallbackMapsToSearchingTier() {
         val stats = ConnectivityStats(
             isMonitoring = true,

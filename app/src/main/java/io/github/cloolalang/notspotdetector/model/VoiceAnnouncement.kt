@@ -1,7 +1,7 @@
 package io.github.cloolalang.notspotdetector.model
 
 /**
- * Stable voice announcement IDs (**VA-1** … **VA-19**) and playback priorities.
+ * Stable voice announcement IDs (**VA-1** … **VA-20**) and playback priorities.
  * Phrase templates: [SignalStateAnnouncement] · doc: VOICE_ANNOUNCEMENTS.md
  */
 object VoiceAnnouncement {
@@ -10,7 +10,7 @@ object VoiceAnnouncement {
     const val VA_2_SIGNAL_RESTORED = 2
     const val VA_3_DEADZONE_ENTRY = 3
     const val VA_4_LIMITED_SERVICE_ENTRY = 4
-    /** Leaving limited service for a camped in-service state. */
+    /** Home or roaming in-service after limited service, or home↔roaming while camped (2G and 4G). */
     const val VA_5_IN_SERVICE = 5
     const val VA_5_RETIRED = VA_5_IN_SERVICE
     const val VA_6_LIMITED_SERVICE_OPERATOR = 6
@@ -27,6 +27,8 @@ object VoiceAnnouncement {
     const val VA_17_G2_NO_SIGNAL_REPEAT = 17
     const val VA_18_G2_WEAK_REPEAT = 18
     const val VA_19_SPECIAL_CELL = 19
+    /** Periodic reminder while mock network mode is on. */
+    const val VA_20_MOCK_NETWORK_REPEAT = 20
 
     /** Lower number speaks first when several announcements queue together. */
     fun priorityFor(kind: MonitoringAnnouncementKind): Int = when (kind) {

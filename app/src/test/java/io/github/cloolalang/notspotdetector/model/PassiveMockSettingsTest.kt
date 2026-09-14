@@ -3,6 +3,7 @@ package io.github.cloolalang.notspotdetector.model
 import io.github.cloolalang.notspotdetector.network.CellularSignalReader
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -113,6 +114,96 @@ class PassiveMockSettingsTest {
         assertTrue(MockNetworkScenario.HOME_2G.appliesMockSignalStrength())
         assertFalse(MockNetworkScenario.NO_SERVICE.appliesMockSignalStrength())
         assertFalse(MockNetworkScenario.SEARCHING_2G.appliesMockSignalStrength())
+    }
+
+    @Test
+    fun home5gSaScenario_isInServiceOnStandaloneNr() {
+        val radio = PassiveMockSettings(scenario = MockNetworkScenario.HOME_5G).toRadioMetrics()
+        assertEquals(CellularSignalReader.RADIO_5G, radio.radioAccessType)
+        assertNull(radio.lteEarfcn)
+        assertEquals(PassiveMockSettings.MOCK_NR_EARFCN, radio.nrEarfcn)
+        assertFalse(radio.isNetworkRoaming)
+        assertTrue(MockNetworkScenario.HOME_5G.isFiveGScenario())
+        assertTrue(MockNetworkScenario.HOME_5G.usesLteNrSignalStrength())
+    }
+
+    @Test
+    fun roaming4gScenario_isRegisteredRoamingInService() {
+        val stats = PassiveMockSettings(scenario = MockNetworkScenario.ROAMING_4G).toConnectivityStats(
+            monitor2gFallback = true,
+            passiveSettings = passiveSettings,
+            passiveIdleMode = false,
+            passiveOnlySession = true
+        )
+        assertFalse(stats.isLimitedService)
+        assertTrue(stats.isNetworkRoaming)
+        assertEquals(NetworkServiceMode.IN_SERVICE, stats.networkServiceMode)
+        assertEquals(PassiveMockSettings.MOCK_VISITED_OPERATOR, stats.servingNetworkOperatorName)
+        assertEquals(PassiveMockSettings.MOCK_HOME_OPERATOR, stats.homeNetworkOperatorName)
+        assertEquals(ServiceStateMetricLabel.IN_SERVICE_ROAMING, stats.copy(signalPermissionGranted = true).resolveServiceStateMetricLabel())
+        assertEquals("roaming in service", SignalStateAnnouncement.formatInServiceAnnouncement(
+            stats,
+            phrases = VoicePhraseOptions(speakOperatorName = false, speakTechnology = false)
+        ))
+    }
+
+    @Test
+    fun roaming2gScenario_isRegisteredRoamingInService() {
+        val radio = PassiveMockSettings(scenario = MockNetworkScenario.ROAMING_2G).toRadioMetrics()
+        assertTrue(radio.isOn2g)
+        assertTrue(radio.isNetworkRoaming)
+        assertFalse(radio.isLimitedService)
+        assertEquals(CellularSignalReader.RADIO_2G, radio.radioAccessType)
+        assertTrue(MockNetworkScenario.ROAMING_2G.usesG2SignalStrength())
+    }
+
+    @Test
+    fun roaming5gScenarios_areRegisteredRoaming() {
+        val sa = PassiveMockSettings(scenario = MockNetworkScenario.ROAMING_5G).toRadioMetrics()
+        assertEquals(CellularSignalReader.RADIO_5G, sa.radioAccessType)
+        assertTrue(sa.isNetworkRoaming)
+        assertNull(sa.lteEarfcn)
+        val endc = PassiveMockSettings(scenario = MockNetworkScenario.ROAMING_5G_ENDC).toRadioMetrics()
+        assertEquals(CellularSignalReader.RADIO_5G_ENDC, endc.radioAccessType)
+        assertTrue(endc.isNetworkRoaming)
+        assertEquals(PassiveMockSettings.MOCK_ALT_LTE_EARFCN, endc.lteEarfcn)
+    }
+
+    @Test
+    fun voiceOnlyNoData_appliesToCampedScenariosOnly() {
+        val home = PassiveMockSettings(
+            scenario = MockNetworkScenario.HOME_4G,
+            voiceOnlyNoData = true
+        ).toConnectivityStats(
+            monitor2gFallback = true,
+            passiveSettings = passiveSettings,
+            passiveIdleMode = false,
+            passiveOnlySession = true
+        )
+        assertTrue(home.isVoiceOnlyNoData)
+        assertEquals(
+            ServiceStateMetricLabel.IN_SERVICE_VOICE_ONLY,
+            home.copy(signalPermissionGranted = true).resolveServiceStateMetricLabel()
+        )
+        val roaming = PassiveMockSettings(
+            scenario = MockNetworkScenario.ROAMING_4G,
+            voiceOnlyNoData = true
+        ).toConnectivityStats(
+            monitor2gFallback = true,
+            passiveSettings = passiveSettings,
+            passiveIdleMode = false,
+            passiveOnlySession = true
+        )
+        assertEquals(
+            ServiceStateMetricLabel.IN_SERVICE_VOICE_ONLY_ROAMING,
+            roaming.copy(signalPermissionGranted = true).resolveServiceStateMetricLabel()
+        )
+        val deadzone = PassiveMockSettings(
+            scenario = MockNetworkScenario.NO_SERVICE,
+            voiceOnlyNoData = true
+        ).toRadioMetrics()
+        assertFalse(deadzone.isVoiceOnlyNoData)
+        assertFalse(MockNetworkScenario.NO_SERVICE.supportsVoiceOnlyNoData())
     }
 
     @Test

@@ -47,8 +47,10 @@ data class CellularRadioMetrics(
     val hasHomeGsmSignal: Boolean = false,
     val hasLteNrSignal: Boolean = false,
     val networkOperatorName: String? = null,
-    /** SIM/home operator (e.g. Vodafone UK on a Vodafone SIM). */
+    /** SIM/home MNO (underlying host network, e.g. EE on an MVNO SIM). */
     val homeNetworkOperatorName: String? = null,
+    /** MVNO / virtual-operator brand when it differs from [homeNetworkOperatorName]. */
+    val virtualNetworkOperatorName: String? = null,
     /** Camped/serving operator from telephony (may differ in limited service). */
     val servingNetworkOperatorName: String? = null,
     val plmn: String? = null,

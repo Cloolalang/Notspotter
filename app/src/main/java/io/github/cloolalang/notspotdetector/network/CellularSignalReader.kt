@@ -46,6 +46,7 @@ import io.github.cloolalang.notspotdetector.model.isVoiceOnlyNoData
 import io.github.cloolalang.notspotdetector.model.SinrMetric
 import io.github.cloolalang.notspotdetector.model.resolveNetworkServiceMode
 import io.github.cloolalang.notspotdetector.model.resolveServingOperatorFromCell
+import io.github.cloolalang.notspotdetector.model.NetworkOperatorNames
 
 object CellularSignalReader {
 
@@ -218,6 +219,7 @@ object CellularSignalReader {
                 servingCell.radioAccessType in LTE_NR_RADIO_TYPES,
             networkOperatorName = operatorInfo.displayOperatorName,
             homeNetworkOperatorName = operatorInfo.homeOperatorName,
+            virtualNetworkOperatorName = operatorInfo.virtualOperatorName,
             servingNetworkOperatorName = servingOperatorName ?: operatorInfo.servingOperatorName,
             plmn = servingPlmn,
             homePlmn = operatorInfo.homePlmn,
@@ -502,6 +504,7 @@ object CellularSignalReader {
 
     private data class OperatorInfo(
         val homeOperatorName: String?,
+        val virtualOperatorName: String?,
         val servingOperatorName: String?,
         val homePlmn: String?,
         val servingPlmn: String?,
@@ -514,16 +517,32 @@ object CellularSignalReader {
         telephonyManager: TelephonyManager,
         subscriptionId: Int
     ): OperatorInfo {
-        val homeOperatorName = normalizeOperatorName(telephonyManager.simOperatorName)
-            ?: SimSubscriptionHelper.resolveCarrierName(context, subscriptionId)
         val servingOperatorName = normalizeOperatorName(telephonyManager.networkOperatorName)
         val homePlmn = telephonyManager.simOperator
             .takeIf { it.isNotBlank() && it.length >= 5 }
         val servingPlmn = telephonyManager.networkOperator
             .takeIf { it.isNotBlank() && it.length >= 5 }
+        val simOperatorName = normalizeOperatorName(telephonyManager.simOperatorName)
+        val homeOperatorName = NetworkOperatorNames.resolveHomeMnoName(
+            simOperatorName = simOperatorName,
+            simCarrierIdName = SimSubscriptionHelper.resolveSimCarrierIdName(telephonyManager),
+            servingOperatorName = servingOperatorName,
+            homePlmn = homePlmn,
+            servingPlmn = servingPlmn
+        )
+        val virtualOperatorName = NetworkOperatorNames.resolveVirtualOperatorName(
+            homeMnoName = homeOperatorName,
+            simOperatorName = simOperatorName,
+            simSpecificCarrierIdName = SimSubscriptionHelper.resolveSimSpecificCarrierIdName(telephonyManager),
+            subscriptionCarrierName = SimSubscriptionHelper.resolveCarrierName(context, subscriptionId),
+            subscriptionDisplayName = SimSubscriptionHelper.resolveDisplayName(context, subscriptionId),
+            simCarrierId = SimSubscriptionHelper.resolveSimCarrierId(telephonyManager),
+            simSpecificCarrierId = SimSubscriptionHelper.resolveSimSpecificCarrierId(telephonyManager)
+        )
         val displayOperatorName = servingOperatorName ?: homeOperatorName
         return OperatorInfo(
             homeOperatorName = homeOperatorName,
+            virtualOperatorName = virtualOperatorName,
             servingOperatorName = servingOperatorName,
             homePlmn = homePlmn,
             servingPlmn = servingPlmn,
@@ -532,7 +551,7 @@ object CellularSignalReader {
     }
 
     private fun normalizeOperatorName(raw: String?): String? {
-        return raw?.trim()?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
+        return NetworkOperatorNames.normalize(raw)
     }
 
     @SuppressLint("MissingPermission")

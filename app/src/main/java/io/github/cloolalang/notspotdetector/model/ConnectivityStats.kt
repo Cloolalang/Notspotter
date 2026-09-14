@@ -57,6 +57,7 @@ data class ConnectivityStats(
     val monitor2gFallbackEnabled: Boolean = false,
     val networkOperatorName: String? = null,
     val homeNetworkOperatorName: String? = null,
+    val virtualNetworkOperatorName: String? = null,
     val servingNetworkOperatorName: String? = null,
     val plmn: String? = null,
     val homePlmn: String? = null,
@@ -85,6 +86,14 @@ data class ConnectivityStats(
      */
     val lowSignalActive: Boolean? = null,
     /**
+     * Confirmed Level Range C (RXSS 4) after its flicker filter. Null means use the raw RSRP band.
+     */
+    val levelRangeCActive: Boolean? = null,
+    /**
+     * Confirmed Level Range D (RXSS 5) after its flicker filter. Null means use the raw RSRP band.
+     */
+    val levelRangeDActive: Boolean? = null,
+    /**
      * Confirmed poor-RSRQ overlay after the RXSS 14 filter. Null means use the raw RSRQ reading.
      */
     val rsrqPoorActive: Boolean? = null,
@@ -93,6 +102,16 @@ data class ConnectivityStats(
      * waiting so RXSS 5/6 pulses do not go silent before RXSS 10/15 confirms.
      */
     val heldInServiceSignalTier: SignalStrengthTier? = null,
+    /**
+     * Last confirmed non-RXSS-4 in-service band. Kept while the Level Range C filter is still
+     * waiting to enter, so pulses stay on RXSS 3 or 5 instead of jumping on a one-poll flicker.
+     */
+    val heldFairNeighborTier: SignalStrengthTier? = null,
+    /**
+     * Last confirmed non-RXSS-5 in-service band. Kept while the Level Range D filter is still
+     * waiting to enter, so pulses stay on RXSS 4 or 6 instead of jumping on a one-poll flicker.
+     */
+    val heldPoorNeighborTier: SignalStrengthTier? = null,
     /**
      * Debounced "4G layers detected" reading — see [CellularRadioMetrics.lteLayerResilience].
      * Smoothed via [LteLayerResilienceDebouncer] (two consecutive matching polls before the

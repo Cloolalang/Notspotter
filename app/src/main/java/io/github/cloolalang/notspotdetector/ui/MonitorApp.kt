@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,6 +57,16 @@ fun MonitorApp(
         mutableStateOf(viewModel.phoneStatePermissionGranted)
     }
     var settingsUnlocked by remember { mutableStateOf(false) }
+    val settingsUnlockIdleModifier = rememberSettingsUnlockIdleLock(
+        unlocked = settingsUnlocked,
+        onLock = { settingsUnlocked = false }
+    )
+
+    LaunchedEffect(settingsUnlocked) {
+        if (!settingsUnlocked) {
+            viewModel.disablePassiveMockMode()
+        }
+    }
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         phoneStatePermissionGranted = viewModel.phoneStatePermissionGranted
@@ -72,7 +83,7 @@ fun MonitorApp(
         }
     }
 
-    Scaffold(modifier = modifier.fillMaxSize()) { innerPadding ->
+    Scaffold(modifier = modifier.fillMaxSize().then(settingsUnlockIdleModifier)) { innerPadding ->
         MonitorScreen(
             stats = stats,
             thresholds = thresholds,
@@ -167,6 +178,8 @@ fun MonitorApp(
             onPreviewSignalPulse = viewModel::previewSignalPulseSound,
             onLevelRangeBcdClickVolumeChange = viewModel::updateLevelRangeBcdClickVolume,
             onLevelRangeBcdPulseFrequencyChange = viewModel::updateLevelRangeBcdPulseFrequencyHz,
+            onLevelRangeCPulseFrequencyChange = viewModel::updateLevelRangeCPulseFrequencyHz,
+            onLevelRangeDPulseFrequencyChange = viewModel::updateLevelRangeDPulseFrequencyHz,
             onPreviewLevelRangeBcdClick = viewModel::previewLevelRangeBcdClickSound,
             onPreviewCellChangeBell = viewModel::previewCellChangeBellSound,
             onPreviewCellChangeVoice = viewModel::previewCellChangeVoiceSound,
@@ -180,6 +193,7 @@ fun MonitorApp(
             onPreviewRsrqWhiteNoise = viewModel::previewRsrqWhiteNoiseSound,
             onResetAudioVolumes = viewModel::resetAudioVolumes,
             onSaveSettingsProfile = viewModel::saveSettingsProfile,
+            onSaveDatedSettingsProfileToDownloads = viewModel::saveDatedSettingsProfileToDownloads,
             onLoadSettingsProfile = viewModel::loadSettingsProfile,
             onDeleteSettingsProfile = viewModel::deleteSettingsProfile,
             onImportSettingsProfile = onImportSettingsProfile,

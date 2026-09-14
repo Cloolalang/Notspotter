@@ -61,6 +61,22 @@ class AudioVolumeSettingsRepository(context: Context) {
         } else {
             signalPulseFrequencyHz
         }
+        val levelRangeCPulseFrequencyHz = if (prefs.contains(KEY_LEVEL_RANGE_C_PULSE_FREQUENCY)) {
+            prefs.getInt(
+                KEY_LEVEL_RANGE_C_PULSE_FREQUENCY,
+                levelRangeBcdPulseFrequencyHz
+            )
+        } else {
+            levelRangeBcdPulseFrequencyHz
+        }
+        val levelRangeDPulseFrequencyHz = if (prefs.contains(KEY_LEVEL_RANGE_D_PULSE_FREQUENCY)) {
+            prefs.getInt(
+                KEY_LEVEL_RANGE_D_PULSE_FREQUENCY,
+                levelRangeBcdPulseFrequencyHz
+            )
+        } else {
+            levelRangeBcdPulseFrequencyHz
+        }
         val levelRangeBcdPulseDurationMs = if (prefs.contains(KEY_LEVEL_RANGE_BCD_PULSE_DURATION)) {
             prefs.getInt(
                 KEY_LEVEL_RANGE_BCD_PULSE_DURATION,
@@ -101,6 +117,8 @@ class AudioVolumeSettingsRepository(context: Context) {
                 AudioVolumeSettings.DEFAULT_LIMITED_SERVICE_TWO_TONE_SPREAD_PERCENT
             ),
             levelRangeBcdPulseFrequencyHz = levelRangeBcdPulseFrequencyHz,
+            levelRangeCPulseFrequencyHz = levelRangeCPulseFrequencyHz,
+            levelRangeDPulseFrequencyHz = levelRangeDPulseFrequencyHz,
             veryStrongTierPulseFrequencyHz = veryStrongTierPulseFrequencyHz,
             g2StrongTierPulseFrequencyHz = g2StrongTierPulseFrequencyHz,
             g2WeakTierPulseFrequencyHz = g2WeakTierPulseFrequencyHz,
@@ -345,6 +363,8 @@ class AudioVolumeSettingsRepository(context: Context) {
             .putInt(KEY_LIMITED_SERVICE_TIER_PULSE_FREQUENCY, normalized.limitedServiceTierPulseFrequencyHz)
             .putInt(KEY_LIMITED_SERVICE_TWO_TONE_SPREAD, normalized.limitedServiceTwoToneSpreadPercent)
             .putInt(KEY_LEVEL_RANGE_BCD_PULSE_FREQUENCY, normalized.levelRangeBcdPulseFrequencyHz)
+            .putInt(KEY_LEVEL_RANGE_C_PULSE_FREQUENCY, normalized.levelRangeCPulseFrequencyHz)
+            .putInt(KEY_LEVEL_RANGE_D_PULSE_FREQUENCY, normalized.levelRangeDPulseFrequencyHz)
             .putInt(KEY_VERY_STRONG_TIER_PULSE_FREQUENCY, normalized.veryStrongTierPulseFrequencyHz)
             .putInt(KEY_G2_STRONG_TIER_PULSE_FREQUENCY, normalized.g2StrongTierPulseFrequencyHz)
             .putInt(KEY_G2_WEAK_TIER_PULSE_FREQUENCY, normalized.g2WeakTierPulseFrequencyHz)
@@ -433,6 +453,8 @@ class AudioVolumeSettingsRepository(context: Context) {
         private const val KEY_LIMITED_SERVICE_TIER_PULSE_FREQUENCY = "limited_service_tier_pulse_frequency_hz"
         private const val KEY_LIMITED_SERVICE_TWO_TONE_SPREAD = "limited_service_two_tone_spread_percent"
         private const val KEY_LEVEL_RANGE_BCD_PULSE_FREQUENCY = "level_range_bcd_pulse_frequency_hz"
+        private const val KEY_LEVEL_RANGE_C_PULSE_FREQUENCY = "level_range_c_pulse_frequency_hz"
+        private const val KEY_LEVEL_RANGE_D_PULSE_FREQUENCY = "level_range_d_pulse_frequency_hz"
         private const val KEY_VERY_STRONG_TIER_PULSE_FREQUENCY = "very_strong_tier_pulse_frequency_hz"
         private const val KEY_G2_STRONG_TIER_PULSE_FREQUENCY = "g2_strong_tier_pulse_frequency_hz"
         private const val KEY_G2_WEAK_TIER_PULSE_FREQUENCY = "g2_weak_tier_pulse_frequency_hz"

@@ -24,8 +24,10 @@ import io.github.cloolalang.notspotdetector.model.PeriodicVoiceRepeat
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
 import io.github.cloolalang.notspotdetector.model.ProfileExportOutcome
 import io.github.cloolalang.notspotdetector.model.ProfileImportResult
+import io.github.cloolalang.notspotdetector.model.ProfileQuickSaveOutcome
 import io.github.cloolalang.notspotdetector.model.ProfileSaveResult
 import io.github.cloolalang.notspotdetector.model.SettingsCompatibility
+import io.github.cloolalang.notspotdetector.model.SettingsProfileNames
 import io.github.cloolalang.notspotdetector.model.CellReselectBandNamingStyle
 import io.github.cloolalang.notspotdetector.model.TechnologyChangeTarget
 import io.github.cloolalang.notspotdetector.model.SettingsProfileSummary
@@ -271,7 +273,7 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
 
     fun updateFiveGFeaturesEnabled(enabled: Boolean) {
         updateMonitoringSettings(monitoringSettings.value.copy(fiveGFeaturesEnabled = enabled))
-        if (!enabled && passiveMockSettings.value.scenario == io.github.cloolalang.notspotdetector.model.MockNetworkScenario.HOME_5G_ENDC) {
+        if (!enabled && passiveMockSettings.value.scenario.isFiveGScenario()) {
             updatePassiveMockSettings(
                 passiveMockSettings.value.copy(
                     scenario = io.github.cloolalang.notspotdetector.model.MockNetworkScenario.HOME_4G
@@ -378,6 +380,14 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
 
     fun updateLevelRangeBcdPulseFrequencyHz(value: Int) {
         updateAudioVolumes(audioVolumes.value.copy(levelRangeBcdPulseFrequencyHz = value))
+    }
+
+    fun updateLevelRangeCPulseFrequencyHz(value: Int) {
+        updateAudioVolumes(audioVolumes.value.copy(levelRangeCPulseFrequencyHz = value))
+    }
+
+    fun updateLevelRangeDPulseFrequencyHz(value: Int) {
+        updateAudioVolumes(audioVolumes.value.copy(levelRangeDPulseFrequencyHz = value))
     }
 
     fun updateLevelRangeBcdClickVolume(value: Float) {
@@ -879,6 +889,28 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         return ProfileSaveResult.Saved
     }
 
+    fun saveDatedSettingsProfileToDownloads(): ProfileQuickSaveOutcome {
+        val name = settingsProfilesRepository.uniqueProfileName(SettingsProfileNames.timestampName())
+        if (name.length > SettingsProfilesRepository.MAX_NAME_LENGTH) {
+            return ProfileQuickSaveOutcome(ProfileSaveResult.NameTooLong)
+        }
+        if (settingsProfilesRepository.loadProfiles().size >= SettingsProfilesRepository.MAX_PROFILES) {
+            return ProfileQuickSaveOutcome(ProfileSaveResult.TooManyProfiles)
+        }
+        val snapshot = captureCurrentSettingsSnapshot()
+        if (snapshot.isDefault()) {
+            return ProfileQuickSaveOutcome(ProfileSaveResult.MatchesDefaults)
+        }
+        val saved = settingsProfilesRepository.saveProfile(name, snapshot)
+            ?: return ProfileQuickSaveOutcome(ProfileSaveResult.Failed)
+        refreshSettingsProfiles()
+        return ProfileQuickSaveOutcome(
+            saveResult = ProfileSaveResult.Saved,
+            profileName = saved.name,
+            exportOutcome = exportSettingsProfileToDownloads(saved.id)
+        )
+    }
+
     fun loadSettingsProfile(id: String) {
         val profile = settingsProfilesRepository.findById(id) ?: return
         val wasRunning = isRunning.value
@@ -944,6 +976,13 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         if (!normalized.enabled) {
             refreshCellularSignal()
         }
+    }
+
+    /** Turns mock network state off so live radio is used once settings are locked. */
+    fun disablePassiveMockMode() {
+        val current = passiveMockSettings.value
+        if (!current.enabled) return
+        updatePassiveMockSettings(current.copy(enabled = false))
     }
 
     fun refreshCellularSignal() {

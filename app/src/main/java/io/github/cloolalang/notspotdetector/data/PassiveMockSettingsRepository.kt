@@ -13,7 +13,11 @@ class PassiveMockSettingsRepository(context: Context) {
             enabled = prefs.getBoolean(KEY_ENABLED, PassiveMockSettings.DEFAULT_ENABLED),
             scenario = MockNetworkScenario.fromStoredName(prefs.getString(KEY_SCENARIO, null)),
             rsrpDbm = prefs.getInt(KEY_RSRP_DBM, PassiveMockSettings.DEFAULT_RSRP_DBM),
-            rsrqDb = prefs.getInt(KEY_RSRQ_DB, PassiveMockSettings.DEFAULT_RSRQ_DB)
+            rsrqDb = prefs.getInt(KEY_RSRQ_DB, PassiveMockSettings.DEFAULT_RSRQ_DB),
+            voiceOnlyNoData = prefs.getBoolean(
+                KEY_VOICE_ONLY_NO_DATA,
+                PassiveMockSettings.DEFAULT_VOICE_ONLY_NO_DATA
+            )
         ).normalized()
     }
 
@@ -24,6 +28,7 @@ class PassiveMockSettingsRepository(context: Context) {
             .putString(KEY_SCENARIO, normalized.scenario.name)
             .putInt(KEY_RSRP_DBM, normalized.rsrpDbm)
             .putInt(KEY_RSRQ_DB, normalized.rsrqDb)
+            .putBoolean(KEY_VOICE_ONLY_NO_DATA, normalized.voiceOnlyNoData)
             .apply()
     }
 
@@ -33,5 +38,6 @@ class PassiveMockSettingsRepository(context: Context) {
         private const val KEY_SCENARIO = "scenario"
         private const val KEY_RSRP_DBM = "rsrp_dbm"
         private const val KEY_RSRQ_DB = "rsrq_db"
+        private const val KEY_VOICE_ONLY_NO_DATA = "voice_only_no_data"
     }
 }

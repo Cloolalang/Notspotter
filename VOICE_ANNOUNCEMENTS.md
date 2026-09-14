@@ -19,15 +19,15 @@ This document describes **implemented behaviour** in the current app. For RXSS s
 
 ---
 
-## Announcement list (VA-1 … VA-19)
+## Announcement list (VA-1 … VA-20)
 
 Stable IDs used throughout this document. `{operator}` / `{tech}` are spoken operator and RAT labels.
 
-**Design principle — announce exceptions only.** Voice calls out states that need attention: dead zone, no signal, limited service, 2G fallback / weak / search, signal low, technology and cell changes. **Full service is not spoken** — it is the assumed default.
+**Design principle — announce exceptions only.** Voice calls out states that need attention: dead zone, no signal, limited service, 2G fallback / weak / search, signal low, technology and cell changes. Returning to **home in service** or changing to **roaming in service** is also spoken (**VA-5**), on **2G and 4G**.
 
-**Full service (implicit)** — camped on **4G or 5G** (LTE/NR), home registered, **not** limited service, **not** no-signal, **not** dead zone. RXSS **1–6** (and optional **14** overlay) on LTE/NR are quality bands within full service; only **VA-8** / **VA-15** speak when RSRP drops to tier 5/6. Recovering from limited service or no-signal **onto 4G/5G full service** needs no “full service” phrase — **4 G** / **5 G** camp *is* full service. **2G is not treated as implicit full service**; it uses **VA-7**, **VA-16**, **VA-17**, **VA-18** instead.
+**Full service (implicit)** — camped on **4G or 5G** (LTE/NR), home registered, **not** limited service, **not** no-signal, **not** dead zone. RXSS **1–6** (and optional **14** overlay) on LTE/NR are quality bands within full service; only **VA-8** / **VA-15** speak when RSRP drops to tier 5/6. **VA-5** still speaks when leaving limited service (or switching home↔roaming) so you can hear the service role: **home in service** or **roaming in service**. **2G is not treated as implicit full service**; it uses **VA-7**, **VA-16**, **VA-17**, **VA-18** as well as **VA-5** on limited-service exit / roaming change.
 
-**VA-5** is retired (was “Full service, 4 G” on leaving limited service).
+**VA-5** speaks on leaving limited service for a camped in-service state, and when registered roaming turns on or off while already in-service. Same phrases on **2G** and **4G**.
 
 **Phrase order** (all announcements follow this where applicable):
 
@@ -35,7 +35,7 @@ Stable IDs used throughout this document. `{operator}` / `{tech}` are spoken ope
 2. **Tech** — spoken RAT (**2 G**, **4 G**, **5 G**, **5 G E N D C**); omitted for dead zone (no camped RAT)  
 3. **Band** — optional; when a VA’s speak-band toggle is on, the fragment uses `cellChangeBandNamingStyle` (MHz nickname or E-UTRA band number), the same control as **VA-10**  
 4. **Signal state** — `no signal`, `signal restored`, or `signal low` when RSRP quality matters  
-5. **Service state** — only when **not** implicit 4G/5G full service: `limited service`, `searching 2 G`, `deadzone, no service, no SOS calls`, `cell reselect, …`, etc.
+5. **Service state** — only when **not** implicit 4G/5G full service: `home in service`, `roaming in service`, `limited service`, `searching 2 G`, `deadzone, no service, no SOS calls`, `cell reselect, …`, etc.
 
 Implemented in [`SignalStateAnnouncement.joinAnnouncementParts()`](app/src/main/java/io/github/cloolalang/notspotdetector/model/SignalStateAnnouncement.kt) and [`CellIdentityAnnouncement`](app/src/main/java/io/github/cloolalang/notspotdetector/model/CellIdentityAnnouncement.kt).
 
@@ -53,6 +53,7 @@ When the home PLMN and camped PLMN differ (`resolveCampedVisitedOperatorName()` 
 | Announcement | Operator phrasing |
 |--------------|-------------------|
 | **VA-4**, **VA-6**, **VA-14** (limited service) | `{home} home, {visited} visited` — home SIM operator first, then camped visited operator. Service phrase is **visiting limited service** or **home limited service** when those toggles are on |
+| **VA-5** (in service) | Home camp: **home in service**. Registered SIM roaming: **roaming in service**. Same on **2G** and **4G**. |
 | **VA-10** (cell reselect) | `{visited} visited` — camped operator only, with **visited** appended |
 
 **Single-operator** limited service (home PLMN only, or home and serving names/PLMNs match): `{operator}, {tech}, home limited service` — no operator role words. Per-RXSS toggles can fall back to plain `limited service`.
@@ -85,6 +86,8 @@ Mock scenarios use real UK operator labels so spoken output matches field testin
 
 Home-only mock (e.g. Home 4G): operator is **Vodafone** with no role suffix — “Vodafone, 4 G, no signal”, etc.
 
+**VA-20** — while mock is on and monitoring is running, **“mock network”** speaks every **30 s** (first speak after 30 s). Master voice mute silences it. It does not include operator or tech, and it does not replace the scenario VAs above.
+
 ### RXSS 31 — WiFi calling, no cellular signal
 
 When `ServiceState.getNetworkRegistrationInfoList()` reports a home-registered **WLAN** transport (WiFi calling / VoWiFi) and there is no cellular RAT camped and no RSRP/RSRQ measurable (`CellularRadioMetrics.isWifiCallingActive` / `ConnectivityStats.isWifiCallingActive`), the debounced no-signal state is classified as **RXSS 31** instead of RXSS **10** (LTE/NR no signal) or RXSS **11** (searching for home 2G) — see [RXSS_CATALOGUE.md](RXSS_CATALOGUE.md). It reuses the **exact same** VA-1 / VA-2 / VA-12 entry, exit, and 30 s-repeat triggers and toggles (`noSignalVoiceEnabled`, `noSignalVoiceVolume`) — only the spoken wording differs, since tech and “no signal” aren’t meaningful when the modem has no cellular RAT at all. The camp-tier click sound has its **own dedicated RXSS 31 section** in Passive Signal Settings (`wifiCallingTierSoundEnabled`, `wifiCallingTierClickIntervalMs`, `wifiCallingTierPulseDurationMs`), sharing only the tone volume/frequency sliders with the RXSS 10 group:
@@ -103,7 +106,8 @@ Mock scenario **WiFi calling (no cellular)** in the Mock network state panel dri
 | **VA-1** | **2** | No signal entry | `{operator}, {tech}, no signal` — or, when [WiFi calling](#rxss-31--wifi-calling-no-cellular-signal) is active (RXSS **31**), `{operator}, wifi calling, no cellular signal` (tech omitted) | 10 / **31** | Debounced `noSignalActive` **false→true** on LTE/NR (not 2G); monitoring running; no-signal baseline ready. | On **2G** (RXSS **15** — **VA-17** periodic instead); **dead zone** (**RXSS 0** — **VA-3** instead, including debounced no-signal entry while `isCompleteNoService`). |
 | **VA-2** | **2** | Signal restored | `{operator}, {tech}, signal restored` — or `{operator}, cellular signal restored` recovering from **RXSS 31** | 10 / **31** exit | Debounced `noSignalActive` **true→false**, **or** `isCompleteNoService` **true→false** (dead-zone exit) before debounce clears. | [Signal restored skipped](#signal-restored-skipped): dead zone→**5**/**6**; tier **10**→**6**; LTE/NR no-signal exit→**2G** camp; duplicate after dead zone. |
 | **VA-3** | **1** | Dead zone entry | `{operator}, deadzone, no service, no SOS calls` | 0 | `isCompleteNoService` **false→true**; once per no-signal episode. | Already announced this episode. |
-| **VA-4** | **4** | Limited service entry | Dual PLMN: `{home} home, {visited} visited, {tech}, limited service` · single: `{operator}, {tech}, limited service` | 12 / 13 | `isLimitedService` **false→true**; limited-service baseline ready. | — |
+| **VA-4** | **4** | Limited service entry | Dual PLMN: `{home} home, {visited} visited, {tech}, limited service` · single: `{operator}, {tech}, limited service` | 12 / 13 / 19 / 22 | `isLimitedService` **false→true**; limited-service baseline ready. | — |
+| **VA-5** | **4** | In service | Home: `{operator}, {tech}, home in service` · roaming: `{operator}, {tech}, roaming in service` | 1–8 (2G and 4G) | `isLimitedService` **true→false** into `IN_SERVICE`, **or** registered roaming turns on/off while already in-service. | Radio-off / no-service / still limited. |
 | **VA-6** | **8** | Limited service operator change | Same as **VA-4** | 12 / 13 | Visited operator changes while still in limited service (`limitedServiceVisitedOperatorChanged`). | — |
 | **VA-7** | **6** | 2G camped after LTE/NR loss | `{operator}, 2 G` | G2 fallback | First poll on **2G** after LTE/NR no-signal episode; `monitor2gFallback` enabled; G2-fallback baseline ready. | — |
 | **VA-8** | **5** | Signal low (immediate) | `{operator}, {tech}, signal low` | 5 / 6 | `tier5Immediate`: dead zone→tier 5, or tier 10→tier 6 recovery; `tier5AnnouncerEnabled`. | — |
@@ -128,6 +132,7 @@ Mock scenario **WiFi calling (no cellular)** in the Mock network state panel dri
 | **VA-16** | 17 | 2G camped repeat | `{operator}, 2 G` | 7 | On 2G (RXSS 7), `shouldAllowG2CampedPeriodicVoice()`. | Any [no-signal RXSS](#no-signal-rxss-voice-rules); defers to **VA-17** (**15**) / **VA-18** (**8**); **suppressed when VA-14** applies (RXSS **12** / **13** limited service with signal). |
 | **VA-17** | 13 | 2G no signal repeat | `{operator}, 2 G, no signal` | 15 | `shouldPlayG2NoSignalVoiceAnnouncements()` on 2G fallback path. | — (voice **for** RXSS **15**). |
 | **VA-18** | 15 | 2G weak repeat | `{operator} visited, {tech}, signal low` on limited visited 2G | 8 / **13·8** | On 2G, `shouldAllowG2WeakPeriodicVoice()` — including limited visited 2G weak overlay when **VA-14** is suppressed. | Any [no-signal RXSS](#no-signal-rxss-voice-rules); **suppressed when VA-14** applies on measurable **12** / **13** camp (not overlay **8**). |
+| **VA-20** | 18 | Mock network repeat | `mock network` | — | Mock network mode on while monitoring is running. First speak after **30 s**, then every **30 s**. Independent of camp RXSS; does not replace other periodic VAs. | Master VA mute; mock off; monitoring stopped. |
 
 All announcements also respect monitoring off, relevant voice toggles / zero volume, first-poll baselines, and passive idle where noted in [When monitoring is silent](#when-monitoring-is-silent).
 
@@ -136,7 +141,7 @@ All announcements also respect monitoring off, relevant voice toggles / zero vol
 | Situation | Instead |
 |-----------|---------|
 | Dead zone exit | **VA-2** “Signal restored” (unless suppressed) — no dedicated dead-zone exit phrase. |
-| Limited service exit to **4G/5G** | Silent — **VA-5** retired; LTE/NR full camp is assumed. |
+| Limited service exit to **2G or 4G** in-service | **VA-5** “home in service” or “roaming in service”. |
 | LTE/NR full service (RXSS **1–6**, tech **4G/5G**) | No “full service” entry voice — assumed whenever not dead zone / no-signal / limited. **VA-8** / **VA-15** only if RSRP tier 5/6; tiers 1–4 use signal pulses only. |
 | Camp on **2G** | Not implicit full service — **VA-7** / **VA-16** / **VA-17** / **VA-18** as applicable. |
 | RXSS 15 entry on 2G | No immediate no-signal; **VA-17** periodic handles it. |
@@ -177,7 +182,7 @@ Special delays:
 Voice jobs are cancelled or never started when:
 
 - Monitoring is stopped.
-- **Passive idle** mode is active (active ping session timed out — cellular metrics only, no quality alerts).
+- **Passive idle** mode is active (active ping session timed out — cellular metrics only, no quality alerts). **VA-20** mock-network reminder still speaks in passive idle while mock is on.
 - The relevant **voice enabled** toggle is off, or volume is zero.
 - **Quiet passive alerts** is on and signal has not crossed the quiet-alert RSRP/RSRQ thresholds (applies to tier 5 periodic restarts and signal-pulse alerts; see [Passive alert gating](#passive-alert-gating)).
 
@@ -191,16 +196,16 @@ Full **Pri** values are in the tables above. Rationale: tell the listener **what
 |-----|-----|-------------|
 | **1** | **VA-3** | Dead zone entry — speaks before any other immediate on the same poll |
 | **2** | **VA-1**, **VA-2** | No-signal entry or signal restored (one per poll) |
-| **4** | **VA-4** | Limited service entry |
+| **4** | **VA-4**, **VA-5** | Limited service entry, or home/roaming in-service |
 | **5** | **VA-8** | Immediate signal low |
 | **6** | **VA-7** | 2G camp after LTE/NR loss |
 | **8** | **VA-6**, **VA-9** | Limited-service operator change, then technology change |
 | **9** | **VA-10** | Cell reselect |
 | **10** | **VA-19** | Known-cell match (after cell reselect on the same poll) |
 | **10** | **VA-11** | ~5 s after search starts (after the immediate batch) |
-| **11–17** | **VA-13** … **VA-16** | Periodic repeats — worst state first (dead zone → no signal → limited → weak/low → 2G camp) |
+| **11–18** | **VA-13** … **VA-16**, **VA-20** | Periodic repeats — worst state first (dead zone → no signal → limited → weak/low → 2G camp); **VA-20** mock-network reminder last |
 
-On one poll, priorities **1–9** run back-to-back via `immediateAnnouncements()` (**VA-1** and **VA-2** share one queue slot — only one applies per poll). Across polls, [`VoiceAnnouncementQueue`](app/src/main/java/io/github/cloolalang/notspotdetector/model/VoiceAnnouncementQueue.kt) keeps one slot per kind, collapses service-state VAs to the latest (so a recovered camp does not still speak queued “no signal”), and keeps spoken backlog to about **5 s**. Overflow events that have a sound icon (cell-reselect bell, technology / limited / no-signal tones) play the icon immediately and **drop TTS**. Rapid extra reselections while a reselect VA is already speaking also keep the bell only. A playing dead-zone / no-signal / signal-low line is not interrupted by a reselect. **VA-11** is scheduled separately. Periodic timers (**11–17**) restart from the new state; if several fire together, the shared alert mutex lets the **lowest Pri** speak first. On 2G, the G2 periodic job picks **VA-17** → **VA-18** → **VA-16** internally (priorities **13**, **15**, **17**).
+On one poll, priorities **1–9** run back-to-back via `immediateAnnouncements()` (**VA-1** and **VA-2** share one queue slot — only one applies per poll). Across polls, [`VoiceAnnouncementQueue`](app/src/main/java/io/github/cloolalang/notspotdetector/model/VoiceAnnouncementQueue.kt) keeps one slot per kind, collapses service-state VAs to the latest (so a recovered camp does not still speak queued “no signal”), and keeps spoken backlog to about **5 s**. Overflow events that have a sound icon (cell-reselect bell, technology / limited / no-signal tones) play the icon immediately and **drop TTS**. Rapid extra reselections while a reselect VA is already speaking also keep the bell only. A playing dead-zone / no-signal / signal-low line is not interrupted by a reselect. **VA-11** is scheduled separately. Periodic timers (**11–18**) restart from the new state; if several fire together, the shared alert mutex lets the **lowest Pri** speak first. **VA-20** uses the same mutex so it never overlaps other speech, but a radio-state change does not cancel its cycle. On 2G, the G2 periodic job picks **VA-17** → **VA-18** → **VA-16** internally (priorities **13**, **15**, **17**).
 
 ---
 
@@ -212,13 +217,14 @@ On one poll, priorities **1–9** run back-to-back via `immediateAnnouncements()
 | **VA-3**, **VA-13** | `noSignalVoiceEnabled` | `noSignalVoiceVolume` | `noSignalToneVolume` |
 | **VA-3** (vibration) | — | — | `noSignalVibrationEnabled` |
 | **VA-8**, **VA-15**, **VA-18** | `tier5AnnouncerEnabled` | `tier5AnnouncerVolume` | — (TTS only) |
-| **VA-4**, **VA-6**, **VA-14** | `limitedServiceVoiceEnabled` | `limitedServiceVoiceVolume` | `limitedServiceToneVolume` |
+| **VA-4**, **VA-5**, **VA-6**, **VA-14** | `limitedServiceVoiceEnabled` | `limitedServiceVoiceVolume` | `limitedServiceToneVolume` (no extra tone on **VA-5**) |
 | **VA-7**, **VA-16** | `technologyChangeTo2gVoiceEnabled` | `technologyChangeTo2gVoiceVolume` | `technologyChangeTo2gSoundEnabled`, `technologyChangeTo2gToneVolume` |
 | **VA-9** → 2G / 4G / 5G | `technologyChangeTo{2g,4g,5gEndc}VoiceEnabled` | matching `…VoiceVolume` | matching `…SoundEnabled`, `…ToneVolume` |
 | **VA-10** | `cellChangeVoiceEnabled` | `cellChangeVoiceVolume` | `cellChangeBellVolume` |
 | **VA-10** band instead of channel/PCI | `cellChangeSpeakBandEnabled` | — | — |
 | Every VA band fragment | `cellChangeBandNamingStyle` | — | — |
 | **VA-19** | `specialCellsVoiceEnabled` (+ `specialCellsDetectionEnabled`) | `cellChangeVoiceVolume` | — (TTS only) |
+| **VA-20** | Mock on (no separate toggle) | default voice volume | — (TTS only) |
 | All | `voiceAnnouncerChoice`, `voiceAnnouncerEngineId` | — | — |
 
 UI controls live under **Signal thresholds** (per RXSS) and **Alert sound volume** (global announcer picker).
@@ -322,13 +328,13 @@ Quiet passive alerts are no longer a user setting (`passiveQuietUntilCritical` i
 
 ## RXSS state filters
 
-Low signal (RXSS **6** / **8**), no signal (RXSS **10** / **15** / **31**), dead zone (RXSS **0**), and RSRQ (RXSS **14**) each have an optional rolling filter in Passive Signal Settings:
+Low signal (RXSS **6** / **8**), Level Range C (RXSS **4**), Level Range D (RXSS **5**), no signal (RXSS **10** / **15** / **31**), dead zone (RXSS **0**), and RSRQ (RXSS **14**) each have an optional rolling filter in Passive Signal Settings:
 
 - **Off** or **0 s** — the latest reading is used immediately.
 - **1–10 s** — the new trigger state must persist for that many extra 1-second measurements before the RXSS (and its voice/pulses) is adopted. A single flicker resets the wait.
 - **Entry / exit balance** — 50% waits the same time both ways. Higher values wait longer to enter and leave sooner; lower values enter sooner and stay longer.
 
-No-signal defaults to **on, 1 s, 50%**, which is the former two-poll debounce. The other three default to off.
+No-signal defaults to **on, 1 s, 50%**, which is the former two-poll debounce. The other five default to off.
 
 `noSignalActive` is the filtered no-signal flag. Dead-zone voice uses the filtered dead-zone flag (`deadzoneActive`), not a raw one-poll out-of-service blip.
 

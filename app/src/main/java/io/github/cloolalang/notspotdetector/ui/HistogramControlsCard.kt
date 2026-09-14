@@ -421,7 +421,10 @@ private fun RsrpHistogramBarColumn(
                 Text(
                     text = when (bin.kind) {
                         RsrpHistogramBinKind.OTHER ->
-                            stringResource(R.string.rsrp_histogram_other_bin_label)
+                            stringResource(
+                                R.string.rsrp_histogram_other_bin_label,
+                                bin.labelDbm ?: RsrpHistogram.DEFAULT_THRESHOLD_3_DBM
+                            )
                         RsrpHistogramBinKind.NO_SIGNAL ->
                             stringResource(R.string.rsrp_histogram_null_bin_label)
                         RsrpHistogramBinKind.SIGNAL -> if (thresholdLabel) {

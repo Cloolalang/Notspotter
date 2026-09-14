@@ -16,7 +16,7 @@ enum class RsrpHistogramBinKind {
 
 /**
  * A single histogram bar. [labelDbm] is the bin edge or threshold for [RsrpHistogramBinKind.SIGNAL],
- * and null for [RsrpHistogramBinKind.OTHER] / [RsrpHistogramBinKind.NO_SIGNAL].
+ * the weakest floor for [RsrpHistogramBinKind.OTHER], and null for [RsrpHistogramBinKind.NO_SIGNAL].
  */
 data class RsrpHistogramBin(
     val labelDbm: Int?,
@@ -69,7 +69,7 @@ data class RsrpWindowStats(
 enum class RsrpHistogramBinningMode {
     /** Existing 5 dB level bins from −70 to −135 dBm. */
     LEVEL,
-    /** Three “stronger than” floors plus other-samples and no-signal (N/A) bars. */
+    /** Three “stronger than” floors plus a weaker-than-floor bar and no-signal (N/A) bars. */
     THRESHOLD;
 
     companion object {
@@ -151,9 +151,10 @@ object RsrpHistogram {
     }
 
     /**
-     * Three cumulative bins, then an “other samples” bar, then a no-signal (N/A) bar.
+     * Three cumulative bins, then a weaker-than-floor bar, then a no-signal (N/A) bar.
      * Each threshold bar is the number of in-window samples whose RSRP is **strictly greater
-     * than** that floor. Measured RSRP that is not stronger than any floor goes in other.
+     * than** that floor. Measured RSRP that is not stronger than any floor goes in the
+     * weaker-than-floor bar (labelled from the weakest floor, default &lt; −115 dBm).
      * Null / no-signal samples are counted only in the trailing N/A bar.
      */
     fun buildThresholdBins(
@@ -194,7 +195,7 @@ object RsrpHistogram {
         }
         return thresholdBins +
             RsrpHistogramBin(
-                labelDbm = null,
+                labelDbm = floors.minOrNull(),
                 count = otherCount,
                 kind = RsrpHistogramBinKind.OTHER
             ) +
