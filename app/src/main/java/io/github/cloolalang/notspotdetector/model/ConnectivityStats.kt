@@ -69,8 +69,30 @@ data class ConnectivityStats(
     val selectedApn: String? = null,
     val signalPermissionGranted: Boolean = false,
     val cellIdentityPermissionGranted: Boolean = false,
-    /** Debounced no-signal state (two consecutive polls to enter/exit). */
+    /**
+     * Confirmed no-signal state after the RXSS 10/15/31 filter (or the default ~1 s debounce).
+     * Unit tests that skip [io.github.cloolalang.notspotdetector.MonitorState] should set this
+     * when they want the no-signal RXSS, not only a raw weak RSRP.
+     */
     val noSignalActive: Boolean = false,
+    /**
+     * Confirmed dead-zone RXSS after the RXSS 0 filter. Null means “not filtered” — use
+     * [isCompleteNoService] (unit tests that only set that flag).
+     */
+    val deadzoneActive: Boolean? = null,
+    /**
+     * Confirmed signal-low RXSS after the RXSS 6/8 filter. Null means use the raw RSRP band.
+     */
+    val lowSignalActive: Boolean? = null,
+    /**
+     * Confirmed poor-RSRQ overlay after the RXSS 14 filter. Null means use the raw RSRQ reading.
+     */
+    val rsrqPoorActive: Boolean? = null,
+    /**
+     * Last in-service RSRP pulse band (RXSS 1–8). Kept while the no-signal filter is still
+     * waiting so RXSS 5/6 pulses do not go silent before RXSS 10/15 confirms.
+     */
+    val heldInServiceSignalTier: SignalStrengthTier? = null,
     /**
      * Debounced "4G layers detected" reading — see [CellularRadioMetrics.lteLayerResilience].
      * Smoothed via [LteLayerResilienceDebouncer] (two consecutive matching polls before the

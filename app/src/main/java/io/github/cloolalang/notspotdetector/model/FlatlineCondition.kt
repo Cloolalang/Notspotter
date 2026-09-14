@@ -28,7 +28,7 @@ internal fun ConnectivityStats.evaluateFlatlineCondition(
 /**
  * Pulsed no-signal tone while monitoring with no usable cellular/mobile data path,
  * on 2G when 2G monitoring is disabled, or when no radio metrics can be read at all.
- * Requires two consecutive polls to enter or exit (see [noSignalActive]).
+ * Uses the filtered [noSignalActive] flag (see RXSS no-signal filter).
  * Use [shouldPlayContinuousFlatline] for a steady tone in a complete dead zone.
  */
 fun ConnectivityStats.shouldPlayFlatline(
@@ -75,11 +75,11 @@ fun shouldSuppressSignalRestoredForWeakSignalRecovery(
     nextNoSignalActive: Boolean,
     settings: PassiveSignalSettings = PassiveSignalSettings()
 ): Boolean {
-    if (previous.isCompleteNoService && !next.isCompleteNoService && next.isTier5PoorSignal(settings)) {
+    if (previous.isDeadzoneConfirmed() && !next.isDeadzoneConfirmed() && next.isTier5PoorSignal(settings)) {
         return true
     }
     if (!previousNoSignalActive || nextNoSignalActive || next.usesG2SignalTiers()) return false
-    return !previous.isCompleteNoService && next.isTier6CriticalSignal(settings)
+    return !previous.isDeadzoneConfirmed() && next.isTier6CriticalSignal(settings)
 }
 
 /** RXSS **20** / **23** — visited limited-service no-signal voice (entry + 30 s repeats). */
@@ -149,7 +149,7 @@ fun ConnectivityStats.shouldPlaySignalStrengthInterval(
     if (shouldPlayLimitedServiceSignalOverlay(settings)) {
         return signalPermissionGranted && shouldPlayCurrentTierSignalPulse(settings)
     }
-    if (!cellularAvailable) return false
+    if (!cellularAvailable && resolvePassiveClickRateTier(settings) == null) return false
     if (shouldPlayFlatline(settings)) return false
     if (shouldPlayLimitedServiceTone() || shouldPlay2gLimitedServicePulse()) return false
     if (!signalPermissionGranted) return false
@@ -162,7 +162,8 @@ fun ConnectivityStats.shouldPlaySignalStrengthInterval(
 fun ConnectivityStats.shouldPlayWeakSignalWarning(
     settings: PassiveSignalSettings = PassiveSignalSettings()
 ): Boolean {
-    if (!isMonitoring || !cellularAvailable || shouldPlayFlatline(settings)) return false
+    if (!isMonitoring || shouldPlayFlatline(settings)) return false
+    if (!cellularAvailable && resolvePassiveClickRateTier(settings) == null) return false
     if (shouldPlayLimitedServiceTone()) return false
     if (shouldPlay2gLimitedServicePulse()) return false
     if (!signalPermissionGranted) return false

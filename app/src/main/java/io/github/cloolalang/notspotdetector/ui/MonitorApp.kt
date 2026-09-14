@@ -4,11 +4,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -62,6 +64,8 @@ fun MonitorApp(
         viewModel.refreshCarrierConfigSnapshot()
     }
 
+    KeepScreenOn(enabled = isRunning && monitoringSettings.keepScreenOnWhileMonitoring)
+
     fun ensureBackgroundMonitoringEnabled() {
         if (!viewModel.isBatteryOptimizationDisabled) {
             onRequestBatteryExemption()
@@ -104,10 +108,8 @@ fun MonitorApp(
             onPingsPerTestChange = viewModel::updatePingsPerTest,
             onTestIntervalChange = viewModel::updateTestIntervalMs,
             onMonitor2gFallbackChange = viewModel::updateMonitor2gFallback,
-            onPassiveQuietUntilCriticalChange = viewModel::updatePassiveQuietUntilCritical,
             onPassiveSignalSettingsChange = viewModel::updatePassiveSignalSettings,
             onPassiveMockSettingsChange = viewModel::updatePassiveMockSettings,
-            onPassiveMeasurementIntervalChange = viewModel::updatePassiveMeasurementIntervalMs,
             onRsrpHistogramWindowChange = viewModel::updateRsrpHistogramWindowMs,
             onRsrpHistogramBinningModeChange = viewModel::updateRsrpHistogramBinningMode,
             onRsrpHistogramThresholdChange = viewModel::updateRsrpHistogramThresholdDbm,
@@ -116,6 +118,7 @@ fun MonitorApp(
             onSubscriptionChange = viewModel::updateSelectedSubscription,
             onMobileDataEnabledChange = viewModel::setMobileDataEnabled,
             onShowManualSelectOperatorButtonChange = viewModel::updateShowManualSelectOperatorButton,
+            onKeepScreenOnWhileMonitoringChange = viewModel::updateKeepScreenOnWhileMonitoring,
             onInhibit2gChange = viewModel::setInhibit2g,
             inhibit2gBusy = inhibit2gBusy,
             inhibit2gFailed = inhibit2gFailed,
@@ -143,6 +146,7 @@ fun MonitorApp(
             onCellChangeVoiceVolumeChange = viewModel::updateCellChangeVoiceVolume,
             onCellChangeSpeakBandEnabledChange = viewModel::updateCellChangeSpeakBandEnabled,
             onCellChangeBandNamingStyleChange = viewModel::updateCellChangeBandNamingStyle,
+            onTechnologyChangeSoundEnabledChange = viewModel::updateTechnologyChangeSoundEnabled,
             onTechnologyChangeToneVolumeChange = viewModel::updateTechnologyChangeToneVolume,
             onTechnologyChangeVoiceEnabledChange = viewModel::updateTechnologyChangeVoiceEnabled,
             onTechnologyChangeVoiceVolumeChange = viewModel::updateTechnologyChangeVoiceVolume,
@@ -203,5 +207,15 @@ fun MonitorApp(
             appVersion = BuildConfig.VERSION_NAME,
             modifier = Modifier.padding(innerPadding)
         )
+    }
+}
+
+@Composable
+private fun KeepScreenOn(enabled: Boolean) {
+    val view = LocalView.current
+    DisposableEffect(enabled) {
+        val previous = view.keepScreenOn
+        view.keepScreenOn = enabled
+        onDispose { view.keepScreenOn = previous }
     }
 }

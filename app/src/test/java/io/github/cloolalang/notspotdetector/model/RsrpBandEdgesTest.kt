@@ -30,14 +30,41 @@ class RsrpBandEdgesTest {
     }
 
     @Test
-    fun veryStrongSliderClampsToMinus75ThroughMinus50() {
+    fun veryStrongSliderClampsToMinus85ThroughMinus50() {
         assertEquals(
-            -75,
+            -85,
             PassiveSignalSettings(veryStrongRsrpMinDbm = -90).normalized().veryStrongRsrpMinDbm
         )
         assertEquals(
             -50,
             PassiveSignalSettings(veryStrongRsrpMinDbm = -40).normalized().veryStrongRsrpMinDbm
+        )
+        assertEquals(
+            -85,
+            PassiveSignalSettings(veryStrongRsrpMinDbm = -85).normalized().veryStrongRsrpMinDbm
+        )
+    }
+
+    @Test
+    fun rxss2HighEndFollowsRxss1Floor() {
+        val settings = PassiveSignalSettings(veryStrongRsrpMinDbm = -85).normalized()
+        assertEquals(-85, settings.veryStrongRsrpMinDbm)
+        assertEquals(-95, settings.mildRsrpMinDbm)
+        assertEquals(SignalStrengthTier.MILD, settings.resolveSignalStrengthTier(-85))
+        assertEquals(SignalStrengthTier.MILD, settings.resolveSignalStrengthTier(-84))
+        assertTrue(settings.isVeryStrongRsrp(-84))
+        assertFalse(settings.isVeryStrongRsrp(-85))
+        val stats = ConnectivityStats(
+            isMonitoring = true,
+            cellularAvailable = true,
+            signalPermissionGranted = true,
+            rsrpDbm = -84,
+            rsrqDb = -12
+        )
+        assertEquals(SignalMeasurementTier.VERY_STRONG, stats.resolveSignalMeasurementTier(settings))
+        assertEquals(
+            SignalMeasurementTier.MILD,
+            stats.copy(rsrpDbm = -85).resolveSignalMeasurementTier(settings)
         )
     }
 
@@ -138,5 +165,7 @@ class RsrpBandEdgesTest {
         assertEquals(SignalStrengthTier.G2_WEAK, settings.resolveG2SignalStrengthTier(-85))
         assertEquals(SignalStrengthTier.G2_WEAK, settings.resolveG2SignalStrengthTier(-134))
         assertNull(settings.resolveG2SignalStrengthTier(-135))
+        assertEquals(SignalStrengthTier.G2_STRONG, custom.resolveG2SignalStrengthTier(-89))
+        assertEquals(SignalStrengthTier.G2_WEAK, custom.resolveG2SignalStrengthTier(-90))
     }
 }

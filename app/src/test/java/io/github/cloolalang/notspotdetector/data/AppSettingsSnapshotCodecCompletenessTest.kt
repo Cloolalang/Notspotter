@@ -8,6 +8,7 @@ import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.PassiveMockSettings
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
 import io.github.cloolalang.notspotdetector.model.PingSettings
+import io.github.cloolalang.notspotdetector.model.RxssStateFilterSettings
 import io.github.cloolalang.notspotdetector.model.RsrpHistogramBinningMode
 import io.github.cloolalang.notspotdetector.model.SettingsProfile
 import io.github.cloolalang.notspotdetector.model.ThresholdSettings
@@ -94,7 +95,9 @@ class AppSettingsSnapshotCodecCompletenessTest {
         val allowedSameAsDefault = setOf(
             "fairRsrpMinDbm",
             "goodRsrpMinDbm",
-            "mildRsrpMinDbm"
+            "mildRsrpMinDbm",
+            "passiveMeasurementIntervalMs",
+            "passiveQuietUntilCritical"
         )
         val unexpected = leftover - allowedSameAsDefault
         assertEquals(emptySet<String>(), unexpected)
@@ -210,7 +213,8 @@ class AppSettingsSnapshotCodecCompletenessTest {
                 rsrpHistogramThreshold3Dbm = -120,
                 fiveGFeaturesEnabled = true,
                 showManualSelectOperatorButton = true,
-                inhibit2g = true
+                inhibit2g = true,
+                keepScreenOnWhileMonitoring = false
             ),
             passiveSignalSettings = PassiveSignalSettings(
                 noSignalRsrpDbm = -130,
@@ -273,7 +277,11 @@ class AppSettingsSnapshotCodecCompletenessTest {
                 limitedAlt2gTierPulseDurationMs = 270,
                 wifiCallingTierClickIntervalMs = 590,
                 wifiCallingTierSoundEnabled = false,
-                wifiCallingTierPulseDurationMs = 280
+                wifiCallingTierPulseDurationMs = 280,
+                lowSignalFilter = RxssStateFilterSettings(enabled = true, windowSeconds = 3, balancePercent = 70),
+                noSignalFilter = RxssStateFilterSettings(enabled = false, windowSeconds = 4, balancePercent = 30),
+                deadzoneFilter = RxssStateFilterSettings(enabled = true, windowSeconds = 5, balancePercent = 80),
+                rsrqFilter = RxssStateFilterSettings(enabled = true, windowSeconds = 6, balancePercent = 20)
             ),
             passiveMockSettings = PassiveMockSettings(
                 enabled = true,
@@ -301,13 +309,16 @@ class AppSettingsSnapshotCodecCompletenessTest {
                 cellChangeVoiceVolume = 0.35f,
                 cellChangeSpeakBandEnabled = false,
                 cellChangeBandNamingStyle = CellReselectBandNamingStyle.BAND_NUMBER,
+                technologyChangeTo2gSoundEnabled = false,
                 technologyChangeTo2gToneVolume = 0.41f,
                 technologyChangeTo2gVoiceEnabled = false,
                 technologyChangeTo2gPeriodicVoiceEnabled = false,
                 technologyChangeTo2gVoiceVolume = 0.42f,
+                technologyChangeTo4gSoundEnabled = false,
                 technologyChangeTo4gToneVolume = 0.43f,
                 technologyChangeTo4gVoiceEnabled = false,
                 technologyChangeTo4gVoiceVolume = 0.44f,
+                technologyChangeTo5gEndcSoundEnabled = false,
                 technologyChangeTo5gEndcToneVolume = 0.46f,
                 technologyChangeTo5gEndcVoiceEnabled = false,
                 technologyChangeTo5gEndcVoiceVolume = 0.47f,
@@ -379,7 +390,8 @@ class AppSettingsSnapshotCodecCompletenessTest {
             "rsrpHistogramThreshold3Dbm",
             "fiveGFeaturesEnabled",
             "showManualSelectOperatorButton",
-            "inhibit2g"
+            "inhibit2g",
+            "keepScreenOnWhileMonitoring"
         )
 
         private val PASSIVE_MOCK_KEYS = setOf(
@@ -450,7 +462,11 @@ class AppSettingsSnapshotCodecCompletenessTest {
             "limitedAlt2gTierPulseDurationMs",
             "wifiCallingTierClickIntervalMs",
             "wifiCallingTierSoundEnabled",
-            "wifiCallingTierPulseDurationMs"
+            "wifiCallingTierPulseDurationMs",
+            "lowSignalFilter",
+            "noSignalFilter",
+            "deadzoneFilter",
+            "rsrqFilter"
         )
 
         private val AUDIO_KEYS = setOf(
@@ -473,13 +489,16 @@ class AppSettingsSnapshotCodecCompletenessTest {
             "cellChangeVoiceVolume",
             "cellChangeSpeakBandEnabled",
             "cellChangeBandNamingStyle",
+            "technologyChangeTo2gSoundEnabled",
             "technologyChangeTo2gToneVolume",
             "technologyChangeTo2gVoiceEnabled",
             "technologyChangeTo2gPeriodicVoiceEnabled",
             "technologyChangeTo2gVoiceVolume",
+            "technologyChangeTo4gSoundEnabled",
             "technologyChangeTo4gToneVolume",
             "technologyChangeTo4gVoiceEnabled",
             "technologyChangeTo4gVoiceVolume",
+            "technologyChangeTo5gEndcSoundEnabled",
             "technologyChangeTo5gEndcToneVolume",
             "technologyChangeTo5gEndcVoiceEnabled",
             "technologyChangeTo5gEndcVoiceVolume",

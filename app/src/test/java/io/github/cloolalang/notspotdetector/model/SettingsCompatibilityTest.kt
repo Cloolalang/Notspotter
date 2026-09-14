@@ -170,4 +170,14 @@ class SettingsCompatibilityTest {
             )
         )
     }
+
+    @Test
+    fun normalizedLocksMeasurementCycleAndQuietAlerts() {
+        val normalized = MonitoringSettings(
+            passiveQuietUntilCritical = true,
+            passiveMeasurementIntervalMs = 8_000L
+        ).normalized()
+        assertEquals(false, normalized.passiveQuietUntilCritical)
+        assertEquals(1_000L, normalized.passiveMeasurementIntervalMs)
+    }
 }

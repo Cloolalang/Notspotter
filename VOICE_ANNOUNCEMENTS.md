@@ -213,8 +213,8 @@ On one poll, priorities **1–9** run back-to-back via `immediateAnnouncements()
 | **VA-3** (vibration) | — | — | `noSignalVibrationEnabled` |
 | **VA-8**, **VA-15**, **VA-18** | `tier5AnnouncerEnabled` | `tier5AnnouncerVolume` | — (TTS only) |
 | **VA-4**, **VA-6**, **VA-14** | `limitedServiceVoiceEnabled` | `limitedServiceVoiceVolume` | `limitedServiceToneVolume` |
-| **VA-7**, **VA-16** | `technologyChangeTo2gVoiceEnabled` | `technologyChangeTo2gVoiceVolume` | `technologyChangeTo2gToneVolume` |
-| **VA-9** → 2G / 4G / 5G | `technologyChangeTo{2g,4g,5gEndc}VoiceEnabled` | matching `…VoiceVolume` | matching `…ToneVolume` |
+| **VA-7**, **VA-16** | `technologyChangeTo2gVoiceEnabled` | `technologyChangeTo2gVoiceVolume` | `technologyChangeTo2gSoundEnabled`, `technologyChangeTo2gToneVolume` |
+| **VA-9** → 2G / 4G / 5G | `technologyChangeTo{2g,4g,5gEndc}VoiceEnabled` | matching `…VoiceVolume` | matching `…SoundEnabled`, `…ToneVolume` |
 | **VA-10** | `cellChangeVoiceEnabled` | `cellChangeVoiceVolume` | `cellChangeBellVolume` |
 | **VA-10** band instead of channel/PCI | `cellChangeSpeakBandEnabled` | — | — |
 | Every VA band fragment | `cellChangeBandNamingStyle` | — | — |
@@ -316,22 +316,26 @@ While in passive idle, **VA-8** / **VA-15** periodic restart is gated off. Most 
 
 ## Passive alert gating
 
-When **Quiet passive alerts** is enabled (`passiveQuietUntilCritical`), signal pulses and **VA-15** restart wait until signal is “bad enough”:
-
-- No-signal / flatline active, or  
-- RSRQ below `quietAlertRsrqDb`, or  
-- RSRP at or below `quietAlertRsrpMaxDbm`
-
-**Not gated** by quiet mode: **VA-1–VA-14**, **VA-16–VA-18**, technology change, cell change, and G2 fallback — those follow their own toggles.
+Quiet passive alerts are no longer a user setting (`passiveQuietUntilCritical` is always off). Signal pulses and **VA-15** follow their normal RXSS rules.
 
 ---
 
-## No-signal debounce
+## RXSS state filters
 
-`noSignalActive` requires **two consecutive polls** agreeing before entering or leaving. This affects voice timing:
+Low signal (RXSS **6** / **8**), no signal (RXSS **10** / **15** / **31**), dead zone (RXSS **0**), and RSRQ (RXSS **14**) each have an optional rolling filter in Passive Signal Settings:
 
-- Entry/exit phrases align with debounced edges, not raw single-poll flicker.
-- Dead-zone recovery may speak **VA-2** when `isCompleteNoService` clears **before** `noSignalActive` clears.
+- **Off** or **0 s** — the latest reading is used immediately.
+- **1–10 s** — the new trigger state must persist for that many extra 1-second measurements before the RXSS (and its voice/pulses) is adopted. A single flicker resets the wait.
+- **Entry / exit balance** — 50% waits the same time both ways. Higher values wait longer to enter and leave sooner; lower values enter sooner and stay longer.
+
+No-signal defaults to **on, 1 s, 50%**, which is the former two-poll debounce. The other three default to off.
+
+`noSignalActive` is the filtered no-signal flag. Dead-zone voice uses the filtered dead-zone flag (`deadzoneActive`), not a raw one-poll out-of-service blip.
+
+This affects voice timing:
+
+- Entry/exit phrases align with filtered edges, not raw single-poll flicker.
+- Dead-zone recovery may speak **VA-2** when filtered dead zone clears **before** `noSignalActive` clears.
 
 ---
 

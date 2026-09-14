@@ -58,10 +58,9 @@ enum class RsrpSampleTrend {
     DOWN
 }
 
-/** Mean, median, and sample standard deviation of in-window measured RSRP values. */
+/** Mean and sample standard deviation of in-window measured RSRP values. */
 data class RsrpWindowStats(
     val meanDbm: Double,
-    val medianDbm: Double,
     val stdevDbm: Double,
     val sampleCount: Int
 )
@@ -322,7 +321,7 @@ object RsrpHistogram {
     }
 
     /**
-     * Mean, median, and sample standard deviation of in-window non-null RSRP samples.
+     * Mean and sample standard deviation of in-window non-null RSRP samples.
      * Null when the window has no measured RSRP.
      */
     fun windowStats(
@@ -336,13 +335,6 @@ object RsrpHistogram {
         }
         if (values.isEmpty()) return null
         val mean = values.average()
-        val sorted = values.sorted()
-        val mid = sorted.size / 2
-        val median = if (sorted.size % 2 == 1) {
-            sorted[mid].toDouble()
-        } else {
-            (sorted[mid - 1] + sorted[mid]) / 2.0
-        }
         val stdev = if (values.size == 1) {
             0.0
         } else {
@@ -354,7 +346,6 @@ object RsrpHistogram {
         }
         return RsrpWindowStats(
             meanDbm = mean,
-            medianDbm = median,
             stdevDbm = stdev,
             sampleCount = values.size
         )

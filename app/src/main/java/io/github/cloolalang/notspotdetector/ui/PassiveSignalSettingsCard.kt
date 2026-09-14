@@ -32,6 +32,7 @@ import io.github.cloolalang.notspotdetector.model.CellReselectBandNamingStyle
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
 import io.github.cloolalang.notspotdetector.model.PeriodicVoiceRepeat
 import io.github.cloolalang.notspotdetector.model.Rxss
+import io.github.cloolalang.notspotdetector.model.RxssStateFilterSettings
 import io.github.cloolalang.notspotdetector.model.SettingsCompatibility
 import io.github.cloolalang.notspotdetector.model.CELL_CHANGE_RXSS_NUMBER
 import io.github.cloolalang.notspotdetector.model.TechnologyChangeTarget
@@ -71,6 +72,7 @@ fun PassiveSignalSettingsCard(
     onVeryStrongTierPulseFrequencyChange: (Int) -> Unit,
     onG2StrongTierPulseFrequencyChange: (Int) -> Unit,
     onG2WeakTierPulseFrequencyChange: (Int) -> Unit,
+    onTechnologyChangeSoundEnabledChange: (TechnologyChangeTarget, Boolean) -> Unit,
     onTechnologyChangeToneVolumeChange: (TechnologyChangeTarget, Float) -> Unit,
     onTechnologyChangeVoiceEnabledChange: (TechnologyChangeTarget, Boolean) -> Unit,
     onTechnologyChangeVoiceVolumeChange: (TechnologyChangeTarget, Float) -> Unit,
@@ -270,6 +272,7 @@ fun PassiveSignalSettingsCard(
                     audioVolumes = audioVolumes,
                     previewEnabled = previewEnabled,
                     fiveGFeaturesEnabled = fiveGFeaturesEnabled,
+                    onTechnologyChangeSoundEnabledChange = onTechnologyChangeSoundEnabledChange,
                     onTechnologyChangeToneVolumeChange = onTechnologyChangeToneVolumeChange,
                     onTechnologyChangeVoiceEnabledChange = onTechnologyChangeVoiceEnabledChange,
                     onTechnologyChangeVoiceVolumeChange = onTechnologyChangeVoiceVolumeChange,
@@ -301,13 +304,14 @@ private fun AlertSettingsGroupHeading(title: String) {
 
 /**
  * Standard RXSS threshold-panel control order:
- * sound toggle → range → volume → duration → interval → frequency → voice.
+ * sound toggle → range → filter → volume → duration → interval → frequency → voice.
  */
 @Composable
 private fun RxssSectionControlsOrdered(
     accentColor: Color,
     soundToggle: @Composable () -> Unit,
     rangeControls: @Composable () -> Unit = {},
+    filterControls: @Composable () -> Unit = {},
     volumeControls: @Composable () -> Unit = {},
     durationControls: @Composable () -> Unit = {},
     intervalControls: @Composable () -> Unit = {},
@@ -317,6 +321,7 @@ private fun RxssSectionControlsOrdered(
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         soundToggle()
         rangeControls()
+        filterControls()
         volumeControls()
         durationControls()
         intervalControls()
@@ -345,6 +350,142 @@ private fun TierSoundEnabledOption(
             style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.Medium
         )
+    }
+}
+
+@Composable
+private fun RxssStateFilterControls(
+    filter: RxssStateFilterSettings,
+    accentColor: Color,
+    hint: String,
+    onFilterChange: (RxssStateFilterSettings) -> Unit
+) {
+    val normalized = filter.normalized()
+    val slidersEnabled = settingsControlsEnabled() && normalized.enabled
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Checkbox(
+                enabled = settingsControlsEnabled(),
+                checked = normalized.enabled,
+                onCheckedChange = { onFilterChange(normalized.copy(enabled = it)) }
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.passive_signal_rxss_filter_enabled),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = hint,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.passive_signal_rxss_filter_time),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Medium,
+                    color = accentColor,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = stringResource(
+                        R.string.passive_signal_rxss_filter_time_value,
+                        normalized.windowSeconds
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = accentColor,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+            Text(
+                text = stringResource(R.string.passive_signal_rxss_filter_time_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Slider(
+                enabled = slidersEnabled,
+                value = normalized.windowSeconds.toFloat(),
+                onValueChange = {
+                    onFilterChange(
+                        normalized.copy(windowSeconds = it.roundToInt())
+                    )
+                },
+                valueRange = RxssStateFilterSettings.MIN_WINDOW_SECONDS.toFloat()..
+                    RxssStateFilterSettings.MAX_WINDOW_SECONDS.toFloat(),
+                steps = RxssStateFilterSettings.MAX_WINDOW_SECONDS -
+                    RxssStateFilterSettings.MIN_WINDOW_SECONDS - 1,
+                colors = tierSliderColors(accentColor)
+            )
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.passive_signal_rxss_filter_balance),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Medium,
+                    color = accentColor,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = stringResource(
+                        R.string.passive_signal_rxss_filter_balance_value,
+                        normalized.balancePercent
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = accentColor,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+            Text(
+                text = stringResource(R.string.passive_signal_rxss_filter_balance_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Slider(
+                enabled = slidersEnabled,
+                value = normalized.balancePercent.toFloat(),
+                onValueChange = {
+                    onFilterChange(
+                        normalized.copy(balancePercent = it.roundToInt())
+                    )
+                },
+                valueRange = RxssStateFilterSettings.MIN_BALANCE_PERCENT.toFloat()..
+                    RxssStateFilterSettings.MAX_BALANCE_PERCENT.toFloat(),
+                steps = RxssStateFilterSettings.MAX_BALANCE_PERCENT -
+                    RxssStateFilterSettings.MIN_BALANCE_PERCENT - 1,
+                colors = tierSliderColors(accentColor)
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = stringResource(R.string.passive_signal_rxss_filter_balance_exit),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = stringResource(R.string.passive_signal_rxss_filter_balance_entry),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
 }
 
@@ -1012,6 +1153,14 @@ private fun RsrpTierSettings(
                         onValueChange = { onSettingsChange(settings.copy(poorRsrpMinDbm = it)) }
                     )
                 },
+                filterControls = {
+                    RxssStateFilterControls(
+                        filter = settings.lowSignalFilter,
+                        accentColor = accent,
+                        hint = stringResource(R.string.passive_signal_rxss_filter_hint_low_signal),
+                        onFilterChange = { onSettingsChange(settings.copy(lowSignalFilter = it)) }
+                    )
+                },
                 volumeControls = {
                     RxssVolumeSlider(
                         label = stringResource(R.string.passive_signal_rxss1_click_volume),
@@ -1110,6 +1259,7 @@ private fun TechnologyChangeTierSettings(
     audioVolumes: AudioVolumeSettings,
     previewEnabled: Boolean,
     fiveGFeaturesEnabled: Boolean,
+    onTechnologyChangeSoundEnabledChange: (TechnologyChangeTarget, Boolean) -> Unit,
     onTechnologyChangeToneVolumeChange: (TechnologyChangeTarget, Float) -> Unit,
     onTechnologyChangeVoiceEnabledChange: (TechnologyChangeTarget, Boolean) -> Unit,
     onTechnologyChangeVoiceVolumeChange: (TechnologyChangeTarget, Float) -> Unit,
@@ -1132,6 +1282,7 @@ private fun TechnologyChangeTierSettings(
                     accentColor = accent,
                     voiceEnabledTitle = technologyChangeVoiceEnabledTitle(target),
                     voiceVolumeLabel = stringResource(R.string.audio_volume_technology_change_voice),
+                    onSoundEnabledChange = { onTechnologyChangeSoundEnabledChange(target, it) },
                     onToneVolumeChange = { onTechnologyChangeToneVolumeChange(target, it) },
                     onVoiceEnabledChange = { onTechnologyChangeVoiceEnabledChange(target, it) },
                     onVoiceVolumeChange = { onTechnologyChangeVoiceVolumeChange(target, it) },
@@ -1188,7 +1339,7 @@ private fun G2TierSettings(
                     Text(
                         text = stringResource(
                             R.string.passive_signal_g2_tier7_threshold,
-                            PassiveSignalSettings.G2_STRONG_MIN_DBM
+                            settings.g2WeakMaxDbm
                         ),
                         style = MaterialTheme.typography.bodySmall,
                         color = accent
@@ -1441,6 +1592,14 @@ private fun DeadzoneTierSettings(
                         onEnabledChange = { onSettingsChange(settings.copy(deadzoneTierSoundEnabled = it)) }
                     )
                 },
+                filterControls = {
+                    RxssStateFilterControls(
+                        filter = settings.deadzoneFilter,
+                        accentColor = accent,
+                        hint = stringResource(R.string.passive_signal_rxss_filter_hint_deadzone),
+                        onFilterChange = { onSettingsChange(settings.copy(deadzoneFilter = it)) }
+                    )
+                },
                 volumeControls = {
                     CampSignalPulseVolumeControl(
                         label = stringResource(R.string.audio_volume_no_signal),
@@ -1684,6 +1843,14 @@ private fun NoSignalCampTierBlock(
                     accentColor = accentColor,
                     expandLowerEnd = true,
                     onValueChange = { onSettingsChange(settings.copy(noSignalRsrpDbm = it)) }
+                )
+            },
+            filterControls = {
+                RxssStateFilterControls(
+                    filter = settings.noSignalFilter,
+                    accentColor = accentColor,
+                    hint = stringResource(R.string.passive_signal_rxss_filter_hint_no_signal),
+                    onFilterChange = { onSettingsChange(settings.copy(noSignalFilter = it)) }
                 )
             },
             volumeControls = {
@@ -2492,6 +2659,12 @@ private fun RsrqTierSettings(
         RsrqBoundarySliders(
             settings = settings,
             onSettingsChange = onSettingsChange
+        )
+        RxssStateFilterControls(
+            filter = settings.rsrqFilter,
+            accentColor = accentColor,
+            hint = stringResource(R.string.passive_signal_rxss_filter_hint_rsrq),
+            onFilterChange = { onSettingsChange(settings.copy(rsrqFilter = it)) }
         )
         Row(
             modifier = Modifier.fillMaxWidth(),

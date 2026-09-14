@@ -15,14 +15,14 @@ data class MonitoringSettings(
     val fiveGFeaturesEnabled: Boolean = DEFAULT_FIVE_G_FEATURES_ENABLED,
     val showManualSelectOperatorButton: Boolean = DEFAULT_SHOW_MANUAL_SELECT_OPERATOR_BUTTON,
     /** When true, the phone’s allowed RATs exclude 2G. Requires root to apply. */
-    val inhibit2g: Boolean = DEFAULT_INHIBIT_2G
+    val inhibit2g: Boolean = DEFAULT_INHIBIT_2G,
+    /** Keep the display awake while monitoring is running (car cradle / field test). */
+    val keepScreenOnWhileMonitoring: Boolean = DEFAULT_KEEP_SCREEN_ON_WHILE_MONITORING
 ) {
     fun normalized(): MonitoringSettings {
         return copy(
-            passiveMeasurementIntervalMs = passiveMeasurementIntervalMs.coerceIn(
-                MIN_PASSIVE_MEASUREMENT_INTERVAL_MS,
-                MAX_PASSIVE_MEASUREMENT_INTERVAL_MS
-            ),
+            passiveQuietUntilCritical = DEFAULT_PASSIVE_QUIET_UNTIL_CRITICAL,
+            passiveMeasurementIntervalMs = DEFAULT_PASSIVE_MEASUREMENT_INTERVAL_MS,
             rsrpHistogramWindowMs = rsrpHistogramWindowMs.coerceToHistogramWindowStep(),
             rsrpHistogramThreshold1Dbm = rsrpHistogramThreshold1Dbm.coerceToHistogramThresholdDbm(),
             rsrpHistogramThreshold2Dbm = rsrpHistogramThreshold2Dbm.coerceToHistogramThresholdDbm(),
@@ -52,6 +52,7 @@ data class MonitoringSettings(
         const val DEFAULT_FIVE_G_FEATURES_ENABLED = false
         const val DEFAULT_SHOW_MANUAL_SELECT_OPERATOR_BUTTON = false
         const val DEFAULT_INHIBIT_2G = false
+        const val DEFAULT_KEEP_SCREEN_ON_WHILE_MONITORING = true
     }
 }
 

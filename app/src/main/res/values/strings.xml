@@ -79,7 +79,7 @@
     <string name="passive_signal_rxss1_click_volume_hint">Used by signal high (RXSS 1), RXSS 2, and signal low (RXSS 6).</string>
     <string name="passive_signal_rxss1_pulse_duration_hint">Shared with the global signal pulse duration.</string>
     <string name="passive_signal_level_range_bcd_section">RXSS 2-5 common settings</string>
-    <string name="passive_signal_level_range_bcd_section_hint">Volume and frequency shared by RXSS 2–5. Each RXSS below keeps its own enable toggle, pulse duration, and click interval. RSRP ranges for RXSS 2–5 are fixed.</string>
+    <string name="passive_signal_level_range_bcd_section_hint">Volume and frequency shared by RXSS 2–5. Each RXSS below keeps its own enable toggle, pulse duration, and click interval. RXSS 2’s high end follows the RXSS 1 floor. RXSS 3–4 are fixed 10 dB bands. RXSS 5 follows the RXSS 6 high end.</string>
     <string name="passive_signal_level_range_bcd_volume">Alert pulse volume</string>
     <string name="passive_signal_level_range_bcd_frequency">Alert pulse frequency</string>
     <string name="passive_signal_rxss0_voice_shared_hint">Tone and voice settings are shared with LTE/NR no signal (RXSS 10), searching 2G (RXSS 11), 2G no signal (RXSS 15), and WiFi calling no signal (RXSS 31).</string>
@@ -125,7 +125,7 @@
     <string name="passive_signal_rsrp_band_sound_enabled">Alert pulse</string>
     <string name="passive_signal_rsrp_band_boundary_above">RXSS %1$s above</string>
     <string name="passive_signal_no_signal_section">No signal</string>
-    <string name="passive_signal_rsrp_order_hint">RXSS 1 is adjustable from −75 to −50 dBm. RXSS 2–5 are fixed 10 dB bands. RXSS 6 high end is adjustable from the RXSS 10 floor up to −125 dBm. RXSS 10 is adjustable from −135 to −125 dBm and stays below RXSS 6. Bands do not overlap.</string>
+    <string name="passive_signal_rsrp_order_hint">RXSS 1 is adjustable from −85 to −50 dBm. RXSS 2 runs from −95 up to the RXSS 1 floor. RXSS 3–4 are fixed 10 dB bands. RXSS 6 high end is adjustable from the RXSS 10 floor up to −125 dBm. RXSS 10 is adjustable from −135 to −125 dBm and stays below RXSS 6. Bands do not overlap.</string>
     <string name="passive_signal_tier_click_value">%1$d ms</string>
     <string name="passive_signal_tier_click_effective">Plays every %1$d ms (raised to fit alert pulse duration)</string>
     <string name="passive_signal_tier_click_ping_mode">With ping monitoring: %1$d ms</string>
@@ -167,7 +167,7 @@
     <string name="mock_scenario_wifi_calling">WiFi calling (no cellular)</string>
     <string name="mock_scenario_wifi_calling_hint">In service via WiFi calling only, no cellular RAT/RSRP — RXSS 31, “WiFi calling, no cellular signal” voice.</string>
     <string name="passive_signal_settings_reset">Reset to defaults</string>
-    <string name="passive_signal_g2_section_hint">Used instead of RXSS 1–6 when 2G fallback is enabled and the phone is on 2G. RXSS 7 is stronger than −85 dBm. RXSS 8 is adjustable from the RXSS 15 floor up to −85 dBm. RXSS 15 is 2G no signal.</string>
+    <string name="passive_signal_g2_section_hint">Used instead of RXSS 1–6 when 2G fallback is enabled and the phone is on 2G. RXSS 7 is RX level stronger than the RXSS 8 high end. RXSS 8 is adjustable from the RXSS 15 floor up to −85 dBm. RXSS 15 is 2G no signal.</string>
     <string name="passive_signal_g2_tier7_threshold">2G only — RX level stronger than %1$d dBm</string>
     <string name="passive_signal_g2_tier8_threshold">2G only — RX level from RXSS 15 through the RXSS 8 high end (up to −85 dBm)</string>
     <string name="passive_signal_g2_rxss8_high_end">RXSS 8 high end</string>
@@ -185,7 +185,7 @@
     <string name="passive_signal_tier_pulse_duration">Alert pulse duration</string>
     <string name="passive_signal_tier_pulse_duration_hint">Alert pulse interval cannot be shorter than this duration plus 25 ms.</string>
     <string name="passive_signal_deadzone_tier_threshold">Complete dead zone — no service on any technology</string>
-    <string name="passive_signal_rsrp_section_hint">RXSS 1, the high end of RXSS 6, and RXSS 10 are adjustable. RXSS 2–5 are fixed.</string>
+    <string name="passive_signal_rsrp_section_hint">RXSS 1, the high end of RXSS 6, and RXSS 10 are adjustable. RXSS 2’s high end follows RXSS 1. RXSS 3–4 are fixed.</string>
     <string name="passive_signal_rsrq_section">RSRQ</string>
     <string name="passive_signal_technology_change_section">Technology change</string>
     <string name="passive_signal_rsrp_rx_lev_section">RSRP/RX lev</string>
@@ -202,6 +202,19 @@
     <string name="passive_signal_rsrq_tier_pulse_duration">Alert pulse duration</string>
     <string name="passive_signal_rsrq_tier_threshold">Active when RSRQ is below %1$d dB (fair boundary above).</string>
     <string name="passive_signal_rsrq_tier_passive_only_hint">RXSS 14 audio applies during passive-only monitoring.</string>
+    <string name="passive_signal_rxss_filter_enabled">State filter</string>
+    <string name="passive_signal_rxss_filter_time">Filter time</string>
+    <string name="passive_signal_rxss_filter_time_value">%1$d s</string>
+    <string name="passive_signal_rxss_filter_time_hint">0 uses the latest reading immediately. 1 s waits one extra measurement before this RXSS is adopted.</string>
+    <string name="passive_signal_rxss_filter_balance">Entry / exit balance</string>
+    <string name="passive_signal_rxss_filter_balance_value">%1$d%%</string>
+    <string name="passive_signal_rxss_filter_balance_hint">Higher values wait longer to enter this RXSS and leave it sooner. Lower values enter sooner and stay longer.</string>
+    <string name="passive_signal_rxss_filter_balance_exit">Exit</string>
+    <string name="passive_signal_rxss_filter_balance_entry">Entry</string>
+    <string name="passive_signal_rxss_filter_hint_low_signal">Ignore brief RXSS 6 / 8 (signal low) flicker. Also applies to 2G weak.</string>
+    <string name="passive_signal_rxss_filter_hint_no_signal">Ignore brief RXSS 10 / 15 / 31 (no signal) flicker.</string>
+    <string name="passive_signal_rxss_filter_hint_deadzone">Ignore brief RXSS 0 (dead zone) flicker.</string>
+    <string name="passive_signal_rxss_filter_hint_rsrq">Ignore brief RXSS 14 (poor RSRQ) flicker.</string>
     <string name="passive_signal_rsrp_band_range">Range: %1$d to %2$d dBm</string>
     <string name="passive_signal_rsrp_band_range_open">Range: %1$d to %2$d dBm</string>
     <string name="passive_signal_rsrp_band_range_at_or_below">Range: at or below %1$d dBm</string>
@@ -243,7 +256,7 @@
     <string name="metric_lte_pci">4G PCI</string>
     <string name="metric_nr_pci">5G PCI</string>
     <string name="metric_nr_band">5G band</string>
-    <string name="metric_band_mhz">Band (MHz/band)</string>
+    <string name="metric_band_mhz">Band (MHz)</string>
     <string name="metric_primary_carrier">Primary Carrier</string>
     <string name="metric_serving_cell">Serving cell</string>
     <string name="metric_nr_carrier">5G Carrier</string>
@@ -290,6 +303,8 @@
     <string name="metric_sim">SIM</string>
     <string name="monitoring_mobile_data">Mobile data</string>
     <string name="monitoring_mobile_data_hint">Unlock settings to turn the phone’s mobile data on or off. If Android blocks the app, the system internet panel opens instead.</string>
+    <string name="monitoring_keep_screen_on">Keep screen on while monitoring</string>
+    <string name="monitoring_keep_screen_on_hint">Stops Android from blanking the display while monitoring is running. Needed in a car cradle so voice announcements keep speaking after the usual screen-timeout. Unlock settings to change. The screen sleeps again when you stop monitoring.</string>
     <string name="monitoring_manual_select_operator">Manual select operator (with roaming SIM)</string>
     <string name="monitoring_manual_select_operator_hint">Unlock settings to show this button under the operator name. The button opens Android’s Network operators page.</string>
     <string name="monitoring_2g_fallback">All technologies (include 2G)</string>
@@ -337,7 +352,7 @@
     <string name="rsrp_histogram_bin_label">%1$d dBm</string>
     <string name="rsrp_histogram_sample_count">%1$d samples in window</string>
     <string name="rsrp_histogram_sample_count_active">%1$d samples · %2$d active bins</string>
-    <string name="rsrp_histogram_window_stats">mean %1$s dBm · median %2$s dBm · σ %3$s dB</string>
+    <string name="rsrp_histogram_window_stats">mean %1$s dBm · σ %2$s dB</string>
     <string name="rsrp_histogram_sigma_label">Sigma</string>
     <string name="rsrp_histogram_sigma_unit">dB</string>
     <string name="rsrp_histogram_mean_title">Mean RSRP</string>
@@ -403,7 +418,7 @@
     <string name="audio_technology_change_voice_enabled_hint">After the sweep tone, speaks the network name and new radio technology (e.g. “E E, Technology change, 4 G”). Only when 2G, 4G, or 5G changes.</string>
     <string name="audio_volume_technology_change_voice">Volume</string>
     <string name="audio_tier5_announcer_enabled">Voice announcement</string>
-    <string name="audio_tier5_announcer_enabled_hint">Speaks 5 s after signal enters RXSS 5, then every 30 s while RXSS 5 continues (e.g. “E E, 4 G, signal low”). On 2G fallback, RXSS 8 (2G weak) uses the same “signal low” voice every 30 s instead of the “2 G” camp reminder. Voice only — no alert tone.</string>
+    <string name="audio_tier5_announcer_enabled_hint">Speaks when signal enters RXSS 5, then every 30 s while RXSS 5 continues (e.g. “E E, 4 G, signal low”). On 2G fallback, RXSS 8 (2G weak) uses the same “signal low” voice every 30 s instead of the “2 G” camp reminder. Voice only — no alert tone.</string>
     <string name="audio_volume_tier5_announcer">Volume</string>
     <string name="audio_volume_no_signal">Alert pulse volume</string>
     <string name="audio_no_signal_vibration_enabled">Vibration buzz on no signal</string>

@@ -10,7 +10,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -25,29 +24,24 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.cloolalang.notspotdetector.R
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
-import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
 import io.github.cloolalang.notspotdetector.model.SimSubscriptionOption
 import io.github.cloolalang.notspotdetector.network.SimSubscriptionHelper
 import io.github.cloolalang.notspotdetector.ui.theme.Sushi
-import kotlin.math.roundToInt
 
 @Composable
 fun MonitoringSettingsCard(
     monitoringSettings: MonitoringSettings,
-    passiveSignalSettings: PassiveSignalSettings,
     simSubscriptions: List<SimSubscriptionOption>,
     phoneStatePermissionGranted: Boolean,
     onMonitor2gFallbackChange: (Boolean) -> Unit,
-    onPassiveQuietUntilCriticalChange: (Boolean) -> Unit,
-    onPassiveSignalSettingsChange: (PassiveSignalSettings) -> Unit,
     onSubscriptionChange: (Int) -> Unit,
     onMobileDataEnabledChange: (Boolean) -> Unit = {},
     mobileDataEnabled: Boolean? = null,
     onShowManualSelectOperatorButtonChange: (Boolean) -> Unit = {},
+    onKeepScreenOnWhileMonitoringChange: (Boolean) -> Unit = {},
     onInhibit2gChange: (Boolean) -> Unit = {},
     inhibit2gBusy: Boolean = false,
     inhibit2gFailed: Boolean = false,
-    onPassiveMeasurementIntervalChange: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
@@ -101,40 +95,9 @@ fun MonitoringSettingsCard(
                     onEnabledChange = onShowManualSelectOperatorButtonChange
                 )
 
-                PassiveMeasurementIntervalSlider(
-                    intervalMs = monitoringSettings.passiveMeasurementIntervalMs,
-                    onIntervalChange = onPassiveMeasurementIntervalChange
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Checkbox(
-                        checked = monitoringSettings.passiveQuietUntilCritical,
-                        onCheckedChange = onPassiveQuietUntilCriticalChange,
-                        enabled = settingsControlsEnabled()
-                    )
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = stringResource(R.string.monitoring_passive_quiet_alerts),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Text(
-                            text = stringResource(
-                                R.string.monitoring_passive_quiet_alerts_hint,
-                                passiveSignalSettings.quietAlertRsrqDb,
-                                passiveSignalSettings.quietAlertRsrpMaxDbm
-                            ),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                QuietAlertThresholdSliders(
-                    settings = passiveSignalSettings,
-                    onSettingsChange = onPassiveSignalSettingsChange
+                KeepScreenOnToggleRow(
+                    enabled = monitoringSettings.keepScreenOnWhileMonitoring,
+                    onEnabledChange = onKeepScreenOnWhileMonitoringChange
                 )
 
                 Row(
@@ -167,75 +130,6 @@ fun MonitoringSettingsCard(
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun QuietAlertThresholdSliders(
-    settings: PassiveSignalSettings,
-    onSettingsChange: (PassiveSignalSettings) -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            text = stringResource(R.string.monitoring_quiet_alert_thresholds_title),
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium
-        )
-        Text(
-            text = stringResource(R.string.monitoring_quiet_alert_thresholds_hint),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        QuietAlertSlider(
-            label = stringResource(R.string.monitoring_quiet_alert_rsrp),
-            value = settings.quietAlertRsrpMaxDbm,
-            valueRange = PassiveSignalSettings.MIN_RSRP_DBM..PassiveSignalSettings.MAX_RSRP_DBM,
-            unit = "dBm",
-            onValueChange = { onSettingsChange(settings.copy(quietAlertRsrpMaxDbm = it)) }
-        )
-        QuietAlertSlider(
-            label = stringResource(R.string.monitoring_quiet_alert_rsrq),
-            value = settings.quietAlertRsrqDb,
-            valueRange = PassiveSignalSettings.MIN_RSRQ_DB..PassiveSignalSettings.MAX_RSRQ_DB,
-            unit = "dB",
-            onValueChange = { onSettingsChange(settings.copy(quietAlertRsrqDb = it)) }
-        )
-    }
-}
-
-@Composable
-private fun QuietAlertSlider(
-    label: String,
-    value: Int,
-    valueRange: IntRange,
-    unit: String,
-    onValueChange: (Int) -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.weight(1f)
-            )
-            Text(
-                text = stringResource(R.string.passive_signal_bound_value, value, unit),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Medium
-            )
-        }
-        Slider(
-            enabled = settingsControlsEnabled(),
-            value = value.toFloat().coerceIn(valueRange.first.toFloat(), valueRange.last.toFloat()),
-            onValueChange = { onValueChange(it.roundToInt()) },
-            valueRange = valueRange.first.toFloat()..valueRange.last.toFloat(),
-            steps = (valueRange.last - valueRange.first).coerceAtMost(76)
-        )
     }
 }
 
@@ -304,6 +198,36 @@ private fun Inhibit2gToggleRow(
             checked = enabled,
             onCheckedChange = onEnabledChange,
             enabled = settingsControlsEnabled() && !busy
+        )
+    }
+}
+
+@Composable
+private fun KeepScreenOnToggleRow(
+    enabled: Boolean,
+    onEnabledChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.monitoring_keep_screen_on),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = stringResource(R.string.monitoring_keep_screen_on_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Switch(
+            checked = enabled,
+            onCheckedChange = onEnabledChange,
+            enabled = settingsControlsEnabled()
         )
     }
 }
@@ -403,43 +327,6 @@ private fun SimRadioOption(
             text = label,
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.weight(1f)
-        )
-    }
-}
-
-@Composable
-private fun PassiveMeasurementIntervalSlider(
-    intervalMs: Long,
-    onIntervalChange: (Long) -> Unit
-) {
-    val minSeconds = (MonitoringSettings.MIN_PASSIVE_MEASUREMENT_INTERVAL_MS / 1_000).toInt()
-    val maxSeconds = (MonitoringSettings.MAX_PASSIVE_MEASUREMENT_INTERVAL_MS / 1_000).toInt()
-    val valueSeconds = (intervalMs / 1_000L).toInt().coerceIn(minSeconds, maxSeconds)
-
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = stringResource(R.string.passive_measurement_interval_label),
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium
-            )
-            Text(
-                text = stringResource(R.string.passive_measurement_interval_value, valueSeconds),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Medium
-            )
-        }
-        Slider(
-            enabled = settingsControlsEnabled(),
-            value = valueSeconds.toFloat(),
-            onValueChange = { onIntervalChange(it.roundToInt() * 1_000L) },
-            valueRange = minSeconds.toFloat()..maxSeconds.toFloat(),
-            steps = maxSeconds - minSeconds - 1
         )
     }
 }

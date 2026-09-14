@@ -3,6 +3,7 @@ package io.github.cloolalang.notspotdetector.data
 import android.content.Context
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
+import io.github.cloolalang.notspotdetector.model.RxssStateFilterSettings
 
 class PassiveSignalSettingsRepository(context: Context) {
 
@@ -239,6 +240,30 @@ class PassiveSignalSettingsRepository(context: Context) {
             wifiCallingTierPulseDurationMs = prefs.getInt(
                 KEY_WIFI_CALLING_TIER_PULSE_MS,
                 PassiveSignalSettings.DEFAULT_WIFI_CALLING_TIER_PULSE_DURATION_MS
+            ),
+            lowSignalFilter = loadFilter(
+                KEY_LOW_SIGNAL_FILTER_ENABLED,
+                KEY_LOW_SIGNAL_FILTER_SECONDS,
+                KEY_LOW_SIGNAL_FILTER_BALANCE,
+                RxssStateFilterSettings.INACTIVE
+            ),
+            noSignalFilter = loadFilter(
+                KEY_NO_SIGNAL_FILTER_ENABLED,
+                KEY_NO_SIGNAL_FILTER_SECONDS,
+                KEY_NO_SIGNAL_FILTER_BALANCE,
+                RxssStateFilterSettings.DEFAULT_NO_SIGNAL
+            ),
+            deadzoneFilter = loadFilter(
+                KEY_DEADZONE_FILTER_ENABLED,
+                KEY_DEADZONE_FILTER_SECONDS,
+                KEY_DEADZONE_FILTER_BALANCE,
+                RxssStateFilterSettings.INACTIVE
+            ),
+            rsrqFilter = loadFilter(
+                KEY_RSRQ_FILTER_ENABLED,
+                KEY_RSRQ_FILTER_SECONDS,
+                KEY_RSRQ_FILTER_BALANCE,
+                RxssStateFilterSettings.INACTIVE
             )
         ).normalized()
     }
@@ -307,6 +332,18 @@ class PassiveSignalSettingsRepository(context: Context) {
             .putInt(KEY_WIFI_CALLING_TIER_CLICK_MS, normalized.wifiCallingTierClickIntervalMs)
             .putBoolean(KEY_WIFI_CALLING_TIER_SOUND, normalized.wifiCallingTierSoundEnabled)
             .putInt(KEY_WIFI_CALLING_TIER_PULSE_MS, normalized.wifiCallingTierPulseDurationMs)
+            .putBoolean(KEY_LOW_SIGNAL_FILTER_ENABLED, normalized.lowSignalFilter.enabled)
+            .putInt(KEY_LOW_SIGNAL_FILTER_SECONDS, normalized.lowSignalFilter.windowSeconds)
+            .putInt(KEY_LOW_SIGNAL_FILTER_BALANCE, normalized.lowSignalFilter.balancePercent)
+            .putBoolean(KEY_NO_SIGNAL_FILTER_ENABLED, normalized.noSignalFilter.enabled)
+            .putInt(KEY_NO_SIGNAL_FILTER_SECONDS, normalized.noSignalFilter.windowSeconds)
+            .putInt(KEY_NO_SIGNAL_FILTER_BALANCE, normalized.noSignalFilter.balancePercent)
+            .putBoolean(KEY_DEADZONE_FILTER_ENABLED, normalized.deadzoneFilter.enabled)
+            .putInt(KEY_DEADZONE_FILTER_SECONDS, normalized.deadzoneFilter.windowSeconds)
+            .putInt(KEY_DEADZONE_FILTER_BALANCE, normalized.deadzoneFilter.balancePercent)
+            .putBoolean(KEY_RSRQ_FILTER_ENABLED, normalized.rsrqFilter.enabled)
+            .putInt(KEY_RSRQ_FILTER_SECONDS, normalized.rsrqFilter.windowSeconds)
+            .putInt(KEY_RSRQ_FILTER_BALANCE, normalized.rsrqFilter.balancePercent)
             .apply()
     }
 
@@ -322,6 +359,19 @@ class PassiveSignalSettingsRepository(context: Context) {
         return prefs.getInt(
             KEY_GOOD_TIER_CLICK_MS,
             PassiveSignalSettings.DEFAULT_LEVEL_RANGE_ABCD_CLICK_INTERVAL_MS
+        )
+    }
+
+    private fun loadFilter(
+        enabledKey: String,
+        secondsKey: String,
+        balanceKey: String,
+        defaults: RxssStateFilterSettings
+    ): RxssStateFilterSettings {
+        return RxssStateFilterSettings(
+            enabled = prefs.getBoolean(enabledKey, defaults.enabled),
+            windowSeconds = prefs.getInt(secondsKey, defaults.windowSeconds),
+            balancePercent = prefs.getInt(balanceKey, defaults.balancePercent)
         )
     }
 
@@ -389,5 +439,17 @@ class PassiveSignalSettingsRepository(context: Context) {
         private const val KEY_WIFI_CALLING_TIER_CLICK_MS = "wifi_calling_tier_click_ms"
         private const val KEY_WIFI_CALLING_TIER_SOUND = "wifi_calling_tier_sound_enabled"
         private const val KEY_WIFI_CALLING_TIER_PULSE_MS = "wifi_calling_tier_pulse_ms"
+        private const val KEY_LOW_SIGNAL_FILTER_ENABLED = "low_signal_filter_enabled"
+        private const val KEY_LOW_SIGNAL_FILTER_SECONDS = "low_signal_filter_seconds"
+        private const val KEY_LOW_SIGNAL_FILTER_BALANCE = "low_signal_filter_balance"
+        private const val KEY_NO_SIGNAL_FILTER_ENABLED = "no_signal_filter_enabled"
+        private const val KEY_NO_SIGNAL_FILTER_SECONDS = "no_signal_filter_seconds"
+        private const val KEY_NO_SIGNAL_FILTER_BALANCE = "no_signal_filter_balance"
+        private const val KEY_DEADZONE_FILTER_ENABLED = "deadzone_filter_enabled"
+        private const val KEY_DEADZONE_FILTER_SECONDS = "deadzone_filter_seconds"
+        private const val KEY_DEADZONE_FILTER_BALANCE = "deadzone_filter_balance"
+        private const val KEY_RSRQ_FILTER_ENABLED = "rsrq_filter_enabled"
+        private const val KEY_RSRQ_FILTER_SECONDS = "rsrq_filter_seconds"
+        private const val KEY_RSRQ_FILTER_BALANCE = "rsrq_filter_balance"
     }
 }

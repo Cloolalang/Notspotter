@@ -2,6 +2,7 @@ package io.github.cloolalang.notspotdetector.model
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -120,6 +121,89 @@ class SignalMeasurementTierTest {
     fun noSignalRsrpMapsToNoSignalTier() {
         val stats = baseStats(rsrpDbm = -126, rsrqDb = -12)
         assertEquals(SignalMeasurementTier.NO_SIGNAL, stats.resolveSignalMeasurementTier(settings))
+    }
+
+    @Test
+    fun monitoringWeakRsrpWithoutConfirmedNoSignal_doesNotMapToNoSignalTier() {
+        val stats = ConnectivityStats(
+            isMonitoring = true,
+            cellularAvailable = true,
+            rsrpDbm = -126,
+            rsrqDb = -12,
+            signalPermissionGranted = true,
+            noSignalActive = false
+        )
+        assertEquals(SignalMeasurementTier.UNAVAILABLE, stats.resolveSignalMeasurementTier(settings))
+    }
+
+    @Test
+    fun pendingNoSignal_holdsPoorPulseAndDisplayUntilConfirmed() {
+        val stats = ConnectivityStats(
+            isMonitoring = true,
+            cellularAvailable = false,
+            rsrpDbm = -126,
+            rsrqDb = -12,
+            signalPermissionGranted = true,
+            noSignalActive = false,
+            heldInServiceSignalTier = SignalStrengthTier.POOR
+        )
+        assertEquals(SignalMeasurementTier.POOR, stats.resolveSignalMeasurementTier(settings))
+        assertEquals(SignalStrengthTier.POOR, stats.resolvePassiveClickRateTier(settings))
+        assertTrue(stats.shouldPlaySignalStrengthInterval(settings))
+        assertTrue(stats.isInNoSignalRxss(settings))
+    }
+
+    @Test
+    fun pendingNoSignal_holdsCriticalPulseAndDisplayUntilConfirmed() {
+        val stats = ConnectivityStats(
+            isMonitoring = true,
+            cellularAvailable = false,
+            rsrpDbm = -126,
+            rsrqDb = -12,
+            signalPermissionGranted = true,
+            noSignalActive = false,
+            heldInServiceSignalTier = SignalStrengthTier.CRITICAL
+        )
+        assertEquals(SignalMeasurementTier.CRITICAL, stats.resolveSignalMeasurementTier(settings))
+        assertEquals(SignalStrengthTier.CRITICAL, stats.resolvePassiveClickRateTier(settings))
+        assertTrue(stats.shouldPlaySignalStrengthInterval(settings))
+        assertTrue(stats.isInNoSignalRxss(settings))
+    }
+
+    @Test
+    fun confirmedNoSignal_clearsHeldInServiceBand() {
+        val stats = ConnectivityStats(
+            isMonitoring = true,
+            cellularAvailable = false,
+            rsrpDbm = -126,
+            rsrqDb = -12,
+            signalPermissionGranted = true,
+            noSignalActive = true,
+            heldInServiceSignalTier = SignalStrengthTier.CRITICAL
+        )
+        assertEquals(SignalMeasurementTier.NO_SIGNAL, stats.resolveSignalMeasurementTier(settings))
+        assertNull(stats.resolvePassiveClickRateTier(settings))
+        assertFalse(stats.shouldPlaySignalStrengthInterval(settings))
+    }
+
+    @Test
+    fun lowSignalFilterHold_keepsCriticalWhileRawHasRecovered() {
+        val stats = baseStats(rsrpDbm = -94, rsrqDb = -12).copy(
+            isMonitoring = true,
+            lowSignalActive = true
+        )
+        assertEquals(SignalMeasurementTier.CRITICAL, stats.resolveSignalMeasurementTier(settings))
+        assertEquals(SignalStrengthTier.CRITICAL, stats.resolvePassiveClickRateTier(settings))
+    }
+
+    @Test
+    fun lowSignalFilterPending_treatsCriticalAsPoor() {
+        val stats = baseStats(rsrpDbm = -122, rsrqDb = -12).copy(
+            isMonitoring = true,
+            lowSignalActive = false
+        )
+        assertEquals(SignalMeasurementTier.POOR, stats.resolveSignalMeasurementTier(settings))
+        assertEquals(SignalStrengthTier.POOR, stats.resolvePassiveClickRateTier(settings))
     }
 
     @Test

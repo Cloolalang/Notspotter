@@ -5,12 +5,20 @@ fun PassiveSignalSettings.isRsrqPoor(rsrqDb: Int?): Boolean {
     return rsrqDb < rsrqFairMinDb
 }
 
-fun ConnectivityStats.isRsrqPoor(
+fun ConnectivityStats.evaluateRsrqPoor(
     settings: PassiveSignalSettings = PassiveSignalSettings()
 ): Boolean {
     if (!signalPermissionGranted || usesG2SignalTiers()) return false
     if (isRsrpTooWeakForService(settings)) return false
     return settings.isRsrqPoor(rsrqDb)
+}
+
+fun ConnectivityStats.isRsrqPoor(
+    settings: PassiveSignalSettings = PassiveSignalSettings()
+): Boolean {
+    if (!signalPermissionGranted || usesG2SignalTiers()) return false
+    if (isRsrpTooWeakForService(settings)) return false
+    return rsrqPoorActive ?: settings.isRsrqPoor(rsrqDb)
 }
 
 fun PassiveSignalSettings.shouldCoupleRsrqWhiteNoise(
@@ -28,6 +36,17 @@ fun PassiveSignalSettings.rsrqTierWhiteNoiseMix(
     isPassiveOnlySession: Boolean
 ): Double {
     if (!shouldCoupleRsrqWhiteNoise(rsrqDb, isPassiveOnlySession)) return 0.0
+    return rsrqTierWhiteNoiseVolume.toDouble()
+        .coerceIn(PassiveSignalSettings.MIN_RSRQ_TIER_WHITE_NOISE_VOLUME.toDouble(), 1.0)
+}
+
+fun PassiveSignalSettings.rsrqTierWhiteNoiseMix(
+    stats: ConnectivityStats
+): Double {
+    if (!stats.isPassiveOnlySession || !rsrqTierSoundEnabled || !rsrqTierCoupledToSignalTier) {
+        return 0.0
+    }
+    if (!stats.isRsrqPoor(this)) return 0.0
     return rsrqTierWhiteNoiseVolume.toDouble()
         .coerceIn(PassiveSignalSettings.MIN_RSRQ_TIER_WHITE_NOISE_VOLUME.toDouble(), 1.0)
 }

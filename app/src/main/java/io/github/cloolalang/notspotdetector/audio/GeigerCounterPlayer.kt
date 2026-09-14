@@ -9,10 +9,7 @@ import io.github.cloolalang.notspotdetector.model.ConnectivityStats
 import io.github.cloolalang.notspotdetector.model.ConnectionQuality
 import io.github.cloolalang.notspotdetector.model.ThresholdSettings
 import io.github.cloolalang.notspotdetector.model.computeSignalStrengthClickIntervalMs
-import io.github.cloolalang.notspotdetector.model.resolveG2SignalStrengthTier
 import io.github.cloolalang.notspotdetector.model.resolvePassiveClickRateTier
-import io.github.cloolalang.notspotdetector.model.resolveSignalStrengthTier
-import io.github.cloolalang.notspotdetector.model.resolveSignalStrengthTier
 import io.github.cloolalang.notspotdetector.model.SignalStrengthTier
 import io.github.cloolalang.notspotdetector.model.usesG2SignalTiers
 import io.github.cloolalang.notspotdetector.model.computeCampTierClickIntervalMs
@@ -76,6 +73,7 @@ class GeigerCounterPlayer {
     private var limitedServiceTrackToneMs = -1
     private var limitedServiceTrackPauseMs = -1
     private var lastHandledPingTimestampMs = 0L
+    private var rsrpPulseTrack: AudioTrack? = null
     private var monitoringSettingsProvider: () -> MonitoringSettings = { MonitoringSettings() }
     private var passiveSignalSettingsProvider: () -> PassiveSignalSettings = { PassiveSignalSettings() }
     private var statsProvider: () -> ConnectivityStats = { ConnectivityStats() }
@@ -274,24 +272,28 @@ class GeigerCounterPlayer {
                         delayForPulseInterval(200L, stats.resolveSignalPulseScheduleKey(passiveSettings))
                     }
                     else -> {
-                        stopAlertTones()
-                        if (stats.cellularAvailable) {
-                            when {
-                                stats.shouldPlaySignalStrengthInterval(passiveSettings) ->
-                                    handleSignalStrengthIntervalAudio(stats, volumes, passiveSettings)
-                                stats.isPassiveIdleMode -> delayForPulseInterval(
-                                    POLL_INTERVAL_MS,
+                        if (stats.shouldPlaySignalStrengthInterval(passiveSettings)) {
+                            stopLimitedService()
+                            stopFlatline()
+                            handleSignalStrengthIntervalAudio(stats, volumes, passiveSettings)
+                        } else {
+                            stopAlertTones()
+                            if (stats.cellularAvailable) {
+                                when {
+                                    stats.isPassiveIdleMode -> delayForPulseInterval(
+                                        POLL_INTERVAL_MS,
+                                        stats.resolveSignalPulseScheduleKey(passiveSettings)
+                                    )
+                                    stats.quality == ConnectionQuality.GOOD && !stats.hasExtremeLatency() ->
+                                        handleGoodConnectionAudio(stats, thresholds, volumes, passiveSettings)
+                                    else -> handleIntervalAudio(stats, thresholds, volumes, passiveSettings)
+                                }
+                            } else {
+                                delayForPulseInterval(
+                                    computeClickIntervalMs(stats),
                                     stats.resolveSignalPulseScheduleKey(passiveSettings)
                                 )
-                                stats.quality == ConnectionQuality.GOOD && !stats.hasExtremeLatency() ->
-                                    handleGoodConnectionAudio(stats, thresholds, volumes, passiveSettings)
-                                else -> handleIntervalAudio(stats, thresholds, volumes, passiveSettings)
                             }
-                        } else {
-                            delayForPulseInterval(
-                                computeClickIntervalMs(stats),
-                                stats.resolveSignalPulseScheduleKey(passiveSettings)
-                            )
                         }
                     }
                 }
@@ -332,13 +334,12 @@ class GeigerCounterPlayer {
             stats.shouldPlayVeryStrongSignalIndicator(passiveSettings)
         val resolvedWeakTier = if (!stats.usesG2SignalTiers() && !isVeryStrong) {
             stats.resolvePassiveClickRateTier(passiveSettings)
-                ?: stats.resolveSignalStrengthTier(passiveSettings)
         } else {
             null
         }
         val tier = when {
             stats.usesG2SignalTiers() ->
-                stats.resolveG2SignalStrengthTier(passiveSettings) ?: SignalStrengthTier.G2_WEAK
+                stats.resolvePassiveClickRateTier(passiveSettings) ?: SignalStrengthTier.G2_WEAK
             isVeryStrong -> SignalStrengthTier.MILD
             else -> resolvedWeakTier ?: run {
                 delayForPulseInterval(
@@ -367,10 +368,7 @@ class GeigerCounterPlayer {
                 isVeryStrong -> volumes.veryStrongTierPulseFrequencyHz.toDouble()
                 else -> volumes.pulseFrequencyHzForTier(tier).toDouble()
             }
-            val noiseMix = passiveSettings.rsrqTierWhiteNoiseMix(
-                rsrqDb = stats.rsrqDb,
-                isPassiveOnlySession = stats.isPassiveOnlySession
-            )
+            val noiseMix = passiveSettings.rsrqTierWhiteNoiseMix(stats)
             playTieredWeakSignalClick(
                 volumes = volumes,
                 tier = tier,
@@ -429,7 +427,10 @@ class GeigerCounterPlayer {
             if (remainingMs <= 0L) return
             delay(minOf(POLL_INTERVAL_MS, remainingMs))
             val current = statsProvider().resolveSignalPulseScheduleKey(passiveSignalSettingsProvider())
-            if (current != scheduledKey) return
+            if (current != scheduledKey) {
+                stopRsrpPulseBurst()
+                return
+            }
         }
     }
 
@@ -463,13 +464,12 @@ class GeigerCounterPlayer {
                 stats.shouldPlayVeryStrongSignalIndicator(passiveSettings)
             val resolvedWeakTier = if (!stats.usesG2SignalTiers() && !isVeryStrong) {
                 stats.resolvePassiveClickRateTier(passiveSettings)
-                    ?: stats.resolveSignalStrengthTier(passiveSettings)
             } else {
                 null
             }
             val tier = when {
                 stats.usesG2SignalTiers() ->
-                    stats.resolveG2SignalStrengthTier(passiveSettings) ?: SignalStrengthTier.G2_WEAK
+                    stats.resolvePassiveClickRateTier(passiveSettings) ?: SignalStrengthTier.G2_WEAK
                 isVeryStrong -> SignalStrengthTier.MILD
                 else -> resolvedWeakTier ?: run {
                     delayForPulseInterval(interval, stats.resolveSignalPulseScheduleKey(passiveSettings))
@@ -626,17 +626,44 @@ class GeigerCounterPlayer {
             buffer[i] = (sample * envelope * Short.MAX_VALUE * amplitude).toInt().toShort()
         }
 
-        playStaticBuffer(buffer)
+        playStaticBuffer(buffer, replaceRsrpPulse = true)
     }
 
-    private fun playStaticBuffer(buffer: ShortArray) {
+    @Synchronized
+    private fun stopRsrpPulseBurst() {
+        val track = rsrpPulseTrack ?: return
+        rsrpPulseTrack = null
+        try {
+            if (track.playState == AudioTrack.PLAYSTATE_PLAYING) {
+                track.pause()
+            }
+            track.stop()
+        } catch (_: IllegalStateException) {
+        }
+        track.release()
+    }
+
+    private fun playStaticBuffer(buffer: ShortArray, replaceRsrpPulse: Boolean = false) {
         if (buffer.isEmpty()) return
+        if (replaceRsrpPulse) {
+            stopRsrpPulseBurst()
+        }
         val audioTrack = buildAudioTrack(buffer.size * 2, AudioTrack.MODE_STATIC)
         audioTrack.write(buffer, 0, buffer.size)
         audioTrack.play()
         audioTrack.setNotificationMarkerPosition(buffer.size)
+        if (replaceRsrpPulse) {
+            synchronized(this) {
+                rsrpPulseTrack = audioTrack
+            }
+        }
         audioTrack.setPlaybackPositionUpdateListener(object : AudioTrack.OnPlaybackPositionUpdateListener {
             override fun onMarkerReached(track: AudioTrack?) {
+                synchronized(this@GeigerCounterPlayer) {
+                    if (rsrpPulseTrack === track) {
+                        rsrpPulseTrack = null
+                    }
+                }
                 track?.release()
             }
 
@@ -823,6 +850,7 @@ class GeigerCounterPlayer {
 
     @Synchronized
     private fun stopAlertTones() {
+        stopRsrpPulseBurst()
         stopFlatline()
         stopLimitedService()
     }

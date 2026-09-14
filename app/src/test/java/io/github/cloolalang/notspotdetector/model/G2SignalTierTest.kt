@@ -23,6 +23,27 @@ class G2SignalTierTest {
     }
 
     @Test
+    fun resolveG2SignalStrengthTier_usesRxss8HighEndNotFixedMinus85() {
+        val custom = PassiveSignalSettings(
+            g2WeakMaxDbm = -100,
+            g2NoSignalRsrpDbm = -135
+        ).normalized()
+        assertEquals(-100, custom.g2WeakMaxDbm)
+        assertEquals(SignalStrengthTier.G2_STRONG, custom.resolveG2SignalStrengthTier(-99))
+        assertEquals(SignalStrengthTier.G2_WEAK, custom.resolveG2SignalStrengthTier(-100))
+        assertEquals(SignalStrengthTier.G2_WEAK, custom.resolveG2SignalStrengthTier(-134))
+        assertEquals(null, custom.resolveG2SignalStrengthTier(-135))
+        assertEquals(
+            SignalMeasurementTier.G2_STRONG,
+            g2Stats(rsrpDbm = -90).resolveSignalMeasurementTier(custom)
+        )
+        assertEquals(
+            SignalMeasurementTier.G2_WEAK,
+            g2Stats(rsrpDbm = -100).resolveSignalMeasurementTier(custom)
+        )
+    }
+
+    @Test
     fun resolveSignalMeasurementTier_usesG2TiersOn2gFallback() {
         val strong = g2Stats(rsrpDbm = -80)
         val weak = g2Stats(rsrpDbm = -105)

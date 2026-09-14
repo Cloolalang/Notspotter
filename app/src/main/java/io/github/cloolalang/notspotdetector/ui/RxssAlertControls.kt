@@ -586,6 +586,31 @@ private fun CellChangeBandNamingStyleOption(
 }
 
 @Composable
+fun RxssSoundEnabledOption(
+    rxssNumber: Int,
+    enabled: Boolean,
+    onEnabledChange: (Boolean) -> Unit,
+    accentColor: Color = MaterialTheme.colorScheme.onSurface
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Checkbox(
+            checked = enabled,
+            onCheckedChange = onEnabledChange,
+            enabled = settingsControlsEnabled()
+        )
+        Text(
+            text = rxssSoundEnabledLabel(rxssNumber),
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.Medium,
+            color = accentColor
+        )
+    }
+}
+
+@Composable
 fun TechnologyChangeAlertControls(
     target: TechnologyChangeTarget,
     audioVolumes: AudioVolumeSettings,
@@ -593,6 +618,7 @@ fun TechnologyChangeAlertControls(
     accentColor: Color,
     voiceEnabledTitle: String,
     voiceVolumeLabel: String,
+    onSoundEnabledChange: (Boolean) -> Unit,
     onToneVolumeChange: (Float) -> Unit,
     onVoiceEnabledChange: (Boolean) -> Unit,
     onVoiceVolumeChange: (Float) -> Unit,
@@ -600,11 +626,18 @@ fun TechnologyChangeAlertControls(
     onPreviewVoice: () -> Unit
 ) {
     val alertVolumes = audioVolumes.technologyChangeAlertVolumes(target)
+    RxssSoundEnabledOption(
+        rxssNumber = target.rxssNumber,
+        enabled = alertVolumes.soundEnabled,
+        onEnabledChange = onSoundEnabledChange,
+        accentColor = accentColor
+    )
     RxssVolumeSlider(
         label = stringResource(R.string.audio_volume_technology_change),
         value = alertVolumes.toneVolume,
         onValueChange = onToneVolumeChange,
         previewEnabled = previewEnabled,
+        previewEnabledOverride = previewEnabled && alertVolumes.soundEnabled,
         onPreview = onPreviewTone,
         accentColor = accentColor
     )

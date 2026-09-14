@@ -215,7 +215,7 @@ Each row is the **agreed trigger state** the mock simulates. Live detection uses
 4. Start **Passive mock** monitoring (or passive-only session).
 5. Scenario + slider values are **saved in settings profiles** — see [SETTINGS_PROFILES.md](SETTINGS_PROFILES.md).
 
-**Immediate stats refresh:** Changing scenario or RSRP calls `MonitorState.pushMockStatsIfActive()` (double poll for debounce).
+**Immediate stats refresh:** Changing scenario or RSRP calls `MonitorState.pushMockStatsIfActive()` so the cellular metrics update at once. RXSS state filters still wait for the 1 Hz measurement cycle — dragging the mock slider does not skip the flicker wait.
 
 ---
 

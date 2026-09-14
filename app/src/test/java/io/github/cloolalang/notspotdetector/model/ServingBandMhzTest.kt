@@ -40,24 +40,24 @@ class ServingBandMhzTest {
     }
 
     @Test
-    fun formatDisplay_lteBand20_is800Over20() {
-        assertEquals("800/20", ServingBandMhz.formatDisplay(lteEarfcn = 6_300))
+    fun formatDisplay_lteBand20_is800WithBandInBrackets() {
+        assertEquals("800(20)", ServingBandMhz.formatDisplay(lteEarfcn = 6_300))
     }
 
     @Test
-    fun formatDisplay_gsm900_is900Over8() {
-        assertEquals("900/8", ServingBandMhz.formatDisplay(gsmArfcn = 62))
+    fun formatDisplay_gsm900_is900WithBandInBrackets() {
+        assertEquals("900(8)", ServingBandMhz.formatDisplay(gsmArfcn = 62))
     }
 
     @Test
-    fun formatDisplay_nr78_is3500Over78() {
-        assertEquals("3500/78", ServingBandMhz.formatDisplay(nrBand = 78))
+    fun formatDisplay_nr78_is3500WithBandInBrackets() {
+        assertEquals("3500(78)", ServingBandMhz.formatDisplay(nrBand = 78))
     }
 
     @Test
     fun formatDisplay_endcJoinsLteAndNr() {
         assertEquals(
-            "800/20 / 3500/78",
+            "800(20) / 3500(78)",
             ServingBandMhz.formatDisplay(lteEarfcn = 6_300, nrBand = 78)
         )
     }

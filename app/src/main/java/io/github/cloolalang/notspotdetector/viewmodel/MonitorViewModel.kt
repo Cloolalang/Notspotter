@@ -269,14 +269,6 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         refreshCellularSignal()
     }
 
-    fun updatePassiveQuietUntilCritical(enabled: Boolean) {
-        updateMonitoringSettings(monitoringSettings.value.copy(passiveQuietUntilCritical = enabled))
-    }
-
-    fun updatePassiveMeasurementIntervalMs(value: Long) {
-        updateMonitoringSettings(monitoringSettings.value.copy(passiveMeasurementIntervalMs = value))
-    }
-
     fun updateFiveGFeaturesEnabled(enabled: Boolean) {
         updateMonitoringSettings(monitoringSettings.value.copy(fiveGFeaturesEnabled = enabled))
         if (!enabled && passiveMockSettings.value.scenario == io.github.cloolalang.notspotdetector.model.MockNetworkScenario.HOME_5G_ENDC) {
@@ -315,6 +307,12 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
     fun updateShowManualSelectOperatorButton(enabled: Boolean) {
         updateMonitoringSettings(
             monitoringSettings.value.copy(showManualSelectOperatorButton = enabled)
+        )
+    }
+
+    fun updateKeepScreenOnWhileMonitoring(enabled: Boolean) {
+        updateMonitoringSettings(
+            monitoringSettings.value.copy(keepScreenOnWhileMonitoring = enabled)
         )
     }
 
@@ -502,6 +500,10 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         )
     }
 
+    fun updateTechnologyChangeSoundEnabled(target: TechnologyChangeTarget, enabled: Boolean) {
+        updateAudioVolumes(audioVolumes.value.withTechnologyChangeSoundEnabled(target, enabled))
+    }
+
     fun updateTechnologyChangeToneVolume(target: TechnologyChangeTarget, value: Float) {
         updateAudioVolumes(audioVolumes.value.withTechnologyChangeToneVolume(target, value))
     }
@@ -654,6 +656,7 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
     fun previewTechnologyChangeSound(target: TechnologyChangeTarget) {
         if (isRunning.value) return
         val alertVolumes = audioVolumes.value.normalized().technologyChangeAlertVolumes(target)
+        if (!alertVolumes.soundEnabled) return
         alertSoundPreview.playTechnologyChangeTone(alertVolumes.toneVolume)
     }
 

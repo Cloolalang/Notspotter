@@ -18,7 +18,9 @@ import io.github.cloolalang.notspotdetector.model.PingSettings
 import io.github.cloolalang.notspotdetector.model.RttSample
 import io.github.cloolalang.notspotdetector.model.RsrpSample
 import io.github.cloolalang.notspotdetector.model.ThresholdSettings
+import io.github.cloolalang.notspotdetector.model.SignalStrengthTier
 import io.github.cloolalang.notspotdetector.model.SignalStateAnnouncement
+import io.github.cloolalang.notspotdetector.model.currentInServicePulseTier
 import io.github.cloolalang.notspotdetector.model.SpecialCellAnnouncement
 import io.github.cloolalang.notspotdetector.model.SpecialCellCatalog
 import io.github.cloolalang.notspotdetector.model.SpecialCellMatch
@@ -26,13 +28,16 @@ import io.github.cloolalang.notspotdetector.model.SpecialCellMatcher
 import io.github.cloolalang.notspotdetector.model.shouldBlankStaleCellIdentity
 import io.github.cloolalang.notspotdetector.model.hasUsableSignalForMonitoring
 import io.github.cloolalang.notspotdetector.model.LteLayerResilienceDebouncer
-import io.github.cloolalang.notspotdetector.model.NoSignalDebouncer
+import io.github.cloolalang.notspotdetector.model.RollingTriggerFilter
+import io.github.cloolalang.notspotdetector.model.RxssStateFilterSettings
 import io.github.cloolalang.notspotdetector.model.MockNetworkScenario
 import io.github.cloolalang.notspotdetector.model.LteLayerResilienceReading
 import io.github.cloolalang.notspotdetector.model.computeSearching2gFallbackActive
 import io.github.cloolalang.notspotdetector.model.isRadioPoweredOff
 import io.github.cloolalang.notspotdetector.model.reconcileOutOfServiceCamp
 import io.github.cloolalang.notspotdetector.model.evaluateFlatlineCondition
+import io.github.cloolalang.notspotdetector.model.evaluateRsrqPoor
+import io.github.cloolalang.notspotdetector.model.isDeadzoneConfirmed
 import io.github.cloolalang.notspotdetector.model.isG2FlatlineActive
 import io.github.cloolalang.notspotdetector.model.isG2WeakSignal
 import io.github.cloolalang.notspotdetector.model.isLimitedServiceAlt2g
@@ -101,7 +106,11 @@ object MonitorState {
     private var noSignalBaselineReady = false
     private var limitedServiceBaselineReady = false
     private var stableCellIdentity = CellIdentitySnapshot()
-    private val noSignalDebouncer = NoSignalDebouncer()
+    private val noSignalFilter = RollingTriggerFilter()
+    private val deadzoneFilter = RollingTriggerFilter()
+    private val lowSignalFilter = RollingTriggerFilter()
+    private val rsrqFilter = RollingTriggerFilter()
+    private var heldInServiceSignalTier: SignalStrengthTier? = null
     private val lteLayerResilienceDebouncer = LteLayerResilienceDebouncer()
     private var lastKnownRadioAccessType: String? = null
     /** Camped RAT the current histogram belongs to; a change wipes the sample window. */
@@ -205,11 +214,18 @@ object MonitorState {
 
     fun setPassiveMockSettings(settings: PassiveMockSettings) {
         _passiveMockSettings.value = settings.normalized()
-        recomputeStatsQuality()
-        pushMockStatsIfActive()
+        if (!pushMockStatsIfActive()) {
+            recomputeStatsQuality()
+        }
     }
 
-    /** Applies mock RSRP/RSRQ immediately during passive-only mock monitoring. */
+    /**
+     * Applies mock RSRP/RSRQ immediately during passive-only mock monitoring.
+     *
+     * The displayed radio metrics update at once, but RXSS state filters do not consume a
+     * sample here — those stay on the 1 Hz measurement cycle so dragging the mock slider
+     * cannot burn through the flicker wait.
+     */
     fun pushMockStatsIfActive(): Boolean {
         val mock = _passiveMockSettings.value
         val currentStats = _stats.value
@@ -222,9 +238,7 @@ object MonitorState {
             passiveIdleMode = currentStats.isPassiveIdleMode,
             passiveOnlySession = true
         ).hidingFiveGIfDisabled(_monitoringSettings.value.fiveGFeaturesEnabled)
-        // Two polls so no-signal debounce confirms immediately after scenario changes.
-        updateStats(mockStats)
-        updateStats(mockStats)
+        updateStats(mockStats, recordFilterSample = false)
         return true
     }
 
@@ -254,7 +268,10 @@ object MonitorState {
         recomputeStatsQuality()
     }
 
-    fun updateStats(rawStats: ConnectivityStats): MonitoringUpdateEvents {
+    fun updateStats(
+        rawStats: ConnectivityStats,
+        recordFilterSample: Boolean = true
+    ): MonitoringUpdateEvents {
         val events = synchronized(monitorLock) {
             val remapped = rawStats.hidingFiveGIfDisabled(_monitoringSettings.value.fiveGFeaturesEnabled)
             val previousKnownRat = lastKnownRadioAccessType
@@ -285,7 +302,8 @@ object MonitorState {
                 previous,
                 enriched,
                 passiveSettings,
-                previousKnownRat
+                previousKnownRat,
+                recordFilterSample = recordFilterSample
             )
             _stats.value = finalStats
             publishSpecialCellMatch(finalStats)
@@ -372,7 +390,11 @@ object MonitorState {
             if (current.isMonitoring) {
                 val passiveSettings = _passiveSignalSettings.value
                 val withQuality = current.withQuality(_thresholds.value, passiveSettings)
-                _stats.value = applyNoSignalDebounce(withQuality, passiveSettings)
+                _stats.value = applyRxssStateFilters(
+                    withQuality,
+                    passiveSettings,
+                    recordSample = false
+                )
                 publishSpecialCellMatch(_stats.value)
             }
         }
@@ -538,27 +560,116 @@ object MonitorState {
         return events
     }
 
-    private fun applyNoSignalDebounce(
+    private fun applyRxssStateFilters(
         stats: ConnectivityStats,
-        passiveSettings: PassiveSignalSettings
+        passiveSettings: PassiveSignalSettings,
+        recordSample: Boolean = true
     ): ConnectivityStats {
-        if (!stats.isMonitoring) return stats.copy(noSignalActive = false)
-        if (stats.isLimitedService) {
-            noSignalDebouncer.reset()
-            return stats.copy(noSignalActive = false)
+        if (!stats.isMonitoring) {
+            noSignalFilter.reset()
+            deadzoneFilter.reset()
+            lowSignalFilter.reset()
+            rsrqFilter.reset()
+            heldInServiceSignalTier = null
+            return stats.copy(
+                noSignalActive = false,
+                deadzoneActive = false,
+                lowSignalActive = false,
+                rsrqPoorActive = false,
+                heldInServiceSignalTier = null
+            )
         }
 
-        val debounceResult = noSignalDebouncer.update(stats.evaluateFlatlineCondition(passiveSettings))
-        return stats.copy(noSignalActive = debounceResult.confirmedActive)
+        val noSignalRaw = if (stats.isLimitedService) {
+            if (recordSample) noSignalFilter.reset()
+            false
+        } else {
+            stats.evaluateFlatlineCondition(passiveSettings)
+        }
+        val deadzoneRaw = stats.isCompleteNoService
+        val lowSignalRaw = stats.copy(lowSignalActive = null).let { raw ->
+            raw.isTier6CriticalSignal(passiveSettings) || raw.isG2WeakSignal(passiveSettings)
+        }
+        val rsrqRaw = stats.copy(rsrqPoorActive = null).evaluateRsrqPoor(passiveSettings)
+
+        val filtered = stats.copy(
+            noSignalActive = rollingConfirmed(
+                noSignalFilter,
+                noSignalRaw,
+                passiveSettings.noSignalFilter,
+                recordSample
+            ),
+            deadzoneActive = rollingConfirmed(
+                deadzoneFilter,
+                deadzoneRaw,
+                passiveSettings.deadzoneFilter,
+                recordSample
+            ),
+            lowSignalActive = rollingConfirmed(
+                lowSignalFilter,
+                lowSignalRaw,
+                passiveSettings.lowSignalFilter,
+                recordSample
+            ),
+            rsrqPoorActive = rollingConfirmed(
+                rsrqFilter,
+                rsrqRaw,
+                passiveSettings.rsrqFilter,
+                recordSample
+            )
+        )
+        val nextHeld = nextHeldInServiceSignalTier(filtered, passiveSettings)
+        heldInServiceSignalTier = nextHeld
+        return filtered.copy(heldInServiceSignalTier = nextHeld)
+    }
+
+    /**
+     * Remember the audible in-service RSRP band while the no-signal filter is still waiting.
+     * Raw RSRP has already dropped off the map, but RXSS 5/6 must keep pulsing until RXSS 10
+     * (or 15) is confirmed.
+     */
+    private fun nextHeldInServiceSignalTier(
+        stats: ConnectivityStats,
+        settings: PassiveSignalSettings
+    ): SignalStrengthTier? {
+        if (!stats.isMonitoring || stats.isDeadzoneConfirmed() || stats.isCompleteNoService) {
+            return null
+        }
+        if (stats.noSignalActive) return null
+        if (stats.isLimitedService && stats.isLimitedServiceNoSignalCamp(settings)) return null
+        val current = stats.currentInServicePulseTier(settings)
+        return current ?: heldInServiceSignalTier
+    }
+
+    /**
+     * When [recordSample] is false (mock slider / settings recompute), keep the last confirmed
+     * trigger and do not count this as a 1 Hz measurement. Inactive filters still adopt [rawActive]
+     * immediately so turning a filter off takes effect at once.
+     */
+    private fun rollingConfirmed(
+        filter: RollingTriggerFilter,
+        rawActive: Boolean,
+        settings: RxssStateFilterSettings,
+        recordSample: Boolean
+    ): Boolean {
+        if (!recordSample && settings.normalized().isActive) {
+            return filter.confirmedActive
+        }
+        return filter.update(rawActive, settings).confirmedActive
     }
 
     private fun buildMonitoringEvents(
         previous: ConnectivityStats,
         next: ConnectivityStats,
         passiveSettings: PassiveSignalSettings,
-        previousKnownRat: String?
+        previousKnownRat: String?,
+        recordFilterSample: Boolean = true
     ): Pair<ConnectivityStats, MonitoringUpdateEvents> {
-        val nextDebounced = applyNoSignalDebounce(next, passiveSettings).let { debounced ->
+        val nextDebounced = applyRxssStateFilters(
+            next,
+            passiveSettings,
+            recordSample = recordFilterSample
+        ).let { debounced ->
             debounced.copy(
                 searching2gFallbackActive = resolveSearching2gFallbackActive(debounced)
             )
@@ -762,7 +873,7 @@ object MonitorState {
             // Tier 10 → tier 5 uses “Signal restored”; dead zone → tier 5 uses “signal low”.
             if (previous.noSignalActive &&
                 !next.noSignalActive &&
-                !previous.isCompleteNoService &&
+                !previous.isDeadzoneConfirmed() &&
                 !next.isLimitedService
             ) {
                 return null
@@ -771,7 +882,7 @@ object MonitorState {
         }
         if (previous.noSignalActive &&
             !next.noSignalActive &&
-            !previous.isCompleteNoService &&
+            !previous.isDeadzoneConfirmed() &&
             next.isImmediateSignalLowVoiceEntry(previous, passiveSettings)
         ) {
             return formatTier5Announcement(next)
@@ -791,7 +902,7 @@ object MonitorState {
         passiveSettings: PassiveSignalSettings
     ): Boolean {
         if (isLimitedService) return isSignalLowVoiceCamp(passiveSettings)
-        if (previous.isCompleteNoService) {
+        if (previous.isDeadzoneConfirmed()) {
             return isTier5PoorSignal(passiveSettings) || isTier6CriticalSignal(passiveSettings)
         }
         return isTier6CriticalSignal(passiveSettings)
@@ -895,7 +1006,7 @@ object MonitorState {
     ): String? {
         if (!_isRunning.value || !next.isMonitoring) return null
         if (!noSignalBaselineReady) return null
-        if (!previous.isCompleteNoService || next.isCompleteNoService) return null
+        if (!previous.isDeadzoneConfirmed() || next.isDeadzoneConfirmed()) return null
 
         deadzoneRecoveryExitHandled = true
         if (suppressSignalRestored) {
@@ -962,8 +1073,8 @@ object MonitorState {
         networkOperatorName: String?
     ): String? {
         if (!_isRunning.value || !next.isMonitoring) return null
-        if (previous.isCompleteNoService == next.isCompleteNoService) return null
-        if (!next.isCompleteNoService) return null
+        if (previous.isDeadzoneConfirmed() == next.isDeadzoneConfirmed()) return null
+        if (!next.isDeadzoneConfirmed()) return null
         if (deadzoneAnnouncedThisEpisode) return null
 
         deadzoneAnnouncedThisEpisode = true
@@ -1134,7 +1245,11 @@ object MonitorState {
         g2FallbackBaselineReady = false
         tier5BaselineReady = false
         stableCellIdentity = CellIdentitySnapshot()
-        noSignalDebouncer.reset()
+        noSignalFilter.reset()
+        deadzoneFilter.reset()
+        lowSignalFilter.reset()
+        rsrqFilter.reset()
+        heldInServiceSignalTier = null
         lteLayerResilienceDebouncer.reset()
         lastKnownRadioAccessType = null
         lteRatBeforeNoSignalEpisode = null

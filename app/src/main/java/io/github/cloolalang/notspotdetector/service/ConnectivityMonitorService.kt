@@ -1,5 +1,6 @@
 package io.github.cloolalang.notspotdetector.service
 
+import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.PendingIntent
 import android.app.Service
@@ -28,6 +29,7 @@ import io.github.cloolalang.notspotdetector.model.MonitoringAnnouncementKind
 import io.github.cloolalang.notspotdetector.model.RsrpHistogram
 import io.github.cloolalang.notspotdetector.model.MonitoringUpdateEvents
 import io.github.cloolalang.notspotdetector.model.SignalStateAnnouncement
+import io.github.cloolalang.notspotdetector.model.TechnologyChangeAlertVolumes
 import io.github.cloolalang.notspotdetector.model.TechnologyChangeTarget
 import io.github.cloolalang.notspotdetector.model.VoiceAnnouncementQueue
 import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerSelection
@@ -673,14 +675,31 @@ class ConnectivityMonitorService : Service() {
             .normalized()
             .technologyChangeAlertVolumes(targetRadioAccessType)
             ?: return
+        playTechnologyChangeAlertVolumesAwait(announcement, alertVolumes, stillCurrent)
+    }
+
+    private suspend fun playTechnologyChangeAlertVolumesAwait(
+        announcement: String?,
+        alertVolumes: TechnologyChangeAlertVolumes,
+        stillCurrent: () -> Boolean
+    ) {
         playAlertWithVoiceAwait(
-            onPlayTone = { geigerPlayer.playTechnologyChangeTone(alertVolumes.toneVolume) },
-            toneDurationMs = GeigerCounterPlayer.TECHNOLOGY_CHANGE_TONE_DURATION_MS,
+            onPlayTone = { playTechnologyChangeToneIfEnabled(alertVolumes) },
+            toneDurationMs = if (alertVolumes.soundEnabled) {
+                GeigerCounterPlayer.TECHNOLOGY_CHANGE_TONE_DURATION_MS
+            } else {
+                0
+            },
             announcement = announcement,
             voiceEnabled = alertVolumes.voiceEnabled,
             voiceVolume = alertVolumes.voiceVolume,
             stillCurrent = stillCurrent
         )
+    }
+
+    private fun playTechnologyChangeToneIfEnabled(alertVolumes: TechnologyChangeAlertVolumes) {
+        if (!alertVolumes.soundEnabled) return
+        geigerPlayer.playTechnologyChangeTone(alertVolumes.toneVolume)
     }
 
     private suspend fun playNoSignalAlertAwait(
@@ -789,14 +808,7 @@ class ConnectivityMonitorService : Service() {
         val alertVolumes = MonitorState.audioVolumes.value
             .normalized()
             .technologyChangeAlertVolumes(TechnologyChangeTarget.TO_2G)
-        playAlertWithVoiceAwait(
-            onPlayTone = { geigerPlayer.playTechnologyChangeTone(alertVolumes.toneVolume) },
-            toneDurationMs = GeigerCounterPlayer.TECHNOLOGY_CHANGE_TONE_DURATION_MS,
-            announcement = announcement,
-            voiceEnabled = alertVolumes.voiceEnabled,
-            voiceVolume = alertVolumes.voiceVolume,
-            stillCurrent = stillCurrent
-        )
+        playTechnologyChangeAlertVolumesAwait(announcement, alertVolumes, stillCurrent)
     }
 
     private suspend fun playDeadzoneAlertAwait(
@@ -856,11 +868,11 @@ class ConnectivityMonitorService : Service() {
                 val alertVolumes = volumes.technologyChangeAlertVolumes(
                     announcement.targetRadioAccessType
                 ) ?: return
-                geigerPlayer.playTechnologyChangeTone(alertVolumes.toneVolume)
+                playTechnologyChangeToneIfEnabled(alertVolumes)
             }
             MonitoringAnnouncementKind.G2_FALLBACK -> {
                 val alertVolumes = volumes.technologyChangeAlertVolumes(TechnologyChangeTarget.TO_2G)
-                geigerPlayer.playTechnologyChangeTone(alertVolumes.toneVolume)
+                playTechnologyChangeToneIfEnabled(alertVolumes)
             }
             MonitoringAnnouncementKind.NO_SIGNAL_STATE -> {
                 if (volumes.noSignalVibrationEnabled) {
@@ -958,22 +970,31 @@ class ConnectivityMonitorService : Service() {
     }
 
     private fun acquireWakeLock() {
-        val powerManager = getSystemService(POWER_SERVICE) as PowerManager
-        wakeLock = powerManager.newWakeLock(
-            PowerManager.PARTIAL_WAKE_LOCK,
-            "NotspotDetector::ConnectivityMonitor"
-        ).apply {
-            setReferenceCounted(false)
+        if (wakeLock == null) {
+            val powerManager = getSystemService(POWER_SERVICE) as PowerManager
+            wakeLock = powerManager.newWakeLock(
+                PowerManager.PARTIAL_WAKE_LOCK,
+                "NotspotDetector::ConnectivityMonitor"
+            ).apply {
+                setReferenceCounted(false)
+            }
         }
-        renewWakeLockIfNeeded()
+        holdWakeLock()
     }
 
-    private fun renewWakeLockIfNeeded() {
+    @SuppressLint("WakelockTimeout")
+    private fun holdWakeLock() {
         if (!isMonitoringActive) return
         val lock = wakeLock ?: return
         runCatching {
-            lock.acquire(WAKE_LOCK_TIMEOUT_MS)
+            if (!lock.isHeld) {
+                lock.acquire()
+            }
         }
+    }
+
+    private fun renewWakeLockIfNeeded() {
+        holdWakeLock()
     }
 
     private fun releaseWakeLock() {
@@ -1029,9 +1050,8 @@ class ConnectivityMonitorService : Service() {
         private const val NOTIFICATION_ID = 1001
         private const val ACTIVE_PING_DURATION_MS = 10 * 60 * 1000L
         private const val PERIODIC_ANNOUNCEMENT_MS = 30_000L
-        private const val TIER5_INITIAL_ANNOUNCEMENT_DELAY_MS = 5_000L
-        private const val SEARCHING_2G_ANNOUNCEMENT_DELAY_MS = 5_000L
-        private const val WAKE_LOCK_TIMEOUT_MS = 10 * 60 * 1000L
+        private const val TIER5_INITIAL_ANNOUNCEMENT_DELAY_MS = 0L
+        private const val SEARCHING_2G_ANNOUNCEMENT_DELAY_MS = 0L
 
         fun start(context: Context, passiveOnly: Boolean = false) {
             val intent = Intent(context, ConnectivityMonitorService::class.java)

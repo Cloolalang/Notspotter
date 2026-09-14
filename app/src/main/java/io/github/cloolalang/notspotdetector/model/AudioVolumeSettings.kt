@@ -52,13 +52,16 @@ data class AudioVolumeSettings(
     val cellChangeSpeakBandEnabled: Boolean = DEFAULT_CELL_CHANGE_SPEAK_BAND_ENABLED,
     /** How [cellChangeSpeakBandEnabled] speaks the resolved band — number vs. MHz nickname. */
     val cellChangeBandNamingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.DEFAULT,
+    val technologyChangeTo2gSoundEnabled: Boolean = DEFAULT_TECHNOLOGY_CHANGE_SOUND_ENABLED,
     val technologyChangeTo2gToneVolume: Float = DEFAULT_VOLUME,
     val technologyChangeTo2gVoiceEnabled: Boolean = DEFAULT_VOICE_ANNOUNCEMENT_ENABLED,
     val technologyChangeTo2gPeriodicVoiceEnabled: Boolean = DEFAULT_PERIODIC_VOICE_ENABLED,
     val technologyChangeTo2gVoiceVolume: Float = DEFAULT_VOLUME,
+    val technologyChangeTo4gSoundEnabled: Boolean = DEFAULT_TECHNOLOGY_CHANGE_SOUND_ENABLED,
     val technologyChangeTo4gToneVolume: Float = DEFAULT_VOLUME,
     val technologyChangeTo4gVoiceEnabled: Boolean = DEFAULT_VOICE_ANNOUNCEMENT_ENABLED,
     val technologyChangeTo4gVoiceVolume: Float = DEFAULT_VOLUME,
+    val technologyChangeTo5gEndcSoundEnabled: Boolean = DEFAULT_TECHNOLOGY_CHANGE_SOUND_ENABLED,
     val technologyChangeTo5gEndcToneVolume: Float = DEFAULT_VOLUME,
     val technologyChangeTo5gEndcVoiceEnabled: Boolean = DEFAULT_VOICE_ANNOUNCEMENT_ENABLED,
     val technologyChangeTo5gEndcVoiceVolume: Float = DEFAULT_VOLUME,
@@ -185,16 +188,19 @@ data class AudioVolumeSettings(
     fun technologyChangeAlertVolumes(target: TechnologyChangeTarget): TechnologyChangeAlertVolumes {
         return when (target) {
             TechnologyChangeTarget.TO_2G -> TechnologyChangeAlertVolumes(
+                soundEnabled = technologyChangeTo2gSoundEnabled,
                 toneVolume = technologyChangeTo2gToneVolume,
                 voiceEnabled = technologyChangeTo2gVoiceEnabled,
                 voiceVolume = technologyChangeTo2gVoiceVolume
             )
             TechnologyChangeTarget.TO_4G -> TechnologyChangeAlertVolumes(
+                soundEnabled = technologyChangeTo4gSoundEnabled,
                 toneVolume = technologyChangeTo4gToneVolume,
                 voiceEnabled = technologyChangeTo4gVoiceEnabled,
                 voiceVolume = technologyChangeTo4gVoiceVolume
             )
             TechnologyChangeTarget.TO_5G_ENDC -> TechnologyChangeAlertVolumes(
+                soundEnabled = technologyChangeTo5gEndcSoundEnabled,
                 toneVolume = technologyChangeTo5gEndcToneVolume,
                 voiceEnabled = technologyChangeTo5gEndcVoiceEnabled,
                 voiceVolume = technologyChangeTo5gEndcVoiceVolume
@@ -205,6 +211,14 @@ data class AudioVolumeSettings(
     fun technologyChangeAlertVolumes(radioAccessType: String?): TechnologyChangeAlertVolumes? {
         val target = TechnologyChangeTarget.fromRadioAccessType(radioAccessType) ?: return null
         return technologyChangeAlertVolumes(target)
+    }
+
+    fun withTechnologyChangeSoundEnabled(target: TechnologyChangeTarget, enabled: Boolean): AudioVolumeSettings {
+        return when (target) {
+            TechnologyChangeTarget.TO_2G -> copy(technologyChangeTo2gSoundEnabled = enabled)
+            TechnologyChangeTarget.TO_4G -> copy(technologyChangeTo4gSoundEnabled = enabled)
+            TechnologyChangeTarget.TO_5G_ENDC -> copy(technologyChangeTo5gEndcSoundEnabled = enabled)
+        }
     }
 
     fun withTechnologyChangeToneVolume(target: TechnologyChangeTarget, value: Float): AudioVolumeSettings {
@@ -344,6 +358,7 @@ data class AudioVolumeSettings(
         const val DEFAULT_SPECIAL_CELLS_SPEAK_TYPE = true
         const val DEFAULT_SPECIAL_CELLS_SPEAK_SITE = true
         const val DEFAULT_SPECIAL_CELLS_SPEAK_SECTOR = true
+        const val DEFAULT_TECHNOLOGY_CHANGE_SOUND_ENABLED = true
         const val DEFAULT_VOICE_ANNOUNCEMENT_ENABLED = true
         const val DEFAULT_PERIODIC_VOICE_ENABLED = true
         const val DEFAULT_NO_SIGNAL_VIBRATION_ENABLED = true

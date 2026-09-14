@@ -124,10 +124,8 @@ fun MonitorScreen(
     onPingsPerTestChange: (Int) -> Unit,
     onTestIntervalChange: (Long) -> Unit,
     onMonitor2gFallbackChange: (Boolean) -> Unit,
-    onPassiveQuietUntilCriticalChange: (Boolean) -> Unit,
     onPassiveSignalSettingsChange: (PassiveSignalSettings) -> Unit,
     onPassiveMockSettingsChange: (PassiveMockSettings) -> Unit,
-    onPassiveMeasurementIntervalChange: (Long) -> Unit,
     onRsrpHistogramWindowChange: (Long) -> Unit,
     onRsrpHistogramBinningModeChange: (RsrpHistogramBinningMode) -> Unit = {},
     onRsrpHistogramThresholdChange: (Int, Int) -> Unit = { _, _ -> },
@@ -136,6 +134,7 @@ fun MonitorScreen(
     onSubscriptionChange: (Int) -> Unit,
     onMobileDataEnabledChange: (Boolean) -> Unit = {},
     onShowManualSelectOperatorButtonChange: (Boolean) -> Unit = {},
+    onKeepScreenOnWhileMonitoringChange: (Boolean) -> Unit = {},
     onInhibit2gChange: (Boolean) -> Unit = {},
     inhibit2gBusy: Boolean = false,
     inhibit2gFailed: Boolean = false,
@@ -163,6 +162,7 @@ fun MonitorScreen(
     onCellChangeVoiceVolumeChange: (Float) -> Unit,
     onCellChangeSpeakBandEnabledChange: (Boolean) -> Unit = {},
     onCellChangeBandNamingStyleChange: (CellReselectBandNamingStyle) -> Unit = {},
+    onTechnologyChangeSoundEnabledChange: (TechnologyChangeTarget, Boolean) -> Unit,
     onTechnologyChangeToneVolumeChange: (TechnologyChangeTarget, Float) -> Unit,
     onTechnologyChangeVoiceEnabledChange: (TechnologyChangeTarget, Boolean) -> Unit,
     onTechnologyChangeVoiceVolumeChange: (TechnologyChangeTarget, Float) -> Unit,
@@ -315,20 +315,17 @@ fun MonitorScreen(
 
             MonitoringSettingsCard(
                 monitoringSettings = monitoringSettings,
-                passiveSignalSettings = passiveSignalSettings,
                 simSubscriptions = simSubscriptions,
                 phoneStatePermissionGranted = phoneStatePermissionGranted,
                 onMonitor2gFallbackChange = onMonitor2gFallbackChange,
-                onPassiveQuietUntilCriticalChange = onPassiveQuietUntilCriticalChange,
-                onPassiveSignalSettingsChange = onPassiveSignalSettingsChange,
                 onSubscriptionChange = onSubscriptionChange,
                 onMobileDataEnabledChange = onMobileDataEnabledChange,
                 mobileDataEnabled = stats.mobileDataEnabled,
                 onShowManualSelectOperatorButtonChange = onShowManualSelectOperatorButtonChange,
+                onKeepScreenOnWhileMonitoringChange = onKeepScreenOnWhileMonitoringChange,
                 onInhibit2gChange = onInhibit2gChange,
                 inhibit2gBusy = inhibit2gBusy,
-                inhibit2gFailed = inhibit2gFailed,
-                onPassiveMeasurementIntervalChange = onPassiveMeasurementIntervalChange
+                inhibit2gFailed = inhibit2gFailed
             )
 
             SpecialCellsCard(
@@ -358,6 +355,7 @@ fun MonitorScreen(
                 onVeryStrongTierPulseFrequencyChange = onVeryStrongTierPulseFrequencyChange,
                 onG2StrongTierPulseFrequencyChange = onG2StrongTierPulseFrequencyChange,
                 onG2WeakTierPulseFrequencyChange = onG2WeakTierPulseFrequencyChange,
+                onTechnologyChangeSoundEnabledChange = onTechnologyChangeSoundEnabledChange,
                 onTechnologyChangeToneVolumeChange = onTechnologyChangeToneVolumeChange,
                 onTechnologyChangeVoiceEnabledChange = onTechnologyChangeVoiceEnabledChange,
                 onTechnologyChangeVoiceVolumeChange = onTechnologyChangeVoiceVolumeChange,
@@ -529,8 +527,7 @@ private fun MasterVoiceAnnouncementsToggle(
             }
             Switch(
                 checked = enabled,
-                onCheckedChange = onEnabledChange,
-                enabled = settingsControlsEnabled()
+                onCheckedChange = onEnabledChange
             )
         }
     }

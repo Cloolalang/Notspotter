@@ -28,6 +28,41 @@ class SignalPulseScheduleTest {
     }
 
     @Test
+    fun lowSignalFilterHold_keepsRxss5PulseKeyWhileRawIsRxss6() {
+        val pending = lteStats(rsrpDbm = -128).copy(lowSignalActive = false)
+        val confirmed = lteStats(rsrpDbm = -128).copy(lowSignalActive = true)
+
+        assertEquals(Rxss.LEVEL_RANGE_D, pending.resolveSignalPulseScheduleKey(settings).rxssNumber)
+        assertEquals(Rxss.SIGNAL_LOW, confirmed.resolveSignalPulseScheduleKey(settings).rxssNumber)
+    }
+
+    @Test
+    fun lowSignalFilterHold_keepsRxss6PulseKeyWhileRawHasRecoveredToRxss5() {
+        val pendingExit = lteStats(rsrpDbm = -124).copy(lowSignalActive = true)
+        val confirmedExit = lteStats(rsrpDbm = -124).copy(lowSignalActive = false)
+
+        assertEquals(Rxss.SIGNAL_LOW, pendingExit.resolveSignalPulseScheduleKey(settings).rxssNumber)
+        assertEquals(Rxss.LEVEL_RANGE_D, confirmedExit.resolveSignalPulseScheduleKey(settings).rxssNumber)
+    }
+
+    @Test
+    fun pendingNoSignal_keepsPreviousRsrpPulseKey() {
+        val pendingFrom5 = lteStats(rsrpDbm = PassiveSignalSettings.MIN_RSRP_DBM).copy(
+            cellularAvailable = false,
+            heldInServiceSignalTier = SignalStrengthTier.POOR
+        )
+        val pendingFrom6 = lteStats(rsrpDbm = PassiveSignalSettings.MIN_RSRP_DBM).copy(
+            cellularAvailable = false,
+            heldInServiceSignalTier = SignalStrengthTier.CRITICAL
+        )
+
+        assertEquals(SignalPulsePath.RSRP_INTERVAL, pendingFrom5.resolveSignalPulseScheduleKey(settings).path)
+        assertEquals(Rxss.LEVEL_RANGE_D, pendingFrom5.resolveSignalPulseScheduleKey(settings).rxssNumber)
+        assertEquals(SignalPulsePath.RSRP_INTERVAL, pendingFrom6.resolveSignalPulseScheduleKey(settings).path)
+        assertEquals(Rxss.SIGNAL_LOW, pendingFrom6.resolveSignalPulseScheduleKey(settings).rxssNumber)
+    }
+
+    @Test
     fun campChange_usesDistinctScheduleKeys() {
         val noSignal = ConnectivityStats(
             isMonitoring = true,

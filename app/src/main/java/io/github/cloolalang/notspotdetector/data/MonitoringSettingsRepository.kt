@@ -57,6 +57,10 @@ class MonitoringSettingsRepository(context: Context) {
             inhibit2g = prefs.getBoolean(
                 KEY_INHIBIT_2G,
                 MonitoringSettings.DEFAULT_INHIBIT_2G
+            ),
+            keepScreenOnWhileMonitoring = prefs.getBoolean(
+                KEY_KEEP_SCREEN_ON_WHILE_MONITORING,
+                MonitoringSettings.DEFAULT_KEEP_SCREEN_ON_WHILE_MONITORING
             )
         ).normalized()
     }
@@ -76,6 +80,7 @@ class MonitoringSettingsRepository(context: Context) {
             .putBoolean(KEY_FIVE_G_FEATURES_ENABLED, normalized.fiveGFeaturesEnabled)
             .putBoolean(KEY_SHOW_MANUAL_SELECT_OPERATOR_BUTTON, normalized.showManualSelectOperatorButton)
             .putBoolean(KEY_INHIBIT_2G, normalized.inhibit2g)
+            .putBoolean(KEY_KEEP_SCREEN_ON_WHILE_MONITORING, normalized.keepScreenOnWhileMonitoring)
             .apply()
     }
 
@@ -93,5 +98,6 @@ class MonitoringSettingsRepository(context: Context) {
         private const val KEY_FIVE_G_FEATURES_ENABLED = "five_g_features_enabled"
         private const val KEY_SHOW_MANUAL_SELECT_OPERATOR_BUTTON = "show_manual_select_operator_button"
         private const val KEY_INHIBIT_2G = "inhibit_2g"
+        private const val KEY_KEEP_SCREEN_ON_WHILE_MONITORING = "keep_screen_on_while_monitoring"
     }
 }

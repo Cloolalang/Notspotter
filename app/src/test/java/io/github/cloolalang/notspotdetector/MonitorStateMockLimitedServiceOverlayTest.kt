@@ -208,7 +208,18 @@ class MonitorStateMockLimitedServiceOverlayTest {
 
     @Test
     fun home4gNoSignalThenVisited4gStrong_restoresRsrpForOverlay() {
-        pushMockRsrp(MockNetworkScenario.HOME_4G, -135)
+        val homeNoSignal = PassiveMockSettings(
+            enabled = true,
+            scenario = MockNetworkScenario.HOME_4G,
+            rsrpDbm = -135
+        ).toConnectivityStats(
+            monitor2gFallback = true,
+            passiveSettings = passiveSettings,
+            passiveIdleMode = false,
+            passiveOnlySession = true
+        )
+        MonitorState.updateStats(homeNoSignal)
+        MonitorState.updateStats(homeNoSignal)
         assertTrue(MonitorState.stats.value.noSignalActive)
 
         pushMockRsrp(MockNetworkScenario.ALT_OPERATOR_4G, -70)

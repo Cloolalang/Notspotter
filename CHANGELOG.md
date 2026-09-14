@@ -5,6 +5,82 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.73.0] - 2026-09-14
+
+### Changed
+
+- **Voice announcements master switch** — The Voice announcements on/off control no longer needs the settings password. You can mute or unmute all spoken alerts while monitoring.
+- **RSRP histogram** — The window summary no longer shows the median. Mean and σ remain.
+
+## [2.72.0] - 2026-09-14
+
+### Changed
+
+- **Voice reminder timing** — Searching-for-2G and the first “signal low” reminder now speak with **no extra wait** (were 5 s). The 30 s cycling repeats are unchanged.
+
+## [2.71.0] - 2026-09-14
+
+### Added
+
+- **Keep screen on while monitoring** — Monitoring options now has a switch (on by default) that stops Android blanking the display while a session is running. In a car cradle the 10-minute screen timeout was putting the phone to sleep and voice announcements stopped. The screen sleeps again when you stop monitoring.
+
+### Fixed
+
+- **Voice after screen-off** — The monitoring wake lock no longer expires after 10 minutes, so alerts can keep running even if you turn the keep-screen-on switch off.
+
+## [2.70.2] - 2026-09-14
+
+### Fixed
+
+- **RXSS 5 / 6 → 10 pulses** — Leaving RXSS 5 or 6 for no-signal no longer kills the alert pulse at once while the no-signal flicker filter is still waiting. The previous band keeps sounding (and showing) until RXSS 10 is confirmed; the filter’s exit wait was already correct.
+
+## [2.70.1] - 2026-09-14
+
+### Fixed
+
+- **RXSS 5 / 6 flicker filter** — Alert pulses now follow the filtered state, not raw RSRP. Crossing the RXSS 5/6 mock slider no longer switches pulses at once, and a long RXSS 5 burst is stopped before RXSS 6 starts so the two cannot overlap. Enter and leave both wait for the RXSS 6 filter time (3 s at 50% is three seconds each way).
+
+## [2.70.0] - 2026-09-14
+
+### Changed
+
+- **Band metric** — Cellular metrics now show the band as MHz with the 3GPP number in brackets, e.g. `800(20)` (was `800/20`). EN-DC is `800(20) / 3500(78)`.
+
+### Fixed
+
+- **RXSS 5 / 6 mock filter** — The signal-low flicker filter now waits in mock mode. Dragging the mock RSRP slider was counted as extra 1 Hz samples (twice per change), so RXSS 6 confirmed immediately. Metrics still update as you drag; the wait follows the measurement cycle.
+
+## [2.69.0] - 2026-09-14
+
+### Added
+
+- **RXSS 28 / 29 / 30 Alert pulse** — Technology-change sections now have the same on/off tick box as other RXSS rows. Untick it to silence the sweep tone; voice announcements stay on their own tick box. Defaults stay on.
+
+## [2.68.0] - 2026-09-14
+
+### Changed
+
+- **RXSS 1 range** — The signal-high floor now runs from −85 to −50 dBm (was −75 to −50). Lowering it widens RXSS 2, whose high end is always the RXSS 1 setting.
+
+## [2.67.0] - 2026-09-14
+
+### Added
+
+- **RXSS state filters** — Low signal (RXSS 6 / 8), no signal (RXSS 10 / 15 / 31), dead zone (RXSS 0), and RSRQ (RXSS 14) each have an optional rolling filter in their Passive Signal Settings section. Set **0–10 seconds** (0 = latest reading immediately; 1 = wait one extra second before the new RXSS is used), an **entry/exit balance** so enter and leave can wait different amounts, and an on/off tick box. This stops brief field-test flicker from flipping those states, voice, and pulses. No-signal still defaults to a 1 s equal enter/leave wait (the old two-reading debounce); the other three start off.
+
+## [2.66.0] - 2026-09-13
+
+### Removed
+
+- **Measurement cycle** — The Monitoring options slider is gone. Passive sampling is fixed at one reading per second.
+- **Quiet passive alerts** — The toggle and RSRP/RSRQ threshold sliders are gone from Monitoring options. Alert pulses follow the normal RXSS rules.
+
+## [2.65.3] - 2026-09-13
+
+### Fixed
+
+- **RXSS 8 threshold** — 2G weak now applies only at or below the RXSS 8 high-end setting. Stronger RX levels are RXSS 7. Previously the split stayed locked at −85 dBm, so the slider did not change classification.
+
 ## [2.65.2] - 2026-09-13
 
 ### Changed

@@ -7,7 +7,11 @@ import io.github.cloolalang.notspotdetector.model.NO_SIGNAL_TIER_NUMBER
 import io.github.cloolalang.notspotdetector.model.PassiveMockSettings
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
 import io.github.cloolalang.notspotdetector.model.SEARCHING_2G_TIER_NUMBER
+import io.github.cloolalang.notspotdetector.model.Rxss
+import io.github.cloolalang.notspotdetector.model.SignalStrengthTier
+import io.github.cloolalang.notspotdetector.model.resolvePassiveClickRateTier
 import io.github.cloolalang.notspotdetector.model.resolveSignalMeasurementTier
+import io.github.cloolalang.notspotdetector.model.shouldPlaySignalStrengthInterval
 import io.github.cloolalang.notspotdetector.model.toConnectivityStats
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -35,6 +39,95 @@ class MonitorStateMockTier6ToTier10Test {
     @After
     fun tearDown() {
         MonitorState.setRunning(false)
+    }
+
+    @Test
+    fun mockHome4gTier5ToNoSignal_keepsPoorPulseUntilFilterConfirms() {
+        val mock = PassiveMockSettings(
+            enabled = true,
+            scenario = MockNetworkScenario.HOME_4G,
+            rsrpDbm = passiveSettings.poorRsrpMinDbm + 1
+        )
+        val tier5Stats = mock.toConnectivityStats(
+            monitor2gFallback = true,
+            passiveSettings = passiveSettings,
+            passiveIdleMode = false,
+            passiveOnlySession = true
+        )
+        MonitorState.updateStats(tier5Stats)
+        MonitorState.updateStats(tier5Stats)
+        assertEquals(
+            Rxss.LEVEL_RANGE_D,
+            MonitorState.stats.value.resolveSignalMeasurementTier(passiveSettings).displayNumber
+        )
+
+        val noSignalStats = mock.copy(rsrpDbm = PassiveSignalSettings.MIN_RSRP_DBM).toConnectivityStats(
+            monitor2gFallback = true,
+            passiveSettings = passiveSettings,
+            passiveIdleMode = false,
+            passiveOnlySession = true
+        )
+        MonitorState.updateStats(noSignalStats)
+        val pending = MonitorState.stats.value
+        assertEquals(
+            Rxss.LEVEL_RANGE_D,
+            pending.resolveSignalMeasurementTier(passiveSettings).displayNumber
+        )
+        assertEquals(SignalStrengthTier.POOR, pending.resolvePassiveClickRateTier(passiveSettings))
+        assertTrue(pending.shouldPlaySignalStrengthInterval(passiveSettings))
+        assertFalse(pending.noSignalActive)
+
+        val events = MonitorState.updateStats(noSignalStats)
+        assertEquals(
+            NO_SIGNAL_TIER_NUMBER,
+            MonitorState.stats.value.resolveSignalMeasurementTier(passiveSettings).displayNumber
+        )
+        assertTrue(MonitorState.stats.value.noSignalActive)
+        assertTrue(events.noSignalStateChanged)
+    }
+
+    @Test
+    fun mockHome4gTier6ToNoSignal_keepsCriticalPulseUntilFilterConfirms() {
+        val mock = PassiveMockSettings(
+            enabled = true,
+            scenario = MockNetworkScenario.HOME_4G,
+            rsrpDbm = passiveSettings.poorRsrpMinDbm - 2
+        )
+        val tier6Stats = mock.toConnectivityStats(
+            monitor2gFallback = true,
+            passiveSettings = passiveSettings,
+            passiveIdleMode = false,
+            passiveOnlySession = true
+        )
+        MonitorState.updateStats(tier6Stats)
+        MonitorState.updateStats(tier6Stats)
+        assertEquals(
+            Rxss.SIGNAL_LOW,
+            MonitorState.stats.value.resolveSignalMeasurementTier(passiveSettings).displayNumber
+        )
+
+        val noSignalStats = mock.copy(rsrpDbm = PassiveSignalSettings.MIN_RSRP_DBM).toConnectivityStats(
+            monitor2gFallback = true,
+            passiveSettings = passiveSettings,
+            passiveIdleMode = false,
+            passiveOnlySession = true
+        )
+        MonitorState.updateStats(noSignalStats)
+        val pending = MonitorState.stats.value
+        assertEquals(
+            Rxss.SIGNAL_LOW,
+            pending.resolveSignalMeasurementTier(passiveSettings).displayNumber
+        )
+        assertEquals(SignalStrengthTier.CRITICAL, pending.resolvePassiveClickRateTier(passiveSettings))
+        assertTrue(pending.shouldPlaySignalStrengthInterval(passiveSettings))
+        assertFalse(pending.noSignalActive)
+
+        MonitorState.updateStats(noSignalStats)
+        assertEquals(
+            NO_SIGNAL_TIER_NUMBER,
+            MonitorState.stats.value.resolveSignalMeasurementTier(passiveSettings).displayNumber
+        )
+        assertTrue(MonitorState.stats.value.noSignalActive)
     }
 
     @Test

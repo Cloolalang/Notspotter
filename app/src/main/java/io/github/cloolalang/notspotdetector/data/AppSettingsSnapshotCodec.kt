@@ -8,6 +8,7 @@ import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.PassiveMockSettings
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
 import io.github.cloolalang.notspotdetector.model.PingSettings
+import io.github.cloolalang.notspotdetector.model.RxssStateFilterSettings
 import io.github.cloolalang.notspotdetector.model.RsrpHistogram
 import io.github.cloolalang.notspotdetector.model.RsrpHistogramBinningMode
 import io.github.cloolalang.notspotdetector.model.SettingsProfile
@@ -177,6 +178,7 @@ object AppSettingsSnapshotCodec {
             .put("fiveGFeaturesEnabled", settings.fiveGFeaturesEnabled)
             .put("showManualSelectOperatorButton", settings.showManualSelectOperatorButton)
             .put("inhibit2g", settings.inhibit2g)
+            .put("keepScreenOnWhileMonitoring", settings.keepScreenOnWhileMonitoring)
     }
 
     private fun decodeMonitoring(json: JSONObject?): MonitoringSettings {
@@ -228,6 +230,10 @@ object AppSettingsSnapshotCodec {
             inhibit2g = json.optBoolean(
                 "inhibit2g",
                 MonitoringSettings.DEFAULT_INHIBIT_2G
+            ),
+            keepScreenOnWhileMonitoring = json.optBoolean(
+                "keepScreenOnWhileMonitoring",
+                MonitoringSettings.DEFAULT_KEEP_SCREEN_ON_WHILE_MONITORING
             )
         )
     }
@@ -295,6 +301,10 @@ object AppSettingsSnapshotCodec {
             .put("wifiCallingTierClickIntervalMs", settings.wifiCallingTierClickIntervalMs)
             .put("wifiCallingTierSoundEnabled", settings.wifiCallingTierSoundEnabled)
             .put("wifiCallingTierPulseDurationMs", settings.wifiCallingTierPulseDurationMs)
+            .put("lowSignalFilter", encodeRxssStateFilter(settings.lowSignalFilter))
+            .put("noSignalFilter", encodeRxssStateFilter(settings.noSignalFilter))
+            .put("deadzoneFilter", encodeRxssStateFilter(settings.deadzoneFilter))
+            .put("rsrqFilter", encodeRxssStateFilter(settings.rsrqFilter))
     }
 
     private fun decodePassiveSignal(json: JSONObject?, audioVolumes: AudioVolumeSettings): PassiveSignalSettings {
@@ -527,7 +537,42 @@ object AppSettingsSnapshotCodec {
             wifiCallingTierPulseDurationMs = json.optInt(
                 "wifiCallingTierPulseDurationMs",
                 PassiveSignalSettings.DEFAULT_WIFI_CALLING_TIER_PULSE_DURATION_MS
+            ),
+            lowSignalFilter = decodeRxssStateFilter(
+                json.optJSONObject("lowSignalFilter"),
+                RxssStateFilterSettings.INACTIVE
+            ),
+            noSignalFilter = decodeRxssStateFilter(
+                json.optJSONObject("noSignalFilter"),
+                RxssStateFilterSettings.DEFAULT_NO_SIGNAL
+            ),
+            deadzoneFilter = decodeRxssStateFilter(
+                json.optJSONObject("deadzoneFilter"),
+                RxssStateFilterSettings.INACTIVE
+            ),
+            rsrqFilter = decodeRxssStateFilter(
+                json.optJSONObject("rsrqFilter"),
+                RxssStateFilterSettings.INACTIVE
             )
+        )
+    }
+
+    private fun encodeRxssStateFilter(settings: RxssStateFilterSettings): JSONObject {
+        return JSONObject()
+            .put("enabled", settings.enabled)
+            .put("windowSeconds", settings.windowSeconds)
+            .put("balancePercent", settings.balancePercent)
+    }
+
+    private fun decodeRxssStateFilter(
+        json: JSONObject?,
+        defaults: RxssStateFilterSettings
+    ): RxssStateFilterSettings {
+        if (json == null) return defaults
+        return RxssStateFilterSettings(
+            enabled = json.optBoolean("enabled", defaults.enabled),
+            windowSeconds = json.optInt("windowSeconds", defaults.windowSeconds),
+            balancePercent = json.optInt("balancePercent", defaults.balancePercent)
         )
     }
 
@@ -570,13 +615,16 @@ object AppSettingsSnapshotCodec {
             .put("cellChangeVoiceVolume", settings.cellChangeVoiceVolume.toDouble())
             .put("cellChangeSpeakBandEnabled", settings.cellChangeSpeakBandEnabled)
             .put("cellChangeBandNamingStyle", settings.cellChangeBandNamingStyle.id)
+            .put("technologyChangeTo2gSoundEnabled", settings.technologyChangeTo2gSoundEnabled)
             .put("technologyChangeTo2gToneVolume", settings.technologyChangeTo2gToneVolume.toDouble())
             .put("technologyChangeTo2gVoiceEnabled", settings.technologyChangeTo2gVoiceEnabled)
             .put("technologyChangeTo2gPeriodicVoiceEnabled", settings.technologyChangeTo2gPeriodicVoiceEnabled)
             .put("technologyChangeTo2gVoiceVolume", settings.technologyChangeTo2gVoiceVolume.toDouble())
+            .put("technologyChangeTo4gSoundEnabled", settings.technologyChangeTo4gSoundEnabled)
             .put("technologyChangeTo4gToneVolume", settings.technologyChangeTo4gToneVolume.toDouble())
             .put("technologyChangeTo4gVoiceEnabled", settings.technologyChangeTo4gVoiceEnabled)
             .put("technologyChangeTo4gVoiceVolume", settings.technologyChangeTo4gVoiceVolume.toDouble())
+            .put("technologyChangeTo5gEndcSoundEnabled", settings.technologyChangeTo5gEndcSoundEnabled)
             .put("technologyChangeTo5gEndcToneVolume", settings.technologyChangeTo5gEndcToneVolume.toDouble())
             .put("technologyChangeTo5gEndcVoiceEnabled", settings.technologyChangeTo5gEndcVoiceEnabled)
             .put("technologyChangeTo5gEndcVoiceVolume", settings.technologyChangeTo5gEndcVoiceVolume.toDouble())
@@ -806,6 +854,10 @@ object AppSettingsSnapshotCodec {
             cellChangeBandNamingStyle = CellReselectBandNamingStyle.fromId(
                 json.optString("cellChangeBandNamingStyle", CellReselectBandNamingStyle.DEFAULT.id)
             ),
+            technologyChangeTo2gSoundEnabled = json.optBoolean(
+                "technologyChangeTo2gSoundEnabled",
+                AudioVolumeSettings.DEFAULT_TECHNOLOGY_CHANGE_SOUND_ENABLED
+            ),
             technologyChangeTo2gToneVolume = decodeTechnologyChangeToneVolume(json, "technologyChangeTo2gToneVolume"),
             technologyChangeTo2gVoiceEnabled = decodeTechnologyChangeVoiceEnabled(json, "technologyChangeTo2gVoiceEnabled"),
             technologyChangeTo2gPeriodicVoiceEnabled = json.optBoolean(
@@ -813,9 +865,17 @@ object AppSettingsSnapshotCodec {
                 AudioVolumeSettings.DEFAULT_PERIODIC_VOICE_ENABLED
             ),
             technologyChangeTo2gVoiceVolume = decodeTechnologyChangeVoiceVolume(json, "technologyChangeTo2gVoiceVolume"),
+            technologyChangeTo4gSoundEnabled = json.optBoolean(
+                "technologyChangeTo4gSoundEnabled",
+                AudioVolumeSettings.DEFAULT_TECHNOLOGY_CHANGE_SOUND_ENABLED
+            ),
             technologyChangeTo4gToneVolume = decodeTechnologyChangeToneVolume(json, "technologyChangeTo4gToneVolume"),
             technologyChangeTo4gVoiceEnabled = decodeTechnologyChangeVoiceEnabled(json, "technologyChangeTo4gVoiceEnabled"),
             technologyChangeTo4gVoiceVolume = decodeTechnologyChangeVoiceVolume(json, "technologyChangeTo4gVoiceVolume"),
+            technologyChangeTo5gEndcSoundEnabled = json.optBoolean(
+                "technologyChangeTo5gEndcSoundEnabled",
+                AudioVolumeSettings.DEFAULT_TECHNOLOGY_CHANGE_SOUND_ENABLED
+            ),
             technologyChangeTo5gEndcToneVolume = decodeTechnologyChangeToneVolume(json, "technologyChangeTo5gEndcToneVolume"),
             technologyChangeTo5gEndcVoiceEnabled = decodeTechnologyChangeVoiceEnabled(json, "technologyChangeTo5gEndcVoiceEnabled"),
             technologyChangeTo5gEndcVoiceVolume = decodeTechnologyChangeVoiceVolume(json, "technologyChangeTo5gEndcVoiceVolume"),

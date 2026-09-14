@@ -90,7 +90,7 @@ fun ConnectivityStats.resolveSignalPulseScheduleKey(
     if (shouldPlayFlatline(settings)) {
         return SignalPulseScheduleKey(SignalPulsePath.FLATLINE)
     }
-    if (cellularAvailable && shouldPlaySignalStrengthInterval(settings)) {
+    if (shouldPlaySignalStrengthInterval(settings)) {
         return SignalPulseScheduleKey(SignalPulsePath.RSRP_INTERVAL, rsrpIntervalRxssNumber(settings))
     }
     if (cellularAvailable && isPassiveIdleMode) {
@@ -108,8 +108,7 @@ fun ConnectivityStats.resolveSignalPulseScheduleKey(
 private fun ConnectivityStats.rsrpIntervalRxssNumber(
     settings: PassiveSignalSettings
 ): Int? {
-    if (usesG2SignalTiers()) return resolveG2SignalStrengthTier(settings)?.rxssNumber
+    if (usesG2SignalTiers()) return filteredG2PulseTier(settings)?.rxssNumber
     if (shouldPlayVeryStrongSignalIndicator(settings)) return Rxss.SIGNAL_HIGH
     return resolvePassiveClickRateTier(settings)?.rxssNumber
-        ?: resolveSignalStrengthTier(settings)?.rxssNumber
 }

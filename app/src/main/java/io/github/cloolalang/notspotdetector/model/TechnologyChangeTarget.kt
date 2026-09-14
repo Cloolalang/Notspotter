@@ -27,6 +27,7 @@ enum class TechnologyChangeTarget(
 }
 
 data class TechnologyChangeAlertVolumes(
+    val soundEnabled: Boolean,
     val toneVolume: Float,
     val voiceEnabled: Boolean,
     val voiceVolume: Float

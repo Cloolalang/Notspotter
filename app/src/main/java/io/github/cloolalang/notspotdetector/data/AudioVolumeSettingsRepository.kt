@@ -126,6 +126,10 @@ class AudioVolumeSettingsRepository(context: Context) {
             cellChangeBandNamingStyle = CellReselectBandNamingStyle.fromId(
                 prefs.getString(KEY_CELL_CHANGE_BAND_NAMING_STYLE, null)
             ),
+            technologyChangeTo2gSoundEnabled = prefs.getBoolean(
+                KEY_TECHNOLOGY_CHANGE_TO_2G_SOUND_ENABLED,
+                AudioVolumeSettings.DEFAULT_TECHNOLOGY_CHANGE_SOUND_ENABLED
+            ),
             technologyChangeTo2gToneVolume = prefs.getFloat(
                 KEY_TECHNOLOGY_CHANGE_TO_2G_TONE,
                 legacyTechnologyChangeToneVolume
@@ -142,6 +146,10 @@ class AudioVolumeSettingsRepository(context: Context) {
                 KEY_TECHNOLOGY_CHANGE_TO_2G_VOICE,
                 legacyTechnologyChangeVoiceVolume
             ),
+            technologyChangeTo4gSoundEnabled = prefs.getBoolean(
+                KEY_TECHNOLOGY_CHANGE_TO_4G_SOUND_ENABLED,
+                AudioVolumeSettings.DEFAULT_TECHNOLOGY_CHANGE_SOUND_ENABLED
+            ),
             technologyChangeTo4gToneVolume = prefs.getFloat(
                 KEY_TECHNOLOGY_CHANGE_TO_4G_TONE,
                 legacyTechnologyChangeToneVolume
@@ -153,6 +161,10 @@ class AudioVolumeSettingsRepository(context: Context) {
             technologyChangeTo4gVoiceVolume = prefs.getFloat(
                 KEY_TECHNOLOGY_CHANGE_TO_4G_VOICE,
                 legacyTechnologyChangeVoiceVolume
+            ),
+            technologyChangeTo5gEndcSoundEnabled = prefs.getBoolean(
+                KEY_TECHNOLOGY_CHANGE_TO_5G_ENDC_SOUND_ENABLED,
+                AudioVolumeSettings.DEFAULT_TECHNOLOGY_CHANGE_SOUND_ENABLED
             ),
             technologyChangeTo5gEndcToneVolume = prefs.getFloat(
                 KEY_TECHNOLOGY_CHANGE_TO_5G_ENDC_TONE,
@@ -344,13 +356,16 @@ class AudioVolumeSettingsRepository(context: Context) {
             .putFloat(KEY_CELL_CHANGE_VOICE, normalized.cellChangeVoiceVolume)
             .putBoolean(KEY_CELL_CHANGE_SPEAK_BAND_ENABLED, normalized.cellChangeSpeakBandEnabled)
             .putString(KEY_CELL_CHANGE_BAND_NAMING_STYLE, normalized.cellChangeBandNamingStyle.id)
+            .putBoolean(KEY_TECHNOLOGY_CHANGE_TO_2G_SOUND_ENABLED, normalized.technologyChangeTo2gSoundEnabled)
             .putFloat(KEY_TECHNOLOGY_CHANGE_TO_2G_TONE, normalized.technologyChangeTo2gToneVolume)
             .putBoolean(KEY_TECHNOLOGY_CHANGE_TO_2G_VOICE_ENABLED, normalized.technologyChangeTo2gVoiceEnabled)
             .putBoolean(KEY_TECHNOLOGY_CHANGE_TO_2G_PERIODIC_VOICE_ENABLED, normalized.technologyChangeTo2gPeriodicVoiceEnabled)
             .putFloat(KEY_TECHNOLOGY_CHANGE_TO_2G_VOICE, normalized.technologyChangeTo2gVoiceVolume)
+            .putBoolean(KEY_TECHNOLOGY_CHANGE_TO_4G_SOUND_ENABLED, normalized.technologyChangeTo4gSoundEnabled)
             .putFloat(KEY_TECHNOLOGY_CHANGE_TO_4G_TONE, normalized.technologyChangeTo4gToneVolume)
             .putBoolean(KEY_TECHNOLOGY_CHANGE_TO_4G_VOICE_ENABLED, normalized.technologyChangeTo4gVoiceEnabled)
             .putFloat(KEY_TECHNOLOGY_CHANGE_TO_4G_VOICE, normalized.technologyChangeTo4gVoiceVolume)
+            .putBoolean(KEY_TECHNOLOGY_CHANGE_TO_5G_ENDC_SOUND_ENABLED, normalized.technologyChangeTo5gEndcSoundEnabled)
             .putFloat(KEY_TECHNOLOGY_CHANGE_TO_5G_ENDC_TONE, normalized.technologyChangeTo5gEndcToneVolume)
             .putBoolean(KEY_TECHNOLOGY_CHANGE_TO_5G_ENDC_VOICE_ENABLED, normalized.technologyChangeTo5gEndcVoiceEnabled)
             .putFloat(KEY_TECHNOLOGY_CHANGE_TO_5G_ENDC_VOICE, normalized.technologyChangeTo5gEndcVoiceVolume)
@@ -432,13 +447,16 @@ class AudioVolumeSettingsRepository(context: Context) {
         private const val KEY_TECHNOLOGY_CHANGE = "technology_change_volume"
         private const val KEY_TECHNOLOGY_CHANGE_VOICE_ENABLED = "technology_change_voice_enabled"
         private const val KEY_TECHNOLOGY_CHANGE_VOICE = "technology_change_voice_volume"
+        private const val KEY_TECHNOLOGY_CHANGE_TO_2G_SOUND_ENABLED = "technology_change_to_2g_sound_enabled"
         private const val KEY_TECHNOLOGY_CHANGE_TO_2G_TONE = "technology_change_to_2g_tone_volume"
         private const val KEY_TECHNOLOGY_CHANGE_TO_2G_VOICE_ENABLED = "technology_change_to_2g_voice_enabled"
         private const val KEY_TECHNOLOGY_CHANGE_TO_2G_PERIODIC_VOICE_ENABLED = "technology_change_to_2g_periodic_voice_enabled"
         private const val KEY_TECHNOLOGY_CHANGE_TO_2G_VOICE = "technology_change_to_2g_voice_volume"
+        private const val KEY_TECHNOLOGY_CHANGE_TO_4G_SOUND_ENABLED = "technology_change_to_4g_sound_enabled"
         private const val KEY_TECHNOLOGY_CHANGE_TO_4G_TONE = "technology_change_to_4g_tone_volume"
         private const val KEY_TECHNOLOGY_CHANGE_TO_4G_VOICE_ENABLED = "technology_change_to_4g_voice_enabled"
         private const val KEY_TECHNOLOGY_CHANGE_TO_4G_VOICE = "technology_change_to_4g_voice_volume"
+        private const val KEY_TECHNOLOGY_CHANGE_TO_5G_ENDC_SOUND_ENABLED = "technology_change_to_5g_endc_sound_enabled"
         private const val KEY_TECHNOLOGY_CHANGE_TO_5G_ENDC_TONE = "technology_change_to_5g_endc_tone_volume"
         private const val KEY_TECHNOLOGY_CHANGE_TO_5G_ENDC_VOICE_ENABLED = "technology_change_to_5g_endc_voice_enabled"
         private const val KEY_TECHNOLOGY_CHANGE_TO_5G_ENDC_VOICE = "technology_change_to_5g_endc_voice_volume"

@@ -18,10 +18,10 @@ object ServingBandMhz {
         return values.joinToString(" / ")
     }
 
-    /** Formats a single layer as `&lt;MHz&gt;/&lt;band&gt;`, e.g. `800/20`. */
+    /** Formats a single layer as `&lt;MHz&gt;(&lt;band&gt;)`, e.g. `800(20)`. */
     fun formatMhzBand(mhz: Int?, band: Int?): String? {
         return when {
-            mhz != null && band != null -> "$mhz/$band"
+            mhz != null && band != null -> "$mhz($band)"
             mhz != null -> mhz.toString()
             band != null -> band.toString()
             else -> null
@@ -29,7 +29,7 @@ object ServingBandMhz {
     }
 
     /**
-     * Metrics value for Band (MHz/band). EN-DC may join LTE and NR as `800/20 / 3500/78`.
+     * Metrics value for Band (MHz). EN-DC may join LTE and NR as `800(20) / 3500(78)`.
      */
     fun formatDisplay(
         lteEarfcn: Int? = null,

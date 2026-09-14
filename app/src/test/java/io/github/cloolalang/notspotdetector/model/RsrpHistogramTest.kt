@@ -318,7 +318,7 @@ class RsrpHistogramTest {
     }
 
     @Test
-    fun windowStats_computesMeanMedianAndStdev() {
+    fun windowStats_computesMeanAndStdev() {
         val nowMs = 10_000L
         val samples = listOf(
             RsrpSample(timestampMs = 9_000L, rsrpDbm = -100),
@@ -330,7 +330,6 @@ class RsrpHistogramTest {
         val stats = RsrpHistogram.windowStats(samples, nowMs, windowMs = 2_000L)
         assertEquals(3, stats?.sampleCount)
         assertEquals(-102.0, stats?.meanDbm ?: 0.0, 0.001)
-        assertEquals(-102.0, stats?.medianDbm ?: 0.0, 0.001)
         assertEquals(2.0, stats?.stdevDbm ?: 0.0, 0.001)
     }
 

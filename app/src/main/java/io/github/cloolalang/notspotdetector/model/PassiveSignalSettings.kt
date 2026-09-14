@@ -5,7 +5,7 @@ package io.github.cloolalang.notspotdetector.model
  *
  * RSRP tiers use minimum dBm thresholds (stronger signal = higher / less negative value).
  * Adjacent bands are half-open (`rsrp >` lower edge) so they never overlap:
- * RXSS 1 (above an adjustable −75…−50 floor) > RXSS 2 (−95 up to RXSS 1) >
+ * RXSS 1 (above an adjustable −85…−50 floor) > RXSS 2 (−95 up to the RXSS 1 floor) >
  * RXSS 3 (−105 to −95) > RXSS 4 (−115 to −105) > RXSS 5 (RXSS 6 high end to −115) >
  * RXSS 6 (above the RXSS 10 floor through an adjustable high end up to −125) >
  * RXSS 10 (at or below an adjustable −135…−125 floor).
@@ -104,14 +104,25 @@ data class PassiveSignalSettings(
     /** RXSS 31 — WiFi calling, no cellular signal. Tone/frequency share the tier 10 no-signal group. */
     val wifiCallingTierClickIntervalMs: Int = DEFAULT_WIFI_CALLING_TIER_CLICK_INTERVAL_MS,
     val wifiCallingTierSoundEnabled: Boolean = DEFAULT_TIER_SOUND_ENABLED,
-    val wifiCallingTierPulseDurationMs: Int = DEFAULT_WIFI_CALLING_TIER_PULSE_DURATION_MS
+    val wifiCallingTierPulseDurationMs: Int = DEFAULT_WIFI_CALLING_TIER_PULSE_DURATION_MS,
+    /** RXSS 6 / 8 — rolling confirmation before signal-low is adopted. */
+    val lowSignalFilter: RxssStateFilterSettings = RxssStateFilterSettings.INACTIVE,
+    /** RXSS 10 / 15 / 31 — rolling confirmation before no-signal is adopted. */
+    val noSignalFilter: RxssStateFilterSettings = RxssStateFilterSettings.DEFAULT_NO_SIGNAL,
+    /** RXSS 0 — rolling confirmation before dead zone is adopted. */
+    val deadzoneFilter: RxssStateFilterSettings = RxssStateFilterSettings.INACTIVE,
+    /** RXSS 14 — rolling confirmation before poor RSRQ is adopted. */
+    val rsrqFilter: RxssStateFilterSettings = RxssStateFilterSettings.INACTIVE
 ) {
     /** RSRQ below this value maps to tier 14 and poor reception. */
     val criticalRsrqDb: Int
         get() = rsrqFairMinDb
 
     fun normalized(): PassiveSignalSettings {
-        val veryStrong = veryStrongRsrpMinDbm.coerceIn(MIN_VERY_STRONG_RSRP_DBM, MAX_VERY_STRONG_RSRP_DBM)
+        val veryStrong = veryStrongRsrpMinDbm.coerceIn(
+            MIN_VERY_STRONG_RSRP_DBM,
+            MAX_VERY_STRONG_RSRP_DBM
+        ).coerceAtLeast(FIXED_RXSS2_MIN_DBM + MIN_RSRP_BAND_GAP_DBM)
         val noSignalRequested = noSignalRsrpDbm.coerceIn(MIN_NO_SIGNAL_RSRP_DBM, MAX_NO_SIGNAL_RSRP_DBM)
         val poorClamped = poorRsrpMinDbm.coerceIn(MIN_RXSS6_HIGH_DBM, MAX_RXSS6_HIGH_DBM)
         val poorMinFromRxss10 = noSignalRequested + MIN_RSRP_BAND_GAP_DBM
@@ -185,7 +196,11 @@ data class PassiveSignalSettings(
             limitedServiceTierPulseDurationMs = limitedServiceTierPulseDurationMs.coerceCampTierPulseDuration(),
             limitedAlt2gTierPulseDurationMs = limitedAlt2gTierPulseDurationMs.coerceCampTierPulseDuration(),
             wifiCallingTierClickIntervalMs = wifiCallingTierClickIntervalMs.coerceTierClickInterval(),
-            wifiCallingTierPulseDurationMs = wifiCallingTierPulseDurationMs.coerceCampTierPulseDuration()
+            wifiCallingTierPulseDurationMs = wifiCallingTierPulseDurationMs.coerceCampTierPulseDuration(),
+            lowSignalFilter = lowSignalFilter.normalized(),
+            noSignalFilter = noSignalFilter.normalized(),
+            deadzoneFilter = deadzoneFilter.normalized(),
+            rsrqFilter = rsrqFilter.normalized()
         )
     }
 
@@ -196,7 +211,7 @@ data class PassiveSignalSettings(
         const val MAX_NO_SIGNAL_RSRP_DBM = -125
         /** @deprecated Use [MIN_NO_SIGNAL_RSRP_DBM] / [DEFAULT_NO_SIGNAL_RSRP_DBM]. */
         const val FIXED_NO_SIGNAL_RSRP_DBM = MIN_NO_SIGNAL_RSRP_DBM
-        const val MIN_VERY_STRONG_RSRP_DBM = -75
+        const val MIN_VERY_STRONG_RSRP_DBM = -85
         const val MAX_VERY_STRONG_RSRP_DBM = -50
         const val DEFAULT_VERY_STRONG_RSRP_MIN_DBM = -75
 
@@ -260,14 +275,14 @@ data class PassiveSignalSettings(
         const val DEFAULT_TIER_SOUND_ENABLED = true
         const val DEFAULT_SEARCHING_2G_TIER_SOUND_ENABLED = false
 
-        /** RXSS 7 — 2G good signal is stronger than this fixed floor. */
+        /** Strongest allowed RXSS 8 high end — RXSS 7 is anything stronger than [g2WeakMaxDbm]. */
         const val G2_STRONG_MIN_DBM = -85
         /** @deprecated Use [G2_STRONG_MIN_DBM]. */
         const val G2_TIER_RX_LEVEL_SPLIT_DBM = G2_STRONG_MIN_DBM
         const val MIN_G2_NO_SIGNAL_RSRP_DBM = -135
         const val MAX_G2_NO_SIGNAL_RSRP_DBM = -95
         const val DEFAULT_G2_NO_SIGNAL_RSRP_DBM = MIN_G2_NO_SIGNAL_RSRP_DBM
-        /** RXSS 8 high end — between the RXSS 15 floor and the fixed RXSS 7 split. */
+        /** RXSS 8 high end — between the RXSS 15 floor and −85 dBm. */
         const val MIN_G2_WEAK_MAX_DBM = MIN_G2_NO_SIGNAL_RSRP_DBM + MIN_RSRP_BAND_GAP_DBM
         const val MAX_G2_WEAK_MAX_DBM = G2_STRONG_MIN_DBM
         const val DEFAULT_G2_WEAK_MAX_DBM = MAX_G2_WEAK_MAX_DBM
@@ -395,7 +410,7 @@ fun PassiveSignalSettings.clickIntervalMsForTier(tier: SignalStrengthTier): Long
 
 fun PassiveSignalSettings.resolveG2SignalStrengthTier(rsrpDbm: Int?): SignalStrengthTier? {
     if (rsrpDbm == null || isG2RsrpTooWeak(rsrpDbm)) return null
-    return if (rsrpDbm > PassiveSignalSettings.G2_STRONG_MIN_DBM) {
+    return if (rsrpDbm > g2WeakMaxDbm) {
         SignalStrengthTier.G2_STRONG
     } else {
         SignalStrengthTier.G2_WEAK

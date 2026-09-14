@@ -2,7 +2,7 @@ package io.github.cloolalang.notspotdetector.model
 
 /**
  * Requires [confirmationPolls] consecutive matching readings before flipping the confirmed
- * [LteLayerResilienceReading]. Mirrors [NoSignalDebouncer]'s confirmation logic, generalized to a
+ * [LteLayerResilienceReading]. Mirrors [RollingTriggerFilter]'s consecutive confirmation, generalized to a
  * nullable data-class reading instead of a [Boolean], so a single flickering neighbour-cell poll
  * doesn't cause the displayed "4G layers detected" values to jump around. The whole reading is
  * debounced as one atomic unit (rather than debouncing each of its three numbers independently)

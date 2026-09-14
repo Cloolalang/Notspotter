@@ -323,7 +323,6 @@ private fun RsrpHistogramDisplay(
                     text = stringResource(
                         R.string.rsrp_histogram_window_stats,
                         RsrpHistogram.formatWindowStat(windowStats.meanDbm),
-                        RsrpHistogram.formatWindowStat(windowStats.medianDbm),
                         RsrpHistogram.formatWindowStat(windowStats.stdevDbm)
                     ),
                     style = MaterialTheme.typography.labelSmall,
