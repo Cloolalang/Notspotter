@@ -1,5 +1,23 @@
 package io.github.cloolalang.notspotdetector.model
 
+/** True when the camped serving PLMN or name is not the home operator. */
+fun isCampedOnVisitedOperator(
+    homePlmn: String?,
+    servingPlmn: String?,
+    homeName: String?,
+    servingName: String?
+): Boolean {
+    val homePlmnValue = homePlmn?.trim()?.takeIf { it.isNotBlank() }
+    val servingPlmnValue = servingPlmn?.trim()?.takeIf { it.isNotBlank() }
+    val home = homeName?.trim()?.takeIf { it.isNotBlank() }
+    val serving = servingName?.trim()?.takeIf { it.isNotBlank() }
+    return when {
+        homePlmnValue != null && servingPlmnValue != null -> homePlmnValue != servingPlmnValue
+        home != null && serving != null -> !serving.equals(home, ignoreCase = true)
+        else -> false
+    }
+}
+
 /** Serving-network operator when camped away from the home PLMN. */
 fun ConnectivityStats.resolveCampedVisitedOperatorName(): String? {
     val homeName = homeNetworkOperatorName?.trim()?.takeIf { it.isNotBlank() }
@@ -8,12 +26,7 @@ fun ConnectivityStats.resolveCampedVisitedOperatorName(): String? {
     val homePlmn = homePlmn?.trim()?.takeIf { it.isNotBlank() }
     val servingPlmn = plmn?.trim()?.takeIf { it.isNotBlank() }
 
-    val isVisited = when {
-        homePlmn != null && servingPlmn != null -> homePlmn != servingPlmn
-        homeName != null && servingName != null -> !servingName.equals(homeName, ignoreCase = true)
-        else -> false
-    }
-    if (!isVisited) return null
+    if (!isCampedOnVisitedOperator(homePlmn, servingPlmn, homeName, servingName)) return null
     if (homeName == null && homePlmn == null) return null
 
     val servingNameIsHome = homeName != null &&

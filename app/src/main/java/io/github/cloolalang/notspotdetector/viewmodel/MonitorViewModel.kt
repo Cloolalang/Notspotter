@@ -419,6 +419,10 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun updateMasterOtherSoundsEnabled(enabled: Boolean) {
+        updateAudioVolumes(audioVolumes.value.copy(masterOtherSoundsEnabled = enabled))
+    }
+
     fun updateSpeakOperatorNameEnabled(enabled: Boolean) {
         updateAudioVolumes(audioVolumes.value.copy(speakOperatorNameEnabled = enabled))
     }

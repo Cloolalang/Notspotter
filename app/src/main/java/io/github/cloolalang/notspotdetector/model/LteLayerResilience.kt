@@ -22,6 +22,9 @@ data class DetectedLteCell(
  */
 object LteLayerResilience {
 
+    /** Intracell dominance is not reliable when the primary RSRP is weaker than this. */
+    const val MIN_PRIMARY_RSRP_DBM_FOR_INTRA_DOMINANCE = -120
+
     /**
      * Neighbour survey filter — looser than serving-cell identity selection.
      *
@@ -41,7 +44,8 @@ object LteLayerResilience {
     fun fromDetectedCells(
         cells: List<DetectedLteCell>,
         primaryEarfcn: Int?,
-        primaryPci: Int? = null
+        primaryPci: Int? = null,
+        primaryRsrpDbm: Int? = null
     ): LteLayerResilienceReading {
         val usable = cells.filter { it.earfcn != null || it.pci != null }
         val resolvedPrimary = resolvePrimaryEarfcn(usable, primaryEarfcn, primaryPci)
@@ -73,7 +77,7 @@ object LteLayerResilience {
             primaryLayerCellCount = primaryCount,
             alternateLayerCount = alternate.size,
             alternateLayerCellCount = alternate.values.sumOf { it.size },
-            primaryLayerDominanceDb = dominanceDb(primaryCells)
+            primaryLayerDominanceDb = dominanceDb(primaryCells, primaryRsrpDbm)
         )
     }
 
@@ -94,11 +98,15 @@ object LteLayerResilience {
         return cell.earfcn ?: primaryEarfcn
     }
 
-    private fun dominanceDb(primaryCells: List<DetectedLteCell>): Int? {
+    private fun dominanceDb(
+        primaryCells: List<DetectedLteCell>,
+        primaryRsrpDbm: Int?
+    ): Int? {
         if (primaryCells.size < 2) return null
         val serving = primaryCells.firstOrNull { it.isRegistered }
             ?: primaryCells.maxByOrNull { it.rsrpDbm ?: Int.MIN_VALUE }
-        val servingRsrp = serving?.rsrpDbm ?: return null
+        val servingRsrp = primaryRsrpDbm ?: serving?.rsrpDbm ?: return null
+        if (servingRsrp < MIN_PRIMARY_RSRP_DBM_FOR_INTRA_DOMINANCE) return null
         val nextHighestRsrp = primaryCells
             .filter { it !== serving }
             .mapNotNull { it.rsrpDbm }

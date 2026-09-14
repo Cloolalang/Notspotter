@@ -107,6 +107,10 @@ class AudioVolumeSettingsRepository(context: Context) {
                 KEY_MASTER_VOICE_ANNOUNCEMENTS_ENABLED,
                 AudioVolumeSettings.DEFAULT_MASTER_VOICE_ANNOUNCEMENTS_ENABLED
             ),
+            masterOtherSoundsEnabled = prefs.getBoolean(
+                KEY_MASTER_OTHER_SOUNDS_ENABLED,
+                AudioVolumeSettings.DEFAULT_MASTER_OTHER_SOUNDS_ENABLED
+            ),
             pingClickVolume = prefs.getFloat(KEY_PING_CLICK, AudioVolumeSettings.DEFAULT_VOLUME),
             lowSignalClickVolume = prefs.getFloat(KEY_LOW_SIGNAL_CLICK, AudioVolumeSettings.DEFAULT_VOLUME),
             signalPulseFrequencyHz = signalPulseFrequencyHz,
@@ -356,6 +360,7 @@ class AudioVolumeSettingsRepository(context: Context) {
         val normalized = settings.normalized()
         prefs.edit()
             .putBoolean(KEY_MASTER_VOICE_ANNOUNCEMENTS_ENABLED, normalized.masterVoiceAnnouncementsEnabled)
+            .putBoolean(KEY_MASTER_OTHER_SOUNDS_ENABLED, normalized.masterOtherSoundsEnabled)
             .putFloat(KEY_PING_CLICK, normalized.pingClickVolume)
             .putFloat(KEY_LOW_SIGNAL_CLICK, normalized.lowSignalClickVolume)
             .putInt(KEY_SIGNAL_PULSE_FREQUENCY, normalized.signalPulseFrequencyHz)
@@ -446,6 +451,7 @@ class AudioVolumeSettingsRepository(context: Context) {
     companion object {
         private const val PREFS_NAME = "notspot_audio_volumes"
         private const val KEY_MASTER_VOICE_ANNOUNCEMENTS_ENABLED = "master_voice_announcements_enabled"
+        private const val KEY_MASTER_OTHER_SOUNDS_ENABLED = "master_other_sounds_enabled"
         private const val KEY_PING_CLICK = "ping_click_volume"
         private const val KEY_LOW_SIGNAL_CLICK = "low_signal_click_volume"
         private const val KEY_SIGNAL_PULSE_FREQUENCY = "signal_pulse_frequency_hz"

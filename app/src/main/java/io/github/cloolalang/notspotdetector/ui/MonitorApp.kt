@@ -146,6 +146,7 @@ fun MonitorApp(
             onG2WeakTierPulseFrequencyChange = viewModel::updateG2WeakTierPulseFrequencyHz,
             onSignalPulseDurationChange = viewModel::updateSignalPulseDurationMs,
             onMasterVoiceAnnouncementsEnabledChange = viewModel::updateMasterVoiceAnnouncementsEnabled,
+            onMasterOtherSoundsEnabledChange = viewModel::updateMasterOtherSoundsEnabled,
             onVoicePhrasesChange = viewModel::updateVoicePhrases,
             onPreviewVoicePhrase = viewModel::previewVoicePhrase,
             onPeriodicVoiceRepeatChange = viewModel::updatePeriodicVoiceRepeat,

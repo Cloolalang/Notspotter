@@ -666,8 +666,9 @@ class ConnectivityMonitorService : Service() {
         stillCurrent: () -> Boolean = { true }
     ) {
         if (!stillCurrent()) return
-        onPlayTone()
-        delay(AudioVolumeSettings.voiceDelayAfterAlertTone(toneDurationMs))
+        val soundsEnabled = MonitorState.audioVolumes.value.normalized().masterOtherSoundsEnabled
+        if (soundsEnabled) onPlayTone()
+        delay(AudioVolumeSettings.voiceDelayAfterAlertTone(if (soundsEnabled) toneDurationMs else 0))
         if (!stillCurrent()) return
         val masterVoiceEnabled = MonitorState.audioVolumes.value.masterVoiceAnnouncementsEnabled
         if (masterVoiceEnabled && voiceEnabled && !announcement.isNullOrBlank() && voiceVolume > 0f) {
@@ -739,6 +740,7 @@ class ConnectivityMonitorService : Service() {
 
     private fun playTechnologyChangeToneIfEnabled(alertVolumes: TechnologyChangeAlertVolumes) {
         if (!alertVolumes.soundEnabled) return
+        if (!MonitorState.audioVolumes.value.normalized().masterOtherSoundsEnabled) return
         geigerPlayer.playTechnologyChangeTone(alertVolumes.toneVolume)
     }
 
@@ -923,15 +925,18 @@ class ConnectivityMonitorService : Service() {
 
     private fun playSoundIcon(announcement: MonitoringAnnouncement) {
         val volumes = MonitorState.audioVolumes.value.normalized()
+        val soundsEnabled = volumes.masterOtherSoundsEnabled
         when (announcement.kind) {
-            MonitoringAnnouncementKind.CELL_IDENTITY -> playCellChangeBell()
+            MonitoringAnnouncementKind.CELL_IDENTITY -> if (soundsEnabled) playCellChangeBell()
             MonitoringAnnouncementKind.TECHNOLOGY_CHANGE -> {
+                if (!soundsEnabled) return
                 val alertVolumes = volumes.technologyChangeAlertVolumes(
                     announcement.targetRadioAccessType
                 ) ?: return
                 playTechnologyChangeToneIfEnabled(alertVolumes)
             }
             MonitoringAnnouncementKind.G2_FALLBACK -> {
+                if (!soundsEnabled) return
                 val alertVolumes = volumes.technologyChangeAlertVolumes(TechnologyChangeTarget.TO_2G)
                 playTechnologyChangeToneIfEnabled(alertVolumes)
             }
@@ -939,12 +944,17 @@ class ConnectivityMonitorService : Service() {
                 if (volumes.noSignalVibrationEnabled) {
                     AlertVibrator.buzzNoSignal(this)
                 }
-                geigerPlayer.previewNoSignalTone(volumes.noSignalToneVolume)
+                if (soundsEnabled) {
+                    geigerPlayer.previewNoSignalTone(volumes.noSignalToneVolume)
+                }
             }
             MonitoringAnnouncementKind.DEADZONE ->
-                geigerPlayer.previewNoSignalTone(volumes.noSignalToneVolume)
+                if (soundsEnabled) {
+                    geigerPlayer.previewNoSignalTone(volumes.noSignalToneVolume)
+                }
             MonitoringAnnouncementKind.LIMITED_SERVICE_STATE,
             MonitoringAnnouncementKind.LIMITED_SERVICE_OPERATOR -> {
+                if (!soundsEnabled) return
                 if (SignalStateAnnouncement.isInServiceAnnouncement(announcement.message)) return
                 val toneMs = MonitorState.passiveSignalSettings.value
                     .normalized()
@@ -962,6 +972,7 @@ class ConnectivityMonitorService : Service() {
     }
 
     private fun playCellChangeBell() {
+        if (!MonitorState.audioVolumes.value.normalized().masterOtherSoundsEnabled) return
         geigerPlayer.playCellChangeBell(
             MonitorState.audioVolumes.value.normalized().cellChangeBellVolume
         )

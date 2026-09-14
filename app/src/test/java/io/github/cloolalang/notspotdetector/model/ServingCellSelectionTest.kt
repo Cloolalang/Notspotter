@@ -2,6 +2,7 @@ package io.github.cloolalang.notspotdetector.model
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -191,5 +192,130 @@ class ServingCellSelectionTest {
 
         assertEquals(6300, earfcn)
         assertEquals(107, pci)
+    }
+
+    @Test
+    fun signalStrengthMatchesServingPcis_emptySetsAreNotAMismatch() {
+        assertTrue(
+            ServingCellSelection.signalStrengthMatchesServingPcis(
+                servingLtePci = 106,
+                servingNrPci = null,
+                signalLtePcis = emptySet(),
+                signalNrPcis = emptySet()
+            )
+        )
+        assertTrue(
+            ServingCellSelection.signalStrengthMatchesServingPcis(
+                servingLtePci = 106,
+                servingNrPci = null,
+                signalLtePcis = setOf(106),
+                signalNrPcis = emptySet()
+            )
+        )
+        assertFalse(
+            ServingCellSelection.signalStrengthMatchesServingPcis(
+                servingLtePci = 106,
+                servingNrPci = null,
+                signalLtePcis = setOf(87),
+                signalNrPcis = emptySet()
+            )
+        )
+    }
+
+    @Test
+    fun isSignalQualityFresh_visitedLimitedServiceIsNeverFresh() {
+        assertFalse(
+            ServingCellSelection.isSignalQualityFresh(
+                newestAgeMs = 0L,
+                isVisitedLimitedService = true
+            )
+        )
+        assertFalse(
+            ServingCellSelection.isSignalQualityFresh(
+                newestAgeMs = null,
+                isVisitedLimitedService = true
+            )
+        )
+        assertTrue(
+            ServingCellSelection.isSignalQualityFresh(
+                newestAgeMs = 14_999L,
+                isVisitedLimitedService = false
+            )
+        )
+        assertFalse(
+            ServingCellSelection.isSignalQualityFresh(
+                newestAgeMs = 15_001L,
+                isVisitedLimitedService = false
+            )
+        )
+        assertTrue(
+            ServingCellSelection.isSignalQualityFresh(
+                newestAgeMs = null,
+                isVisitedLimitedService = false
+            )
+        )
+    }
+
+    @Test
+    fun shouldUseSignalStrengthForServingMetrics_visitedLimitedDoesNotUseFrozenSignal() {
+        assertFalse(
+            ServingCellSelection.shouldUseSignalStrengthForServingMetrics(
+                hasCampedIdentity = true,
+                signalMatchesServing = true,
+                signalQualityStale = false,
+                isVisitedLimitedService = true
+            )
+        )
+        assertFalse(
+            ServingCellSelection.shouldUseSignalStrengthForServingMetrics(
+                hasCampedIdentity = true,
+                signalMatchesServing = true,
+                signalQualityStale = true,
+                isVisitedLimitedService = false
+            )
+        )
+        assertTrue(
+            ServingCellSelection.shouldUseSignalStrengthForServingMetrics(
+                hasCampedIdentity = false,
+                signalMatchesServing = false,
+                signalQualityStale = false,
+                isVisitedLimitedService = false
+            )
+        )
+        assertTrue(
+            ServingCellSelection.shouldUseSignalStrengthForServingMetrics(
+                hasCampedIdentity = true,
+                signalMatchesServing = true,
+                signalQualityStale = false,
+                isVisitedLimitedService = false
+            )
+        )
+    }
+
+    @Test
+    fun pickServingMetric_usesSignalOnlyWhenAllowed() {
+        assertEquals(
+            -98,
+            ServingCellSelection.pickServingMetric(
+                fromCell = null,
+                fromSignal = -98,
+                useSignal = true
+            )
+        )
+        assertNull(
+            ServingCellSelection.pickServingMetric(
+                fromCell = null,
+                fromSignal = -98,
+                useSignal = false
+            )
+        )
+        assertEquals(
+            -102,
+            ServingCellSelection.pickServingMetric(
+                fromCell = -102,
+                fromSignal = -98,
+                useSignal = true
+            )
+        )
     }
 }

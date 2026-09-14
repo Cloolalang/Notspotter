@@ -13,6 +13,13 @@ data class AudioVolumeSettings(
      * so users can still audition a voice while announcements are globally muted.
      */
     val masterVoiceAnnouncementsEnabled: Boolean = DEFAULT_MASTER_VOICE_ANNOUNCEMENTS_ENABLED,
+    /**
+     * Master on/off switch for every non-voice sound (pulses, tones, bells, clicks, white noise).
+     * When false, those sounds are suppressed during monitoring without changing individual volume
+     * or per-RXSS sound toggles. Voice announcements and vibration are unaffected. Manual
+     * "preview" buttons in Settings still play so users can audition a sound while live audio is muted.
+     */
+    val masterOtherSoundsEnabled: Boolean = DEFAULT_MASTER_OTHER_SOUNDS_ENABLED,
     val pingClickVolume: Float = DEFAULT_PING_CLICK_VOLUME,
     val lowSignalClickVolume: Float = DEFAULT_VOLUME,
     /** RXSS 6 (signal low / critical) signal pulse frequency. */
@@ -364,6 +371,7 @@ data class AudioVolumeSettings(
         const val MIN_VOLUME = 0f
         const val MAX_VOLUME = 1f
         const val DEFAULT_MASTER_VOICE_ANNOUNCEMENTS_ENABLED = true
+        const val DEFAULT_MASTER_OTHER_SOUNDS_ENABLED = true
         const val DEFAULT_CELL_CHANGE_VOICE_ENABLED = true
         const val DEFAULT_CELL_CHANGE_SPEAK_BAND_ENABLED = true
         const val DEFAULT_SPECIAL_CELLS_DETECTION_ENABLED = true

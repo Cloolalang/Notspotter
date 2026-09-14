@@ -294,6 +294,7 @@ class AppSettingsSnapshotCodecCompletenessTest {
             ),
             audioVolumes = AudioVolumeSettings(
                 masterVoiceAnnouncementsEnabled = false,
+                masterOtherSoundsEnabled = false,
                 pingClickVolume = 0.4f,
                 lowSignalClickVolume = 0.55f,
                 signalPulseFrequencyHz = 810,
@@ -479,6 +480,7 @@ class AppSettingsSnapshotCodecCompletenessTest {
 
         private val AUDIO_KEYS = setOf(
             "masterVoiceAnnouncementsEnabled",
+            "masterOtherSoundsEnabled",
             "pingClickVolume",
             "lowSignalClickVolume",
             "signalPulseFrequencyHz",

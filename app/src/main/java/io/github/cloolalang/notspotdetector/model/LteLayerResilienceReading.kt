@@ -22,8 +22,9 @@ package io.github.cloolalang.notspotdetector.model
  *   (an intra-channel neighbour). A small gap means a nearby sector on the same channel is
  *   nearly as strong as the one currently camped on, so a reselection/handover to it is more
  *   plausible; see [primaryLayerDominance]. Null when there's no other sector detected on the
- *   primary EARFCN, or RSRP isn't available for the comparison — i.e. dominance is undefined
- *   without a competing intra-channel sector.
+ *   primary EARFCN, RSRP isn't available for the comparison, or the primary RSRP is below
+ *   [LteLayerResilience.MIN_PRIMARY_RSRP_DBM_FOR_INTRA_DOMINANCE] (-120 dBm) — neighbour levels
+ *   are not reliable enough for intracell dominance at that point.
  */
 data class LteLayerResilienceReading(
     val primaryLayerCellCount: Int,

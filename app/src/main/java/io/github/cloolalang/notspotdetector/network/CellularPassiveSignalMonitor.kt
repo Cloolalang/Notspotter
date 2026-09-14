@@ -115,7 +115,8 @@ class CellularPassiveSignalMonitor(
                 selectedApn = radio.selectedApn,
                 signalPermissionGranted = radio.permissionGranted,
                 cellIdentityPermissionGranted = radio.cellIdentityPermissionGranted,
-                lteLayerResilience = radio.lteLayerResilience
+                lteLayerResilience = radio.lteLayerResilience,
+                signalQualityFresh = radio.signalQualityFresh
             )
         )
     }

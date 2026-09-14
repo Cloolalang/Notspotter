@@ -216,4 +216,48 @@ class CellIdentityStabilizerTest {
         assertNull(cache.gsmEarfcn)
         assertNull(cache.gsmBsic)
     }
+
+    @Test
+    fun withStabilizedCellIdentity_keepsLimited2gRxWithoutFallbackToggle() {
+        val stats = ConnectivityStats(
+            isLimitedService = true,
+            networkServiceMode = NetworkServiceMode.LIMITED_SERVICE,
+            isOn2g = true,
+            monitor2gFallbackEnabled = false,
+            rsrpDbm = -91,
+            radioAccessType = "2G",
+            gsmEarfcn = 62,
+            gsmBsic = 7
+        )
+        val previous = CellIdentitySnapshot(gsmEarfcn = 62, gsmBsic = 7)
+
+        val (display, cache) = stats.withStabilizedCellIdentity(previous)
+
+        assertEquals(-91, display.rsrpDbm)
+        assertEquals(62, display.gsmEarfcn)
+        assertEquals(7, display.gsmBsic)
+        assertEquals(62, cache.gsmEarfcn)
+        assertEquals(7, cache.gsmBsic)
+    }
+
+    @Test
+    fun withStabilizedCellIdentity_keepsLimited4gRsrpAndRsrq() {
+        val stats = ConnectivityStats(
+            isLimitedService = true,
+            networkServiceMode = NetworkServiceMode.LIMITED_SERVICE,
+            rsrpDbm = -97,
+            rsrqDb = -11,
+            radioAccessType = "4G",
+            lteEarfcn = 6_300,
+            ltePci = 106
+        )
+        val previous = CellIdentitySnapshot(lteEarfcn = 6_300, ltePci = 106)
+
+        val (display, _) = stats.withStabilizedCellIdentity(previous)
+
+        assertEquals(-97, display.rsrpDbm)
+        assertEquals(-11, display.rsrqDb)
+        assertEquals(6_300, display.lteEarfcn)
+        assertEquals(106, display.ltePci)
+    }
 }

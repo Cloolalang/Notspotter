@@ -400,6 +400,8 @@
     <string name="audio_volume_cell_change_bell">Alert sound volume</string>
     <string name="audio_master_voice_announcements">Voice announcements</string>
     <string name="audio_master_voice_announcements_hint">Master switch for all spoken voice announcements. Turning this off mutes every voice announcement without changing your individual voice settings below; tones, bells, clicks, and vibration are unaffected.</string>
+    <string name="audio_master_other_sounds">Other sounds</string>
+    <string name="audio_master_other_sounds_hint">Master switch for all non-voice sounds (pulses, tones, bells, and clicks). Turning this off mutes those without changing your individual sound settings below; voice announcements and vibration are unaffected.</string>
     <string name="voice_announcement_speak_operator_name">Speak operator name</string>
     <string name="voice_announcement_speak_operator_name_hint">When off, the operator name (e.g. “E E”) is omitted from this announcement.</string>
     <string name="voice_announcement_speak_technology">Speak technology (2G/4G/5G)</string>

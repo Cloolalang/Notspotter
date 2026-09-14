@@ -119,9 +119,23 @@ data class ConnectivityStats(
      * shown to the user to jump around.
      */
     val lteLayerResilience: LteLayerResilienceReading? = null,
+    /**
+     * False for visiting limited service, and when in-service / home-limited CellInfo is older
+     * than the live-measurement window. Cellular metrics then blank RSRP / RSRQ / 2G RX rather
+     * than showing a frozen figure.
+     */
+    val signalQualityFresh: Boolean = true,
     /** Serving-cell reselects in the last 60 s (rolling). */
     val cellReselectsPerMinute: Int = 0
 )
+
+/** RSRP / 2G RX shown in cellular metrics — blank when not a live scan. */
+fun ConnectivityStats.displayedRsrpDbm(): Int? =
+    rsrpDbm.takeIf { signalQualityFresh && !isLimitedServiceVisited() }
+
+/** RSRQ shown in cellular metrics — blank when not a live scan. */
+fun ConnectivityStats.displayedRsrqDb(): Int? =
+    rsrqDb.takeIf { signalQualityFresh && !isLimitedServiceVisited() }
 
 fun ConnectivityStats.hidingFiveGIfDisabled(fiveGFeaturesEnabled: Boolean): ConnectivityStats {
     if (fiveGFeaturesEnabled) return this

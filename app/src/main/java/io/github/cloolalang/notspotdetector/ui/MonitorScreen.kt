@@ -52,6 +52,8 @@ import io.github.cloolalang.notspotdetector.model.formatVirtualOperatorDisplay
 import io.github.cloolalang.notspotdetector.model.formatVisitedOperatorDisplay
 import io.github.cloolalang.notspotdetector.model.ServingBandMhz
 import io.github.cloolalang.notspotdetector.model.shouldBlankStaleCellIdentity
+import io.github.cloolalang.notspotdetector.model.displayedRsrpDbm
+import io.github.cloolalang.notspotdetector.model.displayedRsrqDb
 import io.github.cloolalang.notspotdetector.model.PassiveMockSettings
 import io.github.cloolalang.notspotdetector.model.PeriodicVoiceRepeat
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
@@ -153,6 +155,7 @@ fun MonitorScreen(
     onG2WeakTierPulseFrequencyChange: (Int) -> Unit,
     onSignalPulseDurationChange: (Int) -> Unit,
     onMasterVoiceAnnouncementsEnabledChange: (Boolean) -> Unit,
+    onMasterOtherSoundsEnabledChange: (Boolean) -> Unit,
     onVoicePhrasesChange: (VoicePhraseGroup, VoicePhraseOptions) -> Unit = { _, _ -> },
     onPreviewVoicePhrase: (VoicePhraseGroup, VoicePhraseFragment) -> Unit = { _, _ -> },
     onPeriodicVoiceRepeatChange: (PeriodicVoiceRepeat, Boolean) -> Unit = { _, _ -> },
@@ -313,9 +316,17 @@ fun MonitorScreen(
         }
 
         TopLevelSectionCard(title = stringResource(R.string.top_level_passive_mode_monitoring)) {
-            MasterVoiceAnnouncementsToggle(
+            MasterAudioToggle(
+                title = stringResource(R.string.audio_master_voice_announcements),
+                hint = stringResource(R.string.audio_master_voice_announcements_hint),
                 enabled = audioVolumes.masterVoiceAnnouncementsEnabled,
                 onEnabledChange = onMasterVoiceAnnouncementsEnabledChange
+            )
+            MasterAudioToggle(
+                title = stringResource(R.string.audio_master_other_sounds),
+                hint = stringResource(R.string.audio_master_other_sounds_hint),
+                enabled = audioVolumes.masterOtherSoundsEnabled,
+                onEnabledChange = onMasterOtherSoundsEnabledChange
             )
 
             MonitoringSettingsCard(
@@ -507,7 +518,9 @@ fun MonitorScreen(
 }
 
 @Composable
-private fun MasterVoiceAnnouncementsToggle(
+private fun MasterAudioToggle(
+    title: String,
+    hint: String,
     enabled: Boolean,
     onEnabledChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier
@@ -522,13 +535,13 @@ private fun MasterVoiceAnnouncementsToggle(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = stringResource(R.string.audio_master_voice_announcements),
+                    text = title,
                     style = MaterialTheme.typography.titleMedium,
                     color = Sushi,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = stringResource(R.string.audio_master_voice_announcements_hint),
+                    text = hint,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -733,7 +746,7 @@ private fun MetricsCard(
                     else -> stringResource(R.string.metric_rsrp)
                 },
                 value = formatSignalValue(
-                    value = stats.rsrpDbm,
+                    value = stats.displayedRsrpDbm(),
                     unit = "dBm",
                     permissionGranted = stats.signalPermissionGranted
                 )
@@ -746,7 +759,7 @@ private fun MetricsCard(
                         stringResource(R.string.metric_rsrq)
                     },
                     value = formatSignalValue(
-                        value = stats.rsrqDb,
+                        value = stats.displayedRsrqDb(),
                         unit = "dB",
                         permissionGranted = stats.signalPermissionGranted
                     )

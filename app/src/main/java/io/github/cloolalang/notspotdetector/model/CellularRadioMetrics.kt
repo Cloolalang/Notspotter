@@ -77,7 +77,12 @@ data class CellularRadioMetrics(
      * measured/reported. Null when the cell-identity permission isn't granted or the read failed;
      * see [io.github.cloolalang.notspotdetector.network.CellularSignalReader].
      */
-    val lteLayerResilience: LteLayerResilienceReading? = null
+    val lteLayerResilience: LteLayerResilienceReading? = null,
+    /**
+     * False for visiting limited service (SOS quality is not reliable). Home limited and
+     * in-service follow CellInfo age so frozen RSRP/RSRQ/2G RX is not shown as live.
+     */
+    val signalQualityFresh: Boolean = true
 ) {
     /**
      * Drops camped RAT / RSRP / cell identity. Used when the radio is off, or when service is

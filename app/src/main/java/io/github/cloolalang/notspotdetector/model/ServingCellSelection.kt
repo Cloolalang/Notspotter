@@ -148,6 +148,58 @@ object ServingCellSelection {
         return newestAgeMs != null && newestAgeMs > METRICS_STALE_MS
     }
 
+    /**
+     * Whether CellInfo is new enough to show RSRP / RSRQ / 2G RX as a live measurement.
+     * Visiting limited service is never treated as a live quality scan.
+     * Home limited service and in-service use [METRICS_STALE_MS].
+     */
+    fun isSignalQualityFresh(
+        newestAgeMs: Long?,
+        isVisitedLimitedService: Boolean
+    ): Boolean {
+        if (isVisitedLimitedService) return false
+        if (newestAgeMs != null) return newestAgeMs <= METRICS_STALE_MS
+        return true
+    }
+
+    /**
+     * Whether [android.telephony.SignalStrength] PCIs look like the serving CellInfo cell.
+     * An empty PCI set means the modem omitted them — that is not a mismatch.
+     */
+    fun signalStrengthMatchesServingPcis(
+        servingLtePci: Int?,
+        servingNrPci: Int?,
+        signalLtePcis: Set<Int>,
+        signalNrPcis: Set<Int>
+    ): Boolean {
+        if (servingLtePci != null && servingLtePci in signalLtePcis) return true
+        if (servingNrPci != null && servingNrPci in signalNrPcis) return true
+        return signalLtePcis.isEmpty() && signalNrPcis.isEmpty()
+    }
+
+    /**
+     * [android.telephony.SignalStrength] has no timestamp. Visiting limited service must not
+     * keep a frozen SignalStrength RSRP/RSRQ/RX on screen. Home limited and in-service may
+     * use it when CellInfo is fresh and the PCI matches (or there is no camped identity).
+     */
+    fun shouldUseSignalStrengthForServingMetrics(
+        hasCampedIdentity: Boolean,
+        signalMatchesServing: Boolean,
+        signalQualityStale: Boolean,
+        isVisitedLimitedService: Boolean
+    ): Boolean {
+        if (signalQualityStale || isVisitedLimitedService) return false
+        return !hasCampedIdentity || signalMatchesServing
+    }
+
+    fun pickServingMetric(
+        fromCell: Int?,
+        fromSignal: Int?,
+        useSignal: Boolean
+    ): Int? {
+        return fromCell ?: fromSignal.takeIf { useSignal }
+    }
+
     fun normalizePlmn(value: String?): String? {
         val digits = value?.filter { it.isDigit() }.orEmpty()
         return digits.takeIf { it.length >= 5 }

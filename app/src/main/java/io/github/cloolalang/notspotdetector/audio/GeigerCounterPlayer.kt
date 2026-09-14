@@ -77,6 +77,7 @@ class GeigerCounterPlayer {
     private var monitoringSettingsProvider: () -> MonitoringSettings = { MonitoringSettings() }
     private var passiveSignalSettingsProvider: () -> PassiveSignalSettings = { PassiveSignalSettings() }
     private var statsProvider: () -> ConnectivityStats = { ConnectivityStats() }
+    private var audioVolumesProvider: () -> AudioVolumeSettings = { AudioVolumeSettings() }
     private val sampleRate = 44_100
     private val goodConnectionClickDurationMs = 6
     private val lowQualityClickDurationMs = 150
@@ -93,12 +94,17 @@ class GeigerCounterPlayer {
         this.monitoringSettingsProvider = monitoringSettingsProvider
         this.passiveSignalSettingsProvider = passiveSignalSettingsProvider
         this.statsProvider = statsProvider
+        this.audioVolumesProvider = audioVolumesProvider
         lastHandledPingTimestampMs = 0L
         rsrqTierJob = scope.launch {
             while (isActive) {
                 val stats = statsProvider()
                 val passiveSettings = passiveSignalSettingsProvider()
                 val volumes = audioVolumesProvider().normalized()
+                if (!volumes.masterOtherSoundsEnabled) {
+                    delay(POLL_INTERVAL_MS)
+                    continue
+                }
                 if (shouldPlayPassiveSignalAndQualityAlerts(stats, passiveSettings) &&
                     stats.shouldPlayDecoupledRsrqTier(passiveSettings)
                 ) {
@@ -129,6 +135,10 @@ class GeigerCounterPlayer {
                     !stats.isMonitoring -> {
                         stopAlertTones()
                         delayForPulseInterval(500L, stats.resolveSignalPulseScheduleKey(passiveSettings))
+                    }
+                    !volumes.masterOtherSoundsEnabled -> {
+                        stopAlertTones()
+                        delay(POLL_INTERVAL_MS)
                     }
                     stats.shouldPlayDeadzoneTier(passiveSettings) -> {
                         stopLimitedService()
@@ -429,6 +439,10 @@ class GeigerCounterPlayer {
             val current = statsProvider().resolveSignalPulseScheduleKey(passiveSignalSettingsProvider())
             if (current != scheduledKey) {
                 stopRsrpPulseBurst()
+                return
+            }
+            if (!audioVolumesProvider().normalized().masterOtherSoundsEnabled) {
+                stopAlertTones()
                 return
             }
         }

@@ -41,6 +41,7 @@ import io.github.cloolalang.notspotdetector.model.isDeadzoneConfirmed
 import io.github.cloolalang.notspotdetector.model.isG2FlatlineActive
 import io.github.cloolalang.notspotdetector.model.isG2WeakSignal
 import io.github.cloolalang.notspotdetector.model.isLimitedServiceAlt2g
+import io.github.cloolalang.notspotdetector.model.isLimitedServiceVisited
 import io.github.cloolalang.notspotdetector.model.isLimitedServiceNoSignalCamp
 import io.github.cloolalang.notspotdetector.model.isSignalLowVoiceCamp
 import io.github.cloolalang.notspotdetector.model.isRawTier5PoorSignal
@@ -344,19 +345,25 @@ object MonitorState {
     fun tickRsrpHistogramSample() {
         synchronized(monitorLock) {
             val stats = _stats.value
-            recordRsrpSample(stats.rsrpDbm, stats.isMonitoring, stats.radioAccessType)
+            recordRsrpSample(
+                rsrpDbm = stats.rsrpDbm,
+                isMonitoring = stats.isMonitoring,
+                radioAccessType = stats.radioAccessType,
+                signalQualityFresh = stats.signalQualityFresh && !stats.isLimitedServiceVisited()
+            )
         }
     }
 
     private fun recordRsrpSample(
         rsrpDbm: Int?,
         isMonitoring: Boolean,
-        radioAccessType: String?
+        radioAccessType: String?,
+        signalQualityFresh: Boolean
     ) {
-        // rsrpDbm may be null (e.g. a no-signal state) — still recorded so the histogram's
-        // "no signal" bin reflects how often that happened within the window, rather than
-        // silently dropping those polls.
+        // Skip frozen CellInfo leftovers so the histogram only counts live scans.
+        // Null RSRP on a fresh read is still recorded for the "no signal" bin.
         if (!_isRunning.value || !isMonitoring) return
+        if (!signalQualityFresh) return
         clearRsrpHistogramIfTechnologyChanged(radioAccessType)
         val timestampMs = System.currentTimeMillis()
         val retainMs = rsrpHistoryRetentionMs()
@@ -467,7 +474,8 @@ object MonitorState {
             selectedApn = metrics.selectedApn,
             signalPermissionGranted = metrics.permissionGranted,
             cellIdentityPermissionGranted = metrics.cellIdentityPermissionGranted,
-            lteLayerResilience = metrics.lteLayerResilience
+            lteLayerResilience = metrics.lteLayerResilience,
+            signalQualityFresh = metrics.signalQualityFresh
         )
         val reconciled = merged.reconcileOutOfServiceCamp()
         val displayReady = reconciled.copy(
@@ -540,7 +548,8 @@ object MonitorState {
             selectedApn = metrics.selectedApn,
             signalPermissionGranted = metrics.permissionGranted,
             cellIdentityPermissionGranted = metrics.cellIdentityPermissionGranted,
-            lteLayerResilience = metrics.lteLayerResilience
+            lteLayerResilience = metrics.lteLayerResilience,
+            signalQualityFresh = metrics.signalQualityFresh
         )
         val reconciled = merged.reconcileOutOfServiceCamp()
         rememberRadioAccessType(reconciled)

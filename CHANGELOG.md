@@ -5,6 +5,43 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.85.1] - 2026-09-14
+
+### Fixed
+
+- **Voice and Other sounds stay unlocked** — The Voice announcements and Other sounds master switches can always be toggled. They are not gated by the settings password.
+
+## [2.85.0] - 2026-09-14
+
+### Added
+
+- **Other sounds master switch** — Under Passive mode monitoring, below Voice announcements, a second switch mutes all non-voice sounds (pulses, tones, bells, and clicks) without changing the individual settings below. Voice announcements and vibration stay independent. Like other settings, it is locked until you enter the password.
+
+## [2.84.0] - 2026-09-14
+
+### Changed
+
+- **Limited-service quality figures** — Home limited service (RXSS 19 / 22) can show RSRP, RSRQ, and 2G RX lev when CellInfo is fresh. Visiting limited service (RXSS 12 / 13) still blanks those rows — those SOS measurements are not reliable.
+- **Primary intra dominance** — The dominance gap is not shown when the primary/serving RSRP is below **-120 dBm**. Neighbour RSRP is not trustworthy enough for an intracell comparison at that level; primary intra-cell counts are unchanged.
+
+## [2.83.1] - 2026-09-14
+
+### Changed
+
+- **Limited service has no live quality figures** — Cellular metrics now leave **RSRP**, **RSRQ**, and **2G RX lev** blank whenever the camp is limited service (home or visited). SOS CellInfo can keep a frozen RX level with a refreshing timestamp; that is not treated as a measurement.
+
+## [2.83.0] - 2026-09-14
+
+### Changed
+
+- **Stale RSRP/RSRQ go blank** — Cellular metrics only show RSRP (or 2G RX) and RSRQ while the CellInfo scan is live. In limited service that window is **2.5 s**; if the modem is not delivering a new measurement the rows show **—** instead of a frozen last-known figure. Limited service no longer fills those rows from untimestamped SignalStrength. RXSS overlays can still use the last known level.
+
+## [2.82.1] - 2026-09-14
+
+### Fixed
+
+- **Limited service RSRP/RSRQ** — Home and visited limited-service camps (RXSS 12 / 13 / 19 / 22) now keep showing serving-cell RSRP/RSRQ (and 2G RX level). The reader no longer treats SOS CellInfo identity as a reason to drop SignalStrength measurements, and limited 2G no longer needs the 2G-fallback monitor toggle to display RX.
+
 ## [2.82.0] - 2026-09-14
 
 ### Added

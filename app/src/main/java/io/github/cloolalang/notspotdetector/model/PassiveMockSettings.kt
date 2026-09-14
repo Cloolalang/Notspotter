@@ -595,6 +595,17 @@ fun PassiveMockSettings.toConnectivityStats(
         mobileDataEnabled = radio.mobileDataEnabled,
         selectedApn = radio.selectedApn,
         signalPermissionGranted = radio.permissionGranted,
-        cellIdentityPermissionGranted = radio.cellIdentityPermissionGranted
+        cellIdentityPermissionGranted = radio.cellIdentityPermissionGranted,
+        signalQualityFresh = !radio.isLimitedService ||
+            radio.resolveVisitedLimitedFreshness()
+    )
+}
+
+private fun CellularRadioMetrics.resolveVisitedLimitedFreshness(): Boolean {
+    return !isCampedOnVisitedOperator(
+        homePlmn = homePlmn,
+        servingPlmn = plmn,
+        homeName = homeNetworkOperatorName,
+        servingName = servingNetworkOperatorName ?: networkOperatorName
     )
 }

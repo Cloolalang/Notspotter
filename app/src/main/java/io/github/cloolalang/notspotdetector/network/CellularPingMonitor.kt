@@ -364,7 +364,8 @@ class CellularPingMonitor(
             selectedApn = metrics.selectedApn,
             signalPermissionGranted = metrics.permissionGranted,
             cellIdentityPermissionGranted = metrics.cellIdentityPermissionGranted,
-            lteLayerResilience = metrics.lteLayerResilience
+            lteLayerResilience = metrics.lteLayerResilience,
+            signalQualityFresh = metrics.signalQualityFresh
         )
         onStatsUpdated(base)
     }

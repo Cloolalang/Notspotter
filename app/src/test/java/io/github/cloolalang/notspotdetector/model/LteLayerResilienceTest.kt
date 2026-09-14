@@ -139,4 +139,49 @@ class LteLayerResilienceTest {
         assertEquals(0, reading.primaryLayerCellCount)
         assertNull(reading.primaryLayerDominanceDb)
     }
+
+    @Test
+    fun intraDominanceSuppressedWhenPrimaryRsrpBelowMinus120() {
+        val reading = LteLayerResilience.fromDetectedCells(
+            cells = listOf(
+                DetectedLteCell(earfcn = 1_800, pci = 42, rsrpDbm = -121, isRegistered = true),
+                DetectedLteCell(earfcn = null, pci = 87, rsrpDbm = -128)
+            ),
+            primaryEarfcn = 1_800,
+            primaryPci = 42
+        )
+
+        assertEquals(2, reading.primaryLayerCellCount)
+        assertNull(reading.primaryLayerDominanceDb)
+    }
+
+    @Test
+    fun intraDominanceKeptWhenPrimaryRsrpIsMinus120() {
+        val reading = LteLayerResilience.fromDetectedCells(
+            cells = listOf(
+                DetectedLteCell(earfcn = 1_800, pci = 42, rsrpDbm = -120, isRegistered = true),
+                DetectedLteCell(earfcn = null, pci = 87, rsrpDbm = -128)
+            ),
+            primaryEarfcn = 1_800,
+            primaryPci = 42
+        )
+
+        assertEquals(8, reading.primaryLayerDominanceDb)
+    }
+
+    @Test
+    fun intraDominanceSuppressedWhenPassedPrimaryRsrpIsTooWeak() {
+        val reading = LteLayerResilience.fromDetectedCells(
+            cells = listOf(
+                DetectedLteCell(earfcn = 1_800, pci = 42, rsrpDbm = -80, isRegistered = true),
+                DetectedLteCell(earfcn = null, pci = 87, rsrpDbm = -92)
+            ),
+            primaryEarfcn = 1_800,
+            primaryPci = 42,
+            primaryRsrpDbm = -125
+        )
+
+        assertEquals(2, reading.primaryLayerCellCount)
+        assertNull(reading.primaryLayerDominanceDb)
+    }
 }

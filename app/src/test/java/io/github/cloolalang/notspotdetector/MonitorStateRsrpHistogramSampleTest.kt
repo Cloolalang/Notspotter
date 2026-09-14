@@ -99,6 +99,15 @@ class MonitorStateRsrpHistogramSampleTest {
         assertEquals(null, MonitorState.rsrpHistory.value.last().rsrpDbm)
     }
 
+    @Test
+    fun tickRsrpHistogramSample_skipsFrozenQuality() {
+        MonitorState.clearRsrpHistogram()
+        MonitorState.updateStats(lteStats(-95).copy(signalQualityFresh = false))
+        MonitorState.tickRsrpHistogramSample()
+
+        assertTrue(MonitorState.rsrpHistory.value.isEmpty())
+    }
+
     private fun lteStats(
         rsrpDbm: Int?,
         radioAccessType: String = CellularSignalReader.RADIO_4G

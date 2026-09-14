@@ -612,6 +612,7 @@ object AppSettingsSnapshotCodec {
     private fun encodeAudio(settings: AudioVolumeSettings): JSONObject {
         return JSONObject()
             .put("masterVoiceAnnouncementsEnabled", settings.masterVoiceAnnouncementsEnabled)
+            .put("masterOtherSoundsEnabled", settings.masterOtherSoundsEnabled)
             .put("pingClickVolume", settings.pingClickVolume.toDouble())
             .put("lowSignalClickVolume", settings.lowSignalClickVolume.toDouble())
             .put("signalPulseFrequencyHz", settings.signalPulseFrequencyHz)
@@ -833,6 +834,10 @@ object AppSettingsSnapshotCodec {
             masterVoiceAnnouncementsEnabled = json.optBoolean(
                 "masterVoiceAnnouncementsEnabled",
                 AudioVolumeSettings.DEFAULT_MASTER_VOICE_ANNOUNCEMENTS_ENABLED
+            ),
+            masterOtherSoundsEnabled = json.optBoolean(
+                "masterOtherSoundsEnabled",
+                AudioVolumeSettings.DEFAULT_MASTER_OTHER_SOUNDS_ENABLED
             ),
             pingClickVolume = json.optDouble("pingClickVolume", AudioVolumeSettings.DEFAULT_VOLUME.toDouble())
                 .toFloat(),
