@@ -186,12 +186,7 @@ class ConnectivityMonitorService : Service() {
         startMockNetworkPeriodicVoiceWatcher()
         acquireWakeLock()
 
-        val notificationText = if (isPassiveOnlyStart) {
-            getString(R.string.notification_passive_only)
-        } else {
-            getString(R.string.notification_starting)
-        }
-        val notification = buildNotification(notificationText)
+        val notification = buildNotification()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(
                 NOTIFICATION_ID,
@@ -256,7 +251,7 @@ class ConnectivityMonitorService : Service() {
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         if (isMonitoringActive) {
-            val notification = buildNotification(MonitorState.stats.value.statusLabel(this))
+            val notification = buildNotification()
             val manager = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
             manager.notify(NOTIFICATION_ID, notification)
         }
@@ -350,7 +345,6 @@ class ConnectivityMonitorService : Service() {
             forceRestart = events.tier5Announced && playQualityAlerts,
             skipInitialDelay = events.tier5Immediate
         )
-        updateNotification(MonitorState.stats.value.statusLabel(this))
     }
 
     private suspend fun drainVoiceQueue() {
@@ -1002,8 +996,6 @@ class ConnectivityMonitorService : Service() {
                 handleStatsUpdate(stats)
             }
         }
-
-        updateNotification(getString(R.string.notification_passive_idle))
     }
 
     private fun stopMonitoring() {
@@ -1082,14 +1074,7 @@ class ConnectivityMonitorService : Service() {
         wakeLock = null
     }
 
-    private fun updateNotification(statusText: String) {
-        if (!isMonitoringActive) return
-        val notification = buildNotification(statusText)
-        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
-        manager.notify(NOTIFICATION_ID, notification)
-    }
-
-    private fun buildNotification(statusText: String): Notification {
+    private fun buildNotification(): Notification {
         val openAppIntent = PendingIntent.getActivity(
             this,
             0,
@@ -1106,7 +1091,6 @@ class ConnectivityMonitorService : Service() {
 
         return NotificationCompat.Builder(this, NotificationChannels.MONITOR_CHANNEL_ID)
             .setContentTitle(getString(R.string.notification_title))
-            .setContentText(statusText)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentIntent(openAppIntent)
             .addAction(
@@ -1139,24 +1123,5 @@ class ConnectivityMonitorService : Service() {
             val intent = Intent(context, ConnectivityMonitorService::class.java).setAction(ACTION_STOP)
             context.startService(intent)
         }
-    }
-}
-
-private fun io.github.cloolalang.notspotdetector.model.ConnectivityStats.statusLabel(
-    context: Context
-): String {
-    return when (quality) {
-        io.github.cloolalang.notspotdetector.model.ConnectionQuality.GOOD ->
-            context.getString(R.string.quality_good)
-        io.github.cloolalang.notspotdetector.model.ConnectionQuality.DEGRADED ->
-            context.getString(R.string.quality_degraded)
-        io.github.cloolalang.notspotdetector.model.ConnectionQuality.POOR ->
-            context.getString(R.string.quality_poor)
-        io.github.cloolalang.notspotdetector.model.ConnectionQuality.NO_CELLULAR ->
-            context.getString(R.string.quality_no_cellular)
-        io.github.cloolalang.notspotdetector.model.ConnectionQuality.PASSIVE_IDLE ->
-            context.getString(R.string.quality_passive_idle)
-        io.github.cloolalang.notspotdetector.model.ConnectionQuality.MONITORING_STOPPED ->
-            context.getString(R.string.monitoring_stopped)
     }
 }

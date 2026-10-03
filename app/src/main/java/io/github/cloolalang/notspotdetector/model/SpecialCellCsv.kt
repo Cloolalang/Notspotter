@@ -43,6 +43,14 @@ object SpecialCellCsv {
             val sector = cell("sector")
             val channelRaw = cell("channel")
             val pciRaw = cell("pci")
+            val eciRaw = firstPresent(
+                cell("eci"),
+                cell("ci"),
+                cell("cell_id"),
+                cell("cellid"),
+                cell("long_cell_id"),
+                cell("long_eci")
+            )
             if (listOf(site, type, mno, ratRaw, sector, channelRaw, pciRaw).any { it.isBlank() }) {
                 warnings.add("Line $lineNumber: missing required field")
                 return@forEachIndexed
@@ -52,6 +60,11 @@ object SpecialCellCsv {
             val pci = pciRaw.toIntOrNull()
             if (rat == null || channel == null || pci == null) {
                 warnings.add("Line $lineNumber: invalid rat, channel, or pci")
+                return@forEachIndexed
+            }
+            val parsedEci = parseOptionalEci(eciRaw)
+            if (parsedEci.invalid) {
+                warnings.add("Line $lineNumber: invalid eci")
                 return@forEachIndexed
             }
 
@@ -64,6 +77,7 @@ object SpecialCellCsv {
                     sector = sector,
                     channel = channel,
                     pci = pci,
+                    eci = parsedEci.value,
                     plmn = cell("plmn").ifBlank { null },
                     speak = parseSpeak(cell("speak")),
                     speakAs = cell("speak_as").ifBlank { null },
@@ -79,9 +93,14 @@ object SpecialCellCsv {
 
         val seenKeys = mutableSetOf<String>()
         cells.forEach { cell ->
-            val key = "${cell.rat.name}:${cell.channel}:${cell.pci}:${cell.plmn.orEmpty()}"
+            val key = "${cell.rat.name}:${cell.channel}:${cell.pci}:${cell.eci ?: ""}:${cell.plmn.orEmpty()}"
             if (!seenKeys.add(key)) {
-                warnings.add("Line ${cell.sourceLine}: duplicate match key ${cell.rat.displayLabel} ${cell.channel}/${cell.pci}")
+                val identity = if (cell.eci != null) {
+                    "${cell.channel}/${cell.pci} ECI ${cell.eci}"
+                } else {
+                    "${cell.channel}/${cell.pci}"
+                }
+                warnings.add("Line ${cell.sourceLine}: duplicate match key ${cell.rat.displayLabel} $identity")
             }
         }
 
@@ -91,6 +110,21 @@ object SpecialCellCsv {
             sourceLabel = sourceLabel,
             isExample = isExample
         )
+    }
+
+    private fun firstPresent(vararg values: String): String {
+        return values.firstOrNull { it.isNotBlank() }.orEmpty()
+    }
+
+    private data class ParsedEci(val value: Int?, val invalid: Boolean)
+
+    private fun parseOptionalEci(raw: String): ParsedEci {
+        if (raw.isBlank()) return ParsedEci(value = null, invalid = false)
+        val value = raw.toLongOrNull()
+        if (value == null || value < 0L || value > LTE_ECI_MAX) {
+            return ParsedEci(value = null, invalid = true)
+        }
+        return ParsedEci(value = value.toInt(), invalid = false)
     }
 
     private fun parseSpeak(raw: String): Boolean {
@@ -142,4 +176,7 @@ object SpecialCellCsv {
         "channel",
         "pci"
     )
+
+    /** LTE 28-bit ECI maximum (`CellIdentityLte.getCi()`). */
+    private const val LTE_ECI_MAX = 0x0FFFFFFFL
 }

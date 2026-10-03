@@ -167,6 +167,51 @@ class SpecialCellCsvTest {
     }
 
     @Test
+    fun parse_optionalEci_readsDecimalAndAliases() {
+        val catalog = SpecialCellCsv.parse(
+            """
+            site,type,mno,rat,sector,channel,pci,cell_id
+            Tesco,Macro,Vodafone,4G,S1,6300,339,1234567
+            """.trimIndent()
+        )
+
+        assertEquals(1_234_567, catalog.cells.single().eci)
+        assertTrue(catalog.warnings.isEmpty())
+    }
+
+    @Test
+    fun parse_invalidEci_skipsRow() {
+        val catalog = SpecialCellCsv.parse(
+            """
+            site,type,mno,rat,sector,channel,pci,eci
+            Tesco,Macro,Vodafone,4G,S1,6300,339,not-a-cell
+            """.trimIndent()
+        )
+
+        assertEquals(0, catalog.size)
+        assertEquals(1, catalog.warnings.size)
+    }
+
+    @Test
+    fun match_eciFromCsvHitsDifferentChannel() {
+        val catalog = SpecialCellCsv.parse(
+            """
+            site,type,mno,rat,sector,channel,pci,eci,plmn
+            Tesco,Macro,Vodafone,4G,S1,6300,339,1234567,23415
+            """.trimIndent()
+        )
+        val stats = ConnectivityStats(
+            lteEarfcn = 2850,
+            ltePci = 340,
+            lteEci = 1_234_567,
+            plmn = "23415",
+            cellIdentityPermissionGranted = true
+        )
+
+        assertEquals("Tesco", SpecialCellMatcher.match(stats, catalog)?.cell?.site)
+    }
+
+    @Test
     fun announcement_speaksTypeSiteAndSector() {
         val cell = SpecialCell(
             site = "Ikea-Oxfordst",

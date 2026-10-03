@@ -241,7 +241,12 @@ private fun importResultMessage(result: SpecialCellsImportResult): Int {
 private fun SpecialCellCatalog.isNotEmpty(): Boolean = !isEmpty
 
 private fun formatLoadedCell(cell: SpecialCell): String {
-    return "${cell.site} · ${cell.type} · ${cell.rat.displayLabel} ${cell.sector} · ${cell.channel}/${cell.pci}"
+    val identity = if (cell.eci != null) {
+        "${cell.channel}/${cell.pci} ECI ${cell.eci}"
+    } else {
+        "${cell.channel}/${cell.pci}"
+    }
+    return "${cell.site} · ${cell.type} · ${cell.rat.displayLabel} ${cell.sector} · $identity"
 }
 
 @Composable

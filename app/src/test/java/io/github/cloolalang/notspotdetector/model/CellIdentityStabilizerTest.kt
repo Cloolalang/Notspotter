@@ -18,6 +18,26 @@ class CellIdentityStabilizerTest {
     }
 
     @Test
+    fun coalesceWith_keepsEciOnlyForTheSameLteCell() {
+        val previous = CellIdentitySnapshot(lteEarfcn = 1_800, ltePci = 42, lteEci = 1_234_567)
+        val sameCell = CellIdentitySnapshot(lteEarfcn = 1_800, ltePci = 42).coalesceWith(previous)
+        val otherCell = CellIdentitySnapshot(lteEarfcn = 1_850, ltePci = 87).coalesceWith(previous)
+
+        assertEquals(1_234_567, sameCell.lteEci)
+        assertNull(otherCell.lteEci)
+    }
+
+    @Test
+    fun coalesceWith_keepsNciOnlyForTheSameNrCell() {
+        val previous = CellIdentitySnapshot(nrEarfcn = 158_760, nrPci = 231, nrNci = 10_000_000_001L)
+        val sameCell = CellIdentitySnapshot(nrEarfcn = 158_760, nrPci = 231).coalesceWith(previous)
+        val otherCell = CellIdentitySnapshot(nrEarfcn = 158_760, nrPci = 312).coalesceWith(previous)
+
+        assertEquals(10_000_000_001L, sameCell.nrNci)
+        assertNull(otherCell.nrNci)
+    }
+
+    @Test
     fun coalesceWith_doesNotReusePciFromADifferentEarfcn() {
         val current = CellIdentitySnapshot(lteEarfcn = 1_900, ltePci = null)
         val previous = CellIdentitySnapshot(lteEarfcn = 1_800, ltePci = 42)

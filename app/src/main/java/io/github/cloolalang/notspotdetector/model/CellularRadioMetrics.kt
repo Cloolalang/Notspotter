@@ -10,8 +10,12 @@ data class CellularRadioMetrics(
     val radioAccessType: String? = null,
     val lteEarfcn: Int? = null,
     val ltePci: Int? = null,
+    /** LTE 28-bit ECI (long Cell ID) from [android.telephony.CellIdentityLte.getCi]. */
+    val lteEci: Int? = null,
     val nrEarfcn: Int? = null,
     val nrPci: Int? = null,
+    /** NR 36-bit NCI (long Cell ID) from [android.telephony.CellIdentityNr.getNci]. */
+    val nrNci: Long? = null,
     /**
      * Serving NR operating band (e.g. 78 for n78), read directly from
      * [android.telephony.CellIdentityNr.getBands] (API 30+) rather than derived from the
@@ -98,8 +102,10 @@ data class CellularRadioMetrics(
             radioAccessType = null,
             lteEarfcn = null,
             ltePci = null,
+            lteEci = null,
             nrEarfcn = null,
             nrPci = null,
+            nrNci = null,
             nrBand = null,
             gsmEarfcn = null,
             gsmBsic = null,

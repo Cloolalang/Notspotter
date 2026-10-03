@@ -26,11 +26,25 @@ fun CellIdentitySnapshot.coalesceWith(previous: CellIdentitySnapshot): CellIdent
         val earfcn = gsmEarfcn ?: nextGsmEarfcn
         earfcn == null || previous.gsmEarfcn == null || earfcn == previous.gsmEarfcn
     }
+    val nextLteEci = lteEci ?: previous.lteEci?.takeIf {
+        nextLteEarfcn != null &&
+            nextLtePci != null &&
+            nextLteEarfcn == previous.lteEarfcn &&
+            nextLtePci == previous.ltePci
+    }
+    val nextNrNci = nrNci ?: previous.nrNci?.takeIf {
+        nextNrEarfcn != null &&
+            nextNrPci != null &&
+            nextNrEarfcn == previous.nrEarfcn &&
+            nextNrPci == previous.nrPci
+    }
     return CellIdentitySnapshot(
         lteEarfcn = nextLteEarfcn,
         ltePci = nextLtePci,
+        lteEci = nextLteEci,
         nrEarfcn = nextNrEarfcn,
         nrPci = nextNrPci,
+        nrNci = nextNrNci,
         nrBand = nrBand ?: previous.nrBand?.takeIf {
             val earfcn = nrEarfcn ?: nextNrEarfcn
             earfcn == null || previous.nrEarfcn == null || earfcn == previous.nrEarfcn
@@ -65,8 +79,10 @@ fun ConnectivityStats.withStabilizedCellIdentity(
             nrSinrDb = null,
             lteEarfcn = null,
             ltePci = null,
+            lteEci = null,
             nrEarfcn = null,
             nrPci = null,
+            nrNci = null,
             nrBand = null,
             gsmEarfcn = null,
             gsmBsic = null
@@ -78,8 +94,10 @@ fun ConnectivityStats.withStabilizedCellIdentity(
         CellIdentitySnapshot(
             lteEarfcn = null,
             ltePci = null,
+            lteEci = null,
             nrEarfcn = null,
             nrPci = null,
+            nrNci = null,
             nrBand = null,
             gsmEarfcn = current.gsmEarfcn ?: previous.gsmEarfcn,
             gsmBsic = current.gsmBsic ?: previous.gsmBsic
@@ -99,8 +117,10 @@ fun ConnectivityStats.withStabilizedCellIdentity(
     return copy(
         lteEarfcn = stabilized.lteEarfcn,
         ltePci = stabilized.ltePci,
+        lteEci = stabilized.lteEci,
         nrEarfcn = stabilized.nrEarfcn,
         nrPci = stabilized.nrPci,
+        nrNci = stabilized.nrNci,
         nrBand = stabilized.nrBand,
         gsmEarfcn = stabilized.gsmEarfcn,
         gsmBsic = stabilized.gsmBsic

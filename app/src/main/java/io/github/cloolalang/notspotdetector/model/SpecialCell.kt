@@ -42,6 +42,7 @@ data class SpecialCell(
     val sector: String,
     val channel: Int,
     val pci: Int,
+    val eci: Int? = null,
     val plmn: String? = null,
     val speak: Boolean = true,
     val speakAs: String? = null,
@@ -49,10 +50,26 @@ data class SpecialCell(
     val sourceLine: Int = 0
 ) {
     val matchKey: String
-        get() = "${rat.name}:$channel:$pci:${plmn.orEmpty()}"
+        get() = if (eci != null) {
+            "${rat.name}:eci:$eci:${plmn.orEmpty()}"
+        } else {
+            "${rat.name}:$channel:$pci:${plmn.orEmpty()}"
+        }
 
     val displaySite: String
         get() = speakAs?.takeIf { it.isNotBlank() } ?: site
+
+    fun matchesServing(earfcn: Int?, pci: Int?, eci: Int?): Boolean {
+        if (rat != SpecialCellRat.G4) return false
+        if (this.eci != null && eci != null) {
+            return this.eci == eci
+        }
+        return earfcn != null && pci != null && channel == earfcn && this.pci == pci
+    }
+
+    fun isEciMatch(servingEci: Int?): Boolean {
+        return eci != null && servingEci != null && eci == servingEci
+    }
 }
 
 data class SpecialCellMatch(

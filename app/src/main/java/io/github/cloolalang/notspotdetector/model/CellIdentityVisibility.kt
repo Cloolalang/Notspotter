@@ -15,8 +15,10 @@ fun ConnectivityStats.withCellIdentityForDisplay(
         nrSinrDb = null,
         lteEarfcn = null,
         ltePci = null,
+        lteEci = null,
         nrEarfcn = null,
         nrPci = null,
+        nrNci = null,
         gsmEarfcn = null,
         gsmBsic = null
     )

@@ -31,8 +31,12 @@ data class ConnectivityStats(
     val radioAccessType: String? = null,
     val lteEarfcn: Int? = null,
     val ltePci: Int? = null,
+    /** LTE 28-bit ECI (long Cell ID) — see [CellularRadioMetrics.lteEci]. */
+    val lteEci: Int? = null,
     val nrEarfcn: Int? = null,
     val nrPci: Int? = null,
+    /** NR 36-bit NCI (long Cell ID) — see [CellularRadioMetrics.nrNci]. */
+    val nrNci: Long? = null,
     /** Serving NR operating band (e.g. 78 for n78) — see [CellularRadioMetrics.nrBand]. */
     val nrBand: Int? = null,
     val gsmEarfcn: Int? = null,
@@ -141,7 +145,7 @@ fun ConnectivityStats.hidingFiveGIfDisabled(fiveGFeaturesEnabled: Boolean): Conn
     if (fiveGFeaturesEnabled) return this
     val isFiveG = radioAccessType == io.github.cloolalang.notspotdetector.network.CellularSignalReader.RADIO_5G ||
         radioAccessType == io.github.cloolalang.notspotdetector.network.CellularSignalReader.RADIO_5G_ENDC
-    if (!isFiveG && nrEarfcn == null && nrPci == null && nrBand == null) return this
+    if (!isFiveG && nrEarfcn == null && nrPci == null && nrBand == null && nrNci == null) return this
     return copy(
         radioAccessType = if (isFiveG) {
             io.github.cloolalang.notspotdetector.network.CellularSignalReader.RADIO_4G
@@ -150,6 +154,7 @@ fun ConnectivityStats.hidingFiveGIfDisabled(fiveGFeaturesEnabled: Boolean): Conn
         },
         nrEarfcn = null,
         nrPci = null,
+        nrNci = null,
         nrBand = null,
         nrSinrDb = null
     )

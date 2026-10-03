@@ -237,8 +237,10 @@ object CellularSignalReader {
             homePlmn = operatorInfo.homePlmn,
             lteEarfcn = servingCell.lteEarfcn,
             ltePci = servingCell.ltePci,
+            lteEci = servingCell.lteEci,
             nrEarfcn = servingCell.nrEarfcn,
             nrPci = servingCell.nrPci,
+            nrNci = servingCell.nrNci,
             nrBand = servingCell.nrBand,
             gsmEarfcn = servingCell.gsmEarfcn,
             gsmBsic = servingCell.gsmBsic,
@@ -281,8 +283,10 @@ object CellularSignalReader {
                 nrSinrDb = null,
                 lteEarfcn = null,
                 ltePci = null,
+                lteEci = null,
                 nrEarfcn = null,
                 nrPci = null,
+                nrNci = null,
                 gsmEarfcn = null,
                 gsmBsic = null
             )
@@ -1071,6 +1075,7 @@ object CellularSignalReader {
                     val lteSinr = SinrMetric.takeLteRssnr(info.cellSignalStrength.rssnr)
                     val earfcn = identity.earfcn.takeIf { isValidCellIdentityValue(it) }
                     val pci = identity.pci.takeIf { isValidCellIdentityValue(it) }
+                    val eci = identity.ci.takeIf { isValidLteEci(it) }
                     val candidate = RankedServingCell(
                         connectionRank = connectionRank,
                         plmnRank = plmnMatchAny(identity, expectedPlmns).rank,
@@ -1078,6 +1083,7 @@ object CellularSignalReader {
                         pciMatchesSignal = pci != null && pci in signalLtePcis,
                         lteEarfcn = earfcn,
                         ltePci = pci,
+                        lteEci = eci,
                         rsrpDbm = rsrp,
                         rsrqDb = rsrq,
                         lteSinrDb = lteSinr,
@@ -1126,6 +1132,7 @@ object CellularSignalReader {
                             }
                             val earfcn = identity.nrarfcn.takeIf { isValidCellIdentityValue(it) }
                             val pci = identity.pci.takeIf { isValidCellIdentityValue(it) }
+                            val nci = identity.nci.takeIf { isValidNrNci(it) }
                             val candidate = RankedServingCell(
                                 connectionRank = connectionRank,
                                 plmnRank = plmnMatchAny(identity, expectedPlmns).rank,
@@ -1133,6 +1140,7 @@ object CellularSignalReader {
                                 pciMatchesSignal = pci != null && pci in signalNrPcis,
                                 nrEarfcn = earfcn,
                                 nrPci = pci,
+                                nrNci = nci,
                                 nrBand = readNrBand(identity),
                                 rsrpDbm = rsrp,
                                 rsrqDb = rsrq,
@@ -1211,6 +1219,7 @@ object CellularSignalReader {
                 cell.copy(
                     lteEarfcn = earfcn,
                     ltePci = pci,
+                    lteEci = cell.lteEci.takeIf { earfcn == cell.lteEarfcn && pci == cell.ltePci },
                     rsrpDbm = null,
                     rsrqDb = null,
                     lteSinrDb = null,
@@ -1222,6 +1231,7 @@ object CellularSignalReader {
                 cell.copy(
                     nrEarfcn = earfcn,
                     nrPci = pci,
+                    nrNci = cell.nrNci.takeIf { earfcn == cell.nrEarfcn && pci == cell.nrPci },
                     rsrpDbm = null,
                     rsrqDb = null,
                     nrSinrDb = null,
@@ -1320,6 +1330,7 @@ object CellularSignalReader {
                 pciMatchesSignal = pci != null && pci in signalLtePcis,
                 lteEarfcn = earfcn,
                 ltePci = pci,
+                lteEci = identity.ci.takeIf { isValidLteEci(it) },
                 rsrpDbm = info.cellSignalStrength.rsrp.takeIf { isValidMetric(it) },
                 rsrqDb = info.cellSignalStrength.rsrq.takeIf { isValidMetric(it) },
                 lteSinrDb = SinrMetric.takeLteRssnr(info.cellSignalStrength.rssnr),
@@ -1361,8 +1372,10 @@ object CellularSignalReader {
         }
         val lteEarfcn = bestLte?.lteEarfcn ?: rawGsmEarfcn.takeIf { promoteGsmToLte }
         val ltePci = bestLte?.ltePci ?: rawGsmBsic.takeIf { promoteGsmToLte }
+        val lteEci = bestLte?.lteEci
         val nrEarfcn = bestNr?.nrEarfcn
         val nrPci = bestNr?.nrPci
+        val nrNci = bestNr?.nrNci
         val nrBand = bestNr?.nrBand
         val attachGsm = radioAccessType == RADIO_2G && gsmIsPlausible
         val gsmEarfcn = rawGsmEarfcn.takeIf { attachGsm }
@@ -1376,8 +1389,10 @@ object CellularSignalReader {
         return ServingCellIdentity(
             lteEarfcn = lteEarfcn,
             ltePci = ltePci,
+            lteEci = lteEci,
             nrEarfcn = nrEarfcn,
             nrPci = nrPci,
+            nrNci = nrNci,
             nrBand = nrBand,
             gsmEarfcn = gsmEarfcn,
             gsmBsic = gsmBsic,
@@ -1447,8 +1462,10 @@ object CellularSignalReader {
         val pciMatchesSignal: Boolean = false,
         val lteEarfcn: Int? = null,
         val ltePci: Int? = null,
+        val lteEci: Int? = null,
         val nrEarfcn: Int? = null,
         val nrPci: Int? = null,
+        val nrNci: Long? = null,
         val nrBand: Int? = null,
         val gsmEarfcn: Int? = null,
         val gsmBsic: Int? = null,
@@ -1615,8 +1632,10 @@ object CellularSignalReader {
     private data class ServingCellIdentity(
         val lteEarfcn: Int? = null,
         val ltePci: Int? = null,
+        val lteEci: Int? = null,
         val nrEarfcn: Int? = null,
         val nrPci: Int? = null,
+        val nrNci: Long? = null,
         val nrBand: Int? = null,
         val gsmEarfcn: Int? = null,
         val gsmBsic: Int? = null,
@@ -1669,6 +1688,18 @@ object CellularSignalReader {
                 val earfcn = gsmEarfcn ?: nextGsmEarfcn
                 earfcn == null || fallback.gsmEarfcn == null || earfcn == fallback.gsmEarfcn
             }
+            val nextLteEci = lteEci ?: fallback.lteEci?.takeIf {
+                nextLteEarfcn != null &&
+                    nextLtePci != null &&
+                    nextLteEarfcn == fallback.lteEarfcn &&
+                    nextLtePci == fallback.ltePci
+            }
+            val nextNrNci = nrNci ?: fallback.nrNci?.takeIf {
+                nextNrEarfcn != null &&
+                    nextNrPci != null &&
+                    nextNrEarfcn == fallback.nrEarfcn &&
+                    nextNrPci == fallback.nrPci
+            }
             val sameCell = copy(
                 lteEarfcn = nextLteEarfcn,
                 ltePci = nextLtePci,
@@ -1681,8 +1712,10 @@ object CellularSignalReader {
             return copy(
                 lteEarfcn = nextLteEarfcn,
                 ltePci = nextLtePci,
+                lteEci = nextLteEci,
                 nrEarfcn = nextNrEarfcn,
                 nrPci = nextNrPci,
+                nrNci = nextNrNci,
                 nrBand = nrBand ?: fallback.nrBand?.takeIf {
                     val earfcn = nrEarfcn ?: nextNrEarfcn
                     earfcn == null || fallback.nrEarfcn == null || earfcn == fallback.nrEarfcn
@@ -1787,6 +1820,16 @@ object CellularSignalReader {
         return value != CellInfo.UNAVAILABLE && value != Int.MAX_VALUE
     }
 
+    /** LTE ECI is a 28-bit Cell Identity; Android reports [Int.MAX_VALUE] when unknown. */
+    private fun isValidLteEci(value: Int): Boolean {
+        return value in 0..LTE_ECI_MAX && isValidCellIdentityValue(value)
+    }
+
+    /** NR NCI is a 36-bit Cell Identity. */
+    private fun isValidNrNci(value: Long): Boolean {
+        return value in 0L..NR_NCI_MAX && value != Long.MAX_VALUE
+    }
+
     private fun isValidMetric(value: Int): Boolean {
         return value != CellInfo.UNAVAILABLE && value != Int.MAX_VALUE && value != 0
     }
@@ -1876,19 +1919,21 @@ object CellularSignalReader {
                 val identity = info.cellIdentity
                 val earfcn = identity.earfcn.takeIf { isValidCellIdentityValue(it) }
                 val pci = identity.pci.takeIf { isValidCellIdentityValue(it) }
+                val eci = identity.ci.takeIf { isValidLteEci(it) }
                 val rsrp = info.cellSignalStrength.rsrp.takeIf { isValidMetric(it) }
                 val plmn = formatIdentityPlmn(identity) ?: "?"
-                "L$flag:${earfcn ?: "—"}/${pci ?: "—"}/${rsrp ?: "—"}/$plmn/$age"
+                "L$flag:${earfcn ?: "—"}/${pci ?: "—"}/${eci ?: "—"}/${rsrp ?: "—"}/$plmn/$age"
             }
             is CellInfoNr -> {
                 if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
                 val identity = info.cellIdentity as? CellIdentityNr ?: return null
                 val earfcn = identity.nrarfcn.takeIf { isValidCellIdentityValue(it) }
                 val pci = identity.pci.takeIf { isValidCellIdentityValue(it) }
+                val nci = identity.nci.takeIf { isValidNrNci(it) }
                 val rsrp = (info.cellSignalStrength as? CellSignalStrengthNr)
                     ?.ssRsrp?.takeIf { isValidMetric(it) }
                 val plmn = formatIdentityPlmn(identity) ?: "?"
-                "N$flag:${earfcn ?: "—"}/${pci ?: "—"}/${rsrp ?: "—"}/$plmn/$age"
+                "N$flag:${earfcn ?: "—"}/${pci ?: "—"}/${nci ?: "—"}/${rsrp ?: "—"}/$plmn/$age"
             }
             is CellInfoGsm -> {
                 val identity = info.cellIdentity
@@ -1920,6 +1965,9 @@ object CellularSignalReader {
             }
         }
     }
+
+    private const val LTE_ECI_MAX = 0x0FFFFFFF
+    private const val NR_NCI_MAX = 0xF_FFFF_FFFFL
 
     private val TWO_G_NETWORK_TYPES = setOf(
         TelephonyManager.NETWORK_TYPE_GPRS,

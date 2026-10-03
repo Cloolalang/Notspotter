@@ -110,6 +110,7 @@ data class PassiveMockSettings(
             radioAccessType = CellularSignalReader.RADIO_4G,
             lteEarfcn = MOCK_LTE_EARFCN,
             ltePci = MOCK_LTE_PCI,
+            lteEci = MOCK_LTE_ECI,
             isOn2g = false,
             isLimitedService = false,
             networkServiceMode = NetworkServiceMode.IN_SERVICE,
@@ -133,6 +134,7 @@ data class PassiveMockSettings(
             radioAccessType = CellularSignalReader.RADIO_5G,
             nrEarfcn = MOCK_NR_EARFCN,
             nrPci = MOCK_NR_PCI,
+            nrNci = MOCK_NR_NCI,
             nrBand = MOCK_NR_BAND,
             isOn2g = false,
             isLimitedService = false,
@@ -157,8 +159,10 @@ data class PassiveMockSettings(
             radioAccessType = CellularSignalReader.RADIO_5G_ENDC,
             lteEarfcn = MOCK_LTE_EARFCN,
             ltePci = MOCK_LTE_PCI,
+            lteEci = MOCK_LTE_ECI,
             nrEarfcn = MOCK_NR_EARFCN,
             nrPci = MOCK_NR_PCI,
+            nrNci = MOCK_NR_NCI,
             nrBand = MOCK_NR_BAND,
             isOn2g = false,
             isLimitedService = false,
@@ -204,6 +208,7 @@ data class PassiveMockSettings(
             radioAccessType = CellularSignalReader.RADIO_4G,
             lteEarfcn = MOCK_ALT_LTE_EARFCN,
             ltePci = MOCK_ALT_LTE_PCI,
+            lteEci = MOCK_ALT_LTE_ECI,
             isOn2g = false,
             isLimitedService = false,
             networkServiceMode = NetworkServiceMode.IN_SERVICE,
@@ -274,6 +279,7 @@ data class PassiveMockSettings(
             radioAccessType = CellularSignalReader.RADIO_5G_ENDC,
             lteEarfcn = MOCK_ALT_LTE_EARFCN,
             ltePci = MOCK_ALT_LTE_PCI,
+            lteEci = MOCK_ALT_LTE_ECI,
             nrEarfcn = MOCK_NR_EARFCN,
             nrPci = MOCK_ALT_NR_PCI,
             nrBand = MOCK_NR_BAND,
@@ -300,6 +306,7 @@ data class PassiveMockSettings(
             radioAccessType = CellularSignalReader.RADIO_4G,
             lteEarfcn = MOCK_LTE_EARFCN,
             ltePci = MOCK_LTE_PCI,
+            lteEci = MOCK_LTE_ECI,
             isOn2g = false,
             isLimitedService = true,
             networkServiceMode = NetworkServiceMode.LIMITED_SERVICE,
@@ -344,6 +351,7 @@ data class PassiveMockSettings(
             radioAccessType = CellularSignalReader.RADIO_4G,
             lteEarfcn = MOCK_ALT_LTE_EARFCN,
             ltePci = MOCK_ALT_LTE_PCI,
+            lteEci = MOCK_ALT_LTE_ECI,
             isOn2g = false,
             isLimitedService = true,
             networkServiceMode = NetworkServiceMode.LIMITED_SERVICE,
@@ -450,8 +458,10 @@ data class PassiveMockSettings(
         radioAccessType: String?,
         lteEarfcn: Int? = null,
         ltePci: Int? = null,
+        lteEci: Int? = null,
         nrEarfcn: Int? = null,
         nrPci: Int? = null,
+        nrNci: Long? = null,
         nrBand: Int? = null,
         gsmEarfcn: Int? = null,
         gsmBsic: Int? = null,
@@ -477,8 +487,10 @@ data class PassiveMockSettings(
             radioAccessType = radioAccessType,
             lteEarfcn = lteEarfcn,
             ltePci = ltePci,
+            lteEci = lteEci,
             nrEarfcn = nrEarfcn,
             nrPci = nrPci,
+            nrNci = nrNci,
             nrBand = nrBand,
             gsmEarfcn = gsmEarfcn,
             gsmBsic = gsmBsic,
@@ -524,6 +536,9 @@ data class PassiveMockSettings(
         const val MOCK_ALT_PLMN = MOCK_VISITED_PLMN
         const val MOCK_LTE_EARFCN = 1_800
         const val MOCK_LTE_PCI = 42
+        const val MOCK_LTE_ECI = 1_234_567
+        const val MOCK_ALT_LTE_ECI = 2_345_678
+        const val MOCK_NR_NCI = 10_000_000_001L
         /** NR secondary carrier for the Home operator 5G EN-DC mock scenario. */
         const val MOCK_NR_EARFCN = 158_760
         const val MOCK_NR_PCI = 231
@@ -563,8 +578,10 @@ fun PassiveMockSettings.toConnectivityStats(
         radioAccessType = radio.radioAccessType,
         lteEarfcn = radio.lteEarfcn,
         ltePci = radio.ltePci,
+        lteEci = radio.lteEci,
         nrEarfcn = radio.nrEarfcn,
         nrPci = radio.nrPci,
+        nrNci = radio.nrNci,
         nrBand = radio.nrBand,
         gsmEarfcn = radio.gsmEarfcn,
         gsmBsic = radio.gsmBsic,

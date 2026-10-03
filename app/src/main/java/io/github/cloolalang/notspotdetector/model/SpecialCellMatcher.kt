@@ -18,26 +18,29 @@ object SpecialCellMatcher {
         blankStaleIdentity: Boolean = false
     ): SpecialCellMatch? {
         if (catalog.isEmpty || blankStaleIdentity) return null
-        if (!stats.cellIdentityPermissionGranted && stats.ltePci == null) {
+        if (!stats.cellIdentityPermissionGranted && stats.ltePci == null && stats.lteEci == null) {
             return null
         }
 
         val earfcn = stats.lteEarfcn
         val pci = stats.ltePci
-        if (earfcn == null || pci == null) return null
+        val eci = stats.lteEci
+        if (earfcn == null && pci == null && eci == null) return null
 
         val matches = catalog.cells.filter { cell ->
-            cell.rat == SpecialCellRat.G4 &&
-                cell.channel == earfcn &&
-                cell.pci == pci
+            cell.matchesServing(earfcn, pci, eci)
         }
         if (matches.isEmpty()) return null
         // Camped/serving PLMN only — never the SIM home PLMN. A roaming SIM in limited
         // service still camps on the listed cell's EARFCN/PCI; its home PLMN would hide the hit.
         val campedPlmn = normalizePlmn(stats.plmn)
-        val preferred = matches.firstOrNull { cell ->
-            campedPlmn != null && normalizePlmn(cell.plmn) == campedPlmn
-        } ?: matches.first()
+        fun plmnMatches(cell: SpecialCell): Boolean {
+            return campedPlmn != null && normalizePlmn(cell.plmn) == campedPlmn
+        }
+        val preferred = matches.firstOrNull { cell -> cell.isEciMatch(eci) && plmnMatches(cell) }
+            ?: matches.firstOrNull { cell -> cell.isEciMatch(eci) }
+            ?: matches.firstOrNull(::plmnMatches)
+            ?: matches.first()
         return SpecialCellMatch(preferred, SpecialCellLayer.LTE)
     }
 
@@ -45,7 +48,8 @@ object SpecialCellMatcher {
         val earfcn = stats.lteEarfcn
         val pci = stats.ltePci
         if (earfcn == null || pci == null) return null
-        return "$earfcn/$pci"
+        val eci = stats.lteEci
+        return if (eci != null) "$earfcn/$pci ECI $eci" else "$earfcn/$pci"
     }
 
     fun hasServingIdentity(stats: ConnectivityStats): Boolean {

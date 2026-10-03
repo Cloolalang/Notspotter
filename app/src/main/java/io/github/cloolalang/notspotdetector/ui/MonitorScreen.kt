@@ -789,8 +789,10 @@ private fun CellIdentityMetrics(
     val staleNoSignal = stats.shouldBlankStaleCellIdentity(passiveSignalSettings)
     val lteEarfcn = stats.lteEarfcn.takeUnless { staleNoSignal }
     val ltePci = stats.ltePci.takeUnless { staleNoSignal }
+    val lteEci = stats.lteEci.takeUnless { staleNoSignal }
     val nrEarfcn = stats.nrEarfcn.takeUnless { staleNoSignal }
     val nrPci = stats.nrPci.takeUnless { staleNoSignal }
+    val nrNci = stats.nrNci.takeUnless { staleNoSignal }
     val nrBand = stats.nrBand.takeUnless { staleNoSignal }
     val gsmEarfcn = stats.gsmEarfcn.takeUnless { staleNoSignal }
     val gsmBsic = stats.gsmBsic.takeUnless { staleNoSignal }
@@ -819,14 +821,26 @@ private fun CellIdentityMetrics(
                 value = formatChannelIdentityValue(lteEarfcn, ltePci, permissionGranted)
             )
             MetricRow(
+                label = stringResource(R.string.metric_eci),
+                value = formatCellIdentityValue(lteEci, permissionGranted)
+            )
+            MetricRow(
                 label = stringResource(R.string.metric_nr_carrier),
                 value = formatChannelIdentityValue(nrEarfcn, nrPci, permissionGranted)
+            )
+            MetricRow(
+                label = stringResource(R.string.metric_nci),
+                value = formatLongCellIdentityValue(nrNci, permissionGranted)
             )
         }
         CellularSignalReader.RADIO_5G -> {
             MetricRow(
                 label = stringResource(R.string.metric_primary_carrier),
                 value = formatChannelIdentityValue(nrEarfcn, nrPci, permissionGranted)
+            )
+            MetricRow(
+                label = stringResource(R.string.metric_nci),
+                value = formatLongCellIdentityValue(nrNci, permissionGranted)
             )
         }
         CellularSignalReader.RADIO_2G -> {
@@ -839,6 +853,10 @@ private fun CellIdentityMetrics(
             MetricRow(
                 label = stringResource(R.string.metric_primary_carrier),
                 value = formatChannelIdentityValue(lteEarfcn, ltePci, permissionGranted)
+            )
+            MetricRow(
+                label = stringResource(R.string.metric_eci),
+                value = formatCellIdentityValue(lteEci, permissionGranted)
             )
         }
     }
@@ -1002,6 +1020,20 @@ private fun formatSignalValue(
 @Composable
 private fun formatCellIdentityValue(
     value: Int?,
+    permissionGranted: Boolean
+): String {
+    if (!permissionGranted) {
+        return stringResource(R.string.cell_identity_permission_required)
+    }
+    if (value == null) {
+        return "—"
+    }
+    return value.toString()
+}
+
+@Composable
+private fun formatLongCellIdentityValue(
+    value: Long?,
     permissionGranted: Boolean
 ): String {
     if (!permissionGranted) {

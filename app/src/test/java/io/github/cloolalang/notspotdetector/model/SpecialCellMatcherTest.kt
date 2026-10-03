@@ -37,6 +37,17 @@ class SpecialCellMatcherTest {
                 channel = 3501,
                 pci = 328,
                 plmn = "23415"
+            ),
+            SpecialCell(
+                site = "Tesco",
+                type = "Macro",
+                mno = "Vodafone",
+                rat = SpecialCellRat.G4,
+                sector = "S1",
+                channel = 6300,
+                pci = 339,
+                eci = 1_234_567,
+                plmn = "23415"
             )
         )
     )
@@ -134,5 +145,50 @@ class SpecialCellMatcherTest {
 
         assertEquals("Hill Farm", match?.cell?.site)
         assertEquals("3501/328", SpecialCellMatcher.servingIdentitySummary(stats))
+    }
+
+    @Test
+    fun match_eciHitsListedSectorOnDifferentEarfcn() {
+        val stats = ConnectivityStats(
+            radioAccessType = "4G",
+            lteEarfcn = 2850,
+            ltePci = 339,
+            lteEci = 1_234_567,
+            plmn = "23415",
+            cellIdentityPermissionGranted = true
+        )
+
+        val match = SpecialCellMatcher.match(stats, catalog)
+
+        assertEquals("Tesco", match?.cell?.site)
+        assertEquals("2850/339 ECI 1234567", SpecialCellMatcher.servingIdentitySummary(stats))
+    }
+
+    @Test
+    fun match_listedEciDoesNotFallBackToChannelPciWhenServingEciDiffers() {
+        val stats = ConnectivityStats(
+            radioAccessType = "4G",
+            lteEarfcn = 6300,
+            ltePci = 339,
+            lteEci = 9_999_999,
+            plmn = "23415",
+            cellIdentityPermissionGranted = true
+        )
+
+        assertNull(SpecialCellMatcher.match(stats, catalog))
+    }
+
+    @Test
+    fun match_listedEciFallsBackToChannelPciWhenPhoneOmitsEci() {
+        val stats = ConnectivityStats(
+            radioAccessType = "4G",
+            lteEarfcn = 6300,
+            ltePci = 339,
+            plmn = "23415",
+            cellIdentityPermissionGranted = true
+        )
+
+        assertEquals("Tesco", SpecialCellMatcher.match(stats, catalog)?.cell?.site)
+        assertEquals("6300/339", SpecialCellMatcher.servingIdentitySummary(stats))
     }
 }

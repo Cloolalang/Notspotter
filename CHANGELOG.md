@@ -5,6 +5,24 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.87.1] - 2026-10-03
+
+### Changed
+
+- **Monitor notification** — The status shade no longer shows leftover ping-quality text such as “Degraded connection”. While monitoring it is just **NotSpotter** with **Stop**.
+
+## [2.87.0] - 2026-10-03
+
+### Added
+
+- **ECI in known-cells matching** — Known-cells CSV can include an optional **eci** column (also `ci`, `cell_id`, or `long_cell_id`). When the list and the serving 4G cell both have ECI, that identity wins — the same sector still matches on another EARFCN. If either side lacks ECI, matching stays EARFCN/PCI as before. A listed ECI that disagrees with the serving ECI does not fall back to PCI (avoids PCI collisions).
+
+## [2.86.0] - 2026-10-03
+
+### Added
+
+- **ECI / NCI in cellular metrics** — Cellular metrics now show the serving long Cell ID from TelephonyManager: **ECI** (LTE 28-bit `CellIdentityLte.getCi()`) on 4G and EN-DC, and **NCI** (NR 36-bit `CellIdentityNr.getNci()`) on 5G. Same location permission as EARFCN/PCI; blank in no-service when the camp is gone.
+
 ## [2.85.2] - 2026-10-03
 
 ### Fixed
