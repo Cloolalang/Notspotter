@@ -5,6 +5,12 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.85.2] - 2026-10-03
+
+### Fixed
+
+- **In-service voice on reselect** — A one-second emergency-only flicker during cell reselection no longer speaks **VA-5** (“home in service” / “roaming in service”). Limited-service voice now waits one extra poll before treating the episode as real; a genuine limited camp still announces, and recovery still speaks as soon as you are back in service.
+
 ## [2.85.1] - 2026-09-14
 
 ### Fixed

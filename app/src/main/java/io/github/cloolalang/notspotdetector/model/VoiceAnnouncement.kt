@@ -10,7 +10,7 @@ object VoiceAnnouncement {
     const val VA_2_SIGNAL_RESTORED = 2
     const val VA_3_DEADZONE_ENTRY = 3
     const val VA_4_LIMITED_SERVICE_ENTRY = 4
-    /** Home or roaming in-service after limited service, or home↔roaming while camped (2G and 4G). */
+    /** Home or roaming in-service after a confirmed limited-service episode, or home↔roaming while camped (2G and 4G). */
     const val VA_5_IN_SERVICE = 5
     const val VA_5_RETIRED = VA_5_IN_SERVICE
     const val VA_6_LIMITED_SERVICE_OPERATOR = 6

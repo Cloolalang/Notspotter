@@ -15,6 +15,17 @@ fun NetworkServiceMode.isNoCellularService(): Boolean {
     return this == NetworkServiceMode.OUT_OF_SERVICE || this == NetworkServiceMode.RADIO_OFF
 }
 
+/**
+ * VA-4 / VA-5 hold: one extra limited-service poll (~1 s at 1 Hz) before the episode is
+ * treated as real. Exit is immediate so a confirmed camp recovery still speaks at once.
+ * One-poll emergency-only flickers during cell reselection therefore stay silent.
+ */
+val LIMITED_SERVICE_VOICE_HOLD = RxssStateFilterSettings(
+    enabled = true,
+    windowSeconds = 1,
+    balancePercent = 100
+)
+
 /** True when leaving limited service for a real camp (not radio-off / no-service). */
 fun ConnectivityStats.shouldAnnounceInServiceAfterLimited(): Boolean {
     if (isLimitedService) return false

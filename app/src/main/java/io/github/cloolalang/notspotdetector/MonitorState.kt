@@ -50,6 +50,7 @@ import io.github.cloolalang.notspotdetector.model.isTier5PoorSignal
 import io.github.cloolalang.notspotdetector.model.isTier6CriticalSignal
 import io.github.cloolalang.notspotdetector.model.resolveSignalStrengthTier
 import io.github.cloolalang.notspotdetector.model.shouldAllowCellReselectVoice
+import io.github.cloolalang.notspotdetector.model.LIMITED_SERVICE_VOICE_HOLD
 import io.github.cloolalang.notspotdetector.model.shouldAnnounceInServiceAfterLimited
 import io.github.cloolalang.notspotdetector.model.shouldPlayG2NoSignalVoiceAnnouncements
 import io.github.cloolalang.notspotdetector.model.shouldSuppressSignalRestoredForWeakSignalRecovery
@@ -109,6 +110,7 @@ object MonitorState {
     private var radioTechnologyBaselineReady = false
     private var noSignalBaselineReady = false
     private var limitedServiceBaselineReady = false
+    private val limitedServiceVoiceFilter = RollingTriggerFilter()
     private var stableCellIdentity = CellIdentitySnapshot()
     private val noSignalFilter = RollingTriggerFilter()
     private val deadzoneFilter = RollingTriggerFilter()
@@ -590,6 +592,7 @@ object MonitorState {
             levelRangeCFilter.reset()
             levelRangeDFilter.reset()
             rsrqFilter.reset()
+            limitedServiceVoiceFilter.reset()
             heldInServiceSignalTier = null
             heldFairNeighborTier = null
             heldPoorNeighborTier = null
@@ -1187,18 +1190,26 @@ object MonitorState {
         previous: ConnectivityStats,
         next: ConnectivityStats
     ): String? {
-        if (!_isRunning.value || !next.isMonitoring) return null
-
-        val previousActive = previous.isLimitedService
-        val nextActive = next.isLimitedService
-
         if (!limitedServiceBaselineReady) {
             limitedServiceBaselineReady = true
+            limitedServiceVoiceFilter.reset()
+            limitedServiceVoiceFilter.update(
+                rawActive = next.isLimitedService,
+                settings = RxssStateFilterSettings.INACTIVE
+            )
             return null
         }
 
-        if (previousActive != nextActive) {
-            if (!nextActive && !next.shouldAnnounceInServiceAfterLimited()) return null
+        val previousConfirmed = limitedServiceVoiceFilter.confirmedActive
+        val confirmed = limitedServiceVoiceFilter.update(
+            rawActive = next.isLimitedService,
+            settings = LIMITED_SERVICE_VOICE_HOLD
+        ).confirmedActive
+
+        if (!_isRunning.value || !next.isMonitoring) return null
+
+        if (previousConfirmed != confirmed) {
+            if (!confirmed && !next.shouldAnnounceInServiceAfterLimited()) return null
             return SignalStateAnnouncement.formatLimitedServiceChange(
                 stats = next,
                 lastKnownRadioAccessType = lastKnownRadioAccessType,
@@ -1207,7 +1218,7 @@ object MonitorState {
             )
         }
 
-        if (previousActive ||
+        if (previousConfirmed ||
             !previous.shouldAnnounceInServiceAfterLimited() ||
             !next.shouldAnnounceInServiceAfterLimited()
         ) {
@@ -1357,6 +1368,7 @@ object MonitorState {
         radioTechnologyBaselineReady = false
         noSignalBaselineReady = false
         limitedServiceBaselineReady = false
+        limitedServiceVoiceFilter.reset()
         g2FallbackBaselineReady = false
         tier5BaselineReady = false
         stableCellIdentity = CellIdentitySnapshot()

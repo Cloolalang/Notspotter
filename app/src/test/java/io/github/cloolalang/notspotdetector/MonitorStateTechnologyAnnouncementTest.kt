@@ -107,23 +107,24 @@ class MonitorStateTechnologyAnnouncementTest {
             )
         )
 
-        val events = MonitorState.updateStats(
-            mock.copy(scenario = MockNetworkScenario.ALT_OPERATOR_4G).toConnectivityStats(
-                monitor2gFallback = true,
-                passiveSettings = passiveSettings,
-                passiveIdleMode = false,
-                passiveOnlySession = true
-            )
+        val limited = mock.copy(scenario = MockNetworkScenario.ALT_OPERATOR_4G).toConnectivityStats(
+            monitor2gFallback = true,
+            passiveSettings = passiveSettings,
+            passiveIdleMode = false,
+            passiveOnlySession = true
         )
+        val first = MonitorState.updateStats(limited)
+        val events = MonitorState.updateStats(limited)
 
-        assertTrue(events.cellIdentityChanged)
+        assertTrue(first.cellIdentityChanged)
+        assertFalse(first.limitedServiceStateChanged)
         assertFalse(events.radioTechnologyChanged)
         assertTrue(events.limitedServiceStateChanged)
         assertTrue(events.limitedServiceStateAnnouncement!!.contains("limited service"))
     }
 
     @Test
-    fun mockHome4gToAlt4g_playsLimitedServiceBeforeCellReselect() {
+    fun mockHome4gToAlt4g_speaksCellReselectBeforeHeldLimitedService() {
         val mock = PassiveMockSettings(enabled = true, scenario = MockNetworkScenario.HOME_4G)
         MonitorState.updateStats(
             mock.toConnectivityStats(
@@ -134,21 +135,52 @@ class MonitorStateTechnologyAnnouncementTest {
             )
         )
 
-        val events = MonitorState.updateStats(
-            mock.copy(scenario = MockNetworkScenario.ALT_OPERATOR_4G).toConnectivityStats(
-                monitor2gFallback = true,
-                passiveSettings = passiveSettings,
-                passiveIdleMode = false,
-                passiveOnlySession = true
+        val limited = mock.copy(scenario = MockNetworkScenario.ALT_OPERATOR_4G).toConnectivityStats(
+            monitor2gFallback = true,
+            passiveSettings = passiveSettings,
+            passiveIdleMode = false,
+            passiveOnlySession = true
+        )
+        val first = MonitorState.updateStats(limited)
+        val held = MonitorState.updateStats(limited)
+
+        assertTrue(first.cellIdentityChanged)
+        assertFalse(first.limitedServiceStateChanged)
+        assertTrue(held.limitedServiceStateChanged)
+        assertFalse(held.cellIdentityChanged)
+    }
+
+    @Test
+    fun onePollLimitedFlickerDuringReselect_doesNotSpeakInService() {
+        val mock = PassiveMockSettings(enabled = true, scenario = MockNetworkScenario.HOME_4G)
+        val home = mock.toConnectivityStats(
+            monitor2gFallback = true,
+            passiveSettings = passiveSettings,
+            passiveIdleMode = false,
+            passiveOnlySession = true
+        )
+        MonitorState.updateStats(home)
+
+        val limited = mock.copy(scenario = MockNetworkScenario.ALT_OPERATOR_4G).toConnectivityStats(
+            monitor2gFallback = true,
+            passiveSettings = passiveSettings,
+            passiveIdleMode = false,
+            passiveOnlySession = true
+        )
+        val flicker = MonitorState.updateStats(limited)
+        val recovered = MonitorState.updateStats(
+            home.copy(
+                ltePci = (home.ltePci ?: 0) + 7,
+                lteEarfcn = (home.lteEarfcn ?: 1800) + 25
             )
         )
 
-        val order = events.immediateAnnouncements().map { it.kind }
-        val limitedIndex = order.indexOf(MonitoringAnnouncementKind.LIMITED_SERVICE_STATE)
-        val cellIndex = order.indexOf(MonitoringAnnouncementKind.CELL_IDENTITY)
-        assertTrue(limitedIndex >= 0)
-        assertTrue(cellIndex >= 0)
-        assertTrue(limitedIndex < cellIndex)
+        assertFalse(flicker.limitedServiceStateChanged)
+        assertFalse(recovered.limitedServiceStateChanged)
+        assertTrue(recovered.cellIdentityChanged)
+        assertFalse(
+            recovered.limitedServiceStateAnnouncement.orEmpty().contains("in service")
+        )
     }
 
     @Test
@@ -280,6 +312,8 @@ class MonitorStateTechnologyAnnouncementTest {
         limitedScenario: MockNetworkScenario
     ): String? {
         MonitorState.updateStats(mockStats(homeScenario))
+        val firstLimited = MonitorState.updateStats(mockStats(limitedScenario))
+        assertFalse(firstLimited.limitedServiceStateChanged)
         val enterLimited = MonitorState.updateStats(mockStats(limitedScenario))
         assertTrue(enterLimited.limitedServiceStateChanged)
         val events = MonitorState.updateStats(mockStats(homeScenario))
