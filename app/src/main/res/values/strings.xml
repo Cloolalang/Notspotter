@@ -270,6 +270,10 @@
     <string name="metric_lte_earfcn">4G EARFCN</string>
     <string name="metric_lte_pci">4G PCI</string>
     <string name="metric_eci">ECI</string>
+    <string name="metric_tac">TAC</string>
+    <string name="metric_enodeb_id">eNodeB ID</string>
+    <string name="metric_logical_cell_id">Logical cell ID</string>
+    <string name="metric_ecgi">ECGI</string>
     <string name="metric_nci">NCI</string>
     <string name="metric_nr_pci">5G PCI</string>
     <string name="metric_nr_band">5G band</string>
@@ -503,7 +507,7 @@
     <string name="settings_profiles_error_invalid_file">Could not read that file as a settings profile.</string>
     <string name="settings_profiles_error_import_failed">Could not import that profile.</string>
     <string name="special_cells_title">Known cells</string>
-    <string name="special_cells_summary">Match the serving 4G cell against a CSV list by ECI when both sides have it, otherwise by EARFCN/PCI. A listed ECI still matches if the phone is on a different carrier of the same sector. Lists without ECI keep working. Includes a roaming SIM in limited service. 2G and 5G matching comes later. Load example list is the bundled walk-test file (Robin Hood, Hill Farm, Tesco). Import a CSV to replace it. The list is not stored in settings profiles.</string>
+    <string name="special_cells_summary">Match the serving 4G cell against a CSV list by ECGI when both sides have it, otherwise by ECI, otherwise by EARFCN/PCI. ECGI is the camped PLMN plus the ECI as 9 decimal digits. A listed ECGI still matches if the phone is on a different carrier of the same sector. Lists without ECGI keep working. Includes a roaming SIM in limited service. 2G and 5G matching comes later. Load example list is the bundled walk-test file (Robin Hood, Hill Farm, Tesco). Import a CSV to replace it. The list is not stored in settings profiles.</string>
     <string name="special_cells_loaded">%1$s — %2$d cells</string>
     <string name="special_cells_list_heading">Loaded cells</string>
     <string name="special_cells_status_disabled">Matching is off.</string>

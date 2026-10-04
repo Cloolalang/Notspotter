@@ -32,6 +32,12 @@ fun CellIdentitySnapshot.coalesceWith(previous: CellIdentitySnapshot): CellIdent
             nextLteEarfcn == previous.lteEarfcn &&
             nextLtePci == previous.ltePci
     }
+    val nextLteTac = lteTac ?: previous.lteTac?.takeIf {
+        nextLteEarfcn != null &&
+            nextLtePci != null &&
+            nextLteEarfcn == previous.lteEarfcn &&
+            nextLtePci == previous.ltePci
+    }
     val nextNrNci = nrNci ?: previous.nrNci?.takeIf {
         nextNrEarfcn != null &&
             nextNrPci != null &&
@@ -42,6 +48,7 @@ fun CellIdentitySnapshot.coalesceWith(previous: CellIdentitySnapshot): CellIdent
         lteEarfcn = nextLteEarfcn,
         ltePci = nextLtePci,
         lteEci = nextLteEci,
+        lteTac = nextLteTac,
         nrEarfcn = nextNrEarfcn,
         nrPci = nextNrPci,
         nrNci = nextNrNci,
@@ -80,6 +87,7 @@ fun ConnectivityStats.withStabilizedCellIdentity(
             lteEarfcn = null,
             ltePci = null,
             lteEci = null,
+            lteTac = null,
             nrEarfcn = null,
             nrPci = null,
             nrNci = null,
@@ -95,6 +103,7 @@ fun ConnectivityStats.withStabilizedCellIdentity(
             lteEarfcn = null,
             ltePci = null,
             lteEci = null,
+            lteTac = null,
             nrEarfcn = null,
             nrPci = null,
             nrNci = null,
@@ -118,6 +127,7 @@ fun ConnectivityStats.withStabilizedCellIdentity(
         lteEarfcn = stabilized.lteEarfcn,
         ltePci = stabilized.ltePci,
         lteEci = stabilized.lteEci,
+        lteTac = stabilized.lteTac,
         nrEarfcn = stabilized.nrEarfcn,
         nrPci = stabilized.nrPci,
         nrNci = stabilized.nrNci,

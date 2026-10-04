@@ -33,6 +33,8 @@ data class ConnectivityStats(
     val ltePci: Int? = null,
     /** LTE 28-bit ECI (long Cell ID) — see [CellularRadioMetrics.lteEci]. */
     val lteEci: Int? = null,
+    /** LTE 16-bit tracking area code — see [CellularRadioMetrics.lteTac]. */
+    val lteTac: Int? = null,
     val nrEarfcn: Int? = null,
     val nrPci: Int? = null,
     /** NR 36-bit NCI (long Cell ID) — see [CellularRadioMetrics.nrNci]. */

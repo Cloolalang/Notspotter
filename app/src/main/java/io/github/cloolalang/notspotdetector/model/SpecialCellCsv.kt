@@ -43,6 +43,7 @@ object SpecialCellCsv {
             val sector = cell("sector")
             val channelRaw = cell("channel")
             val pciRaw = cell("pci")
+            val ecgiRaw = cell("ecgi")
             val eciRaw = firstPresent(
                 cell("eci"),
                 cell("ci"),
@@ -62,9 +63,25 @@ object SpecialCellCsv {
                 warnings.add("Line $lineNumber: invalid rat, channel, or pci")
                 return@forEachIndexed
             }
+            val parsedEcgi = parseOptionalEcgi(ecgiRaw)
+            if (parsedEcgi.invalid) {
+                warnings.add("Line $lineNumber: invalid ecgi")
+                return@forEachIndexed
+            }
             val parsedEci = parseOptionalEci(eciRaw)
             if (parsedEci.invalid) {
                 warnings.add("Line $lineNumber: invalid eci")
+                return@forEachIndexed
+            }
+            val ecgi = parsedEcgi.value
+            if (ecgi != null && parsedEci.value != null && ecgi.eci != parsedEci.value) {
+                warnings.add("Line $lineNumber: ecgi does not match eci")
+                return@forEachIndexed
+            }
+            val plmnColumn = cell("plmn").ifBlank { null }
+            val plmnDigits = plmnColumn?.filter { it.isDigit() }?.takeIf { it.isNotEmpty() }
+            if (ecgi != null && plmnDigits != null && plmnDigits != ecgi.plmn) {
+                warnings.add("Line $lineNumber: ecgi does not match plmn")
                 return@forEachIndexed
             }
 
@@ -77,8 +94,9 @@ object SpecialCellCsv {
                     sector = sector,
                     channel = channel,
                     pci = pci,
-                    eci = parsedEci.value,
-                    plmn = cell("plmn").ifBlank { null },
+                    eci = ecgi?.eci ?: parsedEci.value,
+                    ecgi = ecgi?.canonical,
+                    plmn = plmnColumn ?: ecgi?.plmn,
                     speak = parseSpeak(cell("speak")),
                     speakAs = cell("speak_as").ifBlank { null },
                     notes = cell("notes").ifBlank { null },
@@ -93,12 +111,12 @@ object SpecialCellCsv {
 
         val seenKeys = mutableSetOf<String>()
         cells.forEach { cell ->
-            val key = "${cell.rat.name}:${cell.channel}:${cell.pci}:${cell.eci ?: ""}:${cell.plmn.orEmpty()}"
+            val key = "${cell.rat.name}:${cell.channel}:${cell.pci}:${cell.matchEcgi ?: cell.eci ?: ""}:${cell.plmn.orEmpty()}"
             if (!seenKeys.add(key)) {
-                val identity = if (cell.eci != null) {
-                    "${cell.channel}/${cell.pci} ECI ${cell.eci}"
-                } else {
-                    "${cell.channel}/${cell.pci}"
+                val identity = when {
+                    cell.matchEcgi != null -> "${cell.channel}/${cell.pci} ECGI ${cell.matchEcgi}"
+                    cell.eci != null -> "${cell.channel}/${cell.pci} ECI ${cell.eci}"
+                    else -> "${cell.channel}/${cell.pci}"
                 }
                 warnings.add("Line ${cell.sourceLine}: duplicate match key ${cell.rat.displayLabel} $identity")
             }
@@ -114,6 +132,18 @@ object SpecialCellCsv {
 
     private fun firstPresent(vararg values: String): String {
         return values.firstOrNull { it.isNotBlank() }.orEmpty()
+    }
+
+    private data class ParsedEcgi(val value: LteEcgi.Parsed?, val invalid: Boolean)
+
+    private fun parseOptionalEcgi(raw: String): ParsedEcgi {
+        if (raw.isBlank()) return ParsedEcgi(value = null, invalid = false)
+        val parsed = LteEcgi.parse(raw)
+        return if (parsed == null) {
+            ParsedEcgi(value = null, invalid = true)
+        } else {
+            ParsedEcgi(value = parsed, invalid = false)
+        }
     }
 
     private data class ParsedEci(val value: Int?, val invalid: Boolean)

@@ -241,10 +241,10 @@ private fun importResultMessage(result: SpecialCellsImportResult): Int {
 private fun SpecialCellCatalog.isNotEmpty(): Boolean = !isEmpty
 
 private fun formatLoadedCell(cell: SpecialCell): String {
-    val identity = if (cell.eci != null) {
-        "${cell.channel}/${cell.pci} ECI ${cell.eci}"
-    } else {
-        "${cell.channel}/${cell.pci}"
+    val identity = when {
+        cell.matchEcgi != null -> "${cell.channel}/${cell.pci} ECGI ${cell.matchEcgi}"
+        cell.eci != null -> "${cell.channel}/${cell.pci} ECI ${cell.eci}"
+        else -> "${cell.channel}/${cell.pci}"
     }
     return "${cell.site} · ${cell.type} · ${cell.rat.displayLabel} ${cell.sector} · $identity"
 }

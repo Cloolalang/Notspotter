@@ -12,6 +12,8 @@ data class CellularRadioMetrics(
     val ltePci: Int? = null,
     /** LTE 28-bit ECI (long Cell ID) from [android.telephony.CellIdentityLte.getCi]. */
     val lteEci: Int? = null,
+    /** LTE 16-bit tracking area code from [android.telephony.CellIdentityLte.getTac]. */
+    val lteTac: Int? = null,
     val nrEarfcn: Int? = null,
     val nrPci: Int? = null,
     /** NR 36-bit NCI (long Cell ID) from [android.telephony.CellIdentityNr.getNci]. */
@@ -103,6 +105,7 @@ data class CellularRadioMetrics(
             lteEarfcn = null,
             ltePci = null,
             lteEci = null,
+            lteTac = null,
             nrEarfcn = null,
             nrPci = null,
             nrNci = null,

@@ -5,6 +5,14 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.91.0] - 2026-10-04
+
+### Added
+
+- **Decimal ECGI in cell metrics and known-cell matching** — 4G and EN-DC metrics show **ECGI** as digits only: the camped PLMN plus the ECI zero-padded to 9 digits. PLMN `23415` and ECI `0` is `23415000000000`. PLMN `23415` and ECI `1234567` is `23415001234567`. Known-cells CSV can include an optional **ecgi** column. When the list and the serving cell both have an ECGI, that identity wins, including the same sector on another EARFCN. A listed ECGI that disagrees does not fall back to PCI. Lists with only ECI, or with neither, still match as before.
+- **eNodeB ID and logical cell ID** — 4G and EN-DC cell metrics split the ECI into the eNodeB ID (ECI ÷ 256) and the 8-bit logical cell ID (the remainder).
+- **TAC in cell metrics** — 4G and EN-DC metrics show the LTE tracking area code from `CellIdentityLte.getTac()`, directly under ECI. It blanks with the rest of the cell identity when the camp is gone.
+
 ## [2.87.1] - 2026-10-03
 
 ### Changed

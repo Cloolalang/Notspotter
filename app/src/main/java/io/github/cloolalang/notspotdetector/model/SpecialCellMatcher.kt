@@ -25,10 +25,11 @@ object SpecialCellMatcher {
         val earfcn = stats.lteEarfcn
         val pci = stats.ltePci
         val eci = stats.lteEci
-        if (earfcn == null && pci == null && eci == null) return null
+        val ecgi = LteEcgi.format(stats.plmn, eci)
+        if (earfcn == null && pci == null && eci == null && ecgi == null) return null
 
         val matches = catalog.cells.filter { cell ->
-            cell.matchesServing(earfcn, pci, eci)
+            cell.matchesServing(earfcn, pci, ecgi, eci)
         }
         if (matches.isEmpty()) return null
         // Camped/serving PLMN only — never the SIM home PLMN. A roaming SIM in limited
@@ -37,7 +38,9 @@ object SpecialCellMatcher {
         fun plmnMatches(cell: SpecialCell): Boolean {
             return campedPlmn != null && normalizePlmn(cell.plmn) == campedPlmn
         }
-        val preferred = matches.firstOrNull { cell -> cell.isEciMatch(eci) && plmnMatches(cell) }
+        val preferred = matches.firstOrNull { cell -> cell.isEcgiMatch(ecgi) && plmnMatches(cell) }
+            ?: matches.firstOrNull { cell -> cell.isEcgiMatch(ecgi) }
+            ?: matches.firstOrNull { cell -> cell.isEciMatch(eci) && plmnMatches(cell) }
             ?: matches.firstOrNull { cell -> cell.isEciMatch(eci) }
             ?: matches.firstOrNull(::plmnMatches)
             ?: matches.first()
@@ -48,6 +51,8 @@ object SpecialCellMatcher {
         val earfcn = stats.lteEarfcn
         val pci = stats.ltePci
         if (earfcn == null || pci == null) return null
+        val ecgi = LteEcgi.format(stats.plmn, stats.lteEci)
+        if (ecgi != null) return "$earfcn/$pci ECGI $ecgi"
         val eci = stats.lteEci
         return if (eci != null) "$earfcn/$pci ECI $eci" else "$earfcn/$pci"
     }

@@ -161,7 +161,7 @@ class SpecialCellMatcherTest {
         val match = SpecialCellMatcher.match(stats, catalog)
 
         assertEquals("Tesco", match?.cell?.site)
-        assertEquals("2850/339 ECI 1234567", SpecialCellMatcher.servingIdentitySummary(stats))
+        assertEquals("2850/339 ECGI 23415001234567", SpecialCellMatcher.servingIdentitySummary(stats))
     }
 
     @Test

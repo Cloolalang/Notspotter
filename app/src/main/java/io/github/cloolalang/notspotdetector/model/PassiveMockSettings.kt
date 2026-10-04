@@ -111,6 +111,7 @@ data class PassiveMockSettings(
             lteEarfcn = MOCK_LTE_EARFCN,
             ltePci = MOCK_LTE_PCI,
             lteEci = MOCK_LTE_ECI,
+            lteTac = MOCK_LTE_TAC,
             isOn2g = false,
             isLimitedService = false,
             networkServiceMode = NetworkServiceMode.IN_SERVICE,
@@ -160,6 +161,7 @@ data class PassiveMockSettings(
             lteEarfcn = MOCK_LTE_EARFCN,
             ltePci = MOCK_LTE_PCI,
             lteEci = MOCK_LTE_ECI,
+            lteTac = MOCK_LTE_TAC,
             nrEarfcn = MOCK_NR_EARFCN,
             nrPci = MOCK_NR_PCI,
             nrNci = MOCK_NR_NCI,
@@ -209,6 +211,7 @@ data class PassiveMockSettings(
             lteEarfcn = MOCK_ALT_LTE_EARFCN,
             ltePci = MOCK_ALT_LTE_PCI,
             lteEci = MOCK_ALT_LTE_ECI,
+            lteTac = MOCK_ALT_LTE_TAC,
             isOn2g = false,
             isLimitedService = false,
             networkServiceMode = NetworkServiceMode.IN_SERVICE,
@@ -280,6 +283,7 @@ data class PassiveMockSettings(
             lteEarfcn = MOCK_ALT_LTE_EARFCN,
             ltePci = MOCK_ALT_LTE_PCI,
             lteEci = MOCK_ALT_LTE_ECI,
+            lteTac = MOCK_ALT_LTE_TAC,
             nrEarfcn = MOCK_NR_EARFCN,
             nrPci = MOCK_ALT_NR_PCI,
             nrBand = MOCK_NR_BAND,
@@ -307,6 +311,7 @@ data class PassiveMockSettings(
             lteEarfcn = MOCK_LTE_EARFCN,
             ltePci = MOCK_LTE_PCI,
             lteEci = MOCK_LTE_ECI,
+            lteTac = MOCK_LTE_TAC,
             isOn2g = false,
             isLimitedService = true,
             networkServiceMode = NetworkServiceMode.LIMITED_SERVICE,
@@ -352,6 +357,7 @@ data class PassiveMockSettings(
             lteEarfcn = MOCK_ALT_LTE_EARFCN,
             ltePci = MOCK_ALT_LTE_PCI,
             lteEci = MOCK_ALT_LTE_ECI,
+            lteTac = MOCK_ALT_LTE_TAC,
             isOn2g = false,
             isLimitedService = true,
             networkServiceMode = NetworkServiceMode.LIMITED_SERVICE,
@@ -459,6 +465,7 @@ data class PassiveMockSettings(
         lteEarfcn: Int? = null,
         ltePci: Int? = null,
         lteEci: Int? = null,
+        lteTac: Int? = null,
         nrEarfcn: Int? = null,
         nrPci: Int? = null,
         nrNci: Long? = null,
@@ -488,6 +495,7 @@ data class PassiveMockSettings(
             lteEarfcn = lteEarfcn,
             ltePci = ltePci,
             lteEci = lteEci,
+            lteTac = lteTac,
             nrEarfcn = nrEarfcn,
             nrPci = nrPci,
             nrNci = nrNci,
@@ -537,6 +545,8 @@ data class PassiveMockSettings(
         const val MOCK_LTE_EARFCN = 1_800
         const val MOCK_LTE_PCI = 42
         const val MOCK_LTE_ECI = 1_234_567
+        const val MOCK_LTE_TAC = 12_345
+        const val MOCK_ALT_LTE_TAC = 23_456
         const val MOCK_ALT_LTE_ECI = 2_345_678
         const val MOCK_NR_NCI = 10_000_000_001L
         /** NR secondary carrier for the Home operator 5G EN-DC mock scenario. */
@@ -579,6 +589,7 @@ fun PassiveMockSettings.toConnectivityStats(
         lteEarfcn = radio.lteEarfcn,
         ltePci = radio.ltePci,
         lteEci = radio.lteEci,
+        lteTac = radio.lteTac,
         nrEarfcn = radio.nrEarfcn,
         nrPci = radio.nrPci,
         nrNci = radio.nrNci,

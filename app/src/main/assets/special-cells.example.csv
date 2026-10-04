@@ -3,10 +3,12 @@
 # Field walk-test list: Robin Hood, Hill Farm, Tesco (Vodafone 4G).
 #
 # Required columns: site, type, mno, rat, sector, channel, pci
-# Optional: eci (or ci / cell_id / long_cell_id), plmn, speak, speak_as, notes
-# Matching prefers 4G ECI when the list and the serving cell both have it
-# (same sector on another EARFCN still hits). Otherwise EARFCN/PCI.
-# PLMN is only a tie-break. A roaming SIM in limited service still matches.
+# Optional: ecgi, eci (or ci / cell_id / long_cell_id), plmn, speak, speak_as, notes
+# ECGI is PLMN digits plus the ECI as 9 decimal digits (23415 + ECI 0 = 23415000000000).
+# Matching prefers 4G ECGI when the list and the serving cell both have it
+# (same sector on another EARFCN still hits). Otherwise ECI, otherwise EARFCN/PCI.
+# A listed ECGI that disagrees with the serving ECGI does not fall back to PCI.
+# PLMN is only a tie-break when ECGI is absent. A roaming SIM in limited service still matches.
 # 2G and 5G come later.
 #
 site,type,mno,rat,sector,channel,pci,plmn,speak,speak_as,notes

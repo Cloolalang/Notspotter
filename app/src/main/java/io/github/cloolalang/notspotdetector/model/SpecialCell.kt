@@ -43,28 +43,48 @@ data class SpecialCell(
     val channel: Int,
     val pci: Int,
     val eci: Int? = null,
+    /** Canonical decimal ECGI (`PLMN` + 9 decimal digits of [eci]). Derived when omitted. */
+    val ecgi: String? = null,
     val plmn: String? = null,
     val speak: Boolean = true,
     val speakAs: String? = null,
     val notes: String? = null,
     val sourceLine: Int = 0
 ) {
+    /** Listed ECGI, or PLMN + ECI when the CSV only has those columns. */
+    val matchEcgi: String?
+        get() = ecgi ?: LteEcgi.format(plmn, eci)
+
     val matchKey: String
-        get() = if (eci != null) {
-            "${rat.name}:eci:$eci:${plmn.orEmpty()}"
-        } else {
-            "${rat.name}:$channel:$pci:${plmn.orEmpty()}"
+        get() = when {
+            matchEcgi != null -> "${rat.name}:ecgi:$matchEcgi"
+            eci != null -> "${rat.name}:eci:$eci:${plmn.orEmpty()}"
+            else -> "${rat.name}:$channel:$pci:${plmn.orEmpty()}"
         }
 
     val displaySite: String
         get() = speakAs?.takeIf { it.isNotBlank() } ?: site
 
-    fun matchesServing(earfcn: Int?, pci: Int?, eci: Int?): Boolean {
+    fun matchesServing(
+        earfcn: Int?,
+        pci: Int?,
+        servingEcgi: String?,
+        servingEci: Int?
+    ): Boolean {
         if (rat != SpecialCellRat.G4) return false
-        if (this.eci != null && eci != null) {
-            return this.eci == eci
+        val listedEcgi = matchEcgi
+        if (listedEcgi != null && servingEcgi != null) {
+            return listedEcgi == servingEcgi
+        }
+        if (eci != null && servingEci != null) {
+            return eci == servingEci
         }
         return earfcn != null && pci != null && channel == earfcn && this.pci == pci
+    }
+
+    fun isEcgiMatch(servingEcgi: String?): Boolean {
+        val listed = matchEcgi ?: return false
+        return servingEcgi != null && listed == servingEcgi
     }
 
     fun isEciMatch(servingEci: Int?): Boolean {

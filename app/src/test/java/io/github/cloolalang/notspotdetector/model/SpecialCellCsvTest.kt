@@ -193,6 +193,82 @@ class SpecialCellCsvTest {
     }
 
     @Test
+    fun format_zeroEci_isPlmnPlusNineDecimalDigits() {
+        assertEquals("23415000000000", LteEcgi.format("23415", 0))
+        assertEquals("23415000000000", LteEcgi.format("234-15", 0))
+        assertEquals("23415001234567", LteEcgi.format("23415", 1_234_567))
+    }
+
+    @Test
+    fun parse_optionalEcgi_readsPlmnAndEci() {
+        val catalog = SpecialCellCsv.parse(
+            """
+            site,type,mno,rat,sector,channel,pci,ecgi
+            Tesco,Macro,Vodafone,4G,S1,6300,339,23415001234567
+            """.trimIndent()
+        )
+
+        val cell = catalog.cells.single()
+        assertEquals("23415001234567", cell.ecgi)
+        assertEquals("23415", cell.plmn)
+        assertEquals(1_234_567, cell.eci)
+        assertTrue(catalog.warnings.isEmpty())
+    }
+
+    @Test
+    fun parse_invalidEcgi_skipsRow() {
+        val catalog = SpecialCellCsv.parse(
+            """
+            site,type,mno,rat,sector,channel,pci,ecgi
+            Tesco,Macro,Vodafone,4G,S1,6300,339,000000000
+            Tesco,Macro,Vodafone,4G,S2,6300,340,23415012d687
+            """.trimIndent()
+        )
+
+        assertEquals(0, catalog.size)
+        assertEquals(2, catalog.warnings.size)
+    }
+
+    @Test
+    fun match_ecgiFromCsvHitsDifferentChannel() {
+        val catalog = SpecialCellCsv.parse(
+            """
+            site,type,mno,rat,sector,channel,pci,ecgi,plmn
+            Tesco,Macro,Vodafone,4G,S1,6300,339,23415001234567,23415
+            """.trimIndent()
+        )
+        val stats = ConnectivityStats(
+            lteEarfcn = 2850,
+            ltePci = 340,
+            lteEci = 1_234_567,
+            plmn = "23415",
+            cellIdentityPermissionGranted = true
+        )
+
+        assertEquals("Tesco", SpecialCellMatcher.match(stats, catalog)?.cell?.site)
+        assertEquals("2850/340 ECGI 23415001234567", SpecialCellMatcher.servingIdentitySummary(stats))
+    }
+
+    @Test
+    fun match_listedEcgiDoesNotFallBackWhenServingPlmnDiffers() {
+        val catalog = SpecialCellCsv.parse(
+            """
+            site,type,mno,rat,sector,channel,pci,ecgi,plmn
+            Tesco,Macro,Vodafone,4G,S1,6300,339,23415001234567,23415
+            """.trimIndent()
+        )
+        val stats = ConnectivityStats(
+            lteEarfcn = 6300,
+            ltePci = 339,
+            lteEci = 1_234_567,
+            plmn = "23430",
+            cellIdentityPermissionGranted = true
+        )
+
+        assertNull(SpecialCellMatcher.match(stats, catalog))
+    }
+
+    @Test
     fun match_eciFromCsvHitsDifferentChannel() {
         val catalog = SpecialCellCsv.parse(
             """

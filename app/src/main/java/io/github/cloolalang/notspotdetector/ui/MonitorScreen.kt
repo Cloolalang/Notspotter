@@ -40,6 +40,8 @@ import io.github.cloolalang.notspotdetector.model.CarrierConfigSnapshot
 import io.github.cloolalang.notspotdetector.model.CellReselectBandNamingStyle
 import io.github.cloolalang.notspotdetector.model.ConnectivityStats
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
+import io.github.cloolalang.notspotdetector.model.LteEciSplit
+import io.github.cloolalang.notspotdetector.model.LteEcgi
 import io.github.cloolalang.notspotdetector.model.LteLayerResilienceReading
 import io.github.cloolalang.notspotdetector.model.ServiceStateMetricLabel
 import io.github.cloolalang.notspotdetector.model.resolveServiceStateMetricLabel
@@ -790,6 +792,7 @@ private fun CellIdentityMetrics(
     val lteEarfcn = stats.lteEarfcn.takeUnless { staleNoSignal }
     val ltePci = stats.ltePci.takeUnless { staleNoSignal }
     val lteEci = stats.lteEci.takeUnless { staleNoSignal }
+    val lteTac = stats.lteTac.takeUnless { staleNoSignal }
     val nrEarfcn = stats.nrEarfcn.takeUnless { staleNoSignal }
     val nrPci = stats.nrPci.takeUnless { staleNoSignal }
     val nrNci = stats.nrNci.takeUnless { staleNoSignal }
@@ -820,9 +823,11 @@ private fun CellIdentityMetrics(
                 label = stringResource(R.string.metric_primary_carrier),
                 value = formatChannelIdentityValue(lteEarfcn, ltePci, permissionGranted)
             )
-            MetricRow(
-                label = stringResource(R.string.metric_eci),
-                value = formatCellIdentityValue(lteEci, permissionGranted)
+            LteCellIdMetricRows(
+                lteEci = lteEci,
+                lteTac = lteTac,
+                plmn = stats.plmn,
+                permissionGranted = permissionGranted
             )
             MetricRow(
                 label = stringResource(R.string.metric_nr_carrier),
@@ -854,9 +859,11 @@ private fun CellIdentityMetrics(
                 label = stringResource(R.string.metric_primary_carrier),
                 value = formatChannelIdentityValue(lteEarfcn, ltePci, permissionGranted)
             )
-            MetricRow(
-                label = stringResource(R.string.metric_eci),
-                value = formatCellIdentityValue(lteEci, permissionGranted)
+            LteCellIdMetricRows(
+                lteEci = lteEci,
+                lteTac = lteTac,
+                plmn = stats.plmn,
+                permissionGranted = permissionGranted
             )
         }
     }
@@ -1029,6 +1036,50 @@ private fun formatCellIdentityValue(
         return "—"
     }
     return value.toString()
+}
+
+@Composable
+private fun LteCellIdMetricRows(
+    lteEci: Int?,
+    lteTac: Int?,
+    plmn: String?,
+    permissionGranted: Boolean
+) {
+    val split = LteEciSplit.fromEci(lteEci)
+    MetricRow(
+        label = stringResource(R.string.metric_eci),
+        value = formatCellIdentityValue(lteEci, permissionGranted)
+    )
+    MetricRow(
+        label = stringResource(R.string.metric_tac),
+        value = formatCellIdentityValue(lteTac, permissionGranted)
+    )
+    MetricRow(
+        label = stringResource(R.string.metric_enodeb_id),
+        value = formatCellIdentityValue(split?.enbId, permissionGranted)
+    )
+    MetricRow(
+        label = stringResource(R.string.metric_logical_cell_id),
+        value = formatCellIdentityValue(split?.cellId, permissionGranted)
+    )
+    MetricRow(
+        label = stringResource(R.string.metric_ecgi),
+        value = formatEcgiValue(LteEcgi.format(plmn, lteEci), permissionGranted)
+    )
+}
+
+@Composable
+private fun formatEcgiValue(
+    value: String?,
+    permissionGranted: Boolean
+): String {
+    if (!permissionGranted) {
+        return stringResource(R.string.cell_identity_permission_required)
+    }
+    if (value.isNullOrBlank()) {
+        return "—"
+    }
+    return value
 }
 
 @Composable

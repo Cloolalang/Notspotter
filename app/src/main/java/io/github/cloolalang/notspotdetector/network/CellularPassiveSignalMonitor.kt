@@ -83,6 +83,7 @@ class CellularPassiveSignalMonitor(
                 lteEarfcn = radio.lteEarfcn,
                 ltePci = radio.ltePci,
                 lteEci = radio.lteEci,
+                lteTac = radio.lteTac,
                 nrEarfcn = radio.nrEarfcn,
                 nrPci = radio.nrPci,
                 nrNci = radio.nrNci,

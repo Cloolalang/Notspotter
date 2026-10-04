@@ -19,12 +19,19 @@ class CellIdentityStabilizerTest {
 
     @Test
     fun coalesceWith_keepsEciOnlyForTheSameLteCell() {
-        val previous = CellIdentitySnapshot(lteEarfcn = 1_800, ltePci = 42, lteEci = 1_234_567)
+        val previous = CellIdentitySnapshot(
+            lteEarfcn = 1_800,
+            ltePci = 42,
+            lteEci = 1_234_567,
+            lteTac = 12_345
+        )
         val sameCell = CellIdentitySnapshot(lteEarfcn = 1_800, ltePci = 42).coalesceWith(previous)
         val otherCell = CellIdentitySnapshot(lteEarfcn = 1_850, ltePci = 87).coalesceWith(previous)
 
         assertEquals(1_234_567, sameCell.lteEci)
+        assertEquals(12_345, sameCell.lteTac)
         assertNull(otherCell.lteEci)
+        assertNull(otherCell.lteTac)
     }
 
     @Test
