@@ -118,6 +118,7 @@ fun MonitorScreen(
     rsrpHistory: List<RsrpSample>,
     isRunning: Boolean,
     onStart: () -> Unit,
+    onStartActiveMode: () -> Unit,
     onStop: () -> Unit,
     onGoodRttChange: (Long) -> Unit,
     onPoorRttChange: (Long) -> Unit,
@@ -248,6 +249,7 @@ fun MonitorScreen(
         MonitoringControlButtons(
             isRunning = isRunning,
             onStart = onStart,
+            onStartActiveMode = onStartActiveMode,
             onStop = onStop
         )
 
@@ -299,12 +301,6 @@ fun MonitorScreen(
                     )
                 }
             }
-            if (!stats.isPassiveOnlySession) {
-                RttGraphCard(
-                    samples = rttHistory,
-                    isActive = isRunning && !stats.isPassiveIdleMode
-                )
-            }
             MetricsCard(
                 stats = stats,
                 monitoringSettings = monitoringSettings,
@@ -315,6 +311,13 @@ fun MonitorScreen(
                 radioDebugSnapshot = radioDebugSnapshot,
                 onRequestCellIdentityPermission = onRequestCellIdentityPermission
             )
+            ActiveModeMetricsCard(stats = stats)
+            if (!stats.isPassiveOnlySession) {
+                RttGraphCard(
+                    samples = rttHistory,
+                    isActive = isRunning && !stats.isPassiveIdleMode
+                )
+            }
         }
 
         TopLevelSectionCard(title = stringResource(R.string.top_level_passive_mode_monitoring)) {
@@ -560,6 +563,7 @@ private fun MasterAudioToggle(
 private fun MonitoringControlButtons(
     isRunning: Boolean,
     onStart: () -> Unit,
+    onStartActiveMode: () -> Unit,
     onStop: () -> Unit
 ) {
     if (isRunning) {
@@ -574,9 +578,7 @@ private fun MonitoringControlButtons(
             Text(text = stringResource(R.string.stop_monitoring))
         }
     } else {
-        // "Start monitoring" now starts passive (signal-only) monitoring — active ping-based
-        // testing is being reworked and is temporarily surfaced only as the disabled placeholder
-        // button below.
+        // "Start monitoring" is passive (signal only). "Start active mode testing" runs pings.
         Button(
             onClick = onStart,
             modifier = Modifier.fillMaxWidth(),
@@ -588,8 +590,7 @@ private fun MonitoringControlButtons(
             Text(text = stringResource(R.string.start_monitoring))
         }
         OutlinedButton(
-            onClick = {},
-            enabled = false,
+            onClick = onStartActiveMode,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(text = stringResource(R.string.start_active_mode_testing))
@@ -723,24 +724,6 @@ private fun MetricsCard(
                     Text(stringResource(R.string.cell_identity_grant))
                 }
             }
-            if (!stats.isPassiveOnlySession) {
-                MetricRow(
-                    label = stringResource(R.string.metric_rtt),
-                    value = stats.rttMs?.let { "$it ms" } ?: "—"
-                )
-                MetricRow(
-                    label = stringResource(R.string.metric_jitter),
-                    value = "${stats.jitterMs} ms"
-                )
-                MetricRow(
-                    label = stringResource(R.string.metric_packet_loss),
-                    value = String.format("%.1f%%", stats.packetLossPercent)
-                )
-                MetricRow(
-                    label = stringResource(R.string.metric_pings),
-                    value = "${stats.pingsSent - stats.pingsFailed}/${stats.pingsSent}"
-                )
-            }
             MetricRow(
                 label = when (stats.radioAccessType) {
                     CellularSignalReader.RADIO_5G_ENDC -> stringResource(R.string.metric_rsrp_lte)
@@ -773,6 +756,46 @@ private fun MetricsCard(
                 limitedServiceSignalOverlayRxss = stats.resolveLimitedServiceSignalOverlayRxss(
                     passiveSignalSettings
                 )
+            )
+        }
+    }
+}
+
+@Composable
+private fun ActiveModeMetricsCard(stats: ConnectivityStats) {
+    val hasPingResult = !stats.isPassiveOnlySession && stats.pingsSent > 0
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.active_mode_metrics_title),
+                modifier = Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.titleSmall,
+                color = Sushi,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+            MetricRow(
+                label = stringResource(R.string.metric_rtt),
+                value = if (hasPingResult) {
+                    stats.rttMs?.let { "$it ms" } ?: "—"
+                } else {
+                    "—"
+                }
+            )
+            MetricRow(
+                label = stringResource(R.string.metric_jitter),
+                value = if (hasPingResult) "${stats.jitterMs} ms" else "—"
+            )
+            MetricRow(
+                label = stringResource(R.string.metric_packet_loss),
+                value = if (hasPingResult) {
+                    String.format("%.1f%%", stats.packetLossPercent)
+                } else {
+                    "—"
+                }
             )
         }
     }

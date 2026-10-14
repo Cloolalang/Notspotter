@@ -7,6 +7,7 @@
     <string name="stop_monitoring">Stop</string>
     <string name="metrics_title">Cellular metrics</string>
     <string name="metrics_title_mock">Mock cellular metrics</string>
+    <string name="active_mode_metrics_title">Active mode metrics</string>
     <string name="top_level_passive_mode_monitoring">Passive mode monitoring</string>
     <string name="top_level_active_mode_testing">Active mode testing</string>
     <string name="top_level_general_app_settings">General App settings</string>
@@ -23,7 +24,7 @@
     <string name="settings_lock_unlock">Unlock</string>
     <string name="settings_lock_lock">Lock</string>
     <string name="settings_lock_wrong_password">Incorrect password.</string>
-    <string name="metric_rtt">RTT</string>
+    <string name="metric_rtt">Ping RTT</string>
     <string name="metric_jitter">Jitter</string>
     <string name="metric_packet_loss">Packet loss</string>
     <string name="metric_pings">Successful pings</string>

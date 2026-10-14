@@ -5,6 +5,24 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.94.1] - 2026-10-14
+
+### Changed
+
+- **RTT chart placement** — The rolling RTT chart now sits under **Active mode metrics**, below the ping RTT, jitter, and packet loss figures.
+
+## [2.94.0] - 2026-10-14
+
+### Changed
+
+- **Start active mode testing** — The button under **Start monitoring** now starts a ping session. **Ping RTT**, **Jitter**, and **Packet loss** fill in on **Active mode metrics**. Pings run for 10 minutes, then the session keeps listening to the signal without new pings.
+
+## [2.93.0] - 2026-10-14
+
+### Added
+
+- **Active mode metrics** — While monitoring, a panel under cellular metrics shows **Ping RTT**, **Jitter**, and **Packet loss**. The rows stay blank until an active-mode ping has a result. They are no longer mixed into the cellular metrics list.
+
 ## [2.92.2] - 2026-10-14
 
 ### Fixed

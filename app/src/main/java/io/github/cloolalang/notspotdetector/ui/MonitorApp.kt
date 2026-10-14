@@ -102,10 +102,12 @@ fun MonitorApp(
             rsrpHistory = rsrpHistory,
             isRunning = isRunning,
             onStart = {
-                // "Start monitoring" starts passive (signal-only) monitoring — see
-                // MonitoringControlButtons for the disabled active-mode-testing placeholder.
                 ensureBackgroundMonitoringEnabled()
                 viewModel.startPassiveOnlyMonitoring()
+            },
+            onStartActiveMode = {
+                ensureBackgroundMonitoringEnabled()
+                viewModel.startMonitoring()
             },
             onStop = viewModel::stopMonitoring,
             onGoodRttChange = viewModel::updateGoodRttMs,
