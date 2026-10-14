@@ -6,6 +6,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.cloolalang.notspotdetector.MonitorState
 import io.github.cloolalang.notspotdetector.data.AudioVolumeSettingsRepository
+import io.github.cloolalang.notspotdetector.data.MacroDefaultSettings
 import io.github.cloolalang.notspotdetector.data.MonitoringSettingsRepository
 import io.github.cloolalang.notspotdetector.data.PassiveMockSettingsRepository
 import io.github.cloolalang.notspotdetector.data.PassiveSignalSettingsRepository
@@ -917,10 +918,14 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
 
     fun loadSettingsProfile(id: String) {
         val profile = settingsProfilesRepository.findById(id) ?: return
+        applyLoadedSettings(profile.settings)
+    }
+
+    private fun applyLoadedSettings(snapshot: AppSettingsSnapshot) {
         val wasRunning = isRunning.value
         val passiveOnly = stats.value.isPassiveOnlySession
         val previousSubscription = monitoringSettings.value.subscriptionId
-        applySettingsSnapshot(profile.settings)
+        applySettingsSnapshot(snapshot)
         refreshCellularSignal()
         applyMockSignalIfActive()
         if (wasRunning && previousSubscription != monitoringSettings.value.subscriptionId) {
@@ -971,6 +976,12 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
 
     fun resetPassiveSignalSettings() {
         updatePassiveSignalSettings(PassiveSignalSettings())
+    }
+
+    /** Restores the bundled macro profile (alerts, voice, and the other settings in that file). */
+    fun applyMacroDefaults() {
+        val snapshot = MacroDefaultSettings.load(getApplication()) ?: return
+        applyLoadedSettings(snapshot)
     }
 
     fun updatePassiveMockSettings(settings: PassiveMockSettings) {

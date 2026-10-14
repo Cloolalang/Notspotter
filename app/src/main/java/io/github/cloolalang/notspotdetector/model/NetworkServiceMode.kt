@@ -16,13 +16,13 @@ fun NetworkServiceMode.isNoCellularService(): Boolean {
 }
 
 /**
- * VA-4 / VA-5 hold: one extra limited-service poll (~1 s at 1 Hz) before the episode is
- * treated as real. Exit is immediate so a confirmed camp recovery still speaks at once.
- * One-poll emergency-only flickers during cell reselection therefore stay silent.
+ * VA-4 / VA-5 hold: a limited-service reading must persist for several polls (~4 s at 1 Hz)
+ * before it is spoken. Exit is immediate so a confirmed camp recovery still speaks at once.
+ * Reselection in good signal often reports emergency-only for 1–3 s; that stays silent.
  */
 val LIMITED_SERVICE_VOICE_HOLD = RxssStateFilterSettings(
     enabled = true,
-    windowSeconds = 1,
+    windowSeconds = 3,
     balancePercent = 100
 )
 
@@ -111,14 +111,16 @@ fun isVoiceOnlyNoData(
  * Maps Android [android.telephony.ServiceState.getState] to the app service mode.
  *
  * Top-level [STATE_OUT_OF_SERVICE] is often data/PS only (e.g. all 4G bands locked). If
- * circuit-switched / voice is still registered or emergency-camped — typical limited 2G —
- * the status bar does not show the no-service icon, so this must not become RXSS 0.
- * Leftover LTE CellInfo with no CS/emergency camp stays [OUT_OF_SERVICE].
+ * circuit-switched / voice is still registered — typical limited 2G — or packet data is still
+ * registered and this is not an emergency camp, the status bar does not show the no-service
+ * icon, so this must not become RXSS 0. A reselection blip that leaves LTE data registered
+ * stays in service. Leftover LTE with no CS, no PS, and no emergency camp stays [OUT_OF_SERVICE].
  */
 fun resolveNetworkServiceMode(
     serviceState: Int,
     circuitSwitchedRegistered: Boolean,
-    emergencyCamp: Boolean
+    emergencyCamp: Boolean,
+    packetSwitchedRegistered: Boolean = false
 ): NetworkServiceMode {
     return when (serviceState) {
         SERVICE_STATE_POWER_OFF -> NetworkServiceMode.RADIO_OFF
@@ -126,6 +128,7 @@ fun resolveNetworkServiceMode(
         SERVICE_STATE_IN_SERVICE -> NetworkServiceMode.IN_SERVICE
         SERVICE_STATE_OUT_OF_SERVICE -> when {
             circuitSwitchedRegistered -> NetworkServiceMode.IN_SERVICE
+            packetSwitchedRegistered && !emergencyCamp -> NetworkServiceMode.IN_SERVICE
             emergencyCamp -> NetworkServiceMode.LIMITED_SERVICE
             else -> NetworkServiceMode.OUT_OF_SERVICE
         }

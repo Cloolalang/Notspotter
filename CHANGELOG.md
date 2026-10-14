@@ -5,6 +5,30 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.92.2] - 2026-10-14
+
+### Fixed
+
+- **Voice with the screen off** — Spoken announcements keep playing after the screen turns off or locks. Speech was sent as ordinary media audio, which the phone pauses with the display off, so you heard the alert tone and then silence. Voice now uses spoken-guidance audio. Alert tones are unchanged, and the voice volume slider still applies.
+
+## [2.92.1] - 2026-10-14
+
+### Fixed
+
+- **In-service voice on cell reselect** — Changing cells in good coverage no longer speaks “in service”. That line was following a brief change in the camped network (a different PLMN on the new cell, or a roaming flag that only lasts a second or two) even though you never left service. A real switch between home and roaming still speaks, after that new role has stayed for about four seconds. Leaving limited service still speaks as soon as you are back in service.
+
+## [2.92.0] - 2026-10-04
+
+### Added
+
+- **Macro defaults in Alert settings** — Alert settings has **Macro defaults**, which restores the bundled macro profile: alert tones, voice, connection-test thresholds, and the other settings in that profile. **DAS default settings** is shown beside it and stays inactive.
+
+## [2.91.1] - 2026-10-04
+
+### Fixed
+
+- **In-service voice flicker in good signal** — A normal LTE cell that merely allows emergency calls is no longer treated as limited service, and a brief out-of-service reading is ignored while packet data is still registered. Limited-service voice now waits about four seconds before it is spoken, so a reselection blip does not say “limited service” and then “in service”. Switching between 4G and 5G EN-DC also waits a few seconds before the technology voice, so a short NR-leg flap does not say “4G”.
+
 ## [2.91.0] - 2026-10-04
 
 ### Added

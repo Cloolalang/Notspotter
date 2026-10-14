@@ -125,7 +125,7 @@ fun MonitorApp(
             onRsrpHistogramBinningModeChange = viewModel::updateRsrpHistogramBinningMode,
             onRsrpHistogramThresholdChange = viewModel::updateRsrpHistogramThresholdDbm,
             onClearRsrpHistogram = viewModel::clearRsrpHistogram,
-            onResetPassiveSignalSettings = viewModel::resetPassiveSignalSettings,
+            onApplyMacroDefaults = viewModel::applyMacroDefaults,
             onSubscriptionChange = viewModel::updateSelectedSubscription,
             onMobileDataEnabledChange = viewModel::setMobileDataEnabled,
             onShowManualSelectOperatorButtonChange = viewModel::updateShowManualSelectOperatorButton,

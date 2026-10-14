@@ -104,10 +104,12 @@ class RollingTriggerFilterTest {
     }
 
     @Test
-    fun limitedServiceVoiceHold_needsSecondPollToEnterAndExitsImmediately() {
+    fun limitedServiceVoiceHold_needsSustainedPollsToEnterAndExitsImmediately() {
         val filter = RollingTriggerFilter()
 
-        assertFalse(filter.update(true, LIMITED_SERVICE_VOICE_HOLD).confirmedActive)
+        repeat(3) {
+            assertFalse(filter.update(true, LIMITED_SERVICE_VOICE_HOLD).confirmedActive)
+        }
         assertTrue(filter.update(true, LIMITED_SERVICE_VOICE_HOLD).confirmedActive)
 
         val exit = filter.update(false, LIMITED_SERVICE_VOICE_HOLD)
@@ -116,10 +118,12 @@ class RollingTriggerFilterTest {
     }
 
     @Test
-    fun limitedServiceVoiceHold_onePollFlickerStaysSilent() {
+    fun limitedServiceVoiceHold_shortFlickerStaysSilent() {
         val filter = RollingTriggerFilter()
 
-        assertFalse(filter.update(true, LIMITED_SERVICE_VOICE_HOLD).confirmedActive)
+        repeat(3) {
+            assertFalse(filter.update(true, LIMITED_SERVICE_VOICE_HOLD).confirmedActive)
+        }
         val recovered = filter.update(false, LIMITED_SERVICE_VOICE_HOLD)
         assertFalse(recovered.confirmedActive)
         assertFalse(recovered.transitioned)

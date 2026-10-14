@@ -113,7 +113,7 @@ fun PassiveSignalSettingsCard(
     onPreviewLevelRangeBcdClick: (frequencyHz: Int, pulseDurationMs: Int) -> Unit,
     onPreviewRsrqWhiteNoise: () -> Unit,
     onSignalPulseFrequencyChange: (Int) -> Unit,
-    onReset: () -> Unit,
+    onApplyMacroDefaults: () -> Unit,
     fiveGFeaturesEnabled: Boolean = true,
     onVoicePhrasesChange: (VoicePhraseGroup, VoicePhraseOptions) -> Unit = { _, _ -> },
     onPreviewVoicePhrase: (VoicePhraseGroup, VoicePhraseFragment) -> Unit = { _, _ -> },
@@ -284,12 +284,23 @@ fun PassiveSignalSettingsCard(
                     onPreviewTechnologyChangeVoice = onPreviewTechnologyChangeVoice
                 )
 
+                Text(
+                    text = stringResource(R.string.alert_settings_preset_hint),
+                    style = MaterialTheme.typography.bodySmall
+                )
                 OutlinedButton(
-                    onClick = onReset,
+                    onClick = onApplyMacroDefaults,
                     enabled = settingsControlsEnabled(),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(text = stringResource(R.string.passive_signal_settings_reset))
+                    Text(text = stringResource(R.string.alert_settings_macro_defaults))
+                }
+                OutlinedButton(
+                    onClick = {},
+                    enabled = false,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(text = stringResource(R.string.alert_settings_das_defaults))
                 }
                 }
             }

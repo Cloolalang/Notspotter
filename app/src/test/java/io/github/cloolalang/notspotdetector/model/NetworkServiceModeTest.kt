@@ -240,6 +240,19 @@ class NetworkServiceModeTest {
     }
 
     @Test
+    fun outOfServiceWhilePacketDataRegisteredStaysInService() {
+        assertEquals(
+            NetworkServiceMode.IN_SERVICE,
+            resolveNetworkServiceMode(
+                serviceState = SERVICE_STATE_OUT_OF_SERVICE,
+                circuitSwitchedRegistered = false,
+                emergencyCamp = false,
+                packetSwitchedRegistered = true
+            )
+        )
+    }
+
+    @Test
     fun emergencyOnlyStateIsLimited() {
         assertEquals(
             NetworkServiceMode.LIMITED_SERVICE,

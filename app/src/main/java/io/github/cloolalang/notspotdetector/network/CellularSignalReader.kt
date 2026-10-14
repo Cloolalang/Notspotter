@@ -89,10 +89,14 @@ object CellularSignalReader {
         val networkModePreference = readNetworkModePreference(telephonyManager, context)
         val restrictedTo2gNetwork = networkModePreference == NetworkModePreference.FORCED_2G
         val serviceState = telephonyManager.serviceState
-        val networkServiceMode = readNetworkServiceMode(telephonyManager, serviceState)
         val packetSwitchedRegistered = hasPacketSwitchedRegistration(
             serviceState,
             telephonyManager
+        )
+        val networkServiceMode = readNetworkServiceMode(
+            telephonyManager,
+            serviceState,
+            packetSwitchedRegistered
         )
         val isWifiCallingActive = readWifiCallingActive(telephonyManager)
         val simSlotIndex = SimSubscriptionHelper.resolveSlotIndex(context, subscriptionId)
@@ -256,7 +260,9 @@ object CellularSignalReader {
                 modemRoaming = readIsNetworkRoaming(telephonyManager, serviceState),
                 serviceMode = networkServiceMode,
                 isLimitedService = isLimitedService,
-                emergencyCamp = serviceState?.let { hasEmergencyVoiceCamp(it) } == true
+                emergencyCamp = serviceState?.let {
+                    hasEmergencyVoiceCamp(it, packetSwitchedRegistered)
+                } == true
             ),
             isWifiCallingActive = isWifiCallingActive,
             hasHomeGsmSignal = hasHomeGsmSignal,
@@ -588,13 +594,19 @@ object CellularSignalReader {
 
     @SuppressLint("MissingPermission")
     private fun readNetworkServiceMode(telephonyManager: TelephonyManager): NetworkServiceMode {
-        return readNetworkServiceMode(telephonyManager, telephonyManager.serviceState)
+        val serviceState = telephonyManager.serviceState
+        return readNetworkServiceMode(
+            telephonyManager,
+            serviceState,
+            hasPacketSwitchedRegistration(serviceState, telephonyManager)
+        )
     }
 
     @SuppressLint("MissingPermission")
     private fun readNetworkServiceMode(
         telephonyManager: TelephonyManager,
-        serviceState: ServiceState?
+        serviceState: ServiceState?,
+        packetSwitchedRegistered: Boolean
     ): NetworkServiceMode {
         if (serviceState == null) return NetworkServiceMode.UNKNOWN
         return resolveNetworkServiceMode(
@@ -603,7 +615,8 @@ object CellularSignalReader {
                 serviceState,
                 telephonyManager
             ),
-            emergencyCamp = hasEmergencyVoiceCamp(serviceState)
+            emergencyCamp = hasEmergencyVoiceCamp(serviceState, packetSwitchedRegistered),
+            packetSwitchedRegistered = packetSwitchedRegistered
         )
     }
 
@@ -663,20 +676,38 @@ object CellularSignalReader {
         return telephonyManager.voiceNetworkType in TWO_G_NETWORK_TYPES
     }
 
-    private fun hasEmergencyVoiceCamp(serviceState: ServiceState): Boolean {
-        if (readEnhancedLimitedServiceState(serviceState)) {
+    /**
+     * Emergency-only camp. [NetworkRegistrationInfo.isEmergencyEnabled] is not used: on a normal
+     * in-service LTE cell it is true whenever emergency calls are allowed, so a brief
+     * out-of-service reading during reselection was spoken as limited service.
+     * A VoLTE voice domain stuck on not-registered-emergency is also ignored while packet data
+     * is still registered.
+     */
+    private fun hasEmergencyVoiceCamp(
+        serviceState: ServiceState,
+        packetSwitchedRegistered: Boolean
+    ): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            invokeBooleanMethod(serviceState, "isEmergencyOnly")
+        ) {
             return true
         }
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-            return false
-        }
-        return runCatching {
-            serviceState.networkRegistrationInfoList.any { info ->
-                info.transportType == AccessNetworkConstants.TRANSPORT_TYPE_WWAN &&
-                    info.isVoiceOrGeranCamp() &&
-                    invokeBooleanMethod(info, "isEmergencyEnabled")
-            }
-        }.getOrDefault(false)
+        if (packetSwitchedRegistered) return false
+        return readRegistrationEmergencyOnly(serviceState)
+    }
+
+    /**
+     * API 30+ registration state for emergency-only service, including when
+     * [ServiceState.getState] has not yet moved to [ServiceState.STATE_EMERGENCY_ONLY].
+     */
+    private fun readRegistrationEmergencyOnly(serviceState: ServiceState): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return false
+        val notRegEmergency = runCatching {
+            ServiceState::class.java.getField("REGISTRATION_STATE_NOT_REG_EMERGENCY").getInt(null)
+        }.getOrNull() ?: return false
+        val dataReg = invokeIntMethod(serviceState, "getDataRegistrationState")
+        val voiceReg = invokeIntMethod(serviceState, "getVoiceRegistrationState")
+        return dataReg == notRegEmergency || voiceReg == notRegEmergency
     }
 
     private fun NetworkRegistrationInfo.isVoiceOrGeranCamp(): Boolean {
@@ -686,31 +717,6 @@ object CellularSignalReader {
     private fun NetworkRegistrationInfo.isCircuitSwitchedDomain(): Boolean {
         return domain == NetworkRegistrationInfo.DOMAIN_CS ||
             domain == NetworkRegistrationInfo.DOMAIN_CS_PS
-    }
-
-    /**
-     * API 30+ exposes registration states that can indicate emergency-only service even when
-     * [ServiceState.getState] has not yet moved to [ServiceState.STATE_EMERGENCY_ONLY].
-     */
-    private fun readEnhancedLimitedServiceState(serviceState: ServiceState): Boolean {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
-            invokeBooleanMethod(serviceState, "isEmergencyOnly")
-        ) {
-            return true
-        }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            val notRegEmergency = runCatching {
-                ServiceState::class.java.getField("REGISTRATION_STATE_NOT_REG_EMERGENCY").getInt(null)
-            }.getOrNull() ?: return false
-            val dataReg = invokeIntMethod(serviceState, "getDataRegistrationState")
-            val voiceReg = invokeIntMethod(serviceState, "getVoiceRegistrationState")
-            if (dataReg == notRegEmergency || voiceReg == notRegEmergency) {
-                return true
-            }
-        }
-
-        return false
     }
 
     /**

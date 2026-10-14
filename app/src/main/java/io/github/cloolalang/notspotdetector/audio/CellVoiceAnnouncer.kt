@@ -42,13 +42,14 @@ class CellVoiceAnnouncer(context: Context) : TextToSpeech.OnInitListener {
         private const val MAX_ENGINE_SPEECH_RATE = TtsSpeechRate.MAX
 
         /**
-         * Spoken guidance usage maps to the music stream (same volume as alert clicks) but is not
-         * treated as background media that OEMs pause when the lock screen comes up.
+         * Spoken-guidance audio. Phones keep this playing with the screen off or locked.
+         * Do not set a legacy stream: [AudioAttributes.Builder.setLegacyStreamType] replaces
+         * the usage with media, and a per-utterance [TextToSpeech.Engine.KEY_PARAM_STREAM]
+         * does the same inside the speech engine. Media audio is what gets paused on screen-off.
          */
         private val TTS_AUDIO_ATTRIBUTES: AudioAttributes = AudioAttributes.Builder()
             .setUsage(AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
             .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-            .setLegacyStreamType(AudioManager.STREAM_MUSIC)
             .build()
     }
 
@@ -252,7 +253,6 @@ class CellVoiceAnnouncer(context: Context) : TextToSpeech.OnInitListener {
         requestTtsAudioFocus()
         val params = Bundle().apply {
             putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, volume.coerceIn(0f, 1f))
-            putInt(TextToSpeech.Engine.KEY_PARAM_STREAM, AudioManager.STREAM_MUSIC)
         }
         var result = tts?.speak(
             text,

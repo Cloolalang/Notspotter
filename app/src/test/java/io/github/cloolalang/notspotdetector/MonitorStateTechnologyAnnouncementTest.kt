@@ -114,7 +114,8 @@ class MonitorStateTechnologyAnnouncementTest {
             passiveOnlySession = true
         )
         val first = MonitorState.updateStats(limited)
-        val events = MonitorState.updateStats(limited)
+        var events = first
+        repeat(3) { events = MonitorState.updateStats(limited) }
 
         assertTrue(first.cellIdentityChanged)
         assertFalse(first.limitedServiceStateChanged)
@@ -142,7 +143,8 @@ class MonitorStateTechnologyAnnouncementTest {
             passiveOnlySession = true
         )
         val first = MonitorState.updateStats(limited)
-        val held = MonitorState.updateStats(limited)
+        var held = first
+        repeat(3) { held = MonitorState.updateStats(limited) }
 
         assertTrue(first.cellIdentityChanged)
         assertFalse(first.limitedServiceStateChanged)
@@ -247,6 +249,44 @@ class MonitorStateTechnologyAnnouncementTest {
     }
 
     @Test
+    fun cellReselectOntoDifferentPlmn_doesNotSpeakInService() {
+        val home = mockStats(MockNetworkScenario.HOME_4G)
+        MonitorState.updateStats(home)
+        val reselected = home.copy(
+            ltePci = (home.ltePci ?: 0) + 11,
+            lteEarfcn = (home.lteEarfcn ?: 1800) + 50,
+            plmn = PassiveMockSettings.MOCK_VISITED_PLMN,
+            servingNetworkOperatorName = PassiveMockSettings.MOCK_VISITED_OPERATOR,
+            networkOperatorName = PassiveMockSettings.MOCK_VISITED_OPERATOR
+        )
+
+        val first = MonitorState.updateStats(reselected)
+        assertTrue(first.cellIdentityChanged)
+        assertFalse(speaksInService(first))
+        repeat(5) {
+            assertFalse(speaksInService(MonitorState.updateStats(reselected)))
+        }
+    }
+
+    @Test
+    fun roamingFlagBlipDuringReselect_doesNotSpeakInService() {
+        val home = mockStats(MockNetworkScenario.HOME_4G)
+        MonitorState.updateStats(home)
+        val blip = home.copy(
+            ltePci = (home.ltePci ?: 0) + 3,
+            isNetworkRoaming = true,
+            plmn = PassiveMockSettings.MOCK_VISITED_PLMN,
+            servingNetworkOperatorName = PassiveMockSettings.MOCK_VISITED_OPERATOR,
+            networkOperatorName = PassiveMockSettings.MOCK_VISITED_OPERATOR
+        )
+        repeat(3) {
+            assertFalse(speaksInService(MonitorState.updateStats(blip)))
+        }
+        val back = home.copy(ltePci = blip.ltePci)
+        assertFalse(speaksInService(MonitorState.updateStats(back)))
+    }
+
+    @Test
     fun mockHome2gThenLive4g_announcesTechnologyChange() {
         val mock = PassiveMockSettings(enabled = true, scenario = MockNetworkScenario.HOME_2G)
         MonitorState.updateStats(
@@ -298,6 +338,30 @@ class MonitorStateTechnologyAnnouncementTest {
         assertEquals(CellularSignalReader.RADIO_4G, events.technologyChangeTargetRadioAccessType)
     }
 
+    @Test
+    fun endcFlapInGoodSignal_doesNotSpeak4gUntilItStays() {
+        MonitorState.setMonitoringSettings(monitor2gFallback.copy(fiveGFeaturesEnabled = true))
+        MonitorState.updateStats(live4gStats())
+
+        val endc = live4gStats().copy(radioAccessType = CellularSignalReader.RADIO_5G_ENDC)
+        val flap = MonitorState.updateStats(endc)
+        val back = MonitorState.updateStats(live4gStats())
+
+        assertFalse(flap.radioTechnologyChanged)
+        assertFalse(back.radioTechnologyChanged)
+
+        var stayed = MonitorState.updateStats(endc)
+        repeat(2) { stayed = MonitorState.updateStats(endc) }
+        assertTrue(stayed.radioTechnologyChanged)
+        assertTrue(stayed.technologyChangeAnnouncement!!.contains("5 G"))
+    }
+
+    private fun confirmLimitedService(stats: ConnectivityStats): io.github.cloolalang.notspotdetector.model.MonitoringUpdateEvents {
+        var events = MonitorState.updateStats(stats)
+        repeat(3) { events = MonitorState.updateStats(stats) }
+        return events
+    }
+
     private fun mockStats(scenario: MockNetworkScenario): ConnectivityStats {
         return PassiveMockSettings(enabled = true, scenario = scenario).toConnectivityStats(
             monitor2gFallback = true,
@@ -312,9 +376,7 @@ class MonitorStateTechnologyAnnouncementTest {
         limitedScenario: MockNetworkScenario
     ): String? {
         MonitorState.updateStats(mockStats(homeScenario))
-        val firstLimited = MonitorState.updateStats(mockStats(limitedScenario))
-        assertFalse(firstLimited.limitedServiceStateChanged)
-        val enterLimited = MonitorState.updateStats(mockStats(limitedScenario))
+        val enterLimited = confirmLimitedService(mockStats(limitedScenario))
         assertTrue(enterLimited.limitedServiceStateChanged)
         val events = MonitorState.updateStats(mockStats(homeScenario))
         assertTrue(events.limitedServiceStateChanged)
@@ -324,16 +386,28 @@ class MonitorStateTechnologyAnnouncementTest {
     private fun homeToRoamingAnnouncement(homeScenario: MockNetworkScenario): String? {
         val home = mockStats(homeScenario)
         MonitorState.updateStats(home)
-        val events = MonitorState.updateStats(
-            home.copy(
-                isNetworkRoaming = true,
-                networkOperatorName = PassiveMockSettings.MOCK_VISITED_OPERATOR,
-                servingNetworkOperatorName = PassiveMockSettings.MOCK_VISITED_OPERATOR,
-                plmn = PassiveMockSettings.MOCK_VISITED_PLMN
-            )
+        val roaming = home.copy(
+            isNetworkRoaming = true,
+            networkOperatorName = PassiveMockSettings.MOCK_VISITED_OPERATOR,
+            servingNetworkOperatorName = PassiveMockSettings.MOCK_VISITED_OPERATOR,
+            plmn = PassiveMockSettings.MOCK_VISITED_PLMN
         )
+        var events = MonitorState.updateStats(roaming)
+        assertFalse(events.limitedServiceStateChanged)
+        repeat(2) {
+            events = MonitorState.updateStats(roaming)
+            assertFalse(events.limitedServiceStateChanged)
+        }
+        events = MonitorState.updateStats(roaming)
         assertTrue(events.limitedServiceStateChanged)
         return events.limitedServiceStateAnnouncement
+    }
+
+    private fun speaksInService(
+        events: io.github.cloolalang.notspotdetector.model.MonitoringUpdateEvents
+    ): Boolean {
+        val text = events.limitedServiceStateAnnouncement.orEmpty()
+        return text.contains("in service") || text.contains("in-service")
     }
 
     private fun live4gStats(): ConnectivityStats {

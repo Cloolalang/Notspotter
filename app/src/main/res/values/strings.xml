@@ -180,6 +180,9 @@
     <string name="mock_scenario_wifi_calling">WiFi calling (no cellular)</string>
     <string name="mock_scenario_wifi_calling_hint">In service via WiFi calling only, no cellular RAT/RSRP — RXSS 31, “WiFi calling, no cellular signal” voice.</string>
     <string name="passive_signal_settings_reset">Reset to defaults</string>
+    <string name="alert_settings_macro_defaults">Macro defaults</string>
+    <string name="alert_settings_das_defaults">DAS default settings</string>
+    <string name="alert_settings_preset_hint">Macro defaults restores the bundled macro profile, including alert tones, voice, and the other settings saved in that profile.</string>
     <string name="passive_signal_g2_section_hint">Used instead of RXSS 1–6 when 2G fallback is enabled and the phone is on 2G. RXSS 7 is RX level stronger than the RXSS 8 high end. RXSS 8 is adjustable from the RXSS 15 floor up to −85 dBm. RXSS 15 is 2G no signal.</string>
     <string name="passive_signal_g2_tier7_threshold">2G only — RX level stronger than %1$d dBm</string>
     <string name="passive_signal_g2_tier8_threshold">2G only — RX level from RXSS 15 through the RXSS 8 high end (up to −85 dBm)</string>

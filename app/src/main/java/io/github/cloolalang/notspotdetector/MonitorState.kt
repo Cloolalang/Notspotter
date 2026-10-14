@@ -51,6 +51,7 @@ import io.github.cloolalang.notspotdetector.model.isTier6CriticalSignal
 import io.github.cloolalang.notspotdetector.model.resolveSignalStrengthTier
 import io.github.cloolalang.notspotdetector.model.shouldAllowCellReselectVoice
 import io.github.cloolalang.notspotdetector.model.LIMITED_SERVICE_VOICE_HOLD
+import io.github.cloolalang.notspotdetector.model.isRegisteredSimRoaming
 import io.github.cloolalang.notspotdetector.model.shouldAnnounceInServiceAfterLimited
 import io.github.cloolalang.notspotdetector.model.shouldPlayG2NoSignalVoiceAnnouncements
 import io.github.cloolalang.notspotdetector.model.shouldSuppressSignalRestoredForWeakSignalRecovery
@@ -108,9 +109,31 @@ object MonitorState {
     private var cellIdentityBaselineReady = false
     private val cellReselectTimestamps = mutableListOf<Long>()
     private var radioTechnologyBaselineReady = false
+    /** Last technology that was spoken, or the baseline when monitoring started. */
+    private var announcedRadioAccessType: String? = null
+    private var pendingLteFamilyRat: String? = null
+    private var pendingLteFamilyPolls: Int = 0
+
+    /**
+     * Consecutive polls of a new 4G / 5G / EN-DC type before that technology is spoken.
+     * The displayed type updates on the first poll, so this counts against [announcedRadioAccessType].
+     */
+    private const val LTE_FAMILY_RAT_VOICE_HOLD_POLLS = 3
+
+    /**
+     * Polls a new home/roaming role must last before VA-5 while already in service.
+     * A reselection in good coverage often reports another PLMN on the new cell, or
+     * blips the roaming flag, for a few seconds without a real roam. Same wait as
+     * limited-service voice entry (~4 s at 1 Hz).
+     */
+    private const val IN_SERVICE_ROAMING_VOICE_HOLD_POLLS = 4
     private var noSignalBaselineReady = false
     private var limitedServiceBaselineReady = false
     private val limitedServiceVoiceFilter = RollingTriggerFilter()
+    /** Roaming role already accepted for VA-5. Null until the first in-service sample. */
+    private var stableInServiceRoaming: Boolean? = null
+    private var pendingInServiceRoaming: Boolean? = null
+    private var pendingInServiceRoamingPolls: Int = 0
     private var stableCellIdentity = CellIdentitySnapshot()
     private val noSignalFilter = RollingTriggerFilter()
     private val deadzoneFilter = RollingTriggerFilter()
@@ -921,14 +944,18 @@ object MonitorState {
         if (!radioTechnologyBaselineReady) {
             if (!nextType.isNullOrBlank()) {
                 radioTechnologyBaselineReady = true
+                announcedRadioAccessType = nextType
             }
             return null
         }
 
         val previousType = previous.radioAccessType?.takeIf { it.isNotBlank() }
             ?: previousKnownRat?.takeIf { it.isNotBlank() }
-        if (previousType == nextType) return null
-        if (previousType.isNullOrBlank() || nextType.isNullOrBlank()) return null
+        if (previousType.isNullOrBlank() || nextType.isNullOrBlank()) {
+            pendingLteFamilyRat = null
+            pendingLteFamilyPolls = 0
+            return null
+        }
 
         if (nextType == CellularSignalReader.RADIO_2G &&
             SignalStateAnnouncement.isLteNrRadioAccessType(previousType) &&
@@ -936,8 +963,35 @@ object MonitorState {
             previous.noSignalActive
         ) {
             // After a no-signal episode, the 2G camped voice replaces the generic technology change.
+            pendingLteFamilyRat = null
+            pendingLteFamilyPolls = 0
+            announcedRadioAccessType = nextType
             return null
         }
+
+        if (nextType == announcedRadioAccessType) {
+            pendingLteFamilyRat = null
+            pendingLteFamilyPolls = 0
+            return null
+        }
+
+        val lteFamilyChange = SignalStateAnnouncement.isLteNrRadioAccessType(announcedRadioAccessType) &&
+            SignalStateAnnouncement.isLteNrRadioAccessType(nextType)
+        if (lteFamilyChange) {
+            if (pendingLteFamilyRat != nextType) {
+                pendingLteFamilyRat = nextType
+                pendingLteFamilyPolls = 1
+                return null
+            }
+            pendingLteFamilyPolls++
+            if (pendingLteFamilyPolls < LTE_FAMILY_RAT_VOICE_HOLD_POLLS) return null
+            pendingLteFamilyRat = null
+            pendingLteFamilyPolls = 0
+        } else {
+            pendingLteFamilyRat = null
+            pendingLteFamilyPolls = 0
+        }
+        announcedRadioAccessType = nextType
 
         val volumes = _audioVolumes.value
         val target = TechnologyChangeTarget.fromRadioAccessType(nextType)
@@ -1203,6 +1257,7 @@ object MonitorState {
                 rawActive = next.isLimitedService,
                 settings = RxssStateFilterSettings.INACTIVE
             )
+            rememberStableInServiceRoaming(next)
             return null
         }
 
@@ -1216,6 +1271,11 @@ object MonitorState {
 
         if (previousConfirmed != confirmed) {
             if (!confirmed && !next.shouldAnnounceInServiceAfterLimited()) return null
+            if (!confirmed) {
+                rememberStableInServiceRoaming(next)
+            } else {
+                clearPendingInServiceRoaming()
+            }
             return SignalStateAnnouncement.formatLimitedServiceChange(
                 stats = next,
                 lastKnownRadioAccessType = lastKnownRadioAccessType,
@@ -1228,18 +1288,58 @@ object MonitorState {
             !previous.shouldAnnounceInServiceAfterLimited() ||
             !next.shouldAnnounceInServiceAfterLimited()
         ) {
+            if (!next.shouldAnnounceInServiceAfterLimited()) {
+                clearPendingInServiceRoaming()
+            }
             return null
         }
-        val previousPhrase = SignalStateAnnouncement.inServiceSpeechPhrase(previous)
-        val nextPhrase = SignalStateAnnouncement.inServiceSpeechPhrase(next)
-        if (previousPhrase == nextPhrase) return null
 
+        return consumeInServiceRoamingChange(next)
+    }
+
+    /**
+     * VA-5 while already in service follows the registered roaming flag only.
+     * A different camped PLMN or operator name on the new cell is normal during
+     * reselection and must not speak "in service" on its own.
+     */
+    private fun consumeInServiceRoamingChange(next: ConnectivityStats): String? {
+        val roaming = next.isRegisteredSimRoaming()
+        val stable = stableInServiceRoaming
+        if (stable == null) {
+            stableInServiceRoaming = roaming
+            return null
+        }
+        if (roaming == stable) {
+            clearPendingInServiceRoaming()
+            return null
+        }
+        if (pendingInServiceRoaming != roaming) {
+            pendingInServiceRoaming = roaming
+            pendingInServiceRoamingPolls = 1
+            return null
+        }
+        pendingInServiceRoamingPolls++
+        if (pendingInServiceRoamingPolls < IN_SERVICE_ROAMING_VOICE_HOLD_POLLS) return null
+
+        stableInServiceRoaming = roaming
+        clearPendingInServiceRoaming()
         return SignalStateAnnouncement.formatInServiceAnnouncement(
             stats = next,
             lastKnownRadioAccessType = lastKnownRadioAccessType,
             phrases = _audioVolumes.value.limitedServicePhrases,
             bandNamingStyle = _audioVolumes.value.cellChangeBandNamingStyle
         )
+    }
+
+    private fun rememberStableInServiceRoaming(stats: ConnectivityStats) {
+        if (!stats.shouldAnnounceInServiceAfterLimited()) return
+        stableInServiceRoaming = stats.isRegisteredSimRoaming()
+        clearPendingInServiceRoaming()
+    }
+
+    private fun clearPendingInServiceRoaming() {
+        pendingInServiceRoaming = null
+        pendingInServiceRoamingPolls = 0
     }
 
     private fun consumeLimitedServiceOperatorChange(
@@ -1372,9 +1472,14 @@ object MonitorState {
         cellReselectTimestamps.clear()
         cellIdentityBaselineReady = false
         radioTechnologyBaselineReady = false
+        announcedRadioAccessType = null
+        pendingLteFamilyRat = null
+        pendingLteFamilyPolls = 0
         noSignalBaselineReady = false
         limitedServiceBaselineReady = false
         limitedServiceVoiceFilter.reset()
+        stableInServiceRoaming = null
+        clearPendingInServiceRoaming()
         g2FallbackBaselineReady = false
         tier5BaselineReady = false
         stableCellIdentity = CellIdentitySnapshot()
