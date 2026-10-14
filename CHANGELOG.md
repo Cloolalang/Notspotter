@@ -5,6 +5,16 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.95.0] - 2026-10-14
+
+### Added
+
+- **Jitter on the RTT chart** — The live chart under Active mode metrics now draws jitter as well as ping RTT. Both use the same 0–500 ms scale over the last 60 seconds. RTT is the blue trace and jitter is the rose trace.
+
+### Changed
+
+- **Ping settings stay unlocked** — Ping address, pings per test, and the test interval can be changed while the settings password lock is on.
+
 ## [2.94.1] - 2026-10-14
 
 ### Changed

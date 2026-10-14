@@ -352,7 +352,9 @@
     <string name="metric_signal_dbm_2g">RX Level</string>
     <string name="metric_gsm_arfcn">GSM ARFCN</string>
     <string name="metric_gsm_bsic">BSIC</string>
-    <string name="rtt_graph_title">RTT (last 60 s)</string>
+    <string name="rtt_graph_title">RTT and jitter (last 60 s)</string>
+    <string name="rtt_graph_legend_rtt">RTT</string>
+    <string name="rtt_graph_legend_jitter">Jitter</string>
     <string name="rtt_graph_window">Rolling 60s window</string>
     <string name="rtt_graph_axis_hint">%1$d ms top · %2$d ms bottom</string>
     <string name="rtt_graph_label_ms">%1$d ms</string>

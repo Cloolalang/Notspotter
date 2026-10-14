@@ -342,7 +342,9 @@ object MonitorState {
             publishSpecialCellMatch(finalStats)
             clearRsrpHistogramIfTechnologyChanged(finalStats.radioAccessType)
             if (!enriched.isPassiveIdleMode) {
-                enriched.rttMs?.let { recordRttSample(it, enriched.lastPingTimestampMs) }
+                enriched.rttMs?.let { rttMs ->
+                    recordRttSample(rttMs, enriched.jitterMs, enriched.lastPingTimestampMs)
+                }
             }
             events
         }
@@ -350,10 +352,10 @@ object MonitorState {
         return events
     }
 
-    private fun recordRttSample(rttMs: Long, timestampMs: Long) {
+    private fun recordRttSample(rttMs: Long, jitterMs: Long, timestampMs: Long) {
         if (!_isRunning.value || timestampMs <= 0L) return
         val cutoff = timestampMs - RTT_HISTORY_WINDOW_MS
-        _rttHistory.value = (_rttHistory.value + RttSample(timestampMs, rttMs))
+        _rttHistory.value = (_rttHistory.value + RttSample(timestampMs, rttMs, jitterMs))
             .filter { it.timestampMs >= cutoff }
             .sortedBy { it.timestampMs }
     }
