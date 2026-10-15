@@ -226,34 +226,6 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         ConnectivityMonitorService.stop(getApplication())
     }
 
-    fun updateGoodRttMs(value: Long) {
-        updateThresholds(thresholds.value.copy(goodRttMs = value))
-    }
-
-    fun updatePoorRttMs(value: Long) {
-        updateThresholds(thresholds.value.copy(poorRttMs = value))
-    }
-
-    fun updatePoorJitterMs(value: Long) {
-        updateThresholds(thresholds.value.copy(poorJitterMs = value))
-    }
-
-    fun updatePoorPacketLossPercent(value: Float) {
-        updateThresholds(thresholds.value.copy(poorPacketLossPercent = value))
-    }
-
-    fun updateSuppressClicksOnGoodConnection(enabled: Boolean) {
-        updateThresholds(thresholds.value.copy(suppressClicksOnGoodConnection = enabled))
-    }
-
-    fun updateGoodConnectionClicksPerPing(value: Int) {
-        updateThresholds(thresholds.value.copy(goodConnectionClicksPerPing = value))
-    }
-
-    fun resetThresholds() {
-        updateThresholds(ThresholdSettings())
-    }
-
     fun updatePingAddress(input: String) {
         val (host, port) = PingSettings.parseAddress(input)
         updatePingSettings(pingSettings.value.copy(host = host, port = port))
@@ -365,6 +337,14 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
 
     fun updatePingClickVolume(value: Float) {
         updateAudioVolumes(audioVolumes.value.copy(pingClickVolume = value))
+    }
+
+    fun updatePingClickDurationMs(value: Int) {
+        updateAudioVolumes(audioVolumes.value.copy(pingClickDurationMs = value))
+    }
+
+    fun updatePingClickFrequencyHz(value: Int) {
+        updateAudioVolumes(audioVolumes.value.copy(pingClickFrequencyHz = value))
     }
 
     fun updateLowSignalClickVolume(value: Float) {
@@ -616,13 +596,24 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun resetAudioVolumes() {
-        updateAudioVolumes(AudioVolumeSettings())
+        val defaults = AudioVolumeSettings()
+        updateAudioVolumes(
+            audioVolumes.value.copy(
+                pingClickVolume = defaults.pingClickVolume,
+                pingClickDurationMs = defaults.pingClickDurationMs,
+                pingClickFrequencyHz = defaults.pingClickFrequencyHz
+            )
+        )
     }
 
     fun previewPingClickSound() {
         if (isRunning.value) return
         val volumes = audioVolumes.value.normalized()
-        alertSoundPreview.previewPingClick(volumes.pingClickVolume)
+        alertSoundPreview.previewPingClick(
+            volumes.pingClickVolume,
+            volumes.pingClickDurationMs,
+            volumes.pingClickFrequencyHz
+        )
     }
 
     fun previewLowSignalClickSound(frequencyHz: Int, pulseDurationMs: Int) {

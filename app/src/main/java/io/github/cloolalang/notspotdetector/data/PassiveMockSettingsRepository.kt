@@ -17,6 +17,15 @@ class PassiveMockSettingsRepository(context: Context) {
             voiceOnlyNoData = prefs.getBoolean(
                 KEY_VOICE_ONLY_NO_DATA,
                 PassiveMockSettings.DEFAULT_VOICE_ONLY_NO_DATA
+            ),
+            pingMockEnabled = prefs.getBoolean(
+                KEY_PING_MOCK_ENABLED,
+                PassiveMockSettings.DEFAULT_PING_MOCK_ENABLED
+            ),
+            pingRttMs = prefs.getInt(KEY_PING_RTT_MS, PassiveMockSettings.DEFAULT_PING_RTT_MS),
+            packetLossPercent = prefs.getInt(
+                KEY_PACKET_LOSS_PERCENT,
+                PassiveMockSettings.DEFAULT_PACKET_LOSS_PERCENT
             )
         ).normalized()
     }
@@ -29,6 +38,9 @@ class PassiveMockSettingsRepository(context: Context) {
             .putInt(KEY_RSRP_DBM, normalized.rsrpDbm)
             .putInt(KEY_RSRQ_DB, normalized.rsrqDb)
             .putBoolean(KEY_VOICE_ONLY_NO_DATA, normalized.voiceOnlyNoData)
+            .putBoolean(KEY_PING_MOCK_ENABLED, normalized.pingMockEnabled)
+            .putInt(KEY_PING_RTT_MS, normalized.pingRttMs)
+            .putInt(KEY_PACKET_LOSS_PERCENT, normalized.packetLossPercent)
             .apply()
     }
 
@@ -39,5 +51,8 @@ class PassiveMockSettingsRepository(context: Context) {
         private const val KEY_RSRP_DBM = "rsrp_dbm"
         private const val KEY_RSRQ_DB = "rsrq_db"
         private const val KEY_VOICE_ONLY_NO_DATA = "voice_only_no_data"
+        private const val KEY_PING_MOCK_ENABLED = "ping_mock_enabled"
+        private const val KEY_PING_RTT_MS = "ping_rtt_ms"
+        private const val KEY_PACKET_LOSS_PERCENT = "packet_loss_percent"
     }
 }

@@ -4,6 +4,7 @@ import android.content.Context
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
 import io.github.cloolalang.notspotdetector.model.RxssStateFilterSettings
+import io.github.cloolalang.notspotdetector.model.migrateRxss6BandEdges
 
 class PassiveSignalSettingsRepository(context: Context) {
 
@@ -20,9 +21,19 @@ class PassiveSignalSettingsRepository(context: Context) {
         legacySignalPulseDurationMs: Int = AudioVolumeSettings.DEFAULT_SIGNAL_PULSE_DURATION_MS,
         legacyLevelRangeBcdPulseDurationMs: Int = AudioVolumeSettings.DEFAULT_SIGNAL_PULSE_DURATION_MS
     ): PassiveSignalSettings {
+        val (poorRsrpMinDbm, noSignalRsrpDbm) = migrateRxss6BandEdges(
+            poorRsrpMinDbm = prefs.getInt(
+                KEY_POOR_RSRP_MIN,
+                PassiveSignalSettings.DEFAULT_POOR_RSRP_MIN_DBM
+            ),
+            noSignalRsrpDbm = prefs.getInt(
+                KEY_NO_SIGNAL_RSRP,
+                PassiveSignalSettings.DEFAULT_NO_SIGNAL_RSRP_DBM
+            )
+        )
         return PassiveSignalSettings(
-            noSignalRsrpDbm = prefs.getInt(KEY_NO_SIGNAL_RSRP, PassiveSignalSettings.DEFAULT_NO_SIGNAL_RSRP_DBM),
-            poorRsrpMinDbm = prefs.getInt(KEY_POOR_RSRP_MIN, PassiveSignalSettings.DEFAULT_POOR_RSRP_MIN_DBM),
+            noSignalRsrpDbm = noSignalRsrpDbm,
+            poorRsrpMinDbm = poorRsrpMinDbm,
             fairRsrpMinDbm = prefs.getInt(KEY_FAIR_RSRP_MIN, PassiveSignalSettings.DEFAULT_FAIR_RSRP_MIN_DBM),
             goodRsrpMinDbm = prefs.getInt(KEY_GOOD_RSRP_MIN, PassiveSignalSettings.DEFAULT_GOOD_RSRP_MIN_DBM),
             mildRsrpMinDbm = prefs.getInt(KEY_MILD_RSRP_MIN, PassiveSignalSettings.DEFAULT_MILD_RSRP_MIN_DBM),

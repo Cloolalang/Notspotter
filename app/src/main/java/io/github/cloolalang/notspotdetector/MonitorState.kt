@@ -13,6 +13,7 @@ import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.MonitoringUpdateEvents
 import io.github.cloolalang.notspotdetector.model.PassiveMockSettings
 import io.github.cloolalang.notspotdetector.model.toConnectivityStats
+import io.github.cloolalang.notspotdetector.model.withMockPingApplied
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
 import io.github.cloolalang.notspotdetector.model.PingSettings
 import io.github.cloolalang.notspotdetector.model.RttSample
@@ -246,10 +247,36 @@ object MonitorState {
     }
 
     fun setPassiveMockSettings(settings: PassiveMockSettings) {
-        _passiveMockSettings.value = settings.normalized()
-        if (!pushMockStatsIfActive()) {
+        val previousMock = _passiveMockSettings.value
+        val normalized = settings.normalized()
+        _passiveMockSettings.value = normalized
+        if (pushMockStatsIfActive()) return
+        val pingChanged = previousMock.pingMockEnabled != normalized.pingMockEnabled ||
+            previousMock.pingRttMs != normalized.pingRttMs ||
+            previousMock.packetLossPercent != normalized.packetLossPercent
+        if (!pingChanged) {
+            recomputeStatsQuality()
+            return
+        }
+        if (normalized.pingMockEnabled) {
+            pulseMockPing()
+        } else if (_stats.value.mockPingActive) {
+            updateStats(_stats.value)
+        } else {
             recomputeStatsQuality()
         }
+    }
+
+    /** Publishes one mock ping so active-mode clicks and the chart follow the sliders. */
+    fun pulseMockPing() {
+        val current = _stats.value
+        val mock = _passiveMockSettings.value
+        if (!mock.pingMockEnabled || !_isRunning.value || !current.isMonitoring ||
+            current.isPassiveOnlySession || current.isPassiveIdleMode
+        ) {
+            return
+        }
+        updateStats(current, mockPingTick = true)
     }
 
     /**
@@ -303,7 +330,8 @@ object MonitorState {
 
     fun updateStats(
         rawStats: ConnectivityStats,
-        recordFilterSample: Boolean = true
+        recordFilterSample: Boolean = true,
+        mockPingTick: Boolean = false
     ): MonitoringUpdateEvents {
         val events = synchronized(monitorLock) {
             val remapped = rawStats.hidingFiveGIfDisabled(_monitoringSettings.value.fiveGFeaturesEnabled)
@@ -324,8 +352,13 @@ object MonitorState {
                     reconciled.isCompleteNoService
                 )
             )
-            val (displayStats, updatedIdentity) = stats.withStabilizedCellIdentity(stableCellIdentity)
+            val (stabilizedStats, updatedIdentity) = stats.withStabilizedCellIdentity(stableCellIdentity)
             stableCellIdentity = updatedIdentity
+            val displayStats = stabilizedStats.withMockPingApplied(
+                mock = _passiveMockSettings.value,
+                previous = previous,
+                tick = mockPingTick
+            )
             val enriched = if (displayStats.isPassiveIdleMode) {
                 displayStats.copy(quality = ConnectionQuality.PASSIVE_IDLE, severity = 0f)
             } else {
@@ -342,9 +375,13 @@ object MonitorState {
             publishSpecialCellMatch(finalStats)
             clearRsrpHistogramIfTechnologyChanged(finalStats.radioAccessType)
             if (!enriched.isPassiveIdleMode) {
-                enriched.rttMs?.let { rttMs ->
-                    recordRttSample(rttMs, enriched.jitterMs, enriched.lastPingTimestampMs)
-                }
+                recordRttSample(
+                    rttMs = enriched.rttMs,
+                    jitterMs = enriched.jitterMs,
+                    packetLossPercent = enriched.packetLossPercent,
+                    timestampMs = enriched.lastPingTimestampMs,
+                    pingsSent = enriched.pingsSent
+                )
             }
             events
         }
@@ -352,12 +389,23 @@ object MonitorState {
         return events
     }
 
-    private fun recordRttSample(rttMs: Long, jitterMs: Long, timestampMs: Long) {
-        if (!_isRunning.value || timestampMs <= 0L) return
+    private fun recordRttSample(
+        rttMs: Long?,
+        jitterMs: Long,
+        packetLossPercent: Float,
+        timestampMs: Long,
+        pingsSent: Int
+    ) {
+        if (!_isRunning.value || timestampMs <= 0L || pingsSent <= 0) return
         val cutoff = timestampMs - RTT_HISTORY_WINDOW_MS
-        _rttHistory.value = (_rttHistory.value + RttSample(timestampMs, rttMs, jitterMs))
-            .filter { it.timestampMs >= cutoff }
-            .sortedBy { it.timestampMs }
+        val sample = RttSample(timestampMs, rttMs, jitterMs, packetLossPercent)
+        val history = _rttHistory.value.filter { it.timestampMs >= cutoff }
+        val replaced = if (history.lastOrNull()?.timestampMs == timestampMs) {
+            history.dropLast(1) + sample
+        } else {
+            history + sample
+        }
+        _rttHistory.value = replaced.sortedBy { it.timestampMs }
     }
 
     fun pruneRttHistory(nowMs: Long = System.currentTimeMillis()) {

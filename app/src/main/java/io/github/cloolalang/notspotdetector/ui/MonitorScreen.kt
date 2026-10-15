@@ -71,7 +71,6 @@ import io.github.cloolalang.notspotdetector.model.ProfileSaveResult
 import io.github.cloolalang.notspotdetector.model.SettingsProfileSummary
 import io.github.cloolalang.notspotdetector.model.SimSubscriptionOption
 import io.github.cloolalang.notspotdetector.model.TechnologyChangeTarget
-import io.github.cloolalang.notspotdetector.model.ThresholdSettings
 import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerChoice
 import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerOption
 import io.github.cloolalang.notspotdetector.model.VoicePhraseFragment
@@ -95,7 +94,6 @@ import io.github.cloolalang.notspotdetector.ui.theme.Sushi
 @Composable
 fun MonitorScreen(
     stats: ConnectivityStats,
-    thresholds: ThresholdSettings,
     pingSettings: PingSettings,
     monitoringSettings: MonitoringSettings,
     passiveSignalSettings: PassiveSignalSettings,
@@ -120,13 +118,6 @@ fun MonitorScreen(
     onStart: () -> Unit,
     onStartActiveMode: () -> Unit,
     onStop: () -> Unit,
-    onGoodRttChange: (Long) -> Unit,
-    onPoorRttChange: (Long) -> Unit,
-    onPoorJitterChange: (Long) -> Unit,
-    onPoorPacketLossChange: (Float) -> Unit,
-    onSuppressClicksOnGoodChange: (Boolean) -> Unit,
-    onGoodConnectionClicksPerPingChange: (Int) -> Unit,
-    onResetThresholds: () -> Unit,
     onPingAddressChange: (String) -> Unit,
     onPingsPerTestChange: (Int) -> Unit,
     onTestIntervalChange: (Long) -> Unit,
@@ -151,6 +142,8 @@ fun MonitorScreen(
     onRefreshVoiceAnnouncerOptions: () -> Unit,
     onPreviewVoiceAnnouncer: () -> Unit,
     onPingClickVolumeChange: (Float) -> Unit,
+    onPingClickFrequencyChange: (Int) -> Unit,
+    onPingClickDurationChange: (Int) -> Unit,
     onLowSignalClickVolumeChange: (Float) -> Unit,
     onSignalPulseFrequencyChange: (Int) -> Unit,
     onVeryStrongTierPulseFrequencyChange: (Int) -> Unit,
@@ -466,31 +459,13 @@ fun MonitorScreen(
                     onTestIntervalChange = onTestIntervalChange
                 )
 
-                ThresholdSettingsCard(
-                    thresholds = thresholds,
-                    onGoodRttChange = onGoodRttChange,
-                    onPoorRttChange = onPoorRttChange,
-                    onPoorJitterChange = onPoorJitterChange,
-                    onPoorPacketLossChange = onPoorPacketLossChange,
-                    onSuppressClicksOnGoodChange = onSuppressClicksOnGoodChange,
-                    onGoodConnectionClicksPerPingChange = onGoodConnectionClicksPerPingChange,
-                    onReset = onResetThresholds
-                )
-
                 AudioVolumeSettingsCard(
                     audioVolumes = audioVolumes,
                     previewEnabled = !isRunning,
-                    signalPulsePreviewRepeatIntervalMs = SettingsCompatibility.resolveTierClickIntervalMs(
-                        configuredMs = passiveSignalSettings.levelRangeAbcdClickIntervalMs.toLong(),
-                        signalPulseDurationMs = audioVolumes.signalPulseDurationMs,
-                        isPassiveOnlySession = true
-                    ),
                     onPingClickVolumeChange = onPingClickVolumeChange,
-                    onLowSignalClickVolumeChange = onLowSignalClickVolumeChange,
-                    onSignalPulseFrequencyChange = onSignalPulseFrequencyChange,
-                    onSignalPulseDurationChange = onSignalPulseDurationChange,
+                    onPingClickFrequencyChange = onPingClickFrequencyChange,
+                    onPingClickDurationChange = onPingClickDurationChange,
                     onPreviewPingClick = onPreviewPingClick,
-                    onPreviewLowSignalClick = onPreviewLowSignalClick,
                     onReset = onResetAudioVolumes
                 )
             }

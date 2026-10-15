@@ -37,7 +37,8 @@ class MacroDefaultSettingsTest {
             RsrpHistogramBinningMode.THRESHOLD,
             settings.monitoringSettings.rsrpHistogramBinningMode
         )
-        assertEquals(-126, settings.passiveSignalSettings.noSignalRsrpDbm)
+        assertEquals(-130, settings.passiveSignalSettings.noSignalRsrpDbm)
+        assertEquals(-123, settings.passiveSignalSettings.poorRsrpMinDbm)
         assertEquals(12_470, settings.passiveSignalSettings.noSignalTierClickIntervalMs)
         assertEquals(1_530, settings.passiveSignalSettings.deadzoneTierPulseDurationMs)
         assertFalse(settings.passiveSignalSettings.searching2gTierSoundEnabled)

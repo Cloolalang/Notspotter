@@ -1191,7 +1191,7 @@ private fun RsrpTierSettings(
                         label = stringResource(R.string.passive_signal_rxss6_high_end),
                         rangeLabel = stringResource(
                             R.string.passive_signal_rsrp_band_range,
-                            settings.noSignalRsrpDbm + gap,
+                            settings.noSignalRsrpDbm,
                             settings.poorRsrpMinDbm
                         ),
                         value = settings.poorRsrpMinDbm,

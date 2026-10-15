@@ -5,6 +5,106 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.111.0] - 2026-10-15
+
+### Removed
+
+- **Active mode alert thresholds** — Good RTT, poor RTT, jitter, and packet loss sliders no longer appear in Development options. Ping clicks follow the fixed RTT curve, and those sliders did not change them.
+
+## [2.110.0] - 2026-10-15
+
+### Changed
+
+- **Ping clicks** — Development options now call these Ping clicks, with their own duration and frequency. Signal pulse volume, duration, and frequency stay on the RXSS cards, so those duplicate sliders are no longer in Development options.
+
+## [2.109.0] - 2026-10-15
+
+### Fixed
+
+- **Quiet clicks on a good RTT** — A click every few seconds was faded in as the speaker woke up, so a good RTT sounded quieter than a slower one. Each tick is now the same level, whatever the RTT.
+
+## [2.108.0] - 2026-10-15
+
+### Changed
+
+- **Ping click rate** — A good RTT, from 25 ms through 45 ms, clicks once per ping test. A small rise such as 52 ms no longer shortens that to about a second. On a 5 second test the gap is about 2.5 seconds at 60 ms, 1.25 seconds at 80 ms, 0.8 seconds at 100 ms, and 0.5 seconds at 120 ms, then faster up to about 10 clicks a second. Loss of 5% or more still doubles the speed straight away, and 10% doubles it again.
+
+## [2.107.0] - 2026-10-15
+
+### Fixed
+
+- **Silent ping clicks on a fast RTT** — A steady reading around 40 ms produced no clicks, because each tick was stopped before it played. 40 ms and faster now click once per ping test. Clicks keep going for every ping result except 100% packet loss.
+
+### Changed
+
+- **Ping click rate** — Above 40 ms the clicks speed up logarithmically, reaching about 10 a second at 600 ms. Loss of 5% or more still doubles that rate, and 10% or more doubles it again.
+
+## [2.106.0] - 2026-10-15
+
+### Changed
+
+- **Packet loss and ping clicks** — Loss of 5% or more doubles the click speed for the current RTT. Loss of 10% or more doubles it again, so the clicks are four times as fast. 100% loss still stops them.
+
+## [2.105.0] - 2026-10-15
+
+### Fixed
+
+- **Uneven ping clicks** — Clicks were stacking, so one tick came out loud and the next quiet. Each click now replays the same tick at the same level. A reading around 40 ms keeps ticking as well. Silent-when-good no longer mutes those clicks.
+
+## [2.104.0] - 2026-10-15
+
+### Fixed
+
+- **Quiet ping clicks on a fast RTT** — With tests 5 seconds apart, a quick RTT (around 50 ms) was waiting as long as the test itself, so the tick never landed. The gap is now kept to half the test interval, and each new test clicks straight away. A lone tick is also held long enough to come out of the speaker.
+
+## [2.103.0] - 2026-10-15
+
+### Changed
+
+- **Ping click curve** — From 25 ms to 60 ms the clicks ease from one every 5 seconds to one every 3 seconds. After 60 ms they speed up logarithmically, reaching about 10 clicks a second at 600 ms.
+
+## [2.102.0] - 2026-10-15
+
+### Changed
+
+- **Ping clicks and loss** — Packet loss from 0 to 10% now speeds the ping clicks, on the same curve as a rising RTT. 10% loss clicks as fast as a 600 ms RTT. The clicks stop when there is no signal, no service, or 100% packet loss, instead of carrying on at the last rate.
+
+## [2.101.0] - 2026-10-15
+
+### Changed
+
+- **Ping click rate** — A good 27 ms RTT now clicks about once every 5 seconds. From there the clicks speed up on a logarithmic curve, reaching 10 clicks a second at 600 ms. Faster RTT stays at the slow rate, and anything past 600 ms stays at 10 a second. A timed-out ping and high packet loss still drive the fast end. The clicks keep running beside the RXSS pulses. The old clicks-per-test slider is no longer shown, because a good result ticks on this curve instead of once per test.
+
+## [2.100.0] - 2026-10-15
+
+### Changed
+
+- **RTT clicks beside RXSS** — Ping clicks now run on their own, at the same time as the RXSS pulses. The rate follows RTT like a Geiger counter: at or below the good threshold you still get the clicks for that test, and above it the clicks run continuously and speed up as RTT rises, through 500 ms. 160 ms clicks faster than 80 ms. A timed-out ping clicks at the fastest rate, and packet loss speeds the clicks as well. Mock ping drives the same clicks and no longer pauses RXSS.
+
+## [2.99.0] - 2026-10-15
+
+### Added
+
+- **Mock ping** — Mock network state has **Use mock ping**, with sliders for ping RTT (0–1500 ms) and packet loss (0–100%). During active mode those values replace the live ping, so connection clicks follow them. A good result clicks on each test interval. Higher RTT or loss speeds the clicks up to the degraded and poor rates. RXSS pulses pause while mock ping is on.
+
+## [2.98.0] - 2026-10-15
+
+### Changed
+
+- **RXSS 6 range** — Signal low now runs from −130 dBm up to −123 dBm. −123 dBm is the RXSS 5 low end, and −130 dBm is still RXSS 10 (at or below). Readings from −129 dBm through −123 dBm are RXSS 6. Installs that were still on the old −125 dBm cap move to −123 dBm; the old −135 dBm and −126 dBm floors move to −130 dBm. A custom floor is left as you set it.
+
+## [2.97.0] - 2026-10-15
+
+### Added
+
+- **Packet loss on the ping chart** — The rolling chart under Active mode metrics now draws packet loss as well as RTT and jitter. Loss uses the amber trace and a 0–100% scale on the right. The same reversed axis as RTT applies: 0% is at the top and 100% is at the bottom. A timed-out ping is included, so the loss trace still moves when RTT has no sample.
+
+## [2.96.0] - 2026-10-15
+
+### Changed
+
+- **Faster packet loss when a ping times out** — A connect that does not answer is now given 2 seconds, then counted straight away. The rest of that burst is skipped, and the next probe starts about half a second later instead of waiting for every remaining ping plus the full test interval. Successful tests still wait the interval you set. After a timeout the next probe is measured immediately, without another discarded warm-up.
+
 ## [2.95.0] - 2026-10-14
 
 ### Added

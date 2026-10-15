@@ -132,7 +132,12 @@ data class ConnectivityStats(
      */
     val signalQualityFresh: Boolean = true,
     /** Serving-cell reselects in the last 60 s (rolling). */
-    val cellReselectsPerMinute: Int = 0
+    val cellReselectsPerMinute: Int = 0,
+    /**
+     * Active-mode ping RTT and packet loss are coming from the mock sliders.
+     * Connection-quality clicks play instead of RXSS pulses.
+     */
+    val mockPingActive: Boolean = false
 )
 
 /** RSRP / 2G RX shown in cellular metrics — blank when not a live scan. */

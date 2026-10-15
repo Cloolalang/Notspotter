@@ -32,8 +32,8 @@
         "fiveGFeaturesEnabled": false
       },
       "passiveSignal": {
-        "noSignalRsrpDbm": -126,
-        "poorRsrpMinDbm": -121,
+        "noSignalRsrpDbm": -130,
+        "poorRsrpMinDbm": -123,
         "fairRsrpMinDbm": -115,
         "goodRsrpMinDbm": -101,
         "mildRsrpMinDbm": -96,

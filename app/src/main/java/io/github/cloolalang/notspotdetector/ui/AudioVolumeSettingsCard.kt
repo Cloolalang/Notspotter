@@ -31,13 +31,10 @@ import kotlin.math.roundToInt
 fun AudioVolumeSettingsCard(
     audioVolumes: AudioVolumeSettings,
     previewEnabled: Boolean,
-    signalPulsePreviewRepeatIntervalMs: Long,
     onPingClickVolumeChange: (Float) -> Unit,
-    onLowSignalClickVolumeChange: (Float) -> Unit,
-    onSignalPulseFrequencyChange: (Int) -> Unit,
-    onSignalPulseDurationChange: (Int) -> Unit,
+    onPingClickFrequencyChange: (Int) -> Unit,
+    onPingClickDurationChange: (Int) -> Unit,
     onPreviewPingClick: () -> Unit,
-    onPreviewLowSignalClick: (frequencyHz: Int, pulseDurationMs: Int) -> Unit,
     onReset: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -90,29 +87,19 @@ fun AudioVolumeSettingsCard(
                     previewEnabled = previewEnabled,
                     onPreview = onPreviewPingClick
                 )
-                VolumeSlider(
-                    label = stringResource(R.string.audio_volume_signal_pulse),
-                    value = audioVolumes.lowSignalClickVolume,
-                    onValueChange = onLowSignalClickVolumeChange,
-                    previewEnabled = previewEnabled,
-                    onPreview = {
-                        onPreviewLowSignalClick(
-                            audioVolumes.signalPulseFrequencyHz,
-                            audioVolumes.signalPulseDurationMs
-                        )
-                    },
-                    previewRepeatIntervalMs = signalPulsePreviewRepeatIntervalMs
-                )
                 FrequencySlider(
-                    label = stringResource(R.string.audio_signal_pulse_frequency),
-                    frequencyHz = audioVolumes.signalPulseFrequencyHz,
-                    onValueChange = onSignalPulseFrequencyChange
+                    label = stringResource(R.string.audio_ping_click_frequency),
+                    frequencyHz = audioVolumes.pingClickFrequencyHz,
+                    onValueChange = onPingClickFrequencyChange
                 )
                 DurationSlider(
-                    label = stringResource(R.string.audio_signal_pulse_duration),
-                    valueMs = audioVolumes.signalPulseDurationMs,
-                    hint = stringResource(R.string.audio_signal_pulse_duration_hint),
-                    onValueChange = onSignalPulseDurationChange
+                    label = stringResource(R.string.audio_ping_click_duration),
+                    valueMs = audioVolumes.pingClickDurationMs,
+                    hint = stringResource(R.string.audio_ping_click_duration_hint),
+                    minMs = AudioVolumeSettings.MIN_PING_CLICK_DURATION_MS,
+                    maxMs = AudioVolumeSettings.MAX_PING_CLICK_DURATION_MS,
+                    stepMs = AudioVolumeSettings.PING_CLICK_DURATION_STEP_MS,
+                    onValueChange = onPingClickDurationChange
                 )
                 OutlinedButton(
                     onClick = onReset,
@@ -172,11 +159,11 @@ private fun DurationSlider(
     label: String,
     valueMs: Int,
     hint: String? = null,
+    minMs: Int = AudioVolumeSettings.MIN_SIGNAL_PULSE_DURATION_MS,
+    maxMs: Int = AudioVolumeSettings.MAX_SIGNAL_PULSE_DURATION_MS,
+    stepMs: Int = AudioVolumeSettings.SIGNAL_PULSE_DURATION_STEP_MS,
     onValueChange: (Int) -> Unit
 ) {
-    val minMs = AudioVolumeSettings.MIN_SIGNAL_PULSE_DURATION_MS
-    val maxMs = AudioVolumeSettings.MAX_SIGNAL_PULSE_DURATION_MS
-    val stepMs = AudioVolumeSettings.SIGNAL_PULSE_DURATION_STEP_MS
     val splitMs = ExpandedRangeSlider.PULSE_DURATION_SPLIT_MS.coerceIn(minMs, maxMs)
 
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {

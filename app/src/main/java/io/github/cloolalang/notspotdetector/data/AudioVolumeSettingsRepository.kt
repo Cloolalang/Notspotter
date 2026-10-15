@@ -111,7 +111,15 @@ class AudioVolumeSettingsRepository(context: Context) {
                 KEY_MASTER_OTHER_SOUNDS_ENABLED,
                 AudioVolumeSettings.DEFAULT_MASTER_OTHER_SOUNDS_ENABLED
             ),
-            pingClickVolume = prefs.getFloat(KEY_PING_CLICK, AudioVolumeSettings.DEFAULT_VOLUME),
+            pingClickVolume = prefs.getFloat(KEY_PING_CLICK, AudioVolumeSettings.DEFAULT_PING_CLICK_VOLUME),
+            pingClickDurationMs = prefs.getInt(
+                KEY_PING_CLICK_DURATION,
+                AudioVolumeSettings.DEFAULT_PING_CLICK_DURATION_MS
+            ),
+            pingClickFrequencyHz = prefs.getInt(
+                KEY_PING_CLICK_FREQUENCY,
+                AudioVolumeSettings.DEFAULT_PING_CLICK_FREQUENCY_HZ
+            ),
             lowSignalClickVolume = prefs.getFloat(KEY_LOW_SIGNAL_CLICK, AudioVolumeSettings.DEFAULT_VOLUME),
             signalPulseFrequencyHz = signalPulseFrequencyHz,
             noSignalTierPulseFrequencyHz = noSignalTierPulseFrequencyHz,
@@ -362,6 +370,8 @@ class AudioVolumeSettingsRepository(context: Context) {
             .putBoolean(KEY_MASTER_VOICE_ANNOUNCEMENTS_ENABLED, normalized.masterVoiceAnnouncementsEnabled)
             .putBoolean(KEY_MASTER_OTHER_SOUNDS_ENABLED, normalized.masterOtherSoundsEnabled)
             .putFloat(KEY_PING_CLICK, normalized.pingClickVolume)
+            .putInt(KEY_PING_CLICK_DURATION, normalized.pingClickDurationMs)
+            .putInt(KEY_PING_CLICK_FREQUENCY, normalized.pingClickFrequencyHz)
             .putFloat(KEY_LOW_SIGNAL_CLICK, normalized.lowSignalClickVolume)
             .putInt(KEY_SIGNAL_PULSE_FREQUENCY, normalized.signalPulseFrequencyHz)
             .putInt(KEY_NO_SIGNAL_TIER_PULSE_FREQUENCY, normalized.noSignalTierPulseFrequencyHz)
@@ -453,6 +463,8 @@ class AudioVolumeSettingsRepository(context: Context) {
         private const val KEY_MASTER_VOICE_ANNOUNCEMENTS_ENABLED = "master_voice_announcements_enabled"
         private const val KEY_MASTER_OTHER_SOUNDS_ENABLED = "master_other_sounds_enabled"
         private const val KEY_PING_CLICK = "ping_click_volume"
+        private const val KEY_PING_CLICK_DURATION = "ping_click_duration_ms"
+        private const val KEY_PING_CLICK_FREQUENCY = "ping_click_frequency_hz"
         private const val KEY_LOW_SIGNAL_CLICK = "low_signal_click_volume"
         private const val KEY_SIGNAL_PULSE_FREQUENCY = "signal_pulse_frequency_hz"
         private const val KEY_NO_SIGNAL_TIER_PULSE_FREQUENCY = "no_signal_tier_pulse_frequency_hz"

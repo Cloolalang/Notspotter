@@ -5,6 +5,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -37,13 +39,19 @@ import androidx.compose.ui.unit.sp
 import io.github.cloolalang.notspotdetector.MonitorState
 import io.github.cloolalang.notspotdetector.R
 import io.github.cloolalang.notspotdetector.model.RttSample
+import io.github.cloolalang.notspotdetector.ui.theme.PacketLossAmber
 import io.github.cloolalang.notspotdetector.ui.theme.StopRose
 import io.github.cloolalang.notspotdetector.ui.theme.Sushi
 import kotlinx.coroutines.delay
 
 private const val CHART_MIN_MS = 0f
 private const val CHART_MAX_MS = 500f
+private const val CHART_MIN_LOSS_PERCENT = 0
+private const val CHART_MAX_LOSS_PERCENT = 100
+private val ChartTimeAxisWidth = 44.dp
+private val ChartLossAxisWidth = 40.dp
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun RttGraphCard(
     samples: List<RttSample>,
@@ -66,6 +74,8 @@ fun RttGraphCard(
     val rttPointColor = MaterialTheme.colorScheme.tertiary
     val jitterLineColor = StopRose
     val jitterPointColor = StopRose
+    val lossLineColor = PacketLossAmber
+    val lossPointColor = PacketLossAmber
 
     Card(modifier = modifier.fillMaxWidth()) {
         Column(
@@ -79,9 +89,9 @@ fun RttGraphCard(
                 fontWeight = FontWeight.Bold
             )
 
-            Row(
+            FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 ChartLegendItem(
                     color = rttLineColor,
@@ -90,6 +100,10 @@ fun RttGraphCard(
                 ChartLegendItem(
                     color = jitterLineColor,
                     label = stringResource(R.string.rtt_graph_legend_jitter)
+                )
+                ChartLegendItem(
+                    color = lossLineColor,
+                    label = stringResource(R.string.rtt_graph_legend_loss)
                 )
             }
 
@@ -129,7 +143,7 @@ fun RttGraphCard(
                 ) {
                     Column(
                         modifier = Modifier
-                            .width(44.dp)
+                            .width(ChartTimeAxisWidth)
                             .fillMaxHeight(),
                         verticalArrangement = Arrangement.SpaceBetween,
                         horizontalAlignment = Alignment.End
@@ -166,6 +180,15 @@ fun RttGraphCard(
                             return chartTop + normalized * chartHeight
                         }
 
+                        fun lossToY(lossPercent: Float): Float {
+                            val clamped = lossPercent.coerceIn(
+                                CHART_MIN_LOSS_PERCENT.toFloat(),
+                                CHART_MAX_LOSS_PERCENT.toFloat()
+                            )
+                            val normalized = clamped / CHART_MAX_LOSS_PERCENT
+                            return chartTop + normalized * chartHeight
+                        }
+
                         fun timeToX(timestampMs: Long): Float {
                             val progress = (timestampMs - windowStartMs).toFloat() / MonitorState.RTT_HISTORY_WINDOW_MS
                             return chartLeft + progress.coerceIn(0f, 1f) * chartWidth
@@ -183,7 +206,17 @@ fun RttGraphCard(
 
                         drawSeries(
                             samples = visibleSamples,
-                            valueMs = { it.jitterMs.toFloat() },
+                            value = { it.packetLossPercent },
+                            timeToX = ::timeToX,
+                            valueToY = ::lossToY,
+                            lineColor = lossLineColor,
+                            pointColor = lossPointColor,
+                            strokeWidthPx = 2.dp.toPx(),
+                            pointRadiusPx = 3.5.dp.toPx()
+                        )
+                        drawSeries(
+                            samples = visibleSamples,
+                            value = { it.jitterMs.toFloat() },
                             timeToX = ::timeToX,
                             valueToY = ::valueToY,
                             lineColor = jitterLineColor,
@@ -193,13 +226,41 @@ fun RttGraphCard(
                         )
                         drawSeries(
                             samples = visibleSamples,
-                            valueMs = { it.rttMs.toFloat() },
+                            value = { it.rttMs?.toFloat() },
                             timeToX = ::timeToX,
                             valueToY = ::valueToY,
                             lineColor = rttLineColor,
                             pointColor = rttPointColor,
                             strokeWidthPx = 3.dp.toPx(),
                             pointRadiusPx = 4.dp.toPx()
+                        )
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .width(ChartLossAxisWidth)
+                            .fillMaxHeight()
+                            .padding(start = 4.dp),
+                        verticalArrangement = Arrangement.SpaceBetween,
+                        horizontalAlignment = Alignment.Start
+                    ) {
+                        Text(
+                            text = stringResource(R.string.rtt_graph_label_percent, CHART_MIN_LOSS_PERCENT),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontSize = 10.sp,
+                            color = lossLineColor
+                        )
+                        Text(
+                            text = stringResource(R.string.rtt_graph_label_percent, CHART_MAX_LOSS_PERCENT / 2),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontSize = 10.sp,
+                            color = lossLineColor
+                        )
+                        Text(
+                            text = stringResource(R.string.rtt_graph_label_percent, CHART_MAX_LOSS_PERCENT),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontSize = 10.sp,
+                            color = lossLineColor
                         )
                     }
                 }
@@ -212,12 +273,13 @@ fun RttGraphCard(
                         text = stringResource(R.string.rtt_graph_time_start),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(start = 44.dp)
+                        modifier = Modifier.padding(start = ChartTimeAxisWidth)
                     )
                     Text(
                         text = stringResource(R.string.rtt_graph_time_now),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(end = ChartLossAxisWidth)
                     )
                 }
             }
@@ -249,7 +311,7 @@ private fun ChartLegendItem(
 
 private fun DrawScope.drawSeries(
     samples: List<RttSample>,
-    valueMs: (RttSample) -> Float,
+    value: (RttSample) -> Float?,
     timeToX: (Long) -> Float,
     valueToY: (Float) -> Float,
     lineColor: Color,
@@ -258,27 +320,26 @@ private fun DrawScope.drawSeries(
     pointRadiusPx: Float
 ) {
     if (samples.isEmpty()) return
-    if (samples.size > 1) {
-        val path = Path()
-        samples.forEachIndexed { index, sample ->
-            val point = Offset(timeToX(sample.timestampMs), valueToY(valueMs(sample)))
-            if (index == 0) {
-                path.moveTo(point.x, point.y)
-            } else {
-                path.lineTo(point.x, point.y)
-            }
-        }
-        drawPath(
-            path = path,
-            color = lineColor,
-            style = Stroke(width = strokeWidthPx, cap = StrokeCap.Round)
-        )
-    }
+    val stroke = Stroke(width = strokeWidthPx, cap = StrokeCap.Round)
+    var path: Path? = null
     samples.forEach { sample ->
+        val sampleValue = value(sample) ?: run {
+            path?.let { drawPath(path = it, color = lineColor, style = stroke) }
+            path = null
+            return@forEach
+        }
+        val point = Offset(timeToX(sample.timestampMs), valueToY(sampleValue))
+        val current = path
+        if (current == null) {
+            path = Path().apply { moveTo(point.x, point.y) }
+        } else {
+            current.lineTo(point.x, point.y)
+        }
         drawCircle(
             color = pointColor,
             radius = pointRadiusPx,
-            center = Offset(timeToX(sample.timestampMs), valueToY(valueMs(sample)))
+            center = point
         )
     }
+    path?.let { drawPath(path = it, color = lineColor, style = stroke) }
 }

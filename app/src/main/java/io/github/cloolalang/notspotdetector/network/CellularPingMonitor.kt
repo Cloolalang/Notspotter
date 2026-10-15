@@ -26,7 +26,7 @@ class CellularPingMonitor(
     private val settingsProvider: () -> PingSettings,
     private val monitoringSettingsProvider: () -> MonitoringSettings,
     private val sampleWindowSize: Int = 20,
-    private val connectTimeoutMs: Int = 5_000
+    private val connectTimeoutMs: Int = PingCycleAccumulator.CONNECT_TIMEOUT_MS
 ) {
     private val connectivityManager =
         context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
@@ -171,6 +171,7 @@ class CellularPingMonitor(
     ) {
         pingJob?.cancel()
         pingJob = scope.launch {
+            var skipWarmup = false
             while (isActive && activeNetwork == network) {
                 val settings = settingsProvider()
                 val monitoring = monitoringSettingsProvider()
@@ -181,6 +182,7 @@ class CellularPingMonitor(
                 )
 
                 if (radio.isOn2g || radio.isLimitedService) {
+                    skipWarmup = false
                     emitStats(
                         onStatsUpdated = onStatsUpdated,
                         cellularAvailable = activeNetwork != null,
@@ -192,7 +194,7 @@ class CellularPingMonitor(
                     continue
                 }
 
-                val testResult = runPingTest(network, settings)
+                val testResult = runPingTest(network, settings, skipWarmup)
                 emitStats(
                     onStatsUpdated = onStatsUpdated,
                     cellularAvailable = true,
@@ -200,47 +202,48 @@ class CellularPingMonitor(
                     radio = radio,
                     monitor2gFallback = monitoring.monitor2gFallback
                 )
-                delay(settings.testIntervalMs)
+                skipWarmup = testResult.timedOut
+                delay(PingCycleAccumulator.delayAfterCycle(testResult.timedOut, settings.testIntervalMs))
             }
         }
     }
 
-    private suspend fun runPingTest(network: Network, settings: PingSettings): PingTestResult {
-        val rttResults = mutableListOf<Long>()
-        var failures = 0
-
-        repeat(settings.totalPingsPerTest) { index ->
+    private suspend fun runPingTest(
+        network: Network,
+        settings: PingSettings,
+        skipWarmup: Boolean
+    ): PingTestResult {
+        val cycle = PingCycleAccumulator(skipWarmup)
+        var probesRemaining = PingCycleAccumulator.probeCount(settings.pingsPerTest, skipWarmup)
+        while (probesRemaining > 0) {
+            probesRemaining--
             val rtt = measureRtt(network, settings.host, settings.port)
-            if (index < PingSettings.RRC_WARMUP_PINGS) {
-                return@repeat
-            }
-            if (rtt != null) {
-                rttResults.add(rtt)
-            } else {
-                failures++
-            }
+            if (cycle.onProbe(rtt)) break
         }
 
-        pingCycleStats.addLast(
-            PingCycleStats(
-                measuredSent = settings.pingsPerTest,
-                measuredFailed = failures
+        if (cycle.measuredSent > 0) {
+            pingCycleStats.addLast(
+                PingCycleStats(
+                    measuredSent = cycle.measuredSent,
+                    measuredFailed = cycle.measuredFailed
+                )
             )
-        )
-        while (pingCycleStats.size > sampleWindowSize) {
-            pingCycleStats.removeFirst()
+            while (pingCycleStats.size > sampleWindowSize) {
+                pingCycleStats.removeFirst()
+            }
+            pruneStaleLossCycles()
+            updateRollingPingTotals()
         }
-        pruneStaleLossCycles()
-        updateRollingPingTotals()
 
-        val averageRtt = rttResults.takeIf { it.isNotEmpty() }?.average()?.toLong()
+        val averageRtt = cycle.rtts.takeIf { it.isNotEmpty() }?.average()?.toLong()
         if (averageRtt != null) {
             addRttSample(averageRtt)
         }
 
         return PingTestResult(
             averageRttMs = averageRtt,
-            individualRtts = rttResults
+            individualRtts = cycle.rtts,
+            timedOut = cycle.timedOut
         )
     }
 
@@ -402,7 +405,8 @@ class CellularPingMonitor(
 
     private data class PingTestResult(
         val averageRttMs: Long?,
-        val individualRtts: List<Long>
+        val individualRtts: List<Long>,
+        val timedOut: Boolean
     )
 
     private data class PingCycleStats(

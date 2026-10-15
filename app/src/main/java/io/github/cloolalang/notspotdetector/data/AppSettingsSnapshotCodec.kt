@@ -593,6 +593,9 @@ object AppSettingsSnapshotCodec {
             .put("rsrpDbm", settings.rsrpDbm)
             .put("rsrqDb", settings.rsrqDb)
             .put("voiceOnlyNoData", settings.voiceOnlyNoData)
+            .put("pingMockEnabled", settings.pingMockEnabled)
+            .put("pingRttMs", settings.pingRttMs)
+            .put("packetLossPercent", settings.packetLossPercent)
     }
 
     private fun decodePassiveMock(json: JSONObject?): PassiveMockSettings {
@@ -605,6 +608,15 @@ object AppSettingsSnapshotCodec {
             voiceOnlyNoData = json.optBoolean(
                 "voiceOnlyNoData",
                 PassiveMockSettings.DEFAULT_VOICE_ONLY_NO_DATA
+            ),
+            pingMockEnabled = json.optBoolean(
+                "pingMockEnabled",
+                PassiveMockSettings.DEFAULT_PING_MOCK_ENABLED
+            ),
+            pingRttMs = json.optInt("pingRttMs", PassiveMockSettings.DEFAULT_PING_RTT_MS),
+            packetLossPercent = json.optInt(
+                "packetLossPercent",
+                PassiveMockSettings.DEFAULT_PACKET_LOSS_PERCENT
             )
         )
     }
@@ -614,6 +626,8 @@ object AppSettingsSnapshotCodec {
             .put("masterVoiceAnnouncementsEnabled", settings.masterVoiceAnnouncementsEnabled)
             .put("masterOtherSoundsEnabled", settings.masterOtherSoundsEnabled)
             .put("pingClickVolume", settings.pingClickVolume.toDouble())
+            .put("pingClickDurationMs", settings.pingClickDurationMs)
+            .put("pingClickFrequencyHz", settings.pingClickFrequencyHz)
             .put("lowSignalClickVolume", settings.lowSignalClickVolume.toDouble())
             .put("signalPulseFrequencyHz", settings.signalPulseFrequencyHz)
             .put("noSignalTierPulseFrequencyHz", settings.noSignalTierPulseFrequencyHz)
@@ -839,8 +853,18 @@ object AppSettingsSnapshotCodec {
                 "masterOtherSoundsEnabled",
                 AudioVolumeSettings.DEFAULT_MASTER_OTHER_SOUNDS_ENABLED
             ),
-            pingClickVolume = json.optDouble("pingClickVolume", AudioVolumeSettings.DEFAULT_VOLUME.toDouble())
-                .toFloat(),
+            pingClickVolume = json.optDouble(
+                "pingClickVolume",
+                AudioVolumeSettings.DEFAULT_PING_CLICK_VOLUME.toDouble()
+            ).toFloat(),
+            pingClickDurationMs = json.optInt(
+                "pingClickDurationMs",
+                AudioVolumeSettings.DEFAULT_PING_CLICK_DURATION_MS
+            ),
+            pingClickFrequencyHz = json.optInt(
+                "pingClickFrequencyHz",
+                AudioVolumeSettings.DEFAULT_PING_CLICK_FREQUENCY_HZ
+            ),
             lowSignalClickVolume = json.optDouble(
                 "lowSignalClickVolume",
                 AudioVolumeSettings.DEFAULT_VOLUME.toDouble()

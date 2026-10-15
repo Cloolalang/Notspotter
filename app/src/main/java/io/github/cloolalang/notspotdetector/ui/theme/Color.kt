@@ -40,3 +40,6 @@ val OnSushiContainerDark = Color(0xFFE3EFD3)
 /** Stop button — muted rose, less bright than Material error pink. */
 val StopRose = Color(0xFFB45C68)
 val OnStopRose = Color(0xFFFFFFFF)
+
+/** Packet-loss trace. Amber stays distinct from cyan RTT and rose jitter in both themes. */
+val PacketLossAmber = Color(0xFFE0A23A)

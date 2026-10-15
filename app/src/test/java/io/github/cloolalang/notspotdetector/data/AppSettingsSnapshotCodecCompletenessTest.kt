@@ -217,7 +217,7 @@ class AppSettingsSnapshotCodecCompletenessTest {
                 keepScreenOnWhileMonitoring = false
             ),
             passiveSignalSettings = PassiveSignalSettings(
-                noSignalRsrpDbm = -130,
+                noSignalRsrpDbm = -132,
                 poorRsrpMinDbm = -127,
                 fairRsrpMinDbm = -104,
                 goodRsrpMinDbm = -99,
@@ -290,12 +290,17 @@ class AppSettingsSnapshotCodecCompletenessTest {
                 scenario = MockNetworkScenario.ALT_OPERATOR_2G,
                 rsrpDbm = -140,
                 rsrqDb = -16,
-                voiceOnlyNoData = true
+                voiceOnlyNoData = true,
+                pingMockEnabled = true,
+                pingRttMs = 250,
+                packetLossPercent = 12
             ),
             audioVolumes = AudioVolumeSettings(
                 masterVoiceAnnouncementsEnabled = false,
                 masterOtherSoundsEnabled = false,
                 pingClickVolume = 0.4f,
+                pingClickDurationMs = 40,
+                pingClickFrequencyHz = 2800,
                 lowSignalClickVolume = 0.55f,
                 signalPulseFrequencyHz = 810,
                 noSignalTierPulseFrequencyHz = 540,
@@ -405,7 +410,10 @@ class AppSettingsSnapshotCodecCompletenessTest {
             "scenario",
             "rsrpDbm",
             "rsrqDb",
-            "voiceOnlyNoData"
+            "voiceOnlyNoData",
+            "pingMockEnabled",
+            "pingRttMs",
+            "packetLossPercent"
         )
 
         private val PASSIVE_SIGNAL_KEYS = setOf(
@@ -482,6 +490,8 @@ class AppSettingsSnapshotCodecCompletenessTest {
             "masterVoiceAnnouncementsEnabled",
             "masterOtherSoundsEnabled",
             "pingClickVolume",
+            "pingClickDurationMs",
+            "pingClickFrequencyHz",
             "lowSignalClickVolume",
             "signalPulseFrequencyHz",
             "noSignalTierPulseFrequencyHz",

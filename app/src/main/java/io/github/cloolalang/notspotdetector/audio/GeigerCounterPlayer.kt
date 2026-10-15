@@ -6,8 +6,8 @@ import android.media.AudioManager
 import android.media.AudioTrack
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
 import io.github.cloolalang.notspotdetector.model.ConnectivityStats
-import io.github.cloolalang.notspotdetector.model.ConnectionQuality
-import io.github.cloolalang.notspotdetector.model.ThresholdSettings
+import io.github.cloolalang.notspotdetector.model.RttGeiger
+import io.github.cloolalang.notspotdetector.model.shouldPlayRttGeiger
 import io.github.cloolalang.notspotdetector.model.computeSignalStrengthClickIntervalMs
 import io.github.cloolalang.notspotdetector.model.resolvePassiveClickRateTier
 import io.github.cloolalang.notspotdetector.model.SignalStrengthTier
@@ -33,13 +33,10 @@ import io.github.cloolalang.notspotdetector.model.shouldPlaySearching2gCampTier
 import io.github.cloolalang.notspotdetector.model.shouldPlayCurrentTierSignalPulse
 import io.github.cloolalang.notspotdetector.model.shouldPlaySignalStrengthInterval
 import io.github.cloolalang.notspotdetector.model.shouldPlayVeryStrongSignalIndicator
-import io.github.cloolalang.notspotdetector.model.shouldPlayWeakSignalWarning
 import io.github.cloolalang.notspotdetector.model.shouldPlayWifiCallingNoSignalCampTier
-import io.github.cloolalang.notspotdetector.model.shouldSuppressGeigerClicks
-import io.github.cloolalang.notspotdetector.model.hasExtremeLatency
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
-import io.github.cloolalang.notspotdetector.model.isTierSoundEnabled
+import io.github.cloolalang.notspotdetector.model.PingSettings
 import io.github.cloolalang.notspotdetector.model.computeRsrqTierClickIntervalMs
 import io.github.cloolalang.notspotdetector.model.rsrqTierWhiteNoiseMix
 import io.github.cloolalang.notspotdetector.model.shouldPlayDecoupledRsrqTier
@@ -60,6 +57,7 @@ import kotlin.random.Random
 class GeigerCounterPlayer {
     private var audioJob: Job? = null
     private var rsrqTierJob: Job? = null
+    private var pingClickJob: Job? = null
     private var flatlineTrack: AudioTrack? = null
     private var flatlineTrackVolume = -1f
     private var flatlineTrackContinuous = false
@@ -72,30 +70,34 @@ class GeigerCounterPlayer {
     private var limitedServiceTrackHighHz = -1.0
     private var limitedServiceTrackToneMs = -1
     private var limitedServiceTrackPauseMs = -1
-    private var lastHandledPingTimestampMs = 0L
+    private var pingClickTrack: AudioTrack? = null
+    private var pingClickPcm: ShortArray? = null
+    private var pingClickSilenceChunk: ShortArray? = null
+    private val pingClickLock = Any()
     private var rsrpPulseTrack: AudioTrack? = null
     private var monitoringSettingsProvider: () -> MonitoringSettings = { MonitoringSettings() }
     private var passiveSignalSettingsProvider: () -> PassiveSignalSettings = { PassiveSignalSettings() }
     private var statsProvider: () -> ConnectivityStats = { ConnectivityStats() }
     private var audioVolumesProvider: () -> AudioVolumeSettings = { AudioVolumeSettings() }
+    private var pingSettingsProvider: () -> PingSettings = { PingSettings() }
     private val sampleRate = 44_100
-    private val goodConnectionClickDurationMs = 6
-    private val lowQualityClickDurationMs = 150
+    private var pingClickPcmDurationMs = -1
+    private var pingClickPcmFrequencyHz = -1
 
     fun start(
         scope: CoroutineScope,
         statsProvider: () -> ConnectivityStats,
-        thresholdsProvider: () -> ThresholdSettings,
         audioVolumesProvider: () -> AudioVolumeSettings,
         monitoringSettingsProvider: () -> MonitoringSettings,
-        passiveSignalSettingsProvider: () -> PassiveSignalSettings
+        passiveSignalSettingsProvider: () -> PassiveSignalSettings,
+        pingSettingsProvider: () -> PingSettings = { PingSettings() }
     ) {
         stop()
         this.monitoringSettingsProvider = monitoringSettingsProvider
         this.passiveSignalSettingsProvider = passiveSignalSettingsProvider
         this.statsProvider = statsProvider
         this.audioVolumesProvider = audioVolumesProvider
-        lastHandledPingTimestampMs = 0L
+        this.pingSettingsProvider = pingSettingsProvider
         rsrqTierJob = scope.launch {
             while (isActive) {
                 val stats = statsProvider()
@@ -124,10 +126,77 @@ class GeigerCounterPlayer {
                 }
             }
         }
+        pingClickJob = scope.launch {
+            var lastClickAtMs = 0L
+            var lastHandledPingTimestampMs = 0L
+            try {
+            while (isActive) {
+                val stats = statsProvider()
+                val volumes = audioVolumesProvider().normalized()
+                val dose = RttGeiger.doseMs(
+                    rttMs = stats.rttMs,
+                    packetLossPercent = stats.packetLossPercent,
+                    pingsSent = stats.pingsSent
+                )
+                if (dose == null ||
+                    !volumes.masterOtherSoundsEnabled ||
+                    volumes.pingClickVolume <= 0f ||
+                    !stats.shouldPlayRttGeiger()
+                ) {
+                    lastClickAtMs = 0L
+                    releasePingClickTrack()
+                    delay(POLL_INTERVAL_MS)
+                    continue
+                }
+                val testInterval = pingSettingsProvider().normalized().testIntervalMs
+                val interval = RttGeiger.clickIntervalMs(
+                    dose,
+                    stats.packetLossPercent,
+                    testInterval
+                )
+                val now = System.currentTimeMillis()
+                val sinceClick = if (lastClickAtMs == 0L) {
+                    Long.MAX_VALUE
+                } else {
+                    now - lastClickAtMs
+                }
+                val oncePerTest = RttGeiger.clicksOncePerTest(dose) &&
+                    RttGeiger.lossSpeedMultiplier(stats.packetLossPercent) == 1
+                val newPing = stats.lastPingTimestampMs > lastHandledPingTimestampMs &&
+                    stats.lastPingTimestampMs > 0L
+                val shouldClick = if (oncePerTest) {
+                    sinceClick >= interval / 2 && (newPing || sinceClick >= interval)
+                } else {
+                    sinceClick >= interval
+                }
+                if (shouldClick) {
+                    if (!writePingClick(
+                            volumes.pingClickVolume,
+                            volumes.pingClickDurationMs,
+                            volumes.pingClickFrequencyHz
+                        )
+                    ) {
+                        delay(POLL_INTERVAL_MS)
+                        continue
+                    }
+                    lastClickAtMs = System.currentTimeMillis()
+                }
+                if (stats.lastPingTimestampMs > 0L && (shouldClick || sinceClick < interval / 2)) {
+                    lastHandledPingTimestampMs = stats.lastPingTimestampMs
+                }
+                // Silence keeps the stream awake. Stopping between rare clicks makes the
+                // speaker fade the next tick in, so a good RTT sounds quieter than a slow one.
+                if (!writePingSilence(volumes.pingClickVolume)) {
+                    delay(POLL_INTERVAL_MS)
+                }
+            }
+            } finally {
+                releasePingClickTrack()
+            }
+        }
         audioJob = scope.launch {
             while (isActive) {
                 val stats = statsProvider()
-                val thresholds = thresholdsProvider()
                 val volumes = audioVolumesProvider().normalized()
                 val passiveSettings = passiveSignalSettingsProvider()
                 val passiveAlertsEnabled = shouldPlayPassiveSignalAndQualityAlerts(stats, passiveSettings)
@@ -288,22 +357,7 @@ class GeigerCounterPlayer {
                             handleSignalStrengthIntervalAudio(stats, volumes, passiveSettings)
                         } else {
                             stopAlertTones()
-                            if (stats.cellularAvailable) {
-                                when {
-                                    stats.isPassiveIdleMode -> delayForPulseInterval(
-                                        POLL_INTERVAL_MS,
-                                        stats.resolveSignalPulseScheduleKey(passiveSettings)
-                                    )
-                                    stats.quality == ConnectionQuality.GOOD && !stats.hasExtremeLatency() ->
-                                        handleGoodConnectionAudio(stats, thresholds, volumes, passiveSettings)
-                                    else -> handleIntervalAudio(stats, thresholds, volumes, passiveSettings)
-                                }
-                            } else {
-                                delayForPulseInterval(
-                                    computeClickIntervalMs(stats),
-                                    stats.resolveSignalPulseScheduleKey(passiveSettings)
-                                )
-                            }
+                            delay(POLL_INTERVAL_MS)
                         }
                     }
                 }
@@ -316,23 +370,10 @@ class GeigerCounterPlayer {
         audioJob = null
         rsrqTierJob?.cancel()
         rsrqTierJob = null
-        lastHandledPingTimestampMs = 0L
+        pingClickJob?.cancel()
+        pingClickJob = null
+        releasePingClickTrack()
         stopAlertTones()
-    }
-
-    private suspend fun handleGoodConnectionAudio(
-        stats: ConnectivityStats,
-        thresholds: ThresholdSettings,
-        volumes: AudioVolumeSettings,
-        passiveSettings: PassiveSignalSettings
-    ) {
-        if (stats.lastPingTimestampMs > lastHandledPingTimestampMs) {
-            lastHandledPingTimestampMs = stats.lastPingTimestampMs
-            if (!stats.shouldSuppressGeigerClicks(thresholds, passiveSettings)) {
-                playGoodConnectionClicks(thresholds, volumes)
-            }
-        }
-        delay(POLL_INTERVAL_MS)
     }
 
     private suspend fun handleSignalStrengthIntervalAudio(
@@ -446,98 +487,6 @@ class GeigerCounterPlayer {
                 return
             }
         }
-    }
-
-    private suspend fun playGoodConnectionClicks(
-        thresholds: ThresholdSettings,
-        volumes: AudioVolumeSettings
-    ) {
-        val clickCount = thresholds.goodConnectionClicksPerPing
-        repeat(clickCount) { index ->
-            playConnectionClick(volumes)
-            if (index < clickCount - 1) {
-                delay(GOOD_CLICK_GAP_MS)
-            }
-        }
-    }
-
-    private suspend fun handleIntervalAudio(
-        stats: ConnectivityStats,
-        thresholds: ThresholdSettings,
-        volumes: AudioVolumeSettings,
-        passiveSettings: PassiveSignalSettings
-    ) {
-        val interval = computeClickIntervalMs(stats)
-        if (stats.shouldSuppressGeigerClicks(thresholds, passiveSettings)) {
-            delayForPulseInterval(interval, stats.resolveSignalPulseScheduleKey(passiveSettings))
-            return
-        }
-
-        if (stats.shouldPlayWeakSignalWarning(passiveSettings)) {
-            val isVeryStrong = !stats.usesG2SignalTiers() &&
-                stats.shouldPlayVeryStrongSignalIndicator(passiveSettings)
-            val resolvedWeakTier = if (!stats.usesG2SignalTiers() && !isVeryStrong) {
-                stats.resolvePassiveClickRateTier(passiveSettings)
-            } else {
-                null
-            }
-            val tier = when {
-                stats.usesG2SignalTiers() ->
-                    stats.resolvePassiveClickRateTier(passiveSettings) ?: SignalStrengthTier.G2_WEAK
-                isVeryStrong -> SignalStrengthTier.MILD
-                else -> resolvedWeakTier ?: run {
-                    delayForPulseInterval(interval, stats.resolveSignalPulseScheduleKey(passiveSettings))
-                    return
-                }
-            }
-            val pulseDurationMs = pulseDurationMsForLteRsrpPlayback(
-                stats = stats,
-                passiveSettings = passiveSettings,
-                volumes = volumes,
-                isVeryStrong = isVeryStrong,
-                resolvedWeakTier = resolvedWeakTier,
-                playbackTier = tier
-            )
-            if (shouldPlayPassiveSignalAndQualityAlerts(stats, passiveSettings) &&
-                passiveSettings.isTierSoundEnabled(tier)
-            ) {
-                playTieredWeakSignalClick(
-                    volumes = volumes,
-                    tier = tier,
-                    frequencyHz = volumes.pulseFrequencyHzForTier(tier).toDouble(),
-                    pulseDurationMs = pulseDurationMs,
-                    clickVolume = clickVolumeForLteRsrpPlayback(volumes, isVeryStrong, resolvedWeakTier)
-                )
-            }
-            delayForPulseInterval(
-                stats.computeSignalStrengthClickIntervalMs(
-                    passiveSettings,
-                    pulseDurationMs
-                ),
-                stats.resolveSignalPulseScheduleKey(passiveSettings)
-            )
-        } else {
-            playLowQualityClick(volumes)
-            delayForPulseInterval(interval, stats.resolveSignalPulseScheduleKey(passiveSettings))
-        }
-    }
-
-    private fun playConnectionClick(volumes: AudioVolumeSettings) {
-        if (volumes.pingClickVolume <= 0f) return
-        playClick(
-            frequencyHz = TONE_FREQUENCY_HZ,
-            durationMs = goodConnectionClickDurationMs,
-            amplitude = CLICK_AMPLITUDE * volumes.pingClickVolume
-        )
-    }
-
-    private fun playLowQualityClick(volumes: AudioVolumeSettings) {
-        if (volumes.pingClickVolume <= 0f) return
-        playClick(
-            frequencyHz = TONE_FREQUENCY_HZ,
-            durationMs = lowQualityClickDurationMs,
-            amplitude = CLICK_AMPLITUDE * volumes.pingClickVolume
-        )
     }
 
     private fun clickVolumeForLteRsrpPlayback(
@@ -687,33 +636,6 @@ class GeigerCounterPlayer {
 
     private fun playWeakSignalClick(volumes: AudioVolumeSettings) {
         playTieredWeakSignalClick(volumes, SignalStrengthTier.MILD)
-    }
-
-    fun computeClickIntervalMs(stats: ConnectivityStats): Long {
-        if (!stats.isMonitoring || !stats.cellularAvailable) {
-            return 2_000L
-        }
-
-        val interval = when (stats.quality) {
-            ConnectionQuality.GOOD -> 1_800L
-            ConnectionQuality.DEGRADED -> {
-                val scaled = 1_800L - (stats.severity * 1_200L).toLong()
-                scaled.coerceIn(400L, 1_800L)
-            }
-            ConnectionQuality.POOR -> {
-                val scaled = 400L - (stats.severity * 320L).toLong()
-                scaled.coerceIn(60L, 400L)
-            }
-            ConnectionQuality.NO_CELLULAR -> 2_000L
-            ConnectionQuality.PASSIVE_IDLE -> 2_000L
-            ConnectionQuality.MONITORING_STOPPED -> 2_000L
-        }
-
-        return if (stats.hasExtremeLatency()) {
-            (interval / EXTREME_LATENCY_SPEED_MULTIPLIER).coerceAtLeast(MIN_CLICK_INTERVAL_MS)
-        } else {
-            interval
-        }
     }
 
     @Synchronized
@@ -966,13 +888,24 @@ class GeigerCounterPlayer {
         playTechnologySweep(volume * TECHNOLOGY_CHANGE_AMPLITUDE)
     }
 
-    fun previewPingClick(volume: Float) {
+    fun previewPingClick(volume: Float, durationMs: Int, frequencyHz: Int) {
         if (volume <= 0f) return
-        playClick(
-            frequencyHz = TONE_FREQUENCY_HZ,
-            durationMs = goodConnectionClickDurationMs,
-            amplitude = CLICK_AMPLITUDE * volume
-        )
+        val click = pingClickPcm(durationMs, frequencyHz)
+        val leadSamples = sampleRate * CLICK_WAKE_MS / 1_000
+        val buffer = ShortArray(leadSamples + click.size)
+        click.copyInto(buffer, leadSamples)
+        val track = buildAudioTrack(buffer.size * 2, AudioTrack.MODE_STATIC)
+        track.write(buffer, 0, buffer.size)
+        track.setVolume(volume.coerceIn(0f, 1f))
+        track.play()
+        track.setNotificationMarkerPosition(buffer.size)
+        track.setPlaybackPositionUpdateListener(object : AudioTrack.OnPlaybackPositionUpdateListener {
+            override fun onMarkerReached(played: AudioTrack?) {
+                played?.release()
+            }
+
+            override fun onPeriodicNotification(played: AudioTrack?) = Unit
+        })
     }
 
     fun previewLowSignalClick(volume: Float, pulseDurationMs: Int, frequencyHz: Int) {
@@ -1132,31 +1065,122 @@ class GeigerCounterPlayer {
         })
     }
 
-    private fun playClick(frequencyHz: Double, durationMs: Int, amplitude: Float) {
-        if (amplitude <= 0f) return
+    /**
+     * Same tick samples every time, written into a stream that stays playing.
+     * Starting and stopping a short click lets the output fade in, so a tick every few
+     * seconds comes out quieter than one played while the speaker is already awake.
+     */
+    private fun writePingClick(volume: Float, durationMs: Int, frequencyHz: Int): Boolean {
+        return writePingPcm(volume, pingClickPcm(durationMs, frequencyHz))
+    }
 
-        val sampleCount = sampleRate * durationMs / 1_000
-        val buffer = ShortArray(sampleCount)
-        val decayRate = if (durationMs <= goodConnectionClickDurationMs) 900.0 else 650.0
+    private fun writePingSilence(volume: Float): Boolean {
+        val chunk = pingClickSilenceChunk ?: ShortArray(sampleRate * PING_CLICK_CHUNK_MS / 1_000).also {
+            pingClickSilenceChunk = it
+        }
+        return writePingPcm(volume, chunk)
+    }
 
+    private fun writePingPcm(volume: Float, pcm: ShortArray): Boolean {
+        if (volume <= 0f || pcm.isEmpty()) return false
+        return synchronized(pingClickLock) {
+            val track = ensurePingClickStream(volume) ?: return@synchronized false
+            try {
+                track.write(pcm, 0, pcm.size) >= 0
+            } catch (_: IllegalStateException) {
+                releasePingClickStreamLocked()
+                false
+            }
+        }
+    }
+
+    private fun ensurePingClickStream(volume: Float): AudioTrack? {
+        val existing = pingClickTrack
+        if (existing != null) {
+            return try {
+                if (existing.playState != AudioTrack.PLAYSTATE_PLAYING) {
+                    existing.play()
+                }
+                existing.setVolume(volume.coerceIn(0f, 1f))
+                existing
+            } catch (_: IllegalStateException) {
+                releasePingClickStreamLocked()
+                null
+            }
+        }
+        val minBytes = AudioTrack.getMinBufferSize(
+            sampleRate,
+            AudioFormat.CHANNEL_OUT_MONO,
+            AudioFormat.ENCODING_PCM_16BIT
+        )
+        if (minBytes <= 0) return null
+        val bufferBytes = maxOf(minBytes, sampleRate * PING_CLICK_BUFFER_MS / 1_000 * 2)
+        var created: AudioTrack? = null
+        return try {
+            val track = buildAudioTrack(bufferBytes, AudioTrack.MODE_STREAM)
+            created = track
+            track.setVolume(volume.coerceIn(0f, 1f))
+            track.play()
+            val wake = ShortArray(sampleRate * CLICK_WAKE_MS / 1_000)
+            if (track.write(wake, 0, wake.size) < 0) {
+                track.release()
+                null
+            } else {
+                pingClickTrack = track
+                track
+            }
+        } catch (_: IllegalArgumentException) {
+            created?.release()
+            null
+        } catch (_: IllegalStateException) {
+            created?.release()
+            null
+        }
+    }
+
+    private fun pingClickPcm(durationMs: Int, frequencyHz: Int): ShortArray {
+        val duration = durationMs.coerceIn(
+            AudioVolumeSettings.MIN_PING_CLICK_DURATION_MS,
+            AudioVolumeSettings.MAX_PING_CLICK_DURATION_MS
+        )
+        val frequency = frequencyHz.coerceIn(
+            AudioVolumeSettings.MIN_SIGNAL_PULSE_FREQUENCY_HZ,
+            AudioVolumeSettings.MAX_SIGNAL_PULSE_FREQUENCY_HZ
+        )
+        if (duration == pingClickPcmDurationMs && frequency == pingClickPcmFrequencyHz) {
+            pingClickPcm?.let { return it }
+        }
+        val clickSamples = (sampleRate * duration / 1_000).coerceAtLeast(1)
+        val buffer = ShortArray(clickSamples)
+        val decay = 4.0 / (duration / 1_000.0)
         for (i in buffer.indices) {
             val timeSec = i.toFloat() / sampleRate
-            val envelope = exp(-timeSec * decayRate).toFloat()
-            val tick = sin(2.0 * PI * frequencyHz * timeSec).toFloat()
-            buffer[i] = (tick * envelope * Short.MAX_VALUE * amplitude).toInt().toShort()
+            val envelope = exp(-timeSec * decay).toFloat()
+            val tick = sin(2.0 * PI * frequency * timeSec).toFloat()
+            buffer[i] = (tick * envelope * Short.MAX_VALUE * CLICK_AMPLITUDE).toInt().toShort()
         }
+        pingClickPcmDurationMs = duration
+        pingClickPcmFrequencyHz = frequency
+        pingClickPcm = buffer
+        return buffer
+    }
 
-        val audioTrack = buildAudioTrack(buffer.size * 2, AudioTrack.MODE_STATIC)
-        audioTrack.write(buffer, 0, buffer.size)
-        audioTrack.play()
-        audioTrack.setNotificationMarkerPosition(sampleCount)
-        audioTrack.setPlaybackPositionUpdateListener(object : AudioTrack.OnPlaybackPositionUpdateListener {
-            override fun onMarkerReached(track: AudioTrack?) {
-                track?.release()
-            }
+    private fun releasePingClickTrack() {
+        synchronized(pingClickLock) {
+            releasePingClickStreamLocked()
+        }
+    }
 
-            override fun onPeriodicNotification(track: AudioTrack?) = Unit
-        })
+    private fun releasePingClickStreamLocked() {
+        val track = pingClickTrack ?: return
+        pingClickTrack = null
+        try {
+            track.pause()
+            track.flush()
+            track.stop()
+        } catch (_: IllegalStateException) {
+        }
+        track.release()
     }
 
     private fun buildAudioTrack(bufferSizeBytes: Int, mode: Int): AudioTrack {
@@ -1194,7 +1218,6 @@ class GeigerCounterPlayer {
             )
         }
 
-        const val TONE_FREQUENCY_HZ = 3_200.0
         private const val PASSIVE_PULSE_RATE_MULTIPLIER = 2
         private fun flatlineOffMs(passiveOnly: Boolean): Int {
             val base = if (passiveOnly) FLATLINE_OFF_MS / PASSIVE_PULSE_RATE_MULTIPLIER else FLATLINE_OFF_MS
@@ -1236,9 +1259,11 @@ class GeigerCounterPlayer {
         private const val TECHNOLOGY_CHANGE_AMPLITUDE = 0.46f
         private const val TECHNOLOGY_CHANGE_START_HZ = 320.0
         private const val TECHNOLOGY_CHANGE_END_HZ = 720.0
-        private const val GOOD_CLICK_GAP_MS = 80L
         private const val POLL_INTERVAL_MS = 200L
-        private const val EXTREME_LATENCY_SPEED_MULTIPLIER = 10L
-        private const val MIN_CLICK_INTERVAL_MS = 8L
+        /** Silence ahead of a cold tick so the output fade-in finishes before the click. */
+        private const val CLICK_WAKE_MS = 120
+        /** How much silence to queue between ticks so the stream does not underrun. */
+        private const val PING_CLICK_CHUNK_MS = 40
+        private const val PING_CLICK_BUFFER_MS = 300
     }
 }

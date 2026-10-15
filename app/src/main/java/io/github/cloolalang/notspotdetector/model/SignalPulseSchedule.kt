@@ -26,7 +26,6 @@ enum class SignalPulsePath {
     LIMITED_SERVICE_LEGACY,
     FLATLINE,
     RSRP_INTERVAL,
-    GOOD_CONNECTION,
     PING_GEIGER,
     IDLE
 }
@@ -95,9 +94,6 @@ fun ConnectivityStats.resolveSignalPulseScheduleKey(
     }
     if (cellularAvailable && isPassiveIdleMode) {
         return SignalPulseScheduleKey(SignalPulsePath.IDLE)
-    }
-    if (cellularAvailable && quality == ConnectionQuality.GOOD && !hasExtremeLatency()) {
-        return SignalPulseScheduleKey(SignalPulsePath.GOOD_CONNECTION)
     }
     if (cellularAvailable) {
         return SignalPulseScheduleKey(SignalPulsePath.PING_GEIGER, rsrpIntervalRxssNumber(settings))

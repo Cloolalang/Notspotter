@@ -25,8 +25,8 @@ class RsrpBandEdgesTest {
         assertEquals(-95, custom.mildRsrpMinDbm)
         assertEquals(-105, custom.goodRsrpMinDbm)
         assertEquals(-115, custom.fairRsrpMinDbm)
-        assertEquals(-127, custom.poorRsrpMinDbm)
-        assertEquals(-128, custom.noSignalRsrpDbm)
+        assertEquals(-124, custom.poorRsrpMinDbm)
+        assertEquals(-125, custom.noSignalRsrpDbm)
     }
 
     @Test
@@ -75,29 +75,31 @@ class RsrpBandEdgesTest {
             PassiveSignalSettings(noSignalRsrpDbm = -140).normalized().noSignalRsrpDbm
         )
         assertEquals(
-            -126,
+            -125,
             PassiveSignalSettings(
                 noSignalRsrpDbm = -120,
                 poorRsrpMinDbm = -125
             ).normalized().noSignalRsrpDbm
         )
-        assertEquals(
-            -129,
-            PassiveSignalSettings(
-                noSignalRsrpDbm = -125,
-                poorRsrpMinDbm = -128
-            ).normalized().noSignalRsrpDbm
-        )
+        val floorAtCap = PassiveSignalSettings(
+            noSignalRsrpDbm = -125,
+            poorRsrpMinDbm = -128
+        ).normalized()
+        assertEquals(-124, floorAtCap.poorRsrpMinDbm)
+        assertEquals(-125, floorAtCap.noSignalRsrpDbm)
     }
 
     @Test
-    fun rxss6HighEndClampsBetweenRxss10AndMinus125() {
+    fun rxss6HighEndClampsBetweenRxss10AndMinus123() {
         assertEquals(
             -134,
-            PassiveSignalSettings(poorRsrpMinDbm = -140).normalized().poorRsrpMinDbm
+            PassiveSignalSettings(
+                poorRsrpMinDbm = -140,
+                noSignalRsrpDbm = -135
+            ).normalized().poorRsrpMinDbm
         )
         assertEquals(
-            -125,
+            -123,
             PassiveSignalSettings(poorRsrpMinDbm = -120).normalized().poorRsrpMinDbm
         )
         val raisedFloor = PassiveSignalSettings(
@@ -120,15 +122,43 @@ class RsrpBandEdgesTest {
     }
 
     @Test
+    fun defaultRxss6RunsFromMinus130ToMinus123() {
+        assertEquals(-123, settings.poorRsrpMinDbm)
+        assertEquals(-130, settings.noSignalRsrpDbm)
+    }
+
+    @Test
+    fun legacyRxss6CapMovesToMinus123AndPreviousFloorsMoveToMinus130() {
+        assertEquals(
+            -123 to -130,
+            migrateRxss6BandEdges(poorRsrpMinDbm = -125, noSignalRsrpDbm = -135)
+        )
+        assertEquals(
+            -123 to -130,
+            migrateRxss6BandEdges(poorRsrpMinDbm = -125, noSignalRsrpDbm = -126)
+        )
+        assertEquals(
+            -123 to -128,
+            migrateRxss6BandEdges(poorRsrpMinDbm = -125, noSignalRsrpDbm = -128)
+        )
+        assertEquals(
+            -127 to -132,
+            migrateRxss6BandEdges(poorRsrpMinDbm = -127, noSignalRsrpDbm = -132)
+        )
+    }
+
+    @Test
     fun defaultBandsDoNotOverlap() {
         assertEquals(SignalStrengthTier.MILD, settings.resolveSignalStrengthTier(-85))
         assertEquals(SignalStrengthTier.GOOD, settings.resolveSignalStrengthTier(-95))
         assertEquals(SignalStrengthTier.FAIR, settings.resolveSignalStrengthTier(-105))
         assertEquals(SignalStrengthTier.POOR, settings.resolveSignalStrengthTier(-115))
-        assertEquals(SignalStrengthTier.CRITICAL, settings.resolveSignalStrengthTier(-125))
-        assertNull(settings.resolveSignalStrengthTier(-135))
-        assertTrue(settings.isRsrpTooWeakForService(-135))
-        assertFalse(settings.isRsrpTooWeakForService(-134))
+        assertEquals(SignalStrengthTier.POOR, settings.resolveSignalStrengthTier(-122))
+        assertEquals(SignalStrengthTier.CRITICAL, settings.resolveSignalStrengthTier(-123))
+        assertEquals(SignalStrengthTier.CRITICAL, settings.resolveSignalStrengthTier(-129))
+        assertNull(settings.resolveSignalStrengthTier(-130))
+        assertTrue(settings.isRsrpTooWeakForService(-130))
+        assertFalse(settings.isRsrpTooWeakForService(-129))
         assertTrue(settings.isVeryStrongRsrp(-74))
         assertFalse(settings.isVeryStrongRsrp(-75))
     }

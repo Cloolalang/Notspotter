@@ -81,6 +81,7 @@ class ConnectivityMonitorService : Service() {
     private var rsrpHistogramSampleJob: Job? = null
     private var mockNetworkPeriodicWatcherJob: Job? = null
     private var mockNetworkPeriodicAnnouncementJob: Job? = null
+    private var mockPingPulseJob: Job? = null
     private val monitoringAlertMutex = Mutex()
     private val monitoringEventsHandlerMutex = Mutex()
     private val voiceQueue = VoiceAnnouncementQueue()
@@ -184,6 +185,7 @@ class ConnectivityMonitorService : Service() {
         MonitorState.setRunning(true)
         startRsrpHistogramSampler()
         startMockNetworkPeriodicVoiceWatcher()
+        startMockPingPulse()
         acquireWakeLock()
 
         val notification = buildNotification()
@@ -287,10 +289,10 @@ class ConnectivityMonitorService : Service() {
         geigerPlayer.start(
             scope = serviceScope,
             statsProvider = { MonitorState.stats.value },
-            thresholdsProvider = { MonitorState.thresholds.value },
             audioVolumesProvider = { MonitorState.audioVolumes.value },
             monitoringSettingsProvider = { MonitorState.monitoringSettings.value },
-            passiveSignalSettingsProvider = { MonitorState.passiveSignalSettings.value }
+            passiveSignalSettingsProvider = { MonitorState.passiveSignalSettings.value },
+            pingSettingsProvider = { MonitorState.pingSettings.value }
         )
     }
 
@@ -973,6 +975,19 @@ class ConnectivityMonitorService : Service() {
     }
 
 
+    private fun startMockPingPulse() {
+        mockPingPulseJob?.cancel()
+        mockPingPulseJob = serviceScope.launch {
+            while (isActive) {
+                val interval = MonitorState.pingSettings.value.testIntervalMs.coerceAtLeast(1_000L)
+                delay(interval)
+                if (!isMonitoringActive || isPassiveIdleMode || isPassiveOnlyStart) continue
+                if (!MonitorState.passiveMockSettings.value.pingMockEnabled) continue
+                MonitorState.pulseMockPing()
+            }
+        }
+    }
+
     private fun scheduleActivePingTimeout() {
         activePingTimeoutJob?.cancel()
         activePingTimeoutJob = serviceScope.launch {
@@ -1023,6 +1038,8 @@ class ConnectivityMonitorService : Service() {
         mockNetworkPeriodicWatcherJob = null
         mockNetworkPeriodicAnnouncementJob?.cancel()
         mockNetworkPeriodicAnnouncementJob = null
+        mockPingPulseJob?.cancel()
+        mockPingPulseJob = null
         rsrpHistogramSampleJob?.cancel()
         rsrpHistogramSampleJob = null
         voiceQueue.clear()

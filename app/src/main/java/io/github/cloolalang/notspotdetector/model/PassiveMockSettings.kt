@@ -70,12 +70,18 @@ data class PassiveMockSettings(
     val scenario: MockNetworkScenario = MockNetworkScenario.DEFAULT,
     val rsrpDbm: Int = DEFAULT_RSRP_DBM,
     val rsrqDb: Int = DEFAULT_RSRQ_DB,
-    val voiceOnlyNoData: Boolean = DEFAULT_VOICE_ONLY_NO_DATA
+    val voiceOnlyNoData: Boolean = DEFAULT_VOICE_ONLY_NO_DATA,
+    /** When on during active mode, [pingRttMs] and [packetLossPercent] replace the live ping. */
+    val pingMockEnabled: Boolean = DEFAULT_PING_MOCK_ENABLED,
+    val pingRttMs: Int = DEFAULT_PING_RTT_MS,
+    val packetLossPercent: Int = DEFAULT_PACKET_LOSS_PERCENT
 ) {
     fun normalized(): PassiveMockSettings {
         return copy(
             rsrpDbm = rsrpDbm.coerceIn(MIN_MOCK_RSRP_DBM, PassiveSignalSettings.MAX_RSRP_DBM),
-            rsrqDb = rsrqDb.coerceIn(PassiveSignalSettings.MIN_RSRQ_DB, PassiveSignalSettings.MAX_RSRQ_DB)
+            rsrqDb = rsrqDb.coerceIn(PassiveSignalSettings.MIN_RSRQ_DB, PassiveSignalSettings.MAX_RSRQ_DB),
+            pingRttMs = pingRttMs.coerceIn(MIN_PING_RTT_MS, MAX_PING_RTT_MS),
+            packetLossPercent = packetLossPercent.coerceIn(MIN_PACKET_LOSS_PERCENT, MAX_PACKET_LOSS_PERCENT)
         )
     }
 
@@ -527,6 +533,13 @@ data class PassiveMockSettings(
     companion object {
         const val DEFAULT_ENABLED = false
         const val DEFAULT_VOICE_ONLY_NO_DATA = false
+        const val DEFAULT_PING_MOCK_ENABLED = false
+        const val DEFAULT_PING_RTT_MS = 40
+        const val MIN_PING_RTT_MS = 0
+        const val MAX_PING_RTT_MS = 1_500
+        const val DEFAULT_PACKET_LOSS_PERCENT = 0
+        const val MIN_PACKET_LOSS_PERCENT = 0
+        const val MAX_PACKET_LOSS_PERCENT = 100
         /** Mock RSRP slider floor — below tier-setting minimum so very weak values can be simulated. */
         const val MIN_MOCK_RSRP_DBM = -140
         const val DEFAULT_RSRP_DBM = -115
@@ -562,6 +575,47 @@ data class PassiveMockSettings(
         const val MOCK_ALT_GSM_EARFCN = 71
         const val MOCK_ALT_GSM_BSIC = 12
     }
+}
+
+/**
+ * Replaces live ping RTT, jitter, and packet loss while [PassiveMockSettings.pingMockEnabled]
+ * is on during an active session. A [tick] uses a new timestamp so good-connection clicks advance.
+ * Other updates keep the previous timestamp so a real ping does not add an extra click.
+ */
+fun ConnectivityStats.withMockPingApplied(
+    mock: PassiveMockSettings,
+    previous: ConnectivityStats,
+    tick: Boolean
+): ConnectivityStats {
+    if (mock.pingMockEnabled && isMonitoring && !isPassiveOnlySession && !isPassiveIdleMode) {
+        val timestamp = when {
+            tick -> System.currentTimeMillis()
+            previous.mockPingActive && previous.lastPingTimestampMs > 0L -> previous.lastPingTimestampMs
+            lastPingTimestampMs > 0L -> lastPingTimestampMs
+            else -> 0L
+        }
+        return copy(
+            rttMs = mock.pingRttMs.toLong(),
+            jitterMs = 0L,
+            packetLossPercent = mock.packetLossPercent.toFloat(),
+            pingsSent = maxOf(pingsSent, 1),
+            pingsFailed = if (mock.packetLossPercent > 0) maxOf(pingsFailed, 1) else 0,
+            lastPingTimestampMs = timestamp,
+            mockPingActive = true
+        )
+    }
+    if (previous.mockPingActive) {
+        return copy(
+            rttMs = null,
+            jitterMs = 0L,
+            packetLossPercent = 0f,
+            pingsSent = 0,
+            pingsFailed = 0,
+            lastPingTimestampMs = 0L,
+            mockPingActive = false
+        )
+    }
+    return this
 }
 
 fun PassiveMockSettings.toConnectivityStats(

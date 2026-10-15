@@ -187,6 +187,11 @@ fun MockNetworkStateCard(
                         )
                     }
                 }
+
+                MockPingControls(
+                    mockSettings = mockSettings,
+                    onMockSettingsChange = onMockSettingsChange
+                )
             }
         }
     }
@@ -268,16 +273,71 @@ private fun mockScenarioHint(scenario: MockNetworkScenario): String {
 }
 
 @Composable
+private fun MockPingControls(
+    mockSettings: PassiveMockSettings,
+    onMockSettingsChange: (PassiveMockSettings) -> Unit
+) {
+    Text(
+        text = stringResource(R.string.mock_ping_title),
+        style = MaterialTheme.typography.bodyMedium,
+        fontWeight = FontWeight.Medium
+    )
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Checkbox(
+            checked = mockSettings.pingMockEnabled,
+            onCheckedChange = { onMockSettingsChange(mockSettings.copy(pingMockEnabled = it)) },
+            enabled = settingsControlsEnabled()
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.mock_ping_enabled),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = stringResource(R.string.mock_ping_enabled_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+    if (!mockSettings.pingMockEnabled) return
+    MockSignalSlider(
+        label = stringResource(R.string.mock_ping_rtt),
+        value = mockSettings.pingRttMs,
+        valueRange = PassiveMockSettings.MIN_PING_RTT_MS..PassiveMockSettings.MAX_PING_RTT_MS,
+        unit = "ms",
+        step = 10,
+        onValueChange = { onMockSettingsChange(mockSettings.copy(pingRttMs = it)) }
+    )
+    MockSignalSlider(
+        label = stringResource(R.string.mock_ping_packet_loss),
+        value = mockSettings.packetLossPercent,
+        valueRange = PassiveMockSettings.MIN_PACKET_LOSS_PERCENT..PassiveMockSettings.MAX_PACKET_LOSS_PERCENT,
+        unit = "%",
+        onValueChange = { onMockSettingsChange(mockSettings.copy(packetLossPercent = it)) }
+    )
+}
+
+@Composable
 private fun MockSignalSlider(
     label: String,
     value: Int,
     valueRange: IntRange,
     unit: String,
+    step: Int = 1,
     onValueChange: (Int) -> Unit
 ) {
     if (!TierSliderSupport.isValidIntRange(valueRange)) return
 
-    val sliderSteps = TierSliderSupport.discreteIntRangeSteps(valueRange)
+    val sliderSteps = if (step <= 1) {
+        TierSliderSupport.discreteIntRangeSteps(valueRange)
+    } else {
+        ((valueRange.last - valueRange.first) / step - 1).coerceAtLeast(0)
+    }
     val sliderValue = value.toFloat().coerceIn(valueRange.first.toFloat(), valueRange.last.toFloat())
 
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {

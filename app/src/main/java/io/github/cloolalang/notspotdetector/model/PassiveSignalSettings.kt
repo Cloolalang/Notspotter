@@ -7,7 +7,7 @@ package io.github.cloolalang.notspotdetector.model
  * Adjacent bands are half-open (`rsrp >` lower edge) so they never overlap:
  * RXSS 1 (above an adjustable −85…−50 floor) > RXSS 2 (−95 up to the RXSS 1 floor) >
  * RXSS 3 (−105 to −95) > RXSS 4 (−115 to −105) > RXSS 5 (RXSS 6 high end to −115) >
- * RXSS 6 (above the RXSS 10 floor through an adjustable high end up to −125) >
+ * RXSS 6 (above the RXSS 10 floor through an adjustable high end up to −123) >
  * RXSS 10 (at or below an adjustable −135…−125 floor).
  *
  * RSRQ uses a single fair boundary: below triggers tier 14 (RSRQ poor) and poor reception.
@@ -223,10 +223,16 @@ data class PassiveSignalSettings(
 
         /** @deprecated Use [DEFAULT_VERY_STRONG_RSRP_MIN_DBM]. */
         const val VERY_STRONG_RSRP_DBM = DEFAULT_VERY_STRONG_RSRP_MIN_DBM
-        /** RXSS 6 high end — between the RXSS 10 floor and the fixed −125 dBm top. */
+        /** RXSS 6 high end — between the RXSS 10 floor and the fixed −123 dBm top. */
         const val MIN_RXSS6_HIGH_DBM = MIN_NO_SIGNAL_RSRP_DBM + 1
-        const val MAX_RXSS6_HIGH_DBM = -125
+        const val MAX_RXSS6_HIGH_DBM = -123
         const val DEFAULT_POOR_RSRP_MIN_DBM = MAX_RXSS6_HIGH_DBM
+        /** Previous RXSS 6 high-end cap. Installs still sitting on it move to [DEFAULT_POOR_RSRP_MIN_DBM]. */
+        const val LEGACY_RXSS6_HIGH_DBM = -125
+        /** Previous factory RXSS 10 floor, before the default moved to [DEFAULT_NO_SIGNAL_RSRP_DBM]. */
+        const val LEGACY_FACTORY_NO_SIGNAL_DBM = MIN_NO_SIGNAL_RSRP_DBM
+        /** Previous macro-profile RXSS 10 floor. */
+        const val LEGACY_MACRO_NO_SIGNAL_DBM = -126
         const val FIXED_RXSS4_MIN_DBM = -115
         const val FIXED_RXSS3_MIN_DBM = -105
         const val FIXED_RXSS2_MIN_DBM = -95
@@ -248,7 +254,7 @@ data class PassiveSignalSettings(
         /** @deprecated Use [DEFAULT_QUIET_ALERT_RSRQ_OFFSET_DB]. */
         const val QUIET_ALERT_RSRQ_OFFSET_DB = 2
 
-        const val DEFAULT_NO_SIGNAL_RSRP_DBM = MIN_NO_SIGNAL_RSRP_DBM
+        const val DEFAULT_NO_SIGNAL_RSRP_DBM = -130
         const val DEFAULT_CRITICAL_RSRQ_DB = DEFAULT_RSRQ_FAIR_MIN_DB
 
         /** @deprecated Removed — RSRQ uses a single fair/critical boundary. */
@@ -426,6 +432,24 @@ fun PassiveSignalSettings.resolveG2SignalStrengthTier(rsrpDbm: Int?): SignalStre
 fun PassiveSignalSettings.isG2RsrpTooWeak(rsrpDbm: Int?): Boolean {
     if (rsrpDbm == null) return false
     return rsrpDbm <= g2NoSignalRsrpDbm
+}
+
+/**
+ * Moves installs that were pinned to the old RXSS 6 cap (−125 dBm) onto the −123 dBm RXSS 5 low end.
+ * The previous factory floor (−135) and macro floor (−126) move to −130 so RXSS 6 spans that edge.
+ * A custom floor other than those two is left alone.
+ */
+fun migrateRxss6BandEdges(poorRsrpMinDbm: Int, noSignalRsrpDbm: Int): Pair<Int, Int> {
+    if (poorRsrpMinDbm != PassiveSignalSettings.LEGACY_RXSS6_HIGH_DBM) {
+        return poorRsrpMinDbm to noSignalRsrpDbm
+    }
+    val noSignal = when (noSignalRsrpDbm) {
+        PassiveSignalSettings.LEGACY_FACTORY_NO_SIGNAL_DBM,
+        PassiveSignalSettings.LEGACY_MACRO_NO_SIGNAL_DBM ->
+            PassiveSignalSettings.DEFAULT_NO_SIGNAL_RSRP_DBM
+        else -> noSignalRsrpDbm
+    }
+    return PassiveSignalSettings.DEFAULT_POOR_RSRP_MIN_DBM to noSignal
 }
 
 fun PassiveSignalSettings.isRsrpTooWeakForService(rsrpDbm: Int?): Boolean {

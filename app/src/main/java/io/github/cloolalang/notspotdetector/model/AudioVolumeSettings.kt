@@ -21,6 +21,10 @@ data class AudioVolumeSettings(
      */
     val masterOtherSoundsEnabled: Boolean = DEFAULT_MASTER_OTHER_SOUNDS_ENABLED,
     val pingClickVolume: Float = DEFAULT_PING_CLICK_VOLUME,
+    /** Length of each ping-test click. Independent of RXSS pulse duration. */
+    val pingClickDurationMs: Int = DEFAULT_PING_CLICK_DURATION_MS,
+    /** Pitch of each ping-test click. Independent of RXSS pulse frequency. */
+    val pingClickFrequencyHz: Int = DEFAULT_PING_CLICK_FREQUENCY_HZ,
     val lowSignalClickVolume: Float = DEFAULT_VOLUME,
     /** RXSS 6 (signal low / critical) signal pulse frequency. */
     val signalPulseFrequencyHz: Int = DEFAULT_SIGNAL_PULSE_FREQUENCY_HZ,
@@ -294,6 +298,14 @@ data class AudioVolumeSettings(
     fun normalized(): AudioVolumeSettings {
         return copy(
             pingClickVolume = pingClickVolume.coerceIn(MIN_VOLUME, MAX_VOLUME),
+            pingClickDurationMs = pingClickDurationMs.coerceIn(
+                MIN_PING_CLICK_DURATION_MS,
+                MAX_PING_CLICK_DURATION_MS
+            ),
+            pingClickFrequencyHz = pingClickFrequencyHz.coerceIn(
+                MIN_SIGNAL_PULSE_FREQUENCY_HZ,
+                MAX_SIGNAL_PULSE_FREQUENCY_HZ
+            ),
             lowSignalClickVolume = lowSignalClickVolume.coerceIn(MIN_VOLUME, MAX_VOLUME),
             signalPulseFrequencyHz = signalPulseFrequencyHz.coerceIn(
                 MIN_SIGNAL_PULSE_FREQUENCY_HZ,
@@ -364,6 +376,11 @@ data class AudioVolumeSettings(
     companion object {
         const val DEFAULT_VOLUME = 0.5f
         const val DEFAULT_PING_CLICK_VOLUME = 0.45f
+        const val DEFAULT_PING_CLICK_DURATION_MS = 20
+        const val MIN_PING_CLICK_DURATION_MS = 10
+        const val MAX_PING_CLICK_DURATION_MS = 200
+        const val PING_CLICK_DURATION_STEP_MS = 10
+        const val DEFAULT_PING_CLICK_FREQUENCY_HZ = 3_200
         const val DEFAULT_TIER5_ANNOUNCER_VOLUME = 0.45f
         const val DEFAULT_NO_SIGNAL_VOICE_VOLUME = 0.45f
         const val DEFAULT_LIMITED_SERVICE_TONE_VOLUME = 0.45f

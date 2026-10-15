@@ -59,7 +59,7 @@
     <string name="passive_signal_rxss6_voice_enabled">Voice announcement</string>
     <string name="passive_signal_rxss6_voice_hint">Speaks “signal low” on entry and every 30 s while in signal low (RXSS 6) on LTE/NR. Same setting as RXSS 5 and 2G weak (RXSS 8). Voice only — no alert tone.</string>
     <string name="passive_signal_rxss6_voice_volume">Volume</string>
-    <string name="passive_signal_rxss6_rsrp_threshold">RSRP above the RXSS 10 floor through the adjustable RXSS 6 high end (up to −125 dBm)</string>
+    <string name="passive_signal_rxss6_rsrp_threshold">RSRP above the RXSS 10 floor through the adjustable RXSS 6 high end (up to −123 dBm)</string>
     <string name="passive_signal_rxss6_high_end">RXSS 6 high end</string>
     <string name="passive_signal_rxss9_section_hint">Momentary alert on LTE, NR, or 2G cell reselect (channel, PCI, or BSIC change). Applies on any camped technology.</string>
     <string name="passive_signal_rxss9_voice_hint">After the cell reselect bell, speaks operator, technology, then cell reselect with channel and PCI/BSIC (e.g. “E E, 4 G, cell reselect, channel 6 4 0 0, PCI 1 2 3”).</string>
@@ -127,7 +127,7 @@
     <string name="passive_signal_rsrp_band_sound_enabled">Alert pulse</string>
     <string name="passive_signal_rsrp_band_boundary_above">RXSS %1$s above</string>
     <string name="passive_signal_no_signal_section">No signal</string>
-    <string name="passive_signal_rsrp_order_hint">RXSS 1 is adjustable from −85 to −50 dBm. RXSS 2 runs from −95 up to the RXSS 1 floor. RXSS 3–4 are fixed 10 dB bands. RXSS 6 high end is adjustable from the RXSS 10 floor up to −125 dBm. RXSS 10 is adjustable from −135 to −125 dBm and stays below RXSS 6. Bands do not overlap.</string>
+    <string name="passive_signal_rsrp_order_hint">RXSS 1 is adjustable from −85 to −50 dBm. RXSS 2 runs from −95 up to the RXSS 1 floor. RXSS 3–4 are fixed 10 dB bands. RXSS 6 high end is adjustable from the RXSS 10 floor up to −123 dBm. RXSS 10 is adjustable from −135 to −125 dBm and stays below RXSS 6. Bands do not overlap.</string>
     <string name="passive_signal_tier_click_value">%1$d ms</string>
     <string name="passive_signal_tier_click_effective">Plays every %1$d ms (raised to fit alert pulse duration)</string>
     <string name="passive_signal_tier_click_ping_mode">With ping monitoring: %1$d ms</string>
@@ -139,6 +139,11 @@
     <string name="passive_mock_rsrq">Mock RSRQ</string>
     <string name="passive_mock_active_hint">Mock network state active — metrics come from the selected scenario, not the live radio. Switch scenarios or drag sliders while running to test RXSS states, voice, and tones.</string>
     <string name="mock_network_state_title">Mock network state</string>
+    <string name="mock_ping_title">Mock ping</string>
+    <string name="mock_ping_enabled">Use mock ping</string>
+    <string name="mock_ping_enabled_hint">During active mode, these values replace live ping RTT and packet loss. The RTT clicks follow them and keep going alongside the RXSS pulses.</string>
+    <string name="mock_ping_rtt">Mock ping RTT</string>
+    <string name="mock_ping_packet_loss">Mock packet loss</string>
     <string name="mock_network_state_summary">Simulate camp states during passive-only monitoring to test RXSS states, voice alerts, and tones without live signal.</string>
     <string name="mock_network_state_enabled_hint">Requires passive-only (mock signal) start. One scenario at a time. Speaks “mock network” every 30 s while mock is on (master voice mute still applies).</string>
     <string name="mock_network_state_scenario_title">Scenario</string>
@@ -239,7 +244,7 @@
     <string name="passive_signal_rsrp_band_range_at_or_below">Range: at or below %1$d dBm</string>
     <string name="passive_signal_bound_value">%1$d %2$s</string>
     <string name="thresholds_title">Active mode alert thresholds</string>
-    <string name="thresholds_summary">Tap to tune when connection-test clicks speed up. Used only by active mode testing. Changes apply immediately, including while running in the background.</string>
+    <string name="thresholds_summary">Ping clicks follow RTT: one click per ping test from 25 ms to 45 ms. On a 5 second test that becomes about every 2.5 seconds at 60 ms, every 1.25 seconds at 80 ms, every 0.8 seconds at 100 ms, and every 0.5 seconds at 120 ms, then faster. These thresholds still grade the connection. Used only by active mode testing.</string>
     <string name="threshold_good_rtt">Good RTT below</string>
     <string name="threshold_poor_rtt">Poor RTT above</string>
     <string name="threshold_poor_jitter">Poor jitter above</string>
@@ -249,7 +254,7 @@
     <string name="threshold_suppress_clicks_good_hint">No connection-test clicks after a good test. Degraded, poor, and no-signal clicks still play.</string>
     <string name="threshold_good_clicks_per_ping">Good connection clicks per test</string>
     <string name="threshold_good_clicks_per_ping_unit">clicks</string>
-    <string name="threshold_good_clicks_per_ping_hint">When a test rates as good connection, play this many clicks once per test cycle. Degraded and poor connections still use faster interval clicking.</string>
+    <string name="threshold_good_clicks_per_ping_hint">Clicks run beside the RXSS pulses during every ping test. A good RTT, 45 ms and faster, is one click per test. The rate stays close to that until latency is clearly worse: about every 2.5 seconds at 60 ms, every 1.25 seconds at 80 ms, every 0.8 seconds at 100 ms, and every 0.5 seconds at 120 ms, then faster, up to about 10 clicks a second. Packet loss of 5%% or more doubles the click speed immediately, and 10%% or more doubles it again. Only 100%% packet loss stops them.</string>
     <string name="metric_rsrp">RSRP</string>
     <string name="metric_rsrq">RSRQ</string>
     <string name="metric_snir">SNIR</string>
@@ -352,13 +357,15 @@
     <string name="metric_signal_dbm_2g">RX Level</string>
     <string name="metric_gsm_arfcn">GSM ARFCN</string>
     <string name="metric_gsm_bsic">BSIC</string>
-    <string name="rtt_graph_title">RTT and jitter (last 60 s)</string>
+    <string name="rtt_graph_title">RTT, jitter, and packet loss (last 60 s)</string>
     <string name="rtt_graph_legend_rtt">RTT</string>
     <string name="rtt_graph_legend_jitter">Jitter</string>
+    <string name="rtt_graph_legend_loss">Packet loss</string>
     <string name="rtt_graph_window">Rolling 60s window</string>
-    <string name="rtt_graph_axis_hint">%1$d ms top · %2$d ms bottom</string>
+    <string name="rtt_graph_axis_hint">Left %1$d–%2$d ms · right 0–100%%</string>
     <string name="rtt_graph_label_ms">%1$d ms</string>
-    <string name="rtt_graph_empty">Waiting for RTT samples…</string>
+    <string name="rtt_graph_label_percent">%1$d%%</string>
+    <string name="rtt_graph_empty">Waiting for ping samples…</string>
     <string name="rtt_graph_time_start">−60 s</string>
     <string name="rtt_graph_time_now">Now</string>
     <string name="rsrp_histogram_window_label">Sample window</string>
@@ -394,7 +401,7 @@
     <string name="rsrp_histogram_null_bin_label">N/A</string>
     <string name="rsrp_histogram_other_bin_label">&lt;%1$ddBm</string>
     <string name="audio_volume_title">Alert sound settings</string>
-    <string name="audio_volume_summary">Connection-test clicks and shared signal-pulse loudness. Per-RXSS tones and voice phrases are set on each RXSS. Voice announcer settings live in Global voice settings.</string>
+    <string name="audio_volume_summary">Ping click loudness, length, and pitch. RXSS tones and voice phrases are set on each RXSS.</string>
     <string name="global_voice_settings_title">Global voice settings</string>
     <string name="global_voice_settings_summary">Choose which TTS voice reads announcements, and how fast it speaks. Operator, technology, and band phrases are set on each RXSS that has a voice announcement.</string>
     <string name="global_voice_speed">Voice speed</string>
@@ -402,8 +409,10 @@
     <string name="global_voice_speed_hint">Applies to every spoken announcement.</string>
     <string name="audio_volume_test">Test</string>
     <string name="audio_volume_test_disabled_hint">Stop monitoring to use Test buttons.</string>
-    <string name="audio_volume_ping_clicks">Connection test clicks</string>
-    <string name="audio_volume_signal_pulse">Signal pulse</string>
+    <string name="audio_volume_ping_clicks">Ping clicks</string>
+    <string name="audio_ping_click_frequency">Ping click frequency</string>
+    <string name="audio_ping_click_duration">Ping click duration</string>
+    <string name="audio_ping_click_duration_hint">Length of each ping click.</string>
     <string name="audio_signal_pulse_frequency">Signal pulse frequency</string>
     <string name="audio_signal_pulse_frequency_value">%1$d Hz</string>
     <string name="audio_signal_pulse_duration">Signal pulse duration</string>
@@ -481,7 +490,7 @@
     <string name="audio_voice_announcer_unavailable">%1$s (not available on this device)</string>
     <string name="audio_voice_announcer_preview">Network voice test</string>
     <string name="audio_volume_percent">%1$d%%</string>
-    <string name="audio_volume_reset">Reset to defaults</string>
+    <string name="audio_volume_reset">Reset ping clicks</string>
     <string name="settings_profiles_title">Settings profiles</string>
     <string name="settings_profiles_summary">Save and load named sets of app settings as JSON files on device storage. Use Export to Downloads for a file you can import later from the Downloads/NotSpotter folder. Save dated copy to Downloads names the profile with the current date and time and writes that file immediately. Profiles survive clearing app cache and can be shared with others. Saved profiles must differ from factory defaults.</string>
     <string name="settings_profiles_name_label">Profile name</string>

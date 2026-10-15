@@ -33,7 +33,6 @@ fun MonitorApp(
 ) {
     val stats by viewModel.stats.collectAsStateWithLifecycle()
     val isRunning by viewModel.isRunning.collectAsStateWithLifecycle()
-    val thresholds by viewModel.thresholds.collectAsStateWithLifecycle()
     val pingSettings by viewModel.pingSettings.collectAsStateWithLifecycle()
     val monitoringSettings by viewModel.monitoringSettings.collectAsStateWithLifecycle()
     val passiveSignalSettings by viewModel.passiveSignalSettings.collectAsStateWithLifecycle()
@@ -86,7 +85,6 @@ fun MonitorApp(
     Scaffold(modifier = modifier.fillMaxSize().then(settingsUnlockIdleModifier)) { innerPadding ->
         MonitorScreen(
             stats = stats,
-            thresholds = thresholds,
             pingSettings = pingSettings,
             monitoringSettings = monitoringSettings,
             passiveSignalSettings = passiveSignalSettings,
@@ -110,13 +108,6 @@ fun MonitorApp(
                 viewModel.startMonitoring()
             },
             onStop = viewModel::stopMonitoring,
-            onGoodRttChange = viewModel::updateGoodRttMs,
-            onPoorRttChange = viewModel::updatePoorRttMs,
-            onPoorJitterChange = viewModel::updatePoorJitterMs,
-            onPoorPacketLossChange = viewModel::updatePoorPacketLossPercent,
-            onSuppressClicksOnGoodChange = viewModel::updateSuppressClicksOnGoodConnection,
-            onGoodConnectionClicksPerPingChange = viewModel::updateGoodConnectionClicksPerPing,
-            onResetThresholds = viewModel::resetThresholds,
             onPingAddressChange = viewModel::updatePingAddress,
             onPingsPerTestChange = viewModel::updatePingsPerTest,
             onTestIntervalChange = viewModel::updateTestIntervalMs,
@@ -141,6 +132,8 @@ fun MonitorApp(
             onRefreshVoiceAnnouncerOptions = viewModel::refreshVoiceAnnouncerOptions,
             onPreviewVoiceAnnouncer = viewModel::previewVoiceAnnouncerSound,
             onPingClickVolumeChange = viewModel::updatePingClickVolume,
+            onPingClickFrequencyChange = viewModel::updatePingClickFrequencyHz,
+            onPingClickDurationChange = viewModel::updatePingClickDurationMs,
             onLowSignalClickVolumeChange = viewModel::updateLowSignalClickVolume,
             onSignalPulseFrequencyChange = viewModel::updateSignalPulseFrequencyHz,
             onVeryStrongTierPulseFrequencyChange = viewModel::updateVeryStrongTierPulseFrequencyHz,
