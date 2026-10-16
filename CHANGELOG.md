@@ -5,6 +5,16 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.114.0] - 2026-10-16
+
+### Added
+
+- **Stalled RSRP scan** — When the modem stops sending a new signal reading, cell metrics keeps the last RSRP and adds how old that scan is, for example `−92 dBm · scan 8 s`. After 15 seconds the row reads `no new scan`. From 3 seconds onward those seconds count as N/A on the level histogram, and Last measurement RSRP notes how long ago the scan was.
+
+### Changed
+
+- **Clear graph** — Clearing the level histogram also clears the Primary Carrier History tape, leaving only the cell you are on now.
+
 ## [2.113.0] - 2026-10-16
 
 ### Changed

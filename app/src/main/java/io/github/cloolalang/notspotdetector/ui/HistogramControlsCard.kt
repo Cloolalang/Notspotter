@@ -67,6 +67,7 @@ import io.github.cloolalang.notspotdetector.model.RsrpHistogramThresholdBarColor
 import io.github.cloolalang.notspotdetector.model.RsrpMeanColorBand
 import io.github.cloolalang.notspotdetector.model.RsrpSample
 import io.github.cloolalang.notspotdetector.model.RsrpSampleTrend
+import io.github.cloolalang.notspotdetector.model.ServingCellSelection
 import io.github.cloolalang.notspotdetector.model.coerceToHistogramWindowStep
 import io.github.cloolalang.notspotdetector.ui.theme.BondiBlue
 import io.github.cloolalang.notspotdetector.ui.theme.Sushi
@@ -156,12 +157,19 @@ fun HistogramControlsCard(
                     nowMs = nowMs,
                     elapsedMs = elapsedMs,
                     carrierEntries = carrierTape.entries,
-                    reselectsPerMinute = stats.cellReselectsPerMinute
+                    reselectsPerMinute = stats.cellReselectsPerMinute,
+                    cellInfoAgeMs = stats.cellInfoAgeMs
                 )
 
                 OutlinedButton(
-                    onClick = onClearHistogram,
-                    enabled = samples.isNotEmpty(),
+                    onClick = {
+                        carrierTape = PrimaryCarrierHistory.record(
+                            PrimaryCarrierTape(),
+                            currentCarrier
+                        )
+                        onClearHistogram()
+                    },
+                    enabled = samples.isNotEmpty() || carrierTape.entries.size > 1,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(text = stringResource(R.string.rsrp_histogram_clear))
@@ -268,6 +276,7 @@ private fun RsrpHistogramDisplay(
     elapsedMs: Long?,
     carrierEntries: List<PrimaryCarrierTapeEntry>,
     reselectsPerMinute: Int,
+    cellInfoAgeMs: Long?,
     modifier: Modifier = Modifier
 ) {
     val bins = if (binningMode == RsrpHistogramBinningMode.THRESHOLD) {
@@ -362,7 +371,8 @@ private fun RsrpHistogramDisplay(
             }
             HorizontalRsrpBar(
                 title = stringResource(R.string.rsrp_histogram_last_title),
-                rsrpDbm = RsrpHistogram.lastSampleRsrpDbm(samples, nowMs, windowMs)?.toDouble()
+                rsrpDbm = RsrpHistogram.lastSampleRsrpDbm(samples, nowMs, windowMs)?.toDouble(),
+                scanAgeMs = cellInfoAgeMs
             )
         }
         PrimaryCarrierHistoryBar(
@@ -557,6 +567,7 @@ private fun HorizontalRsrpBar(
     title: String,
     rsrpDbm: Double?,
     trend: RsrpSampleTrend? = null,
+    scanAgeMs: Long? = null,
     modifier: Modifier = Modifier
 ) {
     val fraction = rsrpDbm?.let { RsrpHistogram.meanBarFillFraction(it) } ?: 0f
@@ -595,6 +606,16 @@ private fun HorizontalRsrpBar(
                 )
                 RsrpTrendIcon(trend = trend)
             }
+        }
+        if (scanAgeMs != null && ServingCellSelection.isScanAgeNotable(scanAgeMs)) {
+            Text(
+                text = stringResource(
+                    R.string.rsrp_histogram_last_scan_age,
+                    ServingCellSelection.scanAgeSeconds(scanAgeMs)
+                ),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
         Box(
             modifier = Modifier

@@ -23,7 +23,8 @@ fun ConnectivityStats.withoutCampedRadio(): ConnectivityStats {
         hasLteNrSignal = false,
         servingNetworkOperatorName = null,
         plmn = null,
-        lteLayerResilience = null
+        lteLayerResilience = null,
+        cellInfoAgeMs = null
     )
 }
 

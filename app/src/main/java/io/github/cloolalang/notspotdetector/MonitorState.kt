@@ -7,6 +7,7 @@ import io.github.cloolalang.notspotdetector.model.CellReselectRate
 import io.github.cloolalang.notspotdetector.model.CellularRadioMetrics
 import io.github.cloolalang.notspotdetector.model.ConnectionQuality
 import io.github.cloolalang.notspotdetector.model.ConnectivityStats
+import io.github.cloolalang.notspotdetector.model.ServingCellSelection
 import io.github.cloolalang.notspotdetector.model.hidingFiveGIfDisabled
 import io.github.cloolalang.notspotdetector.model.TechnologyChangeTarget
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
@@ -420,11 +421,15 @@ object MonitorState {
     fun tickRsrpHistogramSample() {
         synchronized(monitorLock) {
             val stats = _stats.value
+            val scanStalled = !stats.isLimitedServiceVisited() &&
+                ServingCellSelection.isScanAgeNotable(stats.cellInfoAgeMs)
             recordRsrpSample(
-                rsrpDbm = stats.rsrpDbm,
+                rsrpDbm = if (scanStalled) null else stats.rsrpDbm,
                 isMonitoring = stats.isMonitoring,
                 radioAccessType = stats.radioAccessType,
-                signalQualityFresh = stats.signalQualityFresh && !stats.isLimitedServiceVisited()
+                signalQualityFresh = stats.signalQualityFresh && !stats.isLimitedServiceVisited(),
+                recordStaleScan = !stats.isLimitedServiceVisited() &&
+                    ServingCellSelection.isScanAgeStale(stats.cellInfoAgeMs)
             )
         }
     }
@@ -433,12 +438,14 @@ object MonitorState {
         rsrpDbm: Int?,
         isMonitoring: Boolean,
         radioAccessType: String?,
-        signalQualityFresh: Boolean
+        signalQualityFresh: Boolean,
+        recordStaleScan: Boolean = false
     ) {
         // Skip frozen CellInfo leftovers so the histogram only counts live scans.
         // Null RSRP on a fresh read is still recorded for the "no signal" bin.
+        // A scan whose timestamp has stopped is recorded as N/A, including after it goes stale.
         if (!_isRunning.value || !isMonitoring) return
-        if (!signalQualityFresh) return
+        if (!signalQualityFresh && !recordStaleScan) return
         clearRsrpHistogramIfTechnologyChanged(radioAccessType)
         val timestampMs = System.currentTimeMillis()
         val retainMs = rsrpHistoryRetentionMs()
@@ -553,7 +560,8 @@ object MonitorState {
             signalPermissionGranted = metrics.permissionGranted,
             cellIdentityPermissionGranted = metrics.cellIdentityPermissionGranted,
             lteLayerResilience = metrics.lteLayerResilience,
-            signalQualityFresh = metrics.signalQualityFresh
+            signalQualityFresh = metrics.signalQualityFresh,
+            cellInfoAgeMs = metrics.cellInfoAgeMs
         )
         val reconciled = merged.reconcileOutOfServiceCamp()
         val displayReady = reconciled.copy(
@@ -630,7 +638,8 @@ object MonitorState {
             signalPermissionGranted = metrics.permissionGranted,
             cellIdentityPermissionGranted = metrics.cellIdentityPermissionGranted,
             lteLayerResilience = metrics.lteLayerResilience,
-            signalQualityFresh = metrics.signalQualityFresh
+            signalQualityFresh = metrics.signalQualityFresh,
+            cellInfoAgeMs = metrics.cellInfoAgeMs
         )
         val reconciled = merged.reconcileOutOfServiceCamp()
         rememberRadioAccessType(reconciled)

@@ -108,6 +108,26 @@ class MonitorStateRsrpHistogramSampleTest {
         assertTrue(MonitorState.rsrpHistory.value.isEmpty())
     }
 
+    @Test
+    fun tickRsrpHistogramSample_agingScanCountsAsNoSignal() {
+        MonitorState.clearRsrpHistogram()
+        MonitorState.updateStats(lteStats(-95).copy(cellInfoAgeMs = 8_000L))
+        MonitorState.tickRsrpHistogramSample()
+
+        assertEquals(null, MonitorState.rsrpHistory.value.single().rsrpDbm)
+    }
+
+    @Test
+    fun tickRsrpHistogramSample_staleScanStillCountsAsNoSignal() {
+        MonitorState.clearRsrpHistogram()
+        MonitorState.updateStats(
+            lteStats(-95).copy(signalQualityFresh = false, cellInfoAgeMs = 20_000L)
+        )
+        MonitorState.tickRsrpHistogramSample()
+
+        assertEquals(null, MonitorState.rsrpHistory.value.single().rsrpDbm)
+    }
+
     private fun lteStats(
         rsrpDbm: Int?,
         radioAccessType: String = CellularSignalReader.RADIO_4G

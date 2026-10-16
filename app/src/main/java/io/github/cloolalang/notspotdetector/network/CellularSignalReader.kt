@@ -276,7 +276,8 @@ object CellularSignalReader {
             mobileDataEnabled = mobileDataEnabled,
             selectedApn = selectedApn,
             lteLayerResilience = lteLayerResilience,
-            signalQualityFresh = signalQualityFresh
+            signalQualityFresh = signalQualityFresh,
+            cellInfoAgeMs = newestAgeMs
         )
 
         if (isOn2g && !monitor2gFallback && !isLimitedService &&

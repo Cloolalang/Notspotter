@@ -144,6 +144,20 @@ object ServingCellSelection {
     const val ABSOLUTE_STALE_MS = 120_000L
     const val METRICS_STALE_MS = 15_000L
 
+    /** Show the last RSRP as aging, and count histogram samples as N/A, once a scan is this old. */
+    const val SCAN_STALL_NOTE_MS = 3_000L
+
+    fun isScanAgeNotable(ageMs: Long?): Boolean {
+        return ageMs != null && ageMs >= SCAN_STALL_NOTE_MS
+    }
+
+    /** CellInfo is older than the live-measurement window. */
+    fun isScanAgeStale(ageMs: Long?): Boolean {
+        return ageMs != null && ageMs > METRICS_STALE_MS
+    }
+
+    fun scanAgeSeconds(ageMs: Long): Int = (ageMs / 1_000L).toInt()
+
     fun isMetricsStale(newestAgeMs: Long?): Boolean {
         return newestAgeMs != null && newestAgeMs > METRICS_STALE_MS
     }

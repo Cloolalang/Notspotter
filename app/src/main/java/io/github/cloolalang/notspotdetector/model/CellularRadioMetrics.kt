@@ -88,7 +88,9 @@ data class CellularRadioMetrics(
      * False for visiting limited service (SOS quality is not reliable). Home limited and
      * in-service follow CellInfo age so frozen RSRP/RSRQ/2G RX is not shown as live.
      */
-    val signalQualityFresh: Boolean = true
+    val signalQualityFresh: Boolean = true,
+    /** Age of the newest CellInfo snapshot, or null when the modem did not timestamp it. */
+    val cellInfoAgeMs: Long? = null
 ) {
     /**
      * Drops camped RAT / RSRP / cell identity. Used when the radio is off, or when service is
@@ -118,7 +120,8 @@ data class CellularRadioMetrics(
             hasLteNrSignal = false,
             servingNetworkOperatorName = null,
             plmn = null,
-            lteLayerResilience = null
+            lteLayerResilience = null,
+            cellInfoAgeMs = null
         )
     }
 }

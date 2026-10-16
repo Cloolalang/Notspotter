@@ -131,6 +131,8 @@ data class ConnectivityStats(
      * than showing a frozen figure.
      */
     val signalQualityFresh: Boolean = true,
+    /** Age of the newest CellInfo snapshot. Null when unknown. */
+    val cellInfoAgeMs: Long? = null,
     /** Serving-cell reselects in the last 60 s (rolling). */
     val cellReselectsPerMinute: Int = 0,
     /**

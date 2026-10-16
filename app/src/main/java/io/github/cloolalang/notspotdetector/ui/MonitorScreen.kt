@@ -54,7 +54,9 @@ import io.github.cloolalang.notspotdetector.model.formatVirtualOperatorDisplay
 import io.github.cloolalang.notspotdetector.model.formatVisitedOperatorDisplay
 import io.github.cloolalang.notspotdetector.model.ServingBandMhz
 import io.github.cloolalang.notspotdetector.model.shouldBlankStaleCellIdentity
+import io.github.cloolalang.notspotdetector.model.ServingCellSelection
 import io.github.cloolalang.notspotdetector.model.displayedRsrpDbm
+import io.github.cloolalang.notspotdetector.model.isLimitedServiceVisited
 import io.github.cloolalang.notspotdetector.model.displayedRsrqDb
 import io.github.cloolalang.notspotdetector.model.PassiveMockSettings
 import io.github.cloolalang.notspotdetector.model.PeriodicVoiceRepeat
@@ -731,11 +733,7 @@ private fun MetricsCard(
                     CellularSignalReader.RADIO_2G -> stringResource(R.string.metric_signal_dbm_2g)
                     else -> stringResource(R.string.metric_rsrp)
                 },
-                value = formatSignalValue(
-                    value = stats.displayedRsrpDbm(),
-                    unit = "dBm",
-                    permissionGranted = stats.signalPermissionGranted
-                )
+                value = formatRsrpMetric(stats)
             )
             if (stats.radioAccessType != CellularSignalReader.RADIO_2G) {
                 MetricRow(
@@ -1031,6 +1029,34 @@ private fun formatHomeOperator(stats: ConnectivityStats): String {
         return stringResource(R.string.network_permission_required)
     }
     return stringResource(R.string.network_cellular)
+}
+
+@Composable
+private fun formatRsrpMetric(stats: ConnectivityStats): String {
+    if (!stats.signalPermissionGranted) {
+        return stringResource(R.string.signal_permission_required)
+    }
+    if (stats.isLimitedServiceVisited()) {
+        return formatSignalValue(
+            value = stats.displayedRsrpDbm(),
+            unit = "dBm",
+            permissionGranted = true
+        )
+    }
+    if (ServingCellSelection.isScanAgeStale(stats.cellInfoAgeMs)) {
+        return stringResource(R.string.metric_rsrp_no_new_scan)
+    }
+    val value = stats.rsrpDbm ?: return "—"
+    val reading = "$value dBm"
+    val age = stats.cellInfoAgeMs
+    if (age != null && ServingCellSelection.isScanAgeNotable(age)) {
+        return stringResource(
+            R.string.metric_rsrp_scan_age,
+            reading,
+            ServingCellSelection.scanAgeSeconds(age)
+        )
+    }
+    return reading
 }
 
 @Composable
