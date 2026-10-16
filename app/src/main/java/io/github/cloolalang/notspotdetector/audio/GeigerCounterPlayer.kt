@@ -161,7 +161,7 @@ class GeigerCounterPlayer {
                     now - lastClickAtMs
                 }
                 val oncePerTest = RttGeiger.clicksOncePerTest(dose) &&
-                    RttGeiger.lossSpeedMultiplier(stats.packetLossPercent) == 1
+                    stats.packetLossPercent < RttGeiger.LOSS_DOUBLE_PERCENT
                 val newPing = stats.lastPingTimestampMs > lastHandledPingTimestampMs &&
                     stats.lastPingTimestampMs > 0L
                 val shouldClick = if (oncePerTest) {
@@ -180,15 +180,31 @@ class GeigerCounterPlayer {
                         continue
                     }
                     lastClickAtMs = System.currentTimeMillis()
+                    // Match the click's own audio, so the next gap is measured from a full tick
+                    // and writes do not pile up in the buffer as a burst.
+                    delay(volumes.pingClickDurationMs.toLong().coerceAtLeast(1L))
                 }
                 if (stats.lastPingTimestampMs > 0L && (shouldClick || sinceClick < interval / 2)) {
                     lastHandledPingTimestampMs = stats.lastPingTimestampMs
                 }
                 // Silence keeps the stream awake. Stopping between rare clicks makes the
                 // speaker fade the next tick in, so a good RTT sounds quieter than a slow one.
-                if (!writePingSilence(volumes.pingClickVolume)) {
-                    delay(POLL_INTERVAL_MS)
+                // Waiting out the same length keeps the gap even instead of filling the buffer.
+                val elapsed = if (lastClickAtMs == 0L) {
+                    0L
+                } else {
+                    System.currentTimeMillis() - lastClickAtMs
                 }
+                val silenceMs = minOf(
+                    PING_CLICK_CHUNK_MS.toLong(),
+                    (interval - elapsed).coerceAtLeast(0L)
+                ).toInt()
+                if (silenceMs <= 0) continue
+                if (!writePingSilence(volumes.pingClickVolume, silenceMs)) {
+                    delay(POLL_INTERVAL_MS)
+                    continue
+                }
+                delay(silenceMs.toLong())
             }
             } finally {
                 releasePingClickTrack()
@@ -1074,19 +1090,20 @@ class GeigerCounterPlayer {
         return writePingPcm(volume, pingClickPcm(durationMs, frequencyHz))
     }
 
-    private fun writePingSilence(volume: Float): Boolean {
+    private fun writePingSilence(volume: Float, durationMs: Int = PING_CLICK_CHUNK_MS): Boolean {
         val chunk = pingClickSilenceChunk ?: ShortArray(sampleRate * PING_CLICK_CHUNK_MS / 1_000).also {
             pingClickSilenceChunk = it
         }
-        return writePingPcm(volume, chunk)
+        val samples = (sampleRate * durationMs.coerceIn(1, PING_CLICK_CHUNK_MS) / 1_000).coerceAtLeast(1)
+        return writePingPcm(volume, chunk, samples)
     }
 
-    private fun writePingPcm(volume: Float, pcm: ShortArray): Boolean {
+    private fun writePingPcm(volume: Float, pcm: ShortArray, length: Int = pcm.size): Boolean {
         if (volume <= 0f || pcm.isEmpty()) return false
         return synchronized(pingClickLock) {
             val track = ensurePingClickStream(volume) ?: return@synchronized false
             try {
-                track.write(pcm, 0, pcm.size) >= 0
+                track.write(pcm, 0, length.coerceIn(1, pcm.size)) >= 0
             } catch (_: IllegalStateException) {
                 releasePingClickStreamLocked()
                 false

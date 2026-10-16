@@ -5,6 +5,13 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.115.0] - 2026-10-16
+
+### Changed
+
+- **Ping click rate** — Clicks keep speeding up as RTT rises past 200 ms. On a 5 second test the gap is still about half a second at 120 ms, then shorter until about 10 clicks a second at 1000 ms. A longer RTT than that stays at that fastest rate.
+- **Packet loss clicks** — 5% loss still doubles the click rate and 10% doubles it again. Higher loss keeps doubling the rate about every extra 5%, until the clicks are as fast as the speaker can tick. 100% loss stays silent, and the gaps stay even instead of bunching up.
+
 ## [2.114.0] - 2026-10-16
 
 ### Added

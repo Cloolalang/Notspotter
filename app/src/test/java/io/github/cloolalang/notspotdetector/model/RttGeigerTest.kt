@@ -33,8 +33,11 @@ class RttGeigerTest {
         assertEquals(800L, intervalFor(rttMs = 100))
         assertEquals(500L, intervalFor(rttMs = 120))
         assertTrue(intervalFor(rttMs = 140) < 500L)
-        assertEquals(RttGeiger.FAST_INTERVAL_MS, intervalFor(rttMs = 300))
-        assertEquals(RttGeiger.FAST_INTERVAL_MS, intervalFor(rttMs = 600))
+        assertTrue(intervalFor(rttMs = 140) > intervalFor(rttMs = 250))
+        assertTrue(intervalFor(rttMs = 250) > intervalFor(rttMs = 600))
+        assertTrue(intervalFor(rttMs = 600) > RttGeiger.FAST_INTERVAL_MS)
+        assertEquals(RttGeiger.FAST_INTERVAL_MS, intervalFor(rttMs = 1_000))
+        assertEquals(RttGeiger.FAST_INTERVAL_MS, intervalFor(rttMs = 1_200))
     }
 
     @Test
@@ -84,9 +87,29 @@ class RttGeigerTest {
 
         assertEquals(TEST_INTERVAL_MS, atZero)
         assertEquals(atZero, justUnder)
+        val atTwenty = intervalFor(rttMs = 25, packetLossPercent = 20f)
+        val atNinety = intervalFor(rttMs = 25, packetLossPercent = 90f)
+
         assertEquals(atZero / 2, atFive)
         assertEquals(atZero / 4, atTen)
-        assertEquals(atTen, aboveTen)
+        val atFifteen = intervalFor(rttMs = 25, packetLossPercent = 15f)
+        assertTrue(atFifteen < atTen)
+        assertTrue(atTwenty < atFifteen)
+        assertTrue(aboveTen < atTwenty)
+        assertTrue(atTwenty <= atZero / 8)
+        assertEquals(RttGeiger.MIN_CLICK_INTERVAL_MS, atNinety)
+    }
+
+    @Test
+    fun packetLossStillSpeedsAFastRttUntilTheClickFloor() {
+        val fast = intervalFor(rttMs = 1_000)
+        val atFive = intervalFor(rttMs = 1_000, packetLossPercent = 5f)
+        val atTen = intervalFor(rttMs = 1_000, packetLossPercent = 10f)
+        val atTwenty = intervalFor(rttMs = 1_000, packetLossPercent = 20f)
+
+        assertEquals(fast / 2, atFive)
+        assertEquals(fast / 4, atTen)
+        assertEquals(RttGeiger.MIN_CLICK_INTERVAL_MS, atTwenty)
     }
 
     @Test
