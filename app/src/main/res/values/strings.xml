@@ -391,6 +391,8 @@
     <string name="rsrp_histogram_sigma_unit">dB</string>
     <string name="rsrp_histogram_mean_title">Mean RSRP</string>
     <string name="rsrp_histogram_last_title">Last measurement RSRP</string>
+    <string name="rsrp_histogram_carrier_history_title">Primary Carrier History</string>
+    <string name="rsrp_histogram_carrier_history_pair">%1$d/%2$d</string>
     <string name="rsrp_histogram_mean_value">%1$s dBm</string>
     <string name="rsrp_histogram_mean_min">−135</string>
     <string name="rsrp_histogram_mean_max">−50</string>

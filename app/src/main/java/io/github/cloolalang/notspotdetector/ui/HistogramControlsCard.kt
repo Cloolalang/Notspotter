@@ -1,5 +1,6 @@
 package io.github.cloolalang.notspotdetector.ui
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -25,24 +26,39 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.cloolalang.notspotdetector.R
+import io.github.cloolalang.notspotdetector.model.CarrierTapeFamily
+import io.github.cloolalang.notspotdetector.model.ConnectivityStats
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
+import io.github.cloolalang.notspotdetector.model.PrimaryCarrierHistory
+import io.github.cloolalang.notspotdetector.model.PrimaryCarrierTape
+import io.github.cloolalang.notspotdetector.model.PrimaryCarrierTapeEntry
 import io.github.cloolalang.notspotdetector.model.RsrpHistogram
 import io.github.cloolalang.notspotdetector.model.RsrpHistogramBand
 import io.github.cloolalang.notspotdetector.model.RsrpHistogramBin
@@ -57,6 +73,7 @@ import io.github.cloolalang.notspotdetector.ui.theme.BondiBlue
 import io.github.cloolalang.notspotdetector.ui.theme.Sushi
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 
 private val HistogramBarAreaHeight = 80.dp
 private val HistogramLabelAreaHeight = 34.dp
@@ -72,6 +89,7 @@ private val HistogramMaxBarWidth = 36.dp
 @Composable
 fun HistogramControlsCard(
     samples: List<RsrpSample>,
+    stats: ConnectivityStats,
     windowMs: Long,
     binningMode: RsrpHistogramBinningMode,
     thresholdsDbm: List<Int>,
@@ -84,6 +102,11 @@ fun HistogramControlsCard(
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     var nowMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    var carrierTape by remember { mutableStateOf(PrimaryCarrierTape()) }
+    val currentCarrier = PrimaryCarrierHistory.pairFromStats(stats)
+    LaunchedEffect(currentCarrier) {
+        carrierTape = PrimaryCarrierHistory.record(carrierTape, currentCarrier)
+    }
 
     LaunchedEffect(samples) {
         nowMs = System.currentTimeMillis()
@@ -132,7 +155,9 @@ fun HistogramControlsCard(
                     binningMode = binningMode,
                     thresholdsDbm = thresholdsDbm,
                     nowMs = nowMs,
-                    elapsedMs = elapsedMs
+                    elapsedMs = elapsedMs,
+                    carrierEntries = carrierTape.entries,
+                    reselectsPerMinute = stats.cellReselectsPerMinute
                 )
 
                 OutlinedButton(
@@ -242,6 +267,8 @@ private fun RsrpHistogramDisplay(
     thresholdsDbm: List<Int>,
     nowMs: Long,
     elapsedMs: Long?,
+    carrierEntries: List<PrimaryCarrierTapeEntry>,
+    reselectsPerMinute: Int,
     modifier: Modifier = Modifier
 ) {
     val bins = if (binningMode == RsrpHistogramBinningMode.THRESHOLD) {
@@ -339,6 +366,10 @@ private fun RsrpHistogramDisplay(
                 rsrpDbm = RsrpHistogram.lastSampleRsrpDbm(samples, nowMs, windowMs)?.toDouble()
             )
         }
+        PrimaryCarrierHistoryBar(
+            entries = carrierEntries,
+            reselectsPerMinute = reselectsPerMinute
+        )
     }
 }
 
@@ -600,6 +631,183 @@ private fun HorizontalRsrpBar(
             )
         }
     }
+}
+
+@Composable
+private fun PrimaryCarrierHistoryBar(
+    entries: List<PrimaryCarrierTapeEntry>,
+    reselectsPerMinute: Int,
+    modifier: Modifier = Modifier
+) {
+    val segmentMs = PrimaryCarrierHistory.segmentDurationMs(reselectsPerMinute)
+    val entryCount = entries.size
+    var offset by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(segmentMs, entryCount) {
+        if (segmentMs == null || entryCount < 2) return@LaunchedEffect
+        offset %= entryCount
+        var lastFrame = withFrameNanos { it }
+        while (isActive) {
+            withFrameNanos { frame ->
+                val elapsedMs = (frame - lastFrame) / 1_000_000f
+                lastFrame = frame
+                // Increasing offset shifts every pair left, so the tape travels right to left.
+                offset = (offset + elapsedMs / segmentMs) % entryCount
+            }
+        }
+    }
+    val current = entries.lastOrNull()
+    val valueText = if (current != null) {
+        stringResource(
+            R.string.rsrp_histogram_carrier_history_pair,
+            current.pair.channel,
+            current.pair.pci
+        )
+    } else {
+        stringResource(R.string.signal_unavailable)
+    }
+    val trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+    val textMeasurer = rememberTextMeasurer()
+    val labelStyle = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp)
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = stringResource(R.string.rsrp_histogram_carrier_history_title),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Sushi
+                )
+                Text(
+                    text = stringResource(
+                        R.string.metric_cell_reselect_rate_value,
+                        reselectsPerMinute
+                    ),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Text(
+                text = valueText,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Medium
+            )
+        }
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(24.dp)
+                .clip(RoundedCornerShape(9.dp))
+                .background(trackColor)
+        ) {
+            if (entries.isEmpty()) return@Canvas
+            val canvasScope = this
+            val looping = entryCount >= 2
+            val drawn = if (looping) entries + entries else entries
+            val segmentWidth = size.width / entryCount
+            val shift = if (looping) (offset % entryCount) * segmentWidth else 0f
+            drawn.forEachIndexed { index, entry ->
+                val left = index * segmentWidth - shift
+                if (left + segmentWidth <= 0f || left >= size.width) return@forEachIndexed
+                val color = carrierTapeColor(entry)
+                val label = "${entry.pair.channel}/${entry.pair.pci}"
+                canvasScope.clipRect(
+                    left = left,
+                    top = 0f,
+                    right = left + segmentWidth,
+                    bottom = size.height
+                ) {
+                    drawRect(
+                        color = color,
+                        topLeft = Offset(left, 0f),
+                        size = Size(segmentWidth, size.height)
+                    )
+                    val layout = textMeasurer.measure(
+                        text = label,
+                        style = labelStyle.merge(TextStyle(color = carrierTapeLabelColor(color))),
+                        overflow = TextOverflow.Ellipsis,
+                        softWrap = false,
+                        maxLines = 1,
+                        constraints = Constraints(
+                            maxWidth = segmentWidth.roundToInt().coerceAtLeast(0)
+                        )
+                    )
+                    drawText(
+                        textLayoutResult = layout,
+                        topLeft = Offset(
+                            x = left + (segmentWidth - layout.size.width) / 2f,
+                            y = (size.height - layout.size.height) / 2f
+                        )
+                    )
+                }
+            }
+        }
+    }
+}
+
+private val CarrierOrangeShades = listOf(
+    Color(0xFFBF360C),
+    Color(0xFFE65100),
+    Color(0xFFEF6C00),
+    Color(0xFFF57C00),
+    Color(0xFFFF9800),
+    Color(0xFFFB8C00),
+    Color(0xFFD84315),
+    Color(0xFFFF6D00)
+)
+
+private val CarrierGreenShades = listOf(
+    Color(0xFF1B5E20),
+    Color(0xFF2E7D32),
+    Color(0xFF00796B),
+    Color(0xFF00897B),
+    Color(0xFF00695C),
+    Color(0xFF33691E),
+    Color(0xFF43A047),
+    Color(0xFF689F38)
+)
+
+private val CarrierBlueShades = listOf(
+    Color(0xFF0D47A1),
+    Color(0xFF1565C0),
+    Color(0xFF1E88E5),
+    Color(0xFF039BE5),
+    Color(0xFF0277BD),
+    Color(0xFF283593),
+    Color(0xFF01579B),
+    Color(0xFF3949AB)
+)
+
+private val CarrierNeutralShades = listOf(
+    Color(0xFF263238),
+    Color(0xFF37474F),
+    Color(0xFF455A64),
+    Color(0xFF546E7A),
+    Color(0xFF607D8B),
+    Color(0xFF78909C),
+    Color(0xFF90A4AE),
+    Color(0xFFB0BEC5)
+)
+
+private fun carrierTapeColor(entry: PrimaryCarrierTapeEntry): Color {
+    val palette = when (entry.family) {
+        CarrierTapeFamily.ORANGE -> CarrierOrangeShades
+        CarrierTapeFamily.GREEN -> CarrierGreenShades
+        CarrierTapeFamily.BLUE -> CarrierBlueShades
+        CarrierTapeFamily.NEUTRAL -> CarrierNeutralShades
+    }
+    return palette[entry.shade.mod(palette.size)]
+}
+
+private fun carrierTapeLabelColor(background: Color): Color {
+    val luminance = (0.299f * background.red) + (0.587f * background.green) + (0.114f * background.blue)
+    return if (luminance > 0.62f) Color.Black else Color.White
 }
 
 @Composable

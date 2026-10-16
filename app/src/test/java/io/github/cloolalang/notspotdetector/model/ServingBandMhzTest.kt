@@ -50,15 +50,20 @@ class ServingBandMhzTest {
     }
 
     @Test
-    fun formatDisplay_nr78_is3500WithBandInBrackets() {
-        assertEquals("3500(78)", ServingBandMhz.formatDisplay(nrBand = 78))
+    fun formatDisplay_nr78_is3500WithNBandInBrackets() {
+        assertEquals("3500(n78)", ServingBandMhz.formatDisplay(nrBand = 78))
     }
 
     @Test
     fun formatDisplay_endcJoinsLteAndNr() {
         assertEquals(
-            "800(20) / 3500(78)",
-            ServingBandMhz.formatDisplay(lteEarfcn = 6_300, nrBand = 78)
+            "2600(7) / 3500(n78)",
+            ServingBandMhz.formatDisplay(lteEarfcn = 3_000, nrBand = 78)
         )
+    }
+
+    @Test
+    fun formatDisplay_unknownNrMhz_showsNBandOnly() {
+        assertEquals("n75", ServingBandMhz.formatDisplay(nrBand = 75))
     }
 }

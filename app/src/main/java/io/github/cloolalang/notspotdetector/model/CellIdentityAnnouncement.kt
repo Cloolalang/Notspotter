@@ -56,7 +56,12 @@ object CellIdentityAnnouncement {
         val is2g = radioAccessType == CellularSignalReader.RADIO_2G
         // 2G cell reselect always speaks channel/BSIC — never the band alternative or prefix.
         val bandPhrase = if (speakBandEnabled && !is2g) {
-            formatBandPhrase(next.lteEarfcn, bandNamingStyle)
+            formatServingBandPhrase(
+                lteEarfcn = next.lteEarfcn,
+                nrBand = next.nrBand,
+                namingStyle = bandNamingStyle,
+                gsmEarfcn = next.gsmEarfcn
+            )
         } else {
             null
         }
@@ -161,6 +166,7 @@ object CellIdentityAnnouncement {
     /**
      * Prefix band phrase spoken after operator and technology: band number
      * (e.g. "twenty") or MHz nickname (e.g. "eight hundred").
+     * On 5G EN-DC, LTE and NR are both spoken, e.g. "seven and n seventy eight" for band 7 and n78.
      */
     fun prefixBandPhrase(
         lteEarfcn: Int?,
@@ -168,10 +174,26 @@ object CellIdentityAnnouncement {
         namingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.DEFAULT,
         gsmEarfcn: Int? = null
     ): String? {
-        formatBandPhrase(lteEarfcn, namingStyle)?.let { return it }
-        formatGsmBandPhrase(gsmEarfcn, namingStyle)?.let { return it }
-        val band = nrBand ?: return null
-        return NumberWords.toWords(band)
+        return formatServingBandPhrase(lteEarfcn, nrBand, namingStyle, gsmEarfcn)
+    }
+
+    /**
+     * LTE (or 2G) band, NR band as "n …", or both joined with "and" when the phone is on 5G EN-DC.
+     */
+    fun formatServingBandPhrase(
+        lteEarfcn: Int?,
+        nrBand: Int?,
+        namingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.DEFAULT,
+        gsmEarfcn: Int? = null
+    ): String? {
+        val lteOrGsm = formatBandPhrase(lteEarfcn, namingStyle)
+            ?: formatGsmBandPhrase(gsmEarfcn, namingStyle)
+        val nr = nrBand?.let { "n ${NumberWords.toWords(it)}" }
+        return when {
+            lteOrGsm != null && nr != null -> "$lteOrGsm and $nr"
+            lteOrGsm != null -> lteOrGsm
+            else -> nr
+        }
     }
 
     /**

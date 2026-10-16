@@ -149,6 +149,42 @@ class CellIdentityAnnouncementTest {
     }
 
     @Test
+    fun format_speakBandOnEndc_speaksLteBandAndNBand() {
+        val previous = CellIdentitySnapshot(lteEarfcn = 1_800, ltePci = 42)
+        val next = CellIdentitySnapshot(lteEarfcn = 3_000, ltePci = 123, nrBand = 78)
+
+        val announcement = CellIdentityAnnouncement.format(
+            previous,
+            next,
+            CellularSignalReader.RADIO_5G_ENDC,
+            speakBandEnabled = true,
+            bandNamingStyle = CellReselectBandNamingStyle.BAND_NUMBER
+        )
+
+        assertEquals("5 G E N D C, seven and n seventy eight", announcement)
+    }
+
+    @Test
+    fun prefixBandPhrase_endcJoinsLteBandAndNBand() {
+        assertEquals(
+            "seven and n seventy eight",
+            CellIdentityAnnouncement.prefixBandPhrase(
+                lteEarfcn = 3_000,
+                nrBand = 78,
+                namingStyle = CellReselectBandNamingStyle.BAND_NUMBER
+            )
+        )
+    }
+
+    @Test
+    fun prefixBandPhrase_nrOnlySpeaksNBand() {
+        assertEquals(
+            "n seventy eight",
+            CellIdentityAnnouncement.prefixBandPhrase(lteEarfcn = null, nrBand = 78)
+        )
+    }
+
+    @Test
     fun format_speakOperatorNameDisabled_omitsOperator() {
         val previous = CellIdentitySnapshot(lteEarfcn = 1_800, ltePci = 42)
         val next = CellIdentitySnapshot(lteEarfcn = 6_400, ltePci = 123)

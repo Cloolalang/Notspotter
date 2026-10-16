@@ -18,18 +18,19 @@ object ServingBandMhz {
         return values.joinToString(" / ")
     }
 
-    /** Formats a single layer as `&lt;MHz&gt;(&lt;band&gt;)`, e.g. `800(20)`. */
-    fun formatMhzBand(mhz: Int?, band: Int?): String? {
+    /** Formats a single layer as `&lt;MHz&gt;(&lt;band&gt;)`, e.g. `800(20)` or `3500(n78)`. */
+    fun formatMhzBand(mhz: Int?, band: Int?, nr: Boolean = false): String? {
+        val bandLabel = band?.let { if (nr) "n$it" else it.toString() }
         return when {
-            mhz != null && band != null -> "$mhz($band)"
+            mhz != null && bandLabel != null -> "$mhz($bandLabel)"
             mhz != null -> mhz.toString()
-            band != null -> band.toString()
+            bandLabel != null -> bandLabel
             else -> null
         }
     }
 
     /**
-     * Metrics value for Band (MHz). EN-DC may join LTE and NR as `800(20) / 3500(78)`.
+     * Metrics value for Band (MHz). EN-DC joins LTE and NR as `2600(7) / 3500(n78)`.
      */
     fun formatDisplay(
         lteEarfcn: Int? = null,
@@ -46,7 +47,7 @@ object ServingBandMhz {
                 formatMhzBand(info?.mhz, info?.eutraBand)?.let(::add)
             }
             nrBand?.let { band ->
-                formatMhzBand(fromNrBand(band), band)?.let(::add)
+                formatMhzBand(fromNrBand(band), band, nr = true)?.let(::add)
             }
         }.distinct()
         return parts.takeIf { it.isNotEmpty() }?.joinToString(" / ")

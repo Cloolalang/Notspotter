@@ -249,6 +249,7 @@ fun MonitorScreen(
         if (isRunning) {
             HistogramControlsCard(
                 samples = rsrpHistory,
+                stats = stats,
                 windowMs = monitoringSettings.rsrpHistogramWindowMs,
                 binningMode = monitoringSettings.rsrpHistogramBinningMode,
                 thresholdsDbm = monitoringSettings.rsrpHistogramThresholdsDbm(),

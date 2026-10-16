@@ -5,6 +5,17 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.112.0] - 2026-10-16
+
+### Added
+
+- **Primary Carrier History** — The level histogram has a tape under Last measurement RSRP. It shows the last four EARFCN/PCI pairs and rolls from right to left. A faster cell-reselect rate moves the tape faster; at zero it holds still. Low bands such as band 20 use orange shades, one shade per PCI. High bands such as L2600 use blue hues. Mid bands such as L1800 use green.
+
+### Changed
+
+- **5G band announcement** — When the phone is on 5G EN-DC, the band phrase includes both layers. LTE band 7 with NR band 78 is spoken as “seven and n seventy eight”. 5G with only an NR band is spoken as “n” plus that band.
+- **Band (MHz)** — On 5G and 5G EN-DC the cellular metrics band row labels the NR band with n. LTE band 7 with NR band 78 shows as `2600(7) / 3500(n78)`. 5G with only an NR band shows as `3500(n78)`.
+
 ## [2.111.0] - 2026-10-15
 
 ### Removed
