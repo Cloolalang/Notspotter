@@ -5,6 +5,13 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.113.0] - 2026-10-16
+
+### Changed
+
+- **Primary Carrier History colours** — Each band frequency has its own colour. Band 1 (EARFCN such as 223, 2100 MHz) and band 3 (EARFCN such as 1363, 1800 MHz) no longer share one green. Low bands such as band 20 stay orange, and L2600 stays blue. Different PCIs on the same band still use different shades of that colour.
+- **Active mode testing** — Ping settings, ping clicks, and the 5G features switch now live in their own Active mode testing panel. Features under development has been removed from the development area.
+
 ## [2.112.0] - 2026-10-16
 
 ### Added

@@ -53,7 +53,6 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.cloolalang.notspotdetector.R
-import io.github.cloolalang.notspotdetector.model.CarrierTapeFamily
 import io.github.cloolalang.notspotdetector.model.ConnectivityStats
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.PrimaryCarrierHistory
@@ -751,39 +750,6 @@ private fun PrimaryCarrierHistoryBar(
     }
 }
 
-private val CarrierOrangeShades = listOf(
-    Color(0xFFBF360C),
-    Color(0xFFE65100),
-    Color(0xFFEF6C00),
-    Color(0xFFF57C00),
-    Color(0xFFFF9800),
-    Color(0xFFFB8C00),
-    Color(0xFFD84315),
-    Color(0xFFFF6D00)
-)
-
-private val CarrierGreenShades = listOf(
-    Color(0xFF1B5E20),
-    Color(0xFF2E7D32),
-    Color(0xFF00796B),
-    Color(0xFF00897B),
-    Color(0xFF00695C),
-    Color(0xFF33691E),
-    Color(0xFF43A047),
-    Color(0xFF689F38)
-)
-
-private val CarrierBlueShades = listOf(
-    Color(0xFF0D47A1),
-    Color(0xFF1565C0),
-    Color(0xFF1E88E5),
-    Color(0xFF039BE5),
-    Color(0xFF0277BD),
-    Color(0xFF283593),
-    Color(0xFF01579B),
-    Color(0xFF3949AB)
-)
-
 private val CarrierNeutralShades = listOf(
     Color(0xFF263238),
     Color(0xFF37474F),
@@ -796,13 +762,18 @@ private val CarrierNeutralShades = listOf(
 )
 
 private fun carrierTapeColor(entry: PrimaryCarrierTapeEntry): Color {
-    val palette = when (entry.family) {
-        CarrierTapeFamily.ORANGE -> CarrierOrangeShades
-        CarrierTapeFamily.GREEN -> CarrierGreenShades
-        CarrierTapeFamily.BLUE -> CarrierBlueShades
-        CarrierTapeFamily.NEUTRAL -> CarrierNeutralShades
+    val mhz = entry.pair.nominalMhz
+    val hue = PrimaryCarrierHistory.hueForMhz(mhz)
+        ?: return CarrierNeutralShades[entry.shade.mod(CarrierNeutralShades.size)]
+    val slot = entry.shade.mod(PrimaryCarrierHistory.SHADES_PER_BAND)
+    val hueJitter = (slot - 3.5f) * if (mhz == 2600) 6f else 3f
+    val value = (0.42f + slot * 0.065f).coerceAtMost(0.92f)
+    val saturation = when {
+        mhz != null && mhz < 1_000 -> 0.9f
+        mhz == 2600 -> 0.8f
+        else -> 0.72f
     }
-    return palette[entry.shade.mod(palette.size)]
+    return Color.hsv((hue + hueJitter + 360f) % 360f, saturation, value)
 }
 
 private fun carrierTapeLabelColor(background: Color): Color {

@@ -4,27 +4,49 @@ import io.github.cloolalang.notspotdetector.network.CellularSignalReader
 
 /**
  * Last few primary-carrier visits for the level-histogram tape.
- * Colour family follows the band’s nominal frequency; each new PCI on that band
- * takes the next shade and keeps it for the session.
+ * Each nominal band frequency has its own hue. Low bands such as band 20 stay orange,
+ * L2600 stays blue, and other bands (band 1 at 2100 MHz, band 3 at 1800 MHz) each
+ * have a different hue. A new PCI on that band takes the next shade and keeps it.
  */
 object PrimaryCarrierHistory {
     const val VISIBLE_PAIRS = 4
     const val SHADES_PER_BAND = 8
+    const val LOW_BAND_HUE = 28f
+    const val L2600_HUE = 215f
     private const val RATE_WINDOW_MS = 60_000L
 
-    /** Low bands such as band 20 (L800). */
+    /** Low bands such as band 20 (L800) share this orange hue. */
     private const val LOW_BAND_BELOW_MHZ = 1_000
 
-    /** High bands such as band 7 (L2600) start here. Mid bands sit between the two. */
-    private const val HIGH_BAND_FROM_MHZ = 2_300
+    private val HUE_BY_MHZ = mapOf(
+        1500 to 332f,
+        1600 to 300f,
+        1800 to 168f,
+        1900 to 92f,
+        2000 to 52f,
+        2100 to 278f,
+        2300 to 188f,
+        2500 to 200f,
+        2600 to L2600_HUE,
+        3500 to 252f,
+        3700 to 292f,
+        4700 to 312f,
+        5200 to 342f
+    )
 
-    fun familyForMhz(nominalMhz: Int?): CarrierTapeFamily {
-        return when {
-            nominalMhz == null -> CarrierTapeFamily.NEUTRAL
-            nominalMhz < LOW_BAND_BELOW_MHZ -> CarrierTapeFamily.ORANGE
-            nominalMhz < HIGH_BAND_FROM_MHZ -> CarrierTapeFamily.GREEN
-            else -> CarrierTapeFamily.BLUE
+    /** Hue for this band frequency, or null when the band is unknown. */
+    fun hueForMhz(nominalMhz: Int?): Float? {
+        if (nominalMhz == null) return null
+        if (nominalMhz < LOW_BAND_BELOW_MHZ) return LOW_BAND_HUE
+        return HUE_BY_MHZ[nominalMhz] ?: fallbackHue(nominalMhz)
+    }
+
+    private fun fallbackHue(mhz: Int): Float {
+        var hue = (mhz * 47 % 360).toFloat()
+        if (hue in 10f..45f || hue in 200f..230f) {
+            hue = (hue + 60f) % 360f
         }
+        return hue
     }
 
     /**
@@ -66,7 +88,6 @@ object PrimaryCarrierHistory {
             val (shades, shade) = shadeFor(tape.shades, next)
             val refreshed = last.copy(
                 pair = next,
-                family = familyForMhz(next.nominalMhz),
                 shade = shade
             )
             return tape.copy(
@@ -77,7 +98,6 @@ object PrimaryCarrierHistory {
         val (shades, shade) = shadeFor(tape.shades, next)
         val entry = PrimaryCarrierTapeEntry(
             pair = next,
-            family = familyForMhz(next.nominalMhz),
             shade = shade
         )
         return tape.copy(
@@ -98,13 +118,6 @@ object PrimaryCarrierHistory {
     }
 }
 
-enum class CarrierTapeFamily {
-    ORANGE,
-    GREEN,
-    BLUE,
-    NEUTRAL
-}
-
 data class PrimaryCarrierPair(
     val channel: Int,
     val pci: Int,
@@ -122,7 +135,6 @@ data class CarrierShadeKey(
 
 data class PrimaryCarrierTapeEntry(
     val pair: PrimaryCarrierPair,
-    val family: CarrierTapeFamily,
     val shade: Int
 )
 

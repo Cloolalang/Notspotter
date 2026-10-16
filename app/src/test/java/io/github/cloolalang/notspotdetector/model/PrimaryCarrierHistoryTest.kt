@@ -2,17 +2,42 @@ package io.github.cloolalang.notspotdetector.model
 
 import io.github.cloolalang.notspotdetector.network.CellularSignalReader
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
 class PrimaryCarrierHistoryTest {
 
     @Test
-    fun family_band20IsOrange_band7IsBlue_midBandIsGreen() {
-        assertEquals(CarrierTapeFamily.ORANGE, PrimaryCarrierHistory.familyForMhz(800))
-        assertEquals(CarrierTapeFamily.BLUE, PrimaryCarrierHistory.familyForMhz(2600))
-        assertEquals(CarrierTapeFamily.GREEN, PrimaryCarrierHistory.familyForMhz(1800))
-        assertEquals(CarrierTapeFamily.NEUTRAL, PrimaryCarrierHistory.familyForMhz(null))
+    fun hue_lowBandsAreOrange_l2600IsBlue_band1AndBand3Differ() {
+        assertEquals(PrimaryCarrierHistory.LOW_BAND_HUE, PrimaryCarrierHistory.hueForMhz(800)!!, 0.01f)
+        assertEquals(PrimaryCarrierHistory.L2600_HUE, PrimaryCarrierHistory.hueForMhz(2600)!!, 0.01f)
+        assertNull(PrimaryCarrierHistory.hueForMhz(null))
+        assertNotEquals(PrimaryCarrierHistory.hueForMhz(1800), PrimaryCarrierHistory.hueForMhz(2100))
+    }
+
+    @Test
+    fun pairFromStats_earfcn1363IsBand3_earfcn223IsBand1() {
+        val band3 = PrimaryCarrierHistory.pairFromStats(
+            ConnectivityStats(
+                radioAccessType = CellularSignalReader.RADIO_4G,
+                lteEarfcn = 1_363,
+                ltePci = 10
+            )
+        )
+        val band1 = PrimaryCarrierHistory.pairFromStats(
+            ConnectivityStats(
+                radioAccessType = CellularSignalReader.RADIO_4G,
+                lteEarfcn = 223,
+                ltePci = 10
+            )
+        )
+        assertEquals(1800, band3?.nominalMhz)
+        assertEquals(2100, band1?.nominalMhz)
+        assertNotEquals(
+            PrimaryCarrierHistory.hueForMhz(band3?.nominalMhz),
+            PrimaryCarrierHistory.hueForMhz(band1?.nominalMhz)
+        )
     }
 
     @Test
@@ -38,7 +63,7 @@ class PrimaryCarrierHistoryTest {
             )
         )
         assertEquals(800, pair?.nominalMhz)
-        assertEquals(CarrierTapeFamily.ORANGE, PrimaryCarrierHistory.familyForMhz(pair?.nominalMhz))
+        assertEquals(PrimaryCarrierHistory.LOW_BAND_HUE, PrimaryCarrierHistory.hueForMhz(pair?.nominalMhz)!!, 0.01f)
     }
 
     @Test
@@ -50,7 +75,7 @@ class PrimaryCarrierHistoryTest {
         visits.forEach { tape = PrimaryCarrierHistory.record(tape, it) }
 
         assertEquals(listOf(20, 30, 40, 50), tape.entries.map { it.pair.pci })
-        assertEquals(CarrierTapeFamily.BLUE, tape.entries.last().family)
+        assertEquals(PrimaryCarrierHistory.L2600_HUE, PrimaryCarrierHistory.hueForMhz(tape.entries.last().pair.nominalMhz)!!, 0.01f)
         assertEquals(listOf(1, 2, 3, 4), tape.entries.map { it.shade })
         assertEquals(0, tape.shades[CarrierShadeKey(2600, 10)])
     }
@@ -67,7 +92,7 @@ class PrimaryCarrierHistoryTest {
 
         assertEquals(0, tape.entries.first().shade)
         assertEquals(0, tape.entries.last().shade)
-        assertEquals(CarrierTapeFamily.ORANGE, tape.entries[1].family)
+        assertEquals(PrimaryCarrierHistory.LOW_BAND_HUE, PrimaryCarrierHistory.hueForMhz(tape.entries[1].pair.nominalMhz)!!, 0.01f)
         assertEquals(0, tape.entries[1].shade)
     }
 

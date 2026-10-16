@@ -419,6 +419,53 @@ fun MonitorScreen(
             )
         }
 
+        TopLevelSectionCard(title = stringResource(R.string.top_level_active_mode_testing)) {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.five_g_features_enabled),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = stringResource(R.string.five_g_features_enabled_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = monitoringSettings.fiveGFeaturesEnabled,
+                        onCheckedChange = onFiveGFeaturesEnabledChange,
+                        enabled = settingsControlsEnabled()
+                    )
+                }
+            }
+
+            PingSettingsCard(
+                pingSettings = pingSettings,
+                onAddressChange = onPingAddressChange,
+                onPingsPerTestChange = onPingsPerTestChange,
+                onTestIntervalChange = onTestIntervalChange
+            )
+
+            AudioVolumeSettingsCard(
+                audioVolumes = audioVolumes,
+                previewEnabled = !isRunning,
+                onPingClickVolumeChange = onPingClickVolumeChange,
+                onPingClickFrequencyChange = onPingClickFrequencyChange,
+                onPingClickDurationChange = onPingClickDurationChange,
+                onPreviewPingClick = onPreviewPingClick,
+                onReset = onResetAudioVolumes
+            )
+        }
+
         TopLevelSectionCard(title = stringResource(R.string.top_level_general_app_settings)) {
             SettingsLockBar(
                 unlocked = settingsUnlocked,
@@ -449,28 +496,6 @@ fun MonitorScreen(
         }
 
         TopLevelSectionCard(title = stringResource(R.string.top_level_development_area)) {
-            FeaturesUnderDevelopmentCard(
-                fiveGFeaturesEnabled = monitoringSettings.fiveGFeaturesEnabled,
-                onFiveGFeaturesEnabledChange = onFiveGFeaturesEnabledChange
-            ) {
-                PingSettingsCard(
-                    pingSettings = pingSettings,
-                    onAddressChange = onPingAddressChange,
-                    onPingsPerTestChange = onPingsPerTestChange,
-                    onTestIntervalChange = onTestIntervalChange
-                )
-
-                AudioVolumeSettingsCard(
-                    audioVolumes = audioVolumes,
-                    previewEnabled = !isRunning,
-                    onPingClickVolumeChange = onPingClickVolumeChange,
-                    onPingClickFrequencyChange = onPingClickFrequencyChange,
-                    onPingClickDurationChange = onPingClickDurationChange,
-                    onPreviewPingClick = onPreviewPingClick,
-                    onReset = onResetAudioVolumes
-                )
-            }
-
             MockNetworkStateCard(
                 mockSettings = passiveMockSettings,
                 fiveGFeaturesEnabled = monitoringSettings.fiveGFeaturesEnabled,
