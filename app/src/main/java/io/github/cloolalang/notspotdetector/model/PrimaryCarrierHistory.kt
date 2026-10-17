@@ -7,6 +7,7 @@ import io.github.cloolalang.notspotdetector.network.CellularSignalReader
  * Each nominal band frequency has its own hue. Low bands such as band 20 stay orange,
  * L2600 stays blue, and other bands (band 1 at 2100 MHz, band 3 at 1800 MHz) each
  * have a different hue. A new PCI on that band takes the next shade and keeps it.
+ * A no-signal or no-service period is a grey segment, same as the technology tape.
  */
 object PrimaryCarrierHistory {
     const val VISIBLE_PAIRS = 4
@@ -80,25 +81,56 @@ object PrimaryCarrierHistory {
         return PrimaryCarrierPair(channel = channel, pci = pci, nominalMhz = mhz)
     }
 
-    fun record(tape: PrimaryCarrierTape, next: PrimaryCarrierPair?): PrimaryCarrierTape {
+    /** Cell visit, or a grey no-signal segment while monitoring has no service. */
+    fun visitFromStats(stats: ConnectivityStats): PrimaryCarrierVisit? {
+        if (TechnologyHistory.isNoSignalPeriod(stats)) {
+            return PrimaryCarrierVisit(noSignal = true)
+        }
+        val pair = pairFromStats(stats) ?: return null
+        return PrimaryCarrierVisit(pair = pair)
+    }
+
+    fun record(
+        tape: PrimaryCarrierTape,
+        next: PrimaryCarrierPair?,
+        nowMs: Long = 0L
+    ): PrimaryCarrierTape {
+        return record(tape, next?.let { PrimaryCarrierVisit(pair = it) }, nowMs)
+    }
+
+    fun record(
+        tape: PrimaryCarrierTape,
+        next: PrimaryCarrierVisit?,
+        nowMs: Long = 0L
+    ): PrimaryCarrierTape {
         if (next == null) return tape
         val last = tape.entries.lastOrNull()
-        if (last != null && last.pair.sameCell(next)) {
-            if (last.pair == next) return tape
-            val (shades, shade) = shadeFor(tape.shades, next)
-            val refreshed = last.copy(
-                pair = next,
-                shade = shade
+        if (next.noSignal) {
+            if (last?.noSignal == true) return tape
+            return tape.copy(
+                entries = (tape.entries + PrimaryCarrierTapeEntry(
+                    pair = null,
+                    shade = 0,
+                    startedAtMs = nowMs,
+                    noSignal = true
+                )).takeLast(VISIBLE_PAIRS)
             )
+        }
+        val pair = next.pair ?: return tape
+        if (last != null && !last.noSignal && last.pair?.sameCell(pair) == true) {
+            if (last.pair == pair) return tape
+            val (shades, shade) = shadeFor(tape.shades, pair)
+            val refreshed = last.copy(pair = pair, shade = shade)
             return tape.copy(
                 entries = tape.entries.dropLast(1) + refreshed,
                 shades = shades
             )
         }
-        val (shades, shade) = shadeFor(tape.shades, next)
+        val (shades, shade) = shadeFor(tape.shades, pair)
         val entry = PrimaryCarrierTapeEntry(
-            pair = next,
-            shade = shade
+            pair = pair,
+            shade = shade,
+            startedAtMs = nowMs
         )
         return tape.copy(
             entries = (tape.entries + entry).takeLast(VISIBLE_PAIRS),
@@ -133,9 +165,16 @@ data class CarrierShadeKey(
     val pci: Int
 )
 
+data class PrimaryCarrierVisit(
+    val pair: PrimaryCarrierPair? = null,
+    val noSignal: Boolean = false
+)
+
 data class PrimaryCarrierTapeEntry(
-    val pair: PrimaryCarrierPair,
-    val shade: Int
+    val pair: PrimaryCarrierPair?,
+    val shade: Int,
+    val startedAtMs: Long = 0L,
+    val noSignal: Boolean = false
 )
 
 data class PrimaryCarrierTape(

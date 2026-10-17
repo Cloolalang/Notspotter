@@ -8,6 +8,11 @@ data class CellularRadioMetrics(
     /** NR SS-SINR (SNIR) in dB. */
     val nrSinrDb: Int? = null,
     val radioAccessType: String? = null,
+    /**
+     * True when the status-bar icon for this LTE connection is the plus form (4G+ / LTE+).
+     * Plain LTE stays false. Not a change of [radioAccessType].
+     */
+    val ltePlusIcon: Boolean = false,
     val lteEarfcn: Int? = null,
     val ltePci: Int? = null,
     /** LTE 28-bit ECI (long Cell ID) from [android.telephony.CellIdentityLte.getCi]. */
@@ -104,6 +109,7 @@ data class CellularRadioMetrics(
             lteSinrDb = null,
             nrSinrDb = null,
             radioAccessType = null,
+            ltePlusIcon = false,
             lteEarfcn = null,
             ltePci = null,
             lteEci = null,

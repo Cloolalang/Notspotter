@@ -4,6 +4,7 @@ import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
 import io.github.cloolalang.notspotdetector.model.CellIdentityAnnouncement
 import io.github.cloolalang.notspotdetector.model.CellIdentitySnapshot
 import io.github.cloolalang.notspotdetector.model.CellReselectRate
+import io.github.cloolalang.notspotdetector.model.TechnologyHistory
 import io.github.cloolalang.notspotdetector.model.CellularRadioMetrics
 import io.github.cloolalang.notspotdetector.model.ConnectionQuality
 import io.github.cloolalang.notspotdetector.model.ConnectivityStats
@@ -110,6 +111,7 @@ object MonitorState {
     private var specialCellMatchHoldUntilMs: Long = 0L
     private var cellIdentityBaselineReady = false
     private val cellReselectTimestamps = mutableListOf<Long>()
+    private val technologyChangeTimestamps = mutableListOf<Long>()
     private var radioTechnologyBaselineReady = false
     /** Last technology that was spoken, or the baseline when monitoring started. */
     private var announcedRadioAccessType: String? = null
@@ -521,6 +523,7 @@ object MonitorState {
             lteSinrDb = metrics.lteSinrDb,
             nrSinrDb = metrics.nrSinrDb,
             radioAccessType = metrics.radioAccessType,
+            ltePlusIcon = metrics.ltePlusIcon,
             lteEarfcn = metrics.lteEarfcn,
             ltePci = metrics.ltePci,
             lteEci = metrics.lteEci,
@@ -599,6 +602,7 @@ object MonitorState {
             lteSinrDb = metrics.lteSinrDb,
             nrSinrDb = metrics.nrSinrDb,
             radioAccessType = metrics.radioAccessType,
+            ltePlusIcon = metrics.ltePlusIcon,
             lteEarfcn = metrics.lteEarfcn,
             ltePci = metrics.ltePci,
             lteEci = metrics.lteEci,
@@ -935,6 +939,13 @@ object MonitorState {
         val technologyChanged = !previous.radioAccessType.isNullOrBlank() &&
             !nextDebounced.radioAccessType.isNullOrBlank() &&
             previous.radioAccessType != nextDebounced.radioAccessType
+        val technologyLabelChanged = run {
+            val previousLabel = TechnologyHistory.technologyFromStats(previous)
+            val nextLabel = TechnologyHistory.technologyFromStats(nextDebounced)
+            !previousLabel.isNullOrBlank() &&
+                !nextLabel.isNullOrBlank() &&
+                previousLabel != nextLabel
+        }
         val nowMs = System.currentTimeMillis()
         if (reselectOccurred || technologyChanged) {
             specialCellMatchHoldUntilMs = nowMs + SpecialCellMatcher.reselectHoldMs(
@@ -948,8 +959,19 @@ object MonitorState {
         )
         cellReselectTimestamps.clear()
         cellReselectTimestamps.addAll(updatedTimestamps)
+        val updatedTechnologyTimestamps = CellReselectRate.record(
+            timestampsMs = technologyChangeTimestamps,
+            nowMs = nowMs,
+            reselectOccurred = technologyLabelChanged
+        )
+        technologyChangeTimestamps.clear()
+        technologyChangeTimestamps.addAll(updatedTechnologyTimestamps)
         val nextWithRate = nextDebounced.copy(
-            cellReselectsPerMinute = CellReselectRate.countPerMinute(cellReselectTimestamps, nowMs)
+            cellReselectsPerMinute = CellReselectRate.countPerMinute(cellReselectTimestamps, nowMs),
+            technologyChangesPerMinute = CellReselectRate.countPerMinute(
+                technologyChangeTimestamps,
+                nowMs
+            )
         )
         val events = MonitoringUpdateEvents(
             cellChangeAnnouncement = cellChangeAnnouncement,
@@ -1529,6 +1551,7 @@ object MonitorState {
         lastSpokenSpecialCellKey = null
         specialCellMatchHoldUntilMs = 0L
         cellReselectTimestamps.clear()
+        technologyChangeTimestamps.clear()
         cellIdentityBaselineReady = false
         radioTechnologyBaselineReady = false
         announcedRadioAccessType = null
@@ -1616,6 +1639,7 @@ object MonitorState {
         rememberRadioAccessType(
             ConnectivityStats(
                 radioAccessType = metrics.radioAccessType,
+                ltePlusIcon = metrics.ltePlusIcon,
                 isOn2g = metrics.isOn2g,
                 restrictedTo2gNetwork = metrics.restrictedTo2gNetwork,
                 networkServiceMode = metrics.networkServiceMode,

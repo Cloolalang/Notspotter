@@ -316,7 +316,9 @@ object CellularSignalReader {
         val limitedOnAnySim = hasLimitedServiceOnAnySim || metrics.isLimitedService
         metrics = metrics.copy(
             hasLimitedServiceOnAnySim = limitedOnAnySim,
-            isCompleteNoService = isCompleteNoService(metrics, limitedOnAnySim)
+            isCompleteNoService = isCompleteNoService(metrics, limitedOnAnySim),
+            ltePlusIcon = metrics.radioAccessType == RADIO_4G &&
+                LtePlusDisplay.current(telephonyManager, subscriptionId)
         )
 
         if (RadioDebugLogger.isEnabled()) {

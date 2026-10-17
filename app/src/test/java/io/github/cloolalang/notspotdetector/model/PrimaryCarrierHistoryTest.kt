@@ -74,8 +74,8 @@ class PrimaryCarrierHistoryTest {
         }
         visits.forEach { tape = PrimaryCarrierHistory.record(tape, it) }
 
-        assertEquals(listOf(20, 30, 40, 50), tape.entries.map { it.pair.pci })
-        assertEquals(PrimaryCarrierHistory.L2600_HUE, PrimaryCarrierHistory.hueForMhz(tape.entries.last().pair.nominalMhz)!!, 0.01f)
+        assertEquals(listOf(20, 30, 40, 50), tape.entries.map { it.pair!!.pci })
+        assertEquals(PrimaryCarrierHistory.L2600_HUE, PrimaryCarrierHistory.hueForMhz(tape.entries.last().pair!!.nominalMhz)!!, 0.01f)
         assertEquals(listOf(1, 2, 3, 4), tape.entries.map { it.shade })
         assertEquals(0, tape.shades[CarrierShadeKey(2600, 10)])
     }
@@ -92,7 +92,7 @@ class PrimaryCarrierHistoryTest {
 
         assertEquals(0, tape.entries.first().shade)
         assertEquals(0, tape.entries.last().shade)
-        assertEquals(PrimaryCarrierHistory.LOW_BAND_HUE, PrimaryCarrierHistory.hueForMhz(tape.entries[1].pair.nominalMhz)!!, 0.01f)
+        assertEquals(PrimaryCarrierHistory.LOW_BAND_HUE, PrimaryCarrierHistory.hueForMhz(tape.entries[1].pair!!.nominalMhz)!!, 0.01f)
         assertEquals(0, tape.entries[1].shade)
     }
 
@@ -109,5 +109,46 @@ class PrimaryCarrierHistoryTest {
         assertNull(PrimaryCarrierHistory.segmentDurationMs(0))
         assertEquals(60_000L, PrimaryCarrierHistory.segmentDurationMs(1))
         assertEquals(10_000L, PrimaryCarrierHistory.segmentDurationMs(6))
+    }
+
+    @Test
+    fun record_noSignalIsAGreyGapAndTheSameCellAfterwardsIsANewVisit() {
+        val cell = PrimaryCarrierPair(channel = 3_000, pci = 10, nominalMhz = 2600)
+        var tape = PrimaryCarrierHistory.record(PrimaryCarrierTape(), cell, nowMs = 1_000L)
+        tape = PrimaryCarrierHistory.record(
+            tape,
+            PrimaryCarrierVisit(noSignal = true),
+            nowMs = 2_000L
+        )
+        tape = PrimaryCarrierHistory.record(
+            tape,
+            PrimaryCarrierVisit(noSignal = true),
+            nowMs = 3_000L
+        )
+        tape = PrimaryCarrierHistory.record(tape, cell, nowMs = 4_000L)
+
+        assertEquals(3, tape.entries.size)
+        assertEquals(true, tape.entries[1].noSignal)
+        assertEquals(null, tape.entries[1].pair)
+        assertEquals(2_000L, tape.entries[1].startedAtMs)
+        assertEquals(4_000L, tape.entries[2].startedAtMs)
+        assertEquals(
+            TechnologyHistory.LABEL_NO_SIGNAL,
+            TechnologyHistory.technologyFromStats(
+                ConnectivityStats(isMonitoring = true, noSignalActive = true, lteEarfcn = 3_000, ltePci = 10)
+            )
+        )
+        assertEquals(
+            PrimaryCarrierVisit(noSignal = true),
+            PrimaryCarrierHistory.visitFromStats(
+                ConnectivityStats(
+                    isMonitoring = true,
+                    isCompleteNoService = true,
+                    lteEarfcn = 3_000,
+                    ltePci = 10,
+                    radioAccessType = CellularSignalReader.RADIO_4G
+                )
+            )
+        )
     }
 }

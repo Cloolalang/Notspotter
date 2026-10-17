@@ -343,6 +343,31 @@ class MonitorStateCellReselectTest {
     }
 
     @Test
+    fun radioTypeChangeCountsAsATechnologyChange_sameTypeDoesNot() {
+        MonitorState.updateStats(campedHome4g(pci = 42))
+        assertEquals(0, MonitorState.stats.value.technologyChangesPerMinute)
+
+        MonitorState.updateStats(
+            campedHome4g(pci = 42).copy(radioAccessType = CellularSignalReader.RADIO_2G)
+        )
+        assertEquals(1, MonitorState.stats.value.technologyChangesPerMinute)
+
+        MonitorState.updateStats(
+            campedHome4g(pci = 7).copy(radioAccessType = CellularSignalReader.RADIO_2G)
+        )
+        assertEquals(1, MonitorState.stats.value.technologyChangesPerMinute)
+    }
+
+    @Test
+    fun ltePlusIconCountsAsATechnologyLabelChange() {
+        MonitorState.updateStats(campedHome4g(pci = 42))
+        MonitorState.updateStats(campedHome4g(pci = 42).copy(ltePlusIcon = true))
+
+        assertEquals(1, MonitorState.stats.value.technologyChangesPerMinute)
+        assertEquals(0, MonitorState.stats.value.cellReselectsPerMinute)
+    }
+
+    @Test
     fun noSignalIdentityFlickerDoesNotIncrementReselectRate() {
         val mock = PassiveMockSettings(
             enabled = true,

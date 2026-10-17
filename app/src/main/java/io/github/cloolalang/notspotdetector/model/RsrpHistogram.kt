@@ -101,7 +101,7 @@ object RsrpHistogram {
     const val THRESHOLD_YELLOW_MIN_PERCENT = 90
     const val MEAN_BAR_MIN_DBM = -135
     const val MEAN_BAR_MAX_DBM = -50
-    const val SIGMA_BAR_MAX_DB = 30.0
+    const val SIGMA_BAR_MAX_DB = 10.0
     const val TREND_DEADBAND_DB = 2.0
     const val TREND_MIN_SAMPLES = 6
 

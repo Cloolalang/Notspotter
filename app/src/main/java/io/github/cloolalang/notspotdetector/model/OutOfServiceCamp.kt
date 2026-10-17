@@ -7,6 +7,7 @@ fun ConnectivityStats.withoutCampedRadio(): ConnectivityStats {
         lteSinrDb = null,
         nrSinrDb = null,
         radioAccessType = null,
+        ltePlusIcon = false,
         lteEarfcn = null,
         ltePci = null,
         lteEci = null,

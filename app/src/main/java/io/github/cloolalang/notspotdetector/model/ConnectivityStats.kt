@@ -29,6 +29,8 @@ data class ConnectivityStats(
     /** NR SS-SINR (SNIR) in dB. */
     val nrSinrDb: Int? = null,
     val radioAccessType: String? = null,
+    /** Status-bar LTE plus icon (4G+). See [CellularRadioMetrics.ltePlusIcon]. */
+    val ltePlusIcon: Boolean = false,
     val lteEarfcn: Int? = null,
     val ltePci: Int? = null,
     /** LTE 28-bit ECI (long Cell ID) — see [CellularRadioMetrics.lteEci]. */
@@ -135,6 +137,8 @@ data class ConnectivityStats(
     val cellInfoAgeMs: Long? = null,
     /** Serving-cell reselects in the last 60 s (rolling). */
     val cellReselectsPerMinute: Int = 0,
+    /** Radio-technology changes in the last 60 s (rolling). */
+    val technologyChangesPerMinute: Int = 0,
     /**
      * Active-mode ping RTT and packet loss are coming from the mock sliders.
      * Connection-quality clicks play instead of RXSS pulses.

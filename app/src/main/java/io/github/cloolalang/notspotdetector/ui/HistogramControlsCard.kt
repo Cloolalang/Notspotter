@@ -68,6 +68,12 @@ import io.github.cloolalang.notspotdetector.model.RsrpMeanColorBand
 import io.github.cloolalang.notspotdetector.model.RsrpSample
 import io.github.cloolalang.notspotdetector.model.RsrpSampleTrend
 import io.github.cloolalang.notspotdetector.model.ServingCellSelection
+import io.github.cloolalang.notspotdetector.model.TapeAge
+import io.github.cloolalang.notspotdetector.model.TapeAgeUnit
+import io.github.cloolalang.notspotdetector.model.TechnologyHistory
+import io.github.cloolalang.notspotdetector.model.TechnologySegment
+import io.github.cloolalang.notspotdetector.model.TechnologyTape
+import io.github.cloolalang.notspotdetector.network.CellularSignalReader
 import io.github.cloolalang.notspotdetector.model.coerceToHistogramWindowStep
 import io.github.cloolalang.notspotdetector.ui.theme.BondiBlue
 import io.github.cloolalang.notspotdetector.ui.theme.Sushi
@@ -103,9 +109,22 @@ fun HistogramControlsCard(
     var expanded by rememberSaveable { mutableStateOf(false) }
     var nowMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var carrierTape by remember { mutableStateOf(PrimaryCarrierTape()) }
-    val currentCarrier = PrimaryCarrierHistory.pairFromStats(stats)
+    var technologyTape by remember { mutableStateOf(TechnologyTape()) }
+    val currentCarrier = PrimaryCarrierHistory.visitFromStats(stats)
+    val currentTechnology = TechnologyHistory.technologyFromStats(stats)
     LaunchedEffect(currentCarrier) {
-        carrierTape = PrimaryCarrierHistory.record(carrierTape, currentCarrier)
+        carrierTape = PrimaryCarrierHistory.record(
+            carrierTape,
+            currentCarrier,
+            System.currentTimeMillis()
+        )
+    }
+    LaunchedEffect(currentTechnology) {
+        technologyTape = TechnologyHistory.record(
+            technologyTape,
+            currentTechnology,
+            System.currentTimeMillis()
+        )
     }
 
     LaunchedEffect(samples) {
@@ -158,6 +177,8 @@ fun HistogramControlsCard(
                     elapsedMs = elapsedMs,
                     carrierEntries = carrierTape.entries,
                     reselectsPerMinute = stats.cellReselectsPerMinute,
+                    technologyEntries = technologyTape.entries,
+                    technologyChangesPerMinute = stats.technologyChangesPerMinute,
                     cellInfoAgeMs = stats.cellInfoAgeMs
                 )
 
@@ -165,11 +186,19 @@ fun HistogramControlsCard(
                     onClick = {
                         carrierTape = PrimaryCarrierHistory.record(
                             PrimaryCarrierTape(),
-                            currentCarrier
+                            currentCarrier,
+                            System.currentTimeMillis()
+                        )
+                        technologyTape = TechnologyHistory.record(
+                            TechnologyTape(),
+                            currentTechnology,
+                            System.currentTimeMillis()
                         )
                         onClearHistogram()
                     },
-                    enabled = samples.isNotEmpty() || carrierTape.entries.size > 1,
+                    enabled = samples.isNotEmpty() ||
+                        carrierTape.entries.size > 1 ||
+                        technologyTape.entries.size > 1,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(text = stringResource(R.string.rsrp_histogram_clear))
@@ -276,6 +305,8 @@ private fun RsrpHistogramDisplay(
     elapsedMs: Long?,
     carrierEntries: List<PrimaryCarrierTapeEntry>,
     reselectsPerMinute: Int,
+    technologyEntries: List<TechnologySegment>,
+    technologyChangesPerMinute: Int,
     cellInfoAgeMs: Long?,
     modifier: Modifier = Modifier
 ) {
@@ -377,7 +408,13 @@ private fun RsrpHistogramDisplay(
         }
         PrimaryCarrierHistoryBar(
             entries = carrierEntries,
-            reselectsPerMinute = reselectsPerMinute
+            reselectsPerMinute = reselectsPerMinute,
+            nowMs = nowMs
+        )
+        TechnologyHistoryBar(
+            entries = technologyEntries,
+            changesPerMinute = technologyChangesPerMinute,
+            nowMs = nowMs
         )
     }
 }
@@ -657,6 +694,7 @@ private fun HorizontalRsrpBar(
 private fun PrimaryCarrierHistoryBar(
     entries: List<PrimaryCarrierTapeEntry>,
     reselectsPerMinute: Int,
+    nowMs: Long,
     modifier: Modifier = Modifier
 ) {
     val segmentMs = PrimaryCarrierHistory.segmentDurationMs(reselectsPerMinute)
@@ -676,14 +714,14 @@ private fun PrimaryCarrierHistoryBar(
         }
     }
     val current = entries.lastOrNull()
-    val valueText = if (current != null) {
-        stringResource(
+    val valueText = when {
+        current == null -> stringResource(R.string.signal_unavailable)
+        current.noSignal || current.pair == null -> stringResource(R.string.signal_unavailable)
+        else -> stringResource(
             R.string.rsrp_histogram_carrier_history_pair,
             current.pair.channel,
             current.pair.pci
         )
-    } else {
-        stringResource(R.string.signal_unavailable)
     }
     val trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
     val textMeasurer = rememberTextMeasurer()
@@ -736,7 +774,11 @@ private fun PrimaryCarrierHistoryBar(
                 val left = index * segmentWidth - shift
                 if (left + segmentWidth <= 0f || left >= size.width) return@forEachIndexed
                 val color = carrierTapeColor(entry)
-                val label = "${entry.pair.channel}/${entry.pair.pci}"
+                val label = if (entry.noSignal || entry.pair == null) {
+                    TechnologyHistory.LABEL_NO_SIGNAL
+                } else {
+                    "${entry.pair.channel}/${entry.pair.pci}"
+                }
                 canvasScope.clipRect(
                     left = left,
                     top = 0f,
@@ -768,6 +810,10 @@ private fun PrimaryCarrierHistoryBar(
                 }
             }
         }
+        TapeTimeScale(
+            oldestStartedAtMs = entries.firstOrNull()?.startedAtMs,
+            nowMs = nowMs
+        )
     }
 }
 
@@ -783,7 +829,8 @@ private val CarrierNeutralShades = listOf(
 )
 
 private fun carrierTapeColor(entry: PrimaryCarrierTapeEntry): Color {
-    val mhz = entry.pair.nominalMhz
+    if (entry.noSignal) return Color(0xFF90A4AE)
+    val mhz = entry.pair?.nominalMhz
     val hue = PrimaryCarrierHistory.hueForMhz(mhz)
         ?: return CarrierNeutralShades[entry.shade.mod(CarrierNeutralShades.size)]
     val slot = entry.shade.mod(PrimaryCarrierHistory.SHADES_PER_BAND)
@@ -800,6 +847,166 @@ private fun carrierTapeColor(entry: PrimaryCarrierTapeEntry): Color {
 private fun carrierTapeLabelColor(background: Color): Color {
     val luminance = (0.299f * background.red) + (0.587f * background.green) + (0.114f * background.blue)
     return if (luminance > 0.62f) Color.Black else Color.White
+}
+
+@Composable
+private fun TechnologyHistoryBar(
+    entries: List<TechnologySegment>,
+    changesPerMinute: Int,
+    nowMs: Long,
+    modifier: Modifier = Modifier
+) {
+    val segmentMs = TechnologyHistory.segmentDurationMs(changesPerMinute)
+    val entryCount = entries.size
+    var offset by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(segmentMs, entryCount) {
+        if (segmentMs == null || entryCount < 2) return@LaunchedEffect
+        offset %= entryCount
+        var lastFrame = withFrameNanos { it }
+        while (isActive) {
+            withFrameNanos { frame ->
+                val elapsedMs = (frame - lastFrame) / 1_000_000f
+                lastFrame = frame
+                offset = (offset + elapsedMs / segmentMs) % entryCount
+            }
+        }
+    }
+    val current = entries.lastOrNull()
+    val valueText = current?.label ?: stringResource(R.string.signal_unavailable)
+    val trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+    val textMeasurer = rememberTextMeasurer()
+    val labelStyle = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp)
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = stringResource(R.string.rsrp_histogram_technology_history_title),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Sushi
+                )
+                Text(
+                    text = stringResource(
+                        R.string.metric_cell_reselect_rate_value,
+                        changesPerMinute
+                    ),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Text(
+                text = valueText,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Medium
+            )
+        }
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(24.dp)
+                .clip(RoundedCornerShape(9.dp))
+                .background(trackColor)
+        ) {
+            if (entries.isEmpty()) return@Canvas
+            val canvasScope = this
+            val looping = entryCount >= 2
+            val drawn = if (looping) entries + entries else entries
+            val segmentWidth = size.width / entryCount
+            val shift = if (looping) (offset % entryCount) * segmentWidth else 0f
+            drawn.forEachIndexed { index, segment ->
+                val left = index * segmentWidth - shift
+                if (left + segmentWidth <= 0f || left >= size.width) return@forEachIndexed
+                val color = technologyTapeColor(segment.label)
+                canvasScope.clipRect(
+                    left = left,
+                    top = 0f,
+                    right = left + segmentWidth,
+                    bottom = size.height
+                ) {
+                    drawRect(
+                        color = color,
+                        topLeft = Offset(left, 0f),
+                        size = Size(segmentWidth, size.height)
+                    )
+                    val layout = textMeasurer.measure(
+                        text = segment.label,
+                        style = labelStyle.merge(TextStyle(color = carrierTapeLabelColor(color))),
+                        overflow = TextOverflow.Ellipsis,
+                        softWrap = false,
+                        maxLines = 1,
+                        constraints = Constraints(
+                            maxWidth = segmentWidth.roundToInt().coerceAtLeast(0)
+                        )
+                    )
+                    drawText(
+                        textLayoutResult = layout,
+                        topLeft = Offset(
+                            x = left + (segmentWidth - layout.size.width) / 2f,
+                            y = (size.height - layout.size.height) / 2f
+                        )
+                    )
+                }
+            }
+        }
+        TapeTimeScale(
+            oldestStartedAtMs = entries.firstOrNull()?.startedAtMs,
+            nowMs = nowMs
+        )
+    }
+}
+
+private fun technologyTapeColor(technology: String): Color {
+    if (technology == TechnologyHistory.LABEL_NO_SIGNAL) return Color(0xFF90A4AE)
+    val hue = when (technology) {
+        CellularSignalReader.RADIO_2G -> 28f
+        CellularSignalReader.RADIO_4G -> 215f
+        TechnologyHistory.LABEL_4G_PLUS -> 195f
+        CellularSignalReader.RADIO_5G -> 278f
+        CellularSignalReader.RADIO_5G_ENDC -> 168f
+        else -> return Color(0xFF546E7A)
+    }
+    return Color.hsv(hue, 0.72f, 0.55f)
+}
+
+@Composable
+private fun TapeTimeScale(
+    oldestStartedAtMs: Long?,
+    nowMs: Long
+) {
+    if (oldestStartedAtMs == null) return
+    val age = tapeAgeText(oldestStartedAtMs, nowMs)
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = stringResource(R.string.rsrp_histogram_tape_ago, age),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = stringResource(R.string.rsrp_histogram_tape_now),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun tapeAgeText(startedAtMs: Long, nowMs: Long): String {
+    val amount = TapeAge.amount(startedAtMs, nowMs)
+    return when (amount.unit) {
+        TapeAgeUnit.SECONDS -> stringResource(R.string.rsrp_histogram_tape_seconds, amount.value.toInt())
+        TapeAgeUnit.MINUTES -> stringResource(R.string.rsrp_histogram_tape_minutes, amount.value.toInt())
+        TapeAgeUnit.HOURS -> stringResource(R.string.rsrp_histogram_tape_hours, amount.value.toInt())
+    }
 }
 
 @Composable

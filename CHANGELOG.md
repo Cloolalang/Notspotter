@@ -5,6 +5,19 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.116.0] - 2026-10-17
+
+### Added
+
+- **Technology history** — The level histogram has a second rolling tape under Primary Carrier History. It shows the last few radio technologies (2G, 4G, 5G, 5G EN-DC), each in its own colour, and rolls faster when the technology changes more often. Clear graph clears this tape as well.
+
+### Changed
+
+- **4G+ on the technology tape** — While the connection is LTE, the tape shows 4G+ when the status-bar icon is the plus form (carrier aggregation or LTE Advanced Pro). Otherwise it stays 4G.
+- **No signal on the history tapes** — A period with no signal or no service is a grey section on the technology tape and on the EARFCN/PCI tape, between the segments on either side.
+- **Tape time scale** — Each tape shows how long ago its oldest segment started, and marks the right-hand end as now, including while the tape is holding still.
+- **Histogram sigma scale** — The sigma bar is full at 10 dB. A wider spread stays at the top of the bar.
+
 ## [2.115.0] - 2026-10-16
 
 ### Changed
