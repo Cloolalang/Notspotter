@@ -396,6 +396,12 @@
     <string name="rsrp_histogram_carrier_history_title">Primary Carrier History</string>
     <string name="rsrp_histogram_carrier_history_pair">%1$d/%2$d</string>
     <string name="rsrp_histogram_technology_history_title">Technology history</string>
+    <string name="rsrp_bin_history_title">RSRP bin</string>
+    <string name="rsrp_bin_history_rule">95% of last 30 s</string>
+    <string name="rsrp_bin_above_95">&gt; −95</string>
+    <string name="rsrp_bin_above_105">&gt; −105</string>
+    <string name="rsrp_bin_above_115">&gt; −115</string>
+    <string name="rsrp_bin_below_115">&lt; −115</string>
     <string name="rsrp_histogram_tape_now">now</string>
     <string name="rsrp_histogram_tape_ago">%1$s ago</string>
     <string name="rsrp_histogram_tape_seconds">%1$d s</string>

@@ -5,6 +5,19 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.119.0] - 2026-10-19
+
+### Added
+
+- **RSRP bin tape** — A third history tape under the technology tape. Light blue when at least 95% of the last 30 seconds is stronger than −95 dBm, green above −105 dBm, yellow above −115 dBm, and red when 95% is weaker than −115 dBm. No signal is grey, on the same clock as the other tapes.
+
+## [2.118.0] - 2026-10-19
+
+### Changed
+
+- **Collapsible metrics** — Cellular metrics and Active mode metrics fold up from their titles, the same way the settings panels do. Both stay open until you collapse them, and that choice is kept when the screen rotates.
+- **Tape time direction** — Now is the right-hand end of the technology tape and the EARFCN/PCI tape. Older time runs to the left, and a point along one is still the same moment on the other.
+
 ## [2.117.0] - 2026-10-19
 
 ### Added

@@ -13,8 +13,8 @@ android {
         applicationId = "io.github.cloolalang.notspotdetector"
         minSdk = 24
         targetSdk = 37
-        versionCode = 397
-        versionName = "2.117.0"
+        versionCode = 399
+        versionName = "2.119.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

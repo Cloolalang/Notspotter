@@ -2,8 +2,8 @@ package io.github.cloolalang.notspotdetector.model
 
 /**
  * One time scale for the history tapes. The same fraction is the same moment on
- * the technology tape and the EARFCN/PCI tape. Fraction 1 is now; the tapes draw
- * that on the left, with older time to the right.
+ * the technology tape and the EARFCN/PCI tape. Fraction 0 is the oldest moment
+ * and fraction 1 is now, drawn on the right.
  */
 object TapeTimeline {
     fun windowStartMs(segmentStartsMs: List<Long>): Long? = segmentStartsMs.minOrNull()

@@ -56,6 +56,10 @@ import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.PrimaryCarrierHistory
 import io.github.cloolalang.notspotdetector.model.PrimaryCarrierTape
 import io.github.cloolalang.notspotdetector.model.PrimaryCarrierTapeEntry
+import io.github.cloolalang.notspotdetector.model.RsrpBin
+import io.github.cloolalang.notspotdetector.model.RsrpBinHistory
+import io.github.cloolalang.notspotdetector.model.RsrpBinSegment
+import io.github.cloolalang.notspotdetector.model.RsrpBinTape
 import io.github.cloolalang.notspotdetector.model.RsrpHistogram
 import io.github.cloolalang.notspotdetector.model.RsrpHistogramBand
 import io.github.cloolalang.notspotdetector.model.RsrpHistogramBin
@@ -109,8 +113,14 @@ fun HistogramControlsCard(
     var nowMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var carrierTape by remember { mutableStateOf(PrimaryCarrierTape()) }
     var technologyTape by remember { mutableStateOf(TechnologyTape()) }
+    var rsrpBinTape by remember { mutableStateOf(RsrpBinTape()) }
     val currentCarrier = PrimaryCarrierHistory.visitFromStats(stats)
     val currentTechnology = TechnologyHistory.technologyFromStats(stats)
+    val currentRsrpBin = RsrpBinHistory.classify(
+        samples = samples,
+        nowMs = nowMs,
+        noSignal = TechnologyHistory.isNoSignalPeriod(stats)
+    )
     LaunchedEffect(currentCarrier) {
         carrierTape = PrimaryCarrierHistory.record(
             carrierTape,
@@ -122,6 +132,13 @@ fun HistogramControlsCard(
         technologyTape = TechnologyHistory.record(
             technologyTape,
             currentTechnology,
+            System.currentTimeMillis()
+        )
+    }
+    LaunchedEffect(currentRsrpBin) {
+        rsrpBinTape = RsrpBinHistory.record(
+            rsrpBinTape,
+            currentRsrpBin,
             System.currentTimeMillis()
         )
     }
@@ -178,6 +195,7 @@ fun HistogramControlsCard(
                     reselectsPerMinute = stats.cellReselectsPerMinute,
                     technologyEntries = technologyTape.entries,
                     technologyChangesPerMinute = stats.technologyChangesPerMinute,
+                    rsrpBinEntries = rsrpBinTape.entries,
                     cellInfoAgeMs = stats.cellInfoAgeMs
                 )
 
@@ -193,11 +211,17 @@ fun HistogramControlsCard(
                             currentTechnology,
                             System.currentTimeMillis()
                         )
+                        rsrpBinTape = RsrpBinHistory.record(
+                            RsrpBinTape(),
+                            currentRsrpBin,
+                            System.currentTimeMillis()
+                        )
                         onClearHistogram()
                     },
                     enabled = samples.isNotEmpty() ||
                         carrierTape.entries.size > 1 ||
-                        technologyTape.entries.size > 1,
+                        technologyTape.entries.size > 1 ||
+                        rsrpBinTape.entries.size > 1,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(text = stringResource(R.string.rsrp_histogram_clear))
@@ -306,6 +330,7 @@ private fun RsrpHistogramDisplay(
     reselectsPerMinute: Int,
     technologyEntries: List<TechnologySegment>,
     technologyChangesPerMinute: Int,
+    rsrpBinEntries: List<RsrpBinSegment>,
     cellInfoAgeMs: Long?,
     modifier: Modifier = Modifier
 ) {
@@ -406,7 +431,9 @@ private fun RsrpHistogramDisplay(
             )
         }
         val tapeWindowStartMs = TapeTimeline.windowStartMs(
-            carrierEntries.map { it.startedAtMs } + technologyEntries.map { it.startedAtMs }
+            carrierEntries.map { it.startedAtMs } +
+                technologyEntries.map { it.startedAtMs } +
+                rsrpBinEntries.map { it.startedAtMs }
         ) ?: nowMs
         PrimaryCarrierHistoryBar(
             entries = carrierEntries,
@@ -417,6 +444,11 @@ private fun RsrpHistogramDisplay(
         TechnologyHistoryBar(
             entries = technologyEntries,
             changesPerMinute = technologyChangesPerMinute,
+            nowMs = nowMs,
+            windowStartMs = tapeWindowStartMs
+        )
+        RsrpBinHistoryBar(
+            entries = rsrpBinEntries,
             nowMs = nowMs,
             windowStartMs = tapeWindowStartMs
         )
@@ -941,6 +973,127 @@ private fun TechnologyHistoryBar(
     }
 }
 
+@Composable
+private fun RsrpBinHistoryBar(
+    entries: List<RsrpBinSegment>,
+    nowMs: Long,
+    windowStartMs: Long,
+    modifier: Modifier = Modifier
+) {
+    val current = entries.lastOrNull()
+    val valueText = current?.let { rsrpBinLabel(it.bin) }
+        ?: stringResource(R.string.signal_unavailable)
+    val segmentLabels = entries.map { rsrpBinLabel(it.bin) }
+    val trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+    val textMeasurer = rememberTextMeasurer()
+    val labelStyle = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp)
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = stringResource(R.string.rsrp_bin_history_title),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Sushi
+                )
+                Text(
+                    text = stringResource(R.string.rsrp_bin_history_rule),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Text(
+                text = valueText,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Medium
+            )
+        }
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(24.dp)
+                .clip(RoundedCornerShape(9.dp))
+                .background(trackColor)
+        ) {
+            if (entries.isEmpty()) return@Canvas
+            val canvasScope = this
+            val bounds = tapeSegmentBounds(
+                startsMs = entries.map { it.startedAtMs },
+                windowStartMs = windowStartMs,
+                nowMs = nowMs,
+                tapeWidth = size.width
+            )
+            entries.forEachIndexed { index, segment ->
+                val (left, segmentWidth) = bounds[index]
+                if (segmentWidth <= 0f) return@forEachIndexed
+                val color = rsrpBinTapeColor(segment.bin)
+                val label = segmentLabels[index]
+                canvasScope.clipRect(
+                    left = left,
+                    top = 0f,
+                    right = left + segmentWidth,
+                    bottom = size.height
+                ) {
+                    drawRect(
+                        color = color,
+                        topLeft = Offset(left, 0f),
+                        size = Size(segmentWidth, size.height)
+                    )
+                    val layout = textMeasurer.measure(
+                        text = label,
+                        style = labelStyle.merge(TextStyle(color = carrierTapeLabelColor(color))),
+                        overflow = TextOverflow.Ellipsis,
+                        softWrap = false,
+                        maxLines = 1,
+                        constraints = Constraints(
+                            maxWidth = segmentWidth.roundToInt().coerceAtLeast(0)
+                        )
+                    )
+                    drawText(
+                        textLayoutResult = layout,
+                        topLeft = Offset(
+                            x = left + (segmentWidth - layout.size.width) / 2f,
+                            y = (size.height - layout.size.height) / 2f
+                        )
+                    )
+                }
+            }
+        }
+        TapeTimeScale(
+            oldestStartedAtMs = if (entries.isEmpty()) null else windowStartMs,
+            nowMs = nowMs
+        )
+    }
+}
+
+@Composable
+private fun rsrpBinLabel(bin: RsrpBin): String {
+    return when (bin) {
+        RsrpBin.ABOVE_95 -> stringResource(R.string.rsrp_bin_above_95)
+        RsrpBin.ABOVE_105 -> stringResource(R.string.rsrp_bin_above_105)
+        RsrpBin.ABOVE_115 -> stringResource(R.string.rsrp_bin_above_115)
+        RsrpBin.BELOW_115 -> stringResource(R.string.rsrp_bin_below_115)
+        RsrpBin.NO_SIGNAL -> TechnologyHistory.LABEL_NO_SIGNAL
+    }
+}
+
+private fun rsrpBinTapeColor(bin: RsrpBin): Color {
+    return when (bin) {
+        RsrpBin.ABOVE_95 -> MeanRsrpLightBlue
+        RsrpBin.ABOVE_105 -> MeanRsrpGreen
+        RsrpBin.ABOVE_115 -> MeanRsrpYellow
+        RsrpBin.BELOW_115 -> MeanRsrpRed
+        RsrpBin.NO_SIGNAL -> Color(0xFF90A4AE)
+    }
+}
+
 private fun tapeSegmentBounds(
     startsMs: List<Long>,
     windowStartMs: Long,
@@ -949,8 +1102,8 @@ private fun tapeSegmentBounds(
 ): List<Pair<Float, Float>> {
     return TapeTimeline.placements(startsMs, windowStartMs, nowMs).map { placement ->
         val width = (placement.endFraction - placement.startFraction) * tapeWidth
-        // Now is the left edge. Older time runs to the right, on both tapes.
-        val left = (1f - placement.endFraction) * tapeWidth
+        // Now is the right edge. Older time runs to the left, on both tapes.
+        val left = placement.startFraction * tapeWidth
         left to width
     }
 }
@@ -980,12 +1133,12 @@ private fun TapeTimeScale(
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(
-            text = stringResource(R.string.rsrp_histogram_tape_now),
+            text = stringResource(R.string.rsrp_histogram_tape_ago, age),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Text(
-            text = stringResource(R.string.rsrp_histogram_tape_ago, age),
+            text = stringResource(R.string.rsrp_histogram_tape_now),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

@@ -1,5 +1,6 @@
 package io.github.cloolalang.notspotdetector.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,6 +21,10 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -614,24 +619,23 @@ private fun MetricsCard(
     onRequestCellIdentityPermission: () -> Unit
 ) {
     val mockActive = stats.isPassiveOnlySession && passiveMockSettings.enabled
+    var expanded by rememberSaveable { mutableStateOf(true) }
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                text = stringResource(
+            CollapsibleMetricsHeader(
+                title = stringResource(
                     if (mockActive) R.string.metrics_title_mock else R.string.metrics_title
                 ),
-                modifier = Modifier.fillMaxWidth(),
-                style = MaterialTheme.typography.titleSmall,
-                color = if (mockActive) MaterialTheme.colorScheme.error else Sushi,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
+                titleColor = if (mockActive) MaterialTheme.colorScheme.error else Sushi,
+                expanded = expanded,
+                onToggle = { expanded = !expanded }
             )
 
-            if (radioDebugEnabled && radioDebugSnapshot != null) {
+            if (expanded && radioDebugEnabled && radioDebugSnapshot != null) {
                 Text(
                     text = radioDebugSnapshot.bannerLine(),
                     style = MaterialTheme.typography.bodySmall,
@@ -643,6 +647,7 @@ private fun MetricsCard(
                 )
             }
 
+            if (expanded) {
             MetricRow(
                 label = stringResource(R.string.metric_sim),
                 value = formatSimMetric(stats, monitoringSettings),
@@ -761,26 +766,55 @@ private fun MetricsCard(
                     passiveSignalSettings
                 )
             )
+            }
         }
+    }
+}
+
+@Composable
+private fun CollapsibleMetricsHeader(
+    title: String,
+    titleColor: Color,
+    expanded: Boolean,
+    onToggle: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onToggle),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            color = titleColor,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            text = if (expanded) "▲" else "▼",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
 @Composable
 private fun ActiveModeMetricsCard(stats: ConnectivityStats) {
     val hasPingResult = !stats.isPassiveOnlySession && stats.pingsSent > 0
+    var expanded by rememberSaveable { mutableStateOf(true) }
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                text = stringResource(R.string.active_mode_metrics_title),
-                modifier = Modifier.fillMaxWidth(),
-                style = MaterialTheme.typography.titleSmall,
-                color = Sushi,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
+            CollapsibleMetricsHeader(
+                title = stringResource(R.string.active_mode_metrics_title),
+                titleColor = Sushi,
+                expanded = expanded,
+                onToggle = { expanded = !expanded }
             )
+            if (expanded) {
             MetricRow(
                 label = stringResource(R.string.metric_rtt),
                 value = if (hasPingResult) {
@@ -801,6 +835,7 @@ private fun ActiveModeMetricsCard(stats: ConnectivityStats) {
                     "—"
                 }
             )
+            }
         }
     }
 }
