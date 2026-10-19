@@ -7,6 +7,8 @@ data class CellularRadioMetrics(
     val lteSinrDb: Int? = null,
     /** NR SS-SINR (SNIR) in dB. */
     val nrSinrDb: Int? = null,
+    /** Serving-cell timing advance, when the modem reports one. */
+    val timingAdvance: TimingAdvanceReading? = null,
     val radioAccessType: String? = null,
     /**
      * True when the status-bar icon for this LTE connection is the plus form (4G+ / LTE+).
@@ -108,6 +110,7 @@ data class CellularRadioMetrics(
             rsrqDb = null,
             lteSinrDb = null,
             nrSinrDb = null,
+            timingAdvance = null,
             radioAccessType = null,
             ltePlusIcon = false,
             lteEarfcn = null,

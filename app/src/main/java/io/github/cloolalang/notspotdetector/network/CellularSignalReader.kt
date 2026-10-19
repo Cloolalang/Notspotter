@@ -31,6 +31,7 @@ import io.github.cloolalang.notspotdetector.model.ServingCellSelection
 import io.github.cloolalang.notspotdetector.model.DetectedLteCell
 import io.github.cloolalang.notspotdetector.model.LteLayerResilience
 import io.github.cloolalang.notspotdetector.model.LteLayerResilienceReading
+import io.github.cloolalang.notspotdetector.model.LtePlusCamp
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.NetworkModePreference
 import io.github.cloolalang.notspotdetector.model.NetworkServiceMode
@@ -44,12 +45,16 @@ import io.github.cloolalang.notspotdetector.model.SimOperatorSelectionMode
 import io.github.cloolalang.notspotdetector.model.isRegisteredSimRoaming
 import io.github.cloolalang.notspotdetector.model.isVoiceOnlyNoData
 import io.github.cloolalang.notspotdetector.model.SinrMetric
+import io.github.cloolalang.notspotdetector.model.TimingAdvance
+import io.github.cloolalang.notspotdetector.model.TimingAdvanceKind
+import io.github.cloolalang.notspotdetector.model.TimingAdvanceReading
 import io.github.cloolalang.notspotdetector.model.resolveNetworkServiceMode
 import io.github.cloolalang.notspotdetector.model.resolveServingOperatorFromCell
 import io.github.cloolalang.notspotdetector.model.isCampedOnVisitedOperator
 import io.github.cloolalang.notspotdetector.model.NetworkOperatorNames
 
 object CellularSignalReader {
+    private val ltePlusCamp = LtePlusCamp()
 
     const val RADIO_2G = "2G"
     const val RADIO_4G = "4G"
@@ -227,6 +232,8 @@ object CellularSignalReader {
                 fromSignal = signalMetrics.nrSinrDb,
                 useSignal = useSignalMetrics
             ),
+            timingAdvance = servingCell.timingAdvance
+                ?: signalMetrics.timingAdvance.takeIf { useSignalMetrics },
             radioAccessType = mergeRadioAccessType(
                 fromSignal = signalMetrics.radioAccessType,
                 fromCell = servingCell.radioAccessType
@@ -289,6 +296,7 @@ object CellularSignalReader {
                 rsrqDb = null,
                 lteSinrDb = null,
                 nrSinrDb = null,
+                timingAdvance = metrics.timingAdvance?.takeIf { it.kind == TimingAdvanceKind.GSM },
                 lteEarfcn = null,
                 ltePci = null,
                 lteEci = null,
@@ -314,11 +322,16 @@ object CellularSignalReader {
             )
         }
         val limitedOnAnySim = hasLimitedServiceOnAnySim || metrics.isLimitedService
+        val rawLtePlus = LtePlusDisplay.current(telephonyManager, subscriptionId)
         metrics = metrics.copy(
             hasLimitedServiceOnAnySim = limitedOnAnySim,
             isCompleteNoService = isCompleteNoService(metrics, limitedOnAnySim),
-            ltePlusIcon = metrics.radioAccessType == RADIO_4G &&
-                LtePlusDisplay.current(telephonyManager, subscriptionId)
+            ltePlusIcon = ltePlusCamp.showPlus(
+                radioIs4g = metrics.radioAccessType == RADIO_4G,
+                rawPlus = rawLtePlus,
+                earfcn = metrics.lteEarfcn,
+                pci = metrics.ltePci
+            )
         )
 
         if (RadioDebugLogger.isEnabled()) {
@@ -793,12 +806,14 @@ object CellularSignalReader {
                         val rsrp = nrRsrpDbm(strength)
                         val rsrq = strength.ssRsrq.takeIf { isValidMetric(it) }
                         val sinr = SinrMetric.takeNrSsSinr(strength.ssSinr)
-                        if (rsrp != null || rsrq != null || sinr != null) {
+                        val timingAdvance = nrTimingAdvance(strength)
+                        if (rsrp != null || rsrq != null || sinr != null || timingAdvance != null) {
                             hasLteNrSignal = true
                             nrMetrics = CellularRadioMetrics(
                                 rsrpDbm = rsrp,
                                 rsrqDb = rsrq,
                                 nrSinrDb = sinr,
+                                timingAdvance = timingAdvance,
                                 permissionGranted = true
                             )
                         }
@@ -807,12 +822,14 @@ object CellularSignalReader {
                         val rsrp = lteRsrpDbm(strength)
                         val rsrq = strength.rsrq.takeIf { isValidMetric(it) }
                         val sinr = SinrMetric.takeLteRssnr(strength.rssnr)
-                        if (rsrp != null || rsrq != null || sinr != null) {
+                        val timingAdvance = lteTimingAdvance(strength)
+                        if (rsrp != null || rsrq != null || sinr != null || timingAdvance != null) {
                             hasLteNrSignal = true
                             lteMetrics = CellularRadioMetrics(
                                 rsrpDbm = rsrp,
                                 rsrqDb = rsrq,
                                 lteSinrDb = sinr,
+                                timingAdvance = timingAdvance,
                                 permissionGranted = true
                             )
                         }
@@ -823,6 +840,7 @@ object CellularSignalReader {
                             if (isValidMetric(dbm)) {
                                 gsmMetrics = CellularRadioMetrics(
                                     rsrpDbm = dbm,
+                                    timingAdvance = gsmTimingAdvance(strength),
                                     permissionGranted = true
                                 )
                             }
@@ -835,7 +853,8 @@ object CellularSignalReader {
                 lteMetrics != null && nrMetrics != null ->
                     lteMetrics.copy(
                         radioAccessType = RADIO_5G_ENDC,
-                        nrSinrDb = nrMetrics.nrSinrDb
+                        nrSinrDb = nrMetrics.nrSinrDb,
+                        timingAdvance = lteMetrics.timingAdvance ?: nrMetrics.timingAdvance
                     )
                 nrMetrics != null ->
                     nrMetrics.copy(radioAccessType = RADIO_5G)
@@ -859,6 +878,21 @@ object CellularSignalReader {
         }
 
         return CellularRadioMetrics(permissionGranted = true)
+    }
+
+    private fun lteTimingAdvance(strength: CellSignalStrengthLte): TimingAdvanceReading? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return null
+        return TimingAdvance.takeLteIndex(strength.timingAdvance)
+    }
+
+    private fun gsmTimingAdvance(strength: CellSignalStrengthGsm): TimingAdvanceReading? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return null
+        return TimingAdvance.takeGsmIndex(strength.timingAdvance)
+    }
+
+    private fun nrTimingAdvance(strength: CellSignalStrengthNr): TimingAdvanceReading? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return null
+        return TimingAdvance.takeNrMicros(strength.timingAdvanceMicros)
     }
 
     private fun gsmDbmFromLegacy(signalStrength: SignalStrength): Int? {
@@ -1084,6 +1118,7 @@ object CellularSignalReader {
                     val rsrp = lteRsrpDbm(info.cellSignalStrength)
                     val rsrq = info.cellSignalStrength.rsrq.takeIf { isValidMetric(it) }
                     val lteSinr = SinrMetric.takeLteRssnr(info.cellSignalStrength.rssnr)
+                    val timingAdvance = lteTimingAdvance(info.cellSignalStrength)
                     val earfcn = identity.earfcn.takeIf { isValidCellIdentityValue(it) }
                     val pci = identity.pci.takeIf { isValidCellIdentityValue(it) }
                     val eci = identity.ci.takeIf { isValidLteEci(it) }
@@ -1100,6 +1135,7 @@ object CellularSignalReader {
                         rsrpDbm = rsrp,
                         rsrqDb = rsrq,
                         lteSinrDb = lteSinr,
+                        timingAdvance = timingAdvance,
                         servingPlmn = formatIdentityPlmn(identity),
                         servingOperatorName = readIdentityOperatorName(identity)
                     )
@@ -1143,6 +1179,11 @@ object CellularSignalReader {
                             } else {
                                 null
                             }
+                            val timingAdvance = if (strength is CellSignalStrengthNr) {
+                                nrTimingAdvance(strength)
+                            } else {
+                                null
+                            }
                             val earfcn = identity.nrarfcn.takeIf { isValidCellIdentityValue(it) }
                             val pci = identity.pci.takeIf { isValidCellIdentityValue(it) }
                             val nci = identity.nci.takeIf { isValidNrNci(it) }
@@ -1158,6 +1199,7 @@ object CellularSignalReader {
                                 rsrpDbm = rsrp,
                                 rsrqDb = rsrq,
                                 nrSinrDb = nrSinr,
+                                timingAdvance = timingAdvance,
                                 servingPlmn = formatIdentityPlmn(identity),
                                 servingOperatorName = readIdentityOperatorName(identity)
                             )
@@ -1187,6 +1229,7 @@ object CellularSignalReader {
                         }
                         val identity = info.cellIdentity
                         val dbm = info.cellSignalStrength.dbm.takeIf { isValidMetric(it) }
+                        val timingAdvance = gsmTimingAdvance(info.cellSignalStrength)
                         val earfcn = identity.arfcn.takeIf { isValidCellIdentityValue(it) }
                         val bsic = identity.bsic.takeIf { isValidCellIdentityValue(it) }
                         val candidate = RankedServingCell(
@@ -1196,6 +1239,7 @@ object CellularSignalReader {
                             gsmEarfcn = earfcn,
                             gsmBsic = bsic,
                             rsrpDbm = dbm,
+                            timingAdvance = timingAdvance,
                             servingPlmn = formatIdentityPlmn(identity),
                             servingOperatorName = readIdentityOperatorName(identity)
                         )
@@ -1237,6 +1281,7 @@ object CellularSignalReader {
                     rsrpDbm = null,
                     rsrqDb = null,
                     lteSinrDb = null,
+                    timingAdvance = null,
                     servingPlmn = null,
                     servingOperatorName = null
                 )
@@ -1249,6 +1294,7 @@ object CellularSignalReader {
                     rsrpDbm = null,
                     rsrqDb = null,
                     nrSinrDb = null,
+                    timingAdvance = null,
                     servingPlmn = null,
                     servingOperatorName = null
                 )
@@ -1258,6 +1304,7 @@ object CellularSignalReader {
                     gsmEarfcn = earfcn,
                     gsmBsic = pci,
                     rsrpDbm = null,
+                    timingAdvance = null,
                     servingPlmn = null,
                     servingOperatorName = null
                 )
@@ -1349,6 +1396,7 @@ object CellularSignalReader {
                 rsrpDbm = info.cellSignalStrength.rsrp.takeIf { isValidMetric(it) },
                 rsrqDb = info.cellSignalStrength.rsrq.takeIf { isValidMetric(it) },
                 lteSinrDb = SinrMetric.takeLteRssnr(info.cellSignalStrength.rssnr),
+                timingAdvance = lteTimingAdvance(info.cellSignalStrength),
                 servingPlmn = formatIdentityPlmn(identity),
                 servingOperatorName = readIdentityOperatorName(identity)
             )
@@ -1417,6 +1465,7 @@ object CellularSignalReader {
             rsrqDb = primary?.rsrqDb,
             lteSinrDb = bestLte?.lteSinrDb,
             nrSinrDb = bestNr?.nrSinrDb,
+            timingAdvance = primary?.timingAdvance ?: bestNr?.timingAdvance,
             radioAccessType = radioAccessType,
             servingPlmn = primary?.servingPlmn,
             servingOperatorName = primary?.servingOperatorName
@@ -1491,6 +1540,7 @@ object CellularSignalReader {
         val rsrqDb: Int? = null,
         val lteSinrDb: Int? = null,
         val nrSinrDb: Int? = null,
+        val timingAdvance: TimingAdvanceReading? = null,
         val servingPlmn: String? = null,
         val servingOperatorName: String? = null
     ) {
@@ -1662,6 +1712,7 @@ object CellularSignalReader {
         val rsrqDb: Int? = null,
         val lteSinrDb: Int? = null,
         val nrSinrDb: Int? = null,
+        val timingAdvance: TimingAdvanceReading? = null,
         val radioAccessType: String? = null,
         val servingPlmn: String? = null,
         val servingOperatorName: String? = null
@@ -1752,6 +1803,7 @@ object CellularSignalReader {
                 rsrqDb = rsrqDb ?: fallback.rsrqDb.takeIf { sameCell },
                 lteSinrDb = lteSinrDb ?: fallback.lteSinrDb.takeIf { sameCell },
                 nrSinrDb = nrSinrDb ?: fallback.nrSinrDb.takeIf { sameCell },
+                timingAdvance = timingAdvance ?: fallback.timingAdvance.takeIf { sameCell },
                 radioAccessType = radioAccessType ?: fallback.radioAccessType,
                 servingPlmn = servingPlmn ?: fallback.servingPlmn,
                 servingOperatorName = servingOperatorName ?: fallback.servingOperatorName

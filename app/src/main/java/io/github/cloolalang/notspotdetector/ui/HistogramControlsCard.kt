@@ -26,13 +26,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -70,6 +68,7 @@ import io.github.cloolalang.notspotdetector.model.RsrpSampleTrend
 import io.github.cloolalang.notspotdetector.model.ServingCellSelection
 import io.github.cloolalang.notspotdetector.model.TapeAge
 import io.github.cloolalang.notspotdetector.model.TapeAgeUnit
+import io.github.cloolalang.notspotdetector.model.TapeTimeline
 import io.github.cloolalang.notspotdetector.model.TechnologyHistory
 import io.github.cloolalang.notspotdetector.model.TechnologySegment
 import io.github.cloolalang.notspotdetector.model.TechnologyTape
@@ -406,15 +405,20 @@ private fun RsrpHistogramDisplay(
                 scanAgeMs = cellInfoAgeMs
             )
         }
+        val tapeWindowStartMs = TapeTimeline.windowStartMs(
+            carrierEntries.map { it.startedAtMs } + technologyEntries.map { it.startedAtMs }
+        ) ?: nowMs
         PrimaryCarrierHistoryBar(
             entries = carrierEntries,
             reselectsPerMinute = reselectsPerMinute,
-            nowMs = nowMs
+            nowMs = nowMs,
+            windowStartMs = tapeWindowStartMs
         )
         TechnologyHistoryBar(
             entries = technologyEntries,
             changesPerMinute = technologyChangesPerMinute,
-            nowMs = nowMs
+            nowMs = nowMs,
+            windowStartMs = tapeWindowStartMs
         )
     }
 }
@@ -695,24 +699,9 @@ private fun PrimaryCarrierHistoryBar(
     entries: List<PrimaryCarrierTapeEntry>,
     reselectsPerMinute: Int,
     nowMs: Long,
+    windowStartMs: Long,
     modifier: Modifier = Modifier
 ) {
-    val segmentMs = PrimaryCarrierHistory.segmentDurationMs(reselectsPerMinute)
-    val entryCount = entries.size
-    var offset by remember { mutableFloatStateOf(0f) }
-    LaunchedEffect(segmentMs, entryCount) {
-        if (segmentMs == null || entryCount < 2) return@LaunchedEffect
-        offset %= entryCount
-        var lastFrame = withFrameNanos { it }
-        while (isActive) {
-            withFrameNanos { frame ->
-                val elapsedMs = (frame - lastFrame) / 1_000_000f
-                lastFrame = frame
-                // Increasing offset shifts every pair left, so the tape travels right to left.
-                offset = (offset + elapsedMs / segmentMs) % entryCount
-            }
-        }
-    }
     val current = entries.lastOrNull()
     val valueText = when {
         current == null -> stringResource(R.string.signal_unavailable)
@@ -766,13 +755,15 @@ private fun PrimaryCarrierHistoryBar(
         ) {
             if (entries.isEmpty()) return@Canvas
             val canvasScope = this
-            val looping = entryCount >= 2
-            val drawn = if (looping) entries + entries else entries
-            val segmentWidth = size.width / entryCount
-            val shift = if (looping) (offset % entryCount) * segmentWidth else 0f
-            drawn.forEachIndexed { index, entry ->
-                val left = index * segmentWidth - shift
-                if (left + segmentWidth <= 0f || left >= size.width) return@forEachIndexed
+            val bounds = tapeSegmentBounds(
+                startsMs = entries.map { it.startedAtMs },
+                windowStartMs = windowStartMs,
+                nowMs = nowMs,
+                tapeWidth = size.width
+            )
+            entries.forEachIndexed { index, entry ->
+                val (left, segmentWidth) = bounds[index]
+                if (segmentWidth <= 0f) return@forEachIndexed
                 val color = carrierTapeColor(entry)
                 val label = if (entry.noSignal || entry.pair == null) {
                     TechnologyHistory.LABEL_NO_SIGNAL
@@ -811,7 +802,7 @@ private fun PrimaryCarrierHistoryBar(
             }
         }
         TapeTimeScale(
-            oldestStartedAtMs = entries.firstOrNull()?.startedAtMs,
+            oldestStartedAtMs = if (entries.isEmpty()) null else windowStartMs,
             nowMs = nowMs
         )
     }
@@ -854,23 +845,9 @@ private fun TechnologyHistoryBar(
     entries: List<TechnologySegment>,
     changesPerMinute: Int,
     nowMs: Long,
+    windowStartMs: Long,
     modifier: Modifier = Modifier
 ) {
-    val segmentMs = TechnologyHistory.segmentDurationMs(changesPerMinute)
-    val entryCount = entries.size
-    var offset by remember { mutableFloatStateOf(0f) }
-    LaunchedEffect(segmentMs, entryCount) {
-        if (segmentMs == null || entryCount < 2) return@LaunchedEffect
-        offset %= entryCount
-        var lastFrame = withFrameNanos { it }
-        while (isActive) {
-            withFrameNanos { frame ->
-                val elapsedMs = (frame - lastFrame) / 1_000_000f
-                lastFrame = frame
-                offset = (offset + elapsedMs / segmentMs) % entryCount
-            }
-        }
-    }
     val current = entries.lastOrNull()
     val valueText = current?.label ?: stringResource(R.string.signal_unavailable)
     val trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
@@ -916,13 +893,15 @@ private fun TechnologyHistoryBar(
         ) {
             if (entries.isEmpty()) return@Canvas
             val canvasScope = this
-            val looping = entryCount >= 2
-            val drawn = if (looping) entries + entries else entries
-            val segmentWidth = size.width / entryCount
-            val shift = if (looping) (offset % entryCount) * segmentWidth else 0f
-            drawn.forEachIndexed { index, segment ->
-                val left = index * segmentWidth - shift
-                if (left + segmentWidth <= 0f || left >= size.width) return@forEachIndexed
+            val bounds = tapeSegmentBounds(
+                startsMs = entries.map { it.startedAtMs },
+                windowStartMs = windowStartMs,
+                nowMs = nowMs,
+                tapeWidth = size.width
+            )
+            entries.forEachIndexed { index, segment ->
+                val (left, segmentWidth) = bounds[index]
+                if (segmentWidth <= 0f) return@forEachIndexed
                 val color = technologyTapeColor(segment.label)
                 canvasScope.clipRect(
                     left = left,
@@ -956,9 +935,23 @@ private fun TechnologyHistoryBar(
             }
         }
         TapeTimeScale(
-            oldestStartedAtMs = entries.firstOrNull()?.startedAtMs,
+            oldestStartedAtMs = if (entries.isEmpty()) null else windowStartMs,
             nowMs = nowMs
         )
+    }
+}
+
+private fun tapeSegmentBounds(
+    startsMs: List<Long>,
+    windowStartMs: Long,
+    nowMs: Long,
+    tapeWidth: Float
+): List<Pair<Float, Float>> {
+    return TapeTimeline.placements(startsMs, windowStartMs, nowMs).map { placement ->
+        val width = (placement.endFraction - placement.startFraction) * tapeWidth
+        // Now is the left edge. Older time runs to the right, on both tapes.
+        val left = (1f - placement.endFraction) * tapeWidth
+        left to width
     }
 }
 
@@ -987,12 +980,12 @@ private fun TapeTimeScale(
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(
-            text = stringResource(R.string.rsrp_histogram_tape_ago, age),
+            text = stringResource(R.string.rsrp_histogram_tape_now),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Text(
-            text = stringResource(R.string.rsrp_histogram_tape_now),
+            text = stringResource(R.string.rsrp_histogram_tape_ago, age),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

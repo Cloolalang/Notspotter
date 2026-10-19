@@ -123,6 +123,5 @@ object LtePlusDisplay {
         registeredListener = null
         registeredManager = null
         registeredSubId = null
-        ltePlus = false
     }
 }

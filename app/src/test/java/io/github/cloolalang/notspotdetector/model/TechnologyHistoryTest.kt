@@ -102,6 +102,26 @@ class TechnologyHistoryTest {
     }
 
     @Test
+    fun spanFractions_lastSegmentRunsUntilNow() {
+        val entries = listOf(
+            TechnologySegment(CellularSignalReader.RADIO_4G, startedAtMs = 1_000L),
+            TechnologySegment(TechnologyHistory.LABEL_4G_PLUS, startedAtMs = 5_000L),
+            TechnologySegment(CellularSignalReader.RADIO_2G, startedAtMs = 7_000L)
+        )
+        val fractions = TechnologyHistory.spanFractions(entries, nowMs = 11_000L)
+        assertEquals(0.4f, fractions[0], 0.001f)
+        assertEquals(0.2f, fractions[1], 0.001f)
+        assertEquals(0.4f, fractions[2], 0.001f)
+        assertEquals(
+            listOf(1f),
+            TechnologyHistory.spanFractions(
+                listOf(TechnologySegment(TechnologyHistory.LABEL_4G_PLUS, startedAtMs = 1_000L)),
+                nowMs = 50_000L
+            )
+        )
+    }
+
+    @Test
     fun segmentDuration_holdsStillAtZeroAndFollowsTheChangeRate() {
         assertNull(TechnologyHistory.segmentDurationMs(0))
         assertEquals(60_000L, TechnologyHistory.segmentDurationMs(1))

@@ -58,6 +58,7 @@ import io.github.cloolalang.notspotdetector.model.ServingCellSelection
 import io.github.cloolalang.notspotdetector.model.displayedRsrpDbm
 import io.github.cloolalang.notspotdetector.model.isLimitedServiceVisited
 import io.github.cloolalang.notspotdetector.model.displayedRsrqDb
+import io.github.cloolalang.notspotdetector.model.displayedTimingAdvance
 import io.github.cloolalang.notspotdetector.model.PassiveMockSettings
 import io.github.cloolalang.notspotdetector.model.PeriodicVoiceRepeat
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
@@ -749,6 +750,10 @@ private fun MetricsCard(
                     )
                 )
             }
+            MetricRow(
+                label = stringResource(R.string.metric_timing_advance),
+                value = formatTimingAdvance(stats)
+            )
             SignalTierMetricRow(
                 tier = stats.resolveSignalMeasurementTier(passiveSignalSettings),
                 rsrqTierActive = stats.isRsrqPoor(passiveSignalSettings),
@@ -1057,6 +1062,14 @@ private fun formatRsrpMetric(stats: ConnectivityStats): String {
         )
     }
     return reading
+}
+
+@Composable
+private fun formatTimingAdvance(stats: ConnectivityStats): String {
+    if (!stats.signalPermissionGranted) {
+        return stringResource(R.string.signal_permission_required)
+    }
+    return stats.displayedTimingAdvance()?.formatDisplay() ?: "—"
 }
 
 @Composable

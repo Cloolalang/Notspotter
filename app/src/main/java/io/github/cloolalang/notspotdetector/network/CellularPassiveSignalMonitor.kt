@@ -79,6 +79,7 @@ class CellularPassiveSignalMonitor(
                 cellularAvailable = hasSignal,
                 rsrpDbm = radio.rsrpDbm,
                 rsrqDb = radio.rsrqDb,
+                timingAdvance = radio.timingAdvance,
                 radioAccessType = radio.radioAccessType,
                 ltePlusIcon = radio.ltePlusIcon,
                 lteEarfcn = radio.lteEarfcn,

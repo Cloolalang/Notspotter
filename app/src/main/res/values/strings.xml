@@ -255,6 +255,7 @@
     <string name="threshold_good_clicks_per_ping_hint">Clicks run beside the RXSS pulses during every ping test. A good RTT, 45 ms and faster, is one click per test. The rate stays close to that until latency is clearly worse: about every 2.5 seconds at 60 ms, every 1.25 seconds at 80 ms, every 0.8 seconds at 100 ms, and every 0.5 seconds at 120 ms, then faster, up to about 10 clicks a second. Packet loss of 5%% or more doubles the click speed immediately, and 10%% or more doubles it again. Only 100%% packet loss stops them.</string>
     <string name="metric_rsrp">RSRP</string>
     <string name="metric_rsrq">RSRQ</string>
+    <string name="metric_timing_advance">Timing advance</string>
     <string name="metric_snir">SNIR</string>
     <string name="metric_signal_tier">RXSS</string>
     <string name="signal_tier_number">RXSS %1$d</string>

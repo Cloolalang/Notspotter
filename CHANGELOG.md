@@ -5,6 +5,23 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.117.0] - 2026-10-19
+
+### Added
+
+- **Timing advance** — Cellular metrics show the serving cell's timing advance on 2G, 4G, and 5G (Android 14 and newer for 5G), with an approximate distance from the tower.
+
+## [2.116.1] - 2026-10-19
+
+### Fixed
+
+- **4G+ on the technology tape** — Staying on one LTE cell no longer flips the tape between 4G and 4G+. Once the status-bar icon is 4G+, that cell stays 4G+ until the phone camps on a different cell. A plain 4G cell still shows 4G.
+- **Technology tape time** — The left-hand end is the technology in use now. Each section's width is how long that technology lasted, and the current section grows with the clock.
+
+### Changed
+
+- **Shared tape clock** — The technology tape and the EARFCN/PCI tape use the same time scale. Now is the left-hand end of both, older time runs to the right, and a point along one is the same moment on the other.
+
 ## [2.116.0] - 2026-10-17
 
 ### Added

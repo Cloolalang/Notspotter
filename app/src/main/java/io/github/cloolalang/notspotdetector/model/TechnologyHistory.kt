@@ -36,6 +36,22 @@ object TechnologyHistory {
         return stats.noSignalActive || stats.isDeadzoneConfirmed() || stats.isCompleteNoService
     }
 
+    /**
+     * Share of the tape for each segment, oldest first. The last segment runs from
+     * when it started to [nowMs], so the right-hand end is the technology in use now.
+     */
+    fun spanFractions(entries: List<TechnologySegment>, nowMs: Long): List<Float> {
+        if (entries.isEmpty()) return emptyList()
+        if (entries.size == 1) return listOf(1f)
+        val durations = entries.mapIndexed { index, segment ->
+            val endMs = if (index == entries.lastIndex) nowMs else entries[index + 1].startedAtMs
+            (endMs - segment.startedAtMs).coerceAtLeast(0L)
+        }
+        val total = durations.sum()
+        if (total <= 0L) return List(entries.size) { 1f / entries.size }
+        return durations.map { it.toFloat() / total.toFloat() }
+    }
+
     fun record(tape: TechnologyTape, next: String?, nowMs: Long = 0L): TechnologyTape {
         if (next == null) return tape
         if (tape.entries.lastOrNull()?.label == next) return tape

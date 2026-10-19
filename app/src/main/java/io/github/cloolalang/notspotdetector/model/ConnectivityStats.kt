@@ -28,6 +28,8 @@ data class ConnectivityStats(
     val lteSinrDb: Int? = null,
     /** NR SS-SINR (SNIR) in dB. */
     val nrSinrDb: Int? = null,
+    /** Serving-cell timing advance. See [CellularRadioMetrics.timingAdvance]. */
+    val timingAdvance: TimingAdvanceReading? = null,
     val radioAccessType: String? = null,
     /** Status-bar LTE plus icon (4G+). See [CellularRadioMetrics.ltePlusIcon]. */
     val ltePlusIcon: Boolean = false,
@@ -154,6 +156,10 @@ fun ConnectivityStats.displayedRsrpDbm(): Int? =
 fun ConnectivityStats.displayedRsrqDb(): Int? =
     rsrqDb.takeIf { signalQualityFresh && !isLimitedServiceVisited() }
 
+/** Timing advance shown in cellular metrics — blank when not a live scan. */
+fun ConnectivityStats.displayedTimingAdvance(): TimingAdvanceReading? =
+    timingAdvance.takeIf { signalQualityFresh && !isLimitedServiceVisited() }
+
 fun ConnectivityStats.hidingFiveGIfDisabled(fiveGFeaturesEnabled: Boolean): ConnectivityStats {
     if (fiveGFeaturesEnabled) return this
     val isFiveG = radioAccessType == io.github.cloolalang.notspotdetector.network.CellularSignalReader.RADIO_5G ||
@@ -169,6 +175,7 @@ fun ConnectivityStats.hidingFiveGIfDisabled(fiveGFeaturesEnabled: Boolean): Conn
         nrPci = null,
         nrNci = null,
         nrBand = null,
-        nrSinrDb = null
+        nrSinrDb = null,
+        timingAdvance = timingAdvance?.takeIf { it.kind != TimingAdvanceKind.NR_MICROS }
     )
 }
