@@ -23,12 +23,14 @@ import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.PassiveMockSettings
 import io.github.cloolalang.notspotdetector.model.PeriodicVoiceRepeat
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
+import io.github.cloolalang.notspotdetector.model.RadioDebugSettings
 import io.github.cloolalang.notspotdetector.model.ProfileExportOutcome
 import io.github.cloolalang.notspotdetector.model.ProfileImportResult
 import io.github.cloolalang.notspotdetector.model.ProfileQuickSaveOutcome
 import io.github.cloolalang.notspotdetector.model.ProfileSaveResult
 import io.github.cloolalang.notspotdetector.model.SettingsCompatibility
 import io.github.cloolalang.notspotdetector.model.SettingsProfileNames
+import io.github.cloolalang.notspotdetector.model.CellReselectAlertScope
 import io.github.cloolalang.notspotdetector.model.CellReselectBandNamingStyle
 import io.github.cloolalang.notspotdetector.model.TechnologyChangeTarget
 import io.github.cloolalang.notspotdetector.model.SettingsProfileSummary
@@ -47,6 +49,7 @@ import io.github.cloolalang.notspotdetector.model.CellIdentityAnnouncement
 import io.github.cloolalang.notspotdetector.model.SpecialCellAnnouncement
 import io.github.cloolalang.notspotdetector.model.SpecialCellsImportResult
 import io.github.cloolalang.notspotdetector.model.SignalStateAnnouncement
+import io.github.cloolalang.notspotdetector.model.TimingAdvanceAnnouncement
 import io.github.cloolalang.notspotdetector.R
 import java.io.File
 import io.github.cloolalang.notspotdetector.network.CarrierConfigReader
@@ -436,6 +439,10 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         updateAudioVolumes(audioVolumes.value.copy(cellChangeBandNamingStyle = style))
     }
 
+    fun updateCellReselectAlertScope(scope: CellReselectAlertScope) {
+        updateAudioVolumes(audioVolumes.value.copy(cellReselectAlertScope = scope))
+    }
+
     fun updateSpecialCellsDetectionEnabled(enabled: Boolean) {
         updateAudioVolumes(audioVolumes.value.copy(specialCellsDetectionEnabled = enabled))
     }
@@ -593,6 +600,14 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
 
     fun updateLimitedServiceVoiceVolume(value: Float) {
         updateAudioVolumes(audioVolumes.value.copy(limitedServiceVoiceVolume = value))
+    }
+
+    fun updateTimingAdvanceVoiceEnabled(enabled: Boolean) {
+        updateAudioVolumes(audioVolumes.value.copy(timingAdvanceVoiceEnabled = enabled))
+    }
+
+    fun updateTimingAdvanceVoiceVolume(value: Float) {
+        updateAudioVolumes(audioVolumes.value.copy(timingAdvanceVoiceVolume = value))
     }
 
     fun resetAudioVolumes() {
@@ -753,6 +768,20 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         )
     }
 
+    fun previewTimingAdvanceVoiceSound() {
+        if (isRunning.value) return
+        val volumes = audioVolumes.value.normalized()
+        if (!volumes.timingAdvanceVoiceEnabled) return
+        previewVoiceOnly(
+            announcement = TimingAdvanceAnnouncement.preview(
+                networkOperatorName = readCurrentOperatorName(),
+                phrases = volumes.timingAdvancePhrases,
+                bandNamingStyle = volumes.cellChangeBandNamingStyle
+            ),
+            voiceVolume = volumes.timingAdvanceVoiceVolume
+        )
+    }
+
     fun previewLimitedServiceVoiceSound() {
         if (isRunning.value) return
         val volumes = audioVolumes.value.normalized()
@@ -797,6 +826,7 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
             VoicePhraseGroup.SIGNAL_LOW -> volumes.tier5AnnouncerVolume
             VoicePhraseGroup.NO_SIGNAL -> volumes.noSignalVoiceVolume
             VoicePhraseGroup.LIMITED_SERVICE -> volumes.limitedServiceVoiceVolume
+            VoicePhraseGroup.TIMING_ADVANCE -> volumes.timingAdvanceVoiceVolume
         }
     }
 
@@ -1091,7 +1121,8 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
             monitoringSettings = monitoringSettings.value,
             passiveSignalSettings = passiveSignalSettings.value,
             passiveMockSettings = passiveMockSettings.value,
-            audioVolumes = audioVolumes.value
+            audioVolumes = audioVolumes.value,
+            radioDebugSettings = RadioDebugSettings(enabled = radioDebugEnabled.value)
         ).normalized()
     }
 
@@ -1104,6 +1135,7 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         updatePassiveSignalSettings(normalized.passiveSignalSettings)
         updatePassiveMockSettings(normalized.passiveMockSettings)
         updateAudioVolumes(normalized.audioVolumes)
+        updateRadioDebugEnabled(normalized.radioDebugSettings.enabled)
     }
 
     private fun refreshSettingsProfiles() {

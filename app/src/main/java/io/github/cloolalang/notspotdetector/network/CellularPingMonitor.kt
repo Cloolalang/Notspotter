@@ -331,6 +331,7 @@ class CellularPingMonitor(
             rsrqDb = metrics.rsrqDb,
             lteSinrDb = metrics.lteSinrDb,
             nrSinrDb = metrics.nrSinrDb,
+            nrRsrpDbm = metrics.nrRsrpDbm,
             timingAdvance = metrics.timingAdvance,
             radioAccessType = metrics.radioAccessType,
             ltePlusIcon = metrics.ltePlusIcon,

@@ -16,6 +16,7 @@ class CellularRadioMetricsOutOfServiceTest {
             rsrqDb = -14,
             lteSinrDb = 8,
             nrSinrDb = 12,
+            nrRsrpDbm = -98,
             radioAccessType = CellularSignalReader.RADIO_4G,
             lteEarfcn = 6_300,
             ltePci = 12,
@@ -36,6 +37,7 @@ class CellularRadioMetricsOutOfServiceTest {
         assertNull(cleared.rsrqDb)
         assertNull(cleared.lteSinrDb)
         assertNull(cleared.nrSinrDb)
+        assertNull(cleared.nrRsrpDbm)
         assertNull(cleared.radioAccessType)
         assertNull(cleared.lteEarfcn)
         assertNull(cleared.ltePci)

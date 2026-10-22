@@ -24,6 +24,7 @@ import io.github.cloolalang.notspotdetector.data.MonitoringSettingsRepository
 import io.github.cloolalang.notspotdetector.data.PingSettingsRepository
 import io.github.cloolalang.notspotdetector.data.ThresholdSettingsRepository
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
+import io.github.cloolalang.notspotdetector.model.displayedTimingAdvance
 import io.github.cloolalang.notspotdetector.model.MonitoringAnnouncement
 import io.github.cloolalang.notspotdetector.model.MonitoringAnnouncementKind
 import io.github.cloolalang.notspotdetector.model.RsrpHistogram
@@ -73,6 +74,7 @@ class ConnectivityMonitorService : Service() {
     private var isPassiveOnlyStart = false
     private var activePingTimeoutJob: Job? = null
     private var noSignalPeriodicAnnouncementJob: Job? = null
+    private var timingAdvancePeriodicAnnouncementJob: Job? = null
     private var g2ModePeriodicAnnouncementJob: Job? = null
     private var limitedServicePeriodicAnnouncementJob: Job? = null
     private var deadzonePeriodicAnnouncementJob: Job? = null
@@ -331,6 +333,7 @@ class ConnectivityMonitorService : Service() {
             searching2gAnnouncementJob?.cancel()
             searching2gAnnouncementJob = null
         }
+        updateTimingAdvancePeriodicAnnouncements()
         updateNoSignalPeriodicAnnouncements(
             forceRestart = events.noSignalStateChanged ||
                 events.limitedVisitedNoSignalStateChanged
@@ -383,6 +386,8 @@ class ConnectivityMonitorService : Service() {
                 playCellChangeAlertAwait(announcement.message, stillCurrent)
             MonitoringAnnouncementKind.SPECIAL_CELL ->
                 playSpecialCellVoiceAwait(announcement.message, stillCurrent)
+            MonitoringAnnouncementKind.TIMING_ADVANCE ->
+                playTimingAdvanceVoiceAwait(announcement.message, stillCurrent)
         }
     }
 
@@ -394,6 +399,38 @@ class ConnectivityMonitorService : Service() {
             if (!MonitorState.shouldScheduleSearching2gAnnouncement(current)) return@launch
             MonitorState.markSearching2gAnnounced()
             playNoSignalAlert(MonitorState.formatSearching2gAnnouncement())
+        }
+    }
+
+    private fun updateTimingAdvancePeriodicAnnouncements() {
+        val stats = MonitorState.stats.value
+        val volumes = MonitorState.audioVolumes.value.normalized()
+        val shouldAnnounce = stats.isMonitoring &&
+            !stats.isPassiveIdleMode &&
+            stats.displayedTimingAdvance() != null &&
+            volumes.allowsTimingAdvancePeriodicVoice()
+        if (!shouldAnnounce) {
+            timingAdvancePeriodicAnnouncementJob?.cancel()
+            timingAdvancePeriodicAnnouncementJob = null
+            return
+        }
+        if (timingAdvancePeriodicAnnouncementJob?.isActive == true) return
+        timingAdvancePeriodicAnnouncementJob = serviceScope.launch {
+            while (isActive) {
+                delay(PERIODIC_ANNOUNCEMENT_MS)
+                val current = MonitorState.stats.value
+                val audio = MonitorState.audioVolumes.value.normalized()
+                if (!current.isMonitoring ||
+                    current.isPassiveIdleMode ||
+                    current.displayedTimingAdvance() == null ||
+                    !audio.allowsTimingAdvancePeriodicVoice()
+                ) {
+                    break
+                }
+                playPeriodicAlert {
+                    playTimingAdvanceVoiceAwait(MonitorState.formatTimingAdvanceAnnouncement(current))
+                }
+            }
         }
     }
 
@@ -887,6 +924,22 @@ class ConnectivityMonitorService : Service() {
         )
     }
 
+    private suspend fun playTimingAdvanceVoiceAwait(
+        announcement: String?,
+        stillCurrent: () -> Boolean = { true }
+    ) {
+        val volumes = MonitorState.audioVolumes.value.normalized()
+        if (!volumes.masterVoiceAnnouncementsEnabled ||
+            !volumes.timingAdvanceVoiceEnabled ||
+            announcement.isNullOrBlank() ||
+            volumes.timingAdvanceVoiceVolume <= 0f ||
+            !stillCurrent()
+        ) {
+            return
+        }
+        cellVoiceAnnouncer.speakAwait(announcement, volumes.timingAdvanceVoiceVolume)
+    }
+
     private suspend fun playTier5VoiceAlertAwait(
         announcement: String?,
         stillCurrent: () -> Boolean = { true }
@@ -963,7 +1016,8 @@ class ConnectivityMonitorService : Service() {
                 )
             }
             MonitoringAnnouncementKind.TIER5,
-            MonitoringAnnouncementKind.SPECIAL_CELL -> Unit
+            MonitoringAnnouncementKind.SPECIAL_CELL,
+            MonitoringAnnouncementKind.TIMING_ADVANCE -> Unit
         }
     }
 
@@ -1024,6 +1078,8 @@ class ConnectivityMonitorService : Service() {
         activePingTimeoutJob = null
         noSignalPeriodicAnnouncementJob?.cancel()
         noSignalPeriodicAnnouncementJob = null
+        timingAdvancePeriodicAnnouncementJob?.cancel()
+        timingAdvancePeriodicAnnouncementJob = null
         g2ModePeriodicAnnouncementJob?.cancel()
         g2ModePeriodicAnnouncementJob = null
         limitedServicePeriodicAnnouncementJob?.cancel()

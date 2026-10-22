@@ -92,8 +92,7 @@ private val HistogramMaxBarWidth = 36.dp
 /**
  * Collapsible "Level histogram" panel: shows one live RSRP histogram (5 dB bins or threshold
  * bins). Mode, thresholds, and sample window live in a nested Histogram settings sub-panel.
- * Only rendered by the caller while monitoring/testing is running — see
- * [io.github.cloolalang.notspotdetector.ui.MonitorScreen].
+ * Stays on screen after monitoring stops so the last chart and tapes remain.
  */
 @Composable
 fun HistogramControlsCard(
@@ -112,9 +111,11 @@ fun HistogramControlsCard(
     var expanded by rememberSaveable { mutableStateOf(false) }
     var nowMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var carrierTape by remember { mutableStateOf(PrimaryCarrierTape()) }
+    var nrCarrierTape by remember { mutableStateOf(PrimaryCarrierTape()) }
     var technologyTape by remember { mutableStateOf(TechnologyTape()) }
     var rsrpBinTape by remember { mutableStateOf(RsrpBinTape()) }
     val currentCarrier = PrimaryCarrierHistory.visitFromStats(stats)
+    val currentNrCarrier = PrimaryCarrierHistory.nrVisitFromStats(stats)
     val currentTechnology = TechnologyHistory.technologyFromStats(stats)
     val currentRsrpBin = RsrpBinHistory.classify(
         samples = samples,
@@ -128,6 +129,13 @@ fun HistogramControlsCard(
             System.currentTimeMillis()
         )
     }
+    LaunchedEffect(currentNrCarrier) {
+        nrCarrierTape = PrimaryCarrierHistory.record(
+            nrCarrierTape,
+            currentNrCarrier,
+            System.currentTimeMillis()
+        )
+    }
     LaunchedEffect(currentTechnology) {
         technologyTape = TechnologyHistory.record(
             technologyTape,
@@ -135,7 +143,8 @@ fun HistogramControlsCard(
             System.currentTimeMillis()
         )
     }
-    LaunchedEffect(currentRsrpBin) {
+    LaunchedEffect(currentRsrpBin, isActive) {
+        if (!isActive) return@LaunchedEffect
         rsrpBinTape = RsrpBinHistory.record(
             rsrpBinTape,
             currentRsrpBin,
@@ -192,6 +201,7 @@ fun HistogramControlsCard(
                     nowMs = nowMs,
                     elapsedMs = elapsedMs,
                     carrierEntries = carrierTape.entries,
+                    nrCarrierEntries = nrCarrierTape.entries,
                     reselectsPerMinute = stats.cellReselectsPerMinute,
                     technologyEntries = technologyTape.entries,
                     technologyChangesPerMinute = stats.technologyChangesPerMinute,
@@ -204,6 +214,11 @@ fun HistogramControlsCard(
                         carrierTape = PrimaryCarrierHistory.record(
                             PrimaryCarrierTape(),
                             currentCarrier,
+                            System.currentTimeMillis()
+                        )
+                        nrCarrierTape = PrimaryCarrierHistory.record(
+                            PrimaryCarrierTape(),
+                            currentNrCarrier,
                             System.currentTimeMillis()
                         )
                         technologyTape = TechnologyHistory.record(
@@ -220,6 +235,7 @@ fun HistogramControlsCard(
                     },
                     enabled = samples.isNotEmpty() ||
                         carrierTape.entries.size > 1 ||
+                        nrCarrierTape.entries.size > 1 ||
                         technologyTape.entries.size > 1 ||
                         rsrpBinTape.entries.size > 1,
                     modifier = Modifier.fillMaxWidth()
@@ -327,6 +343,7 @@ private fun RsrpHistogramDisplay(
     nowMs: Long,
     elapsedMs: Long?,
     carrierEntries: List<PrimaryCarrierTapeEntry>,
+    nrCarrierEntries: List<PrimaryCarrierTapeEntry>,
     reselectsPerMinute: Int,
     technologyEntries: List<TechnologySegment>,
     technologyChangesPerMinute: Int,
@@ -432,12 +449,24 @@ private fun RsrpHistogramDisplay(
         }
         val tapeWindowStartMs = TapeTimeline.windowStartMs(
             carrierEntries.map { it.startedAtMs } +
+                nrCarrierEntries.map { it.startedAtMs } +
                 technologyEntries.map { it.startedAtMs } +
                 rsrpBinEntries.map { it.startedAtMs }
         ) ?: nowMs
         PrimaryCarrierHistoryBar(
+            title = stringResource(R.string.rsrp_histogram_carrier_history_title),
+            detail = stringResource(
+                R.string.metric_cell_reselect_rate_value,
+                reselectsPerMinute
+            ),
             entries = carrierEntries,
-            reselectsPerMinute = reselectsPerMinute,
+            nowMs = nowMs,
+            windowStartMs = tapeWindowStartMs
+        )
+        PrimaryCarrierHistoryBar(
+            title = stringResource(R.string.rsrp_histogram_nr_carrier_history_title),
+            detail = null,
+            entries = nrCarrierEntries,
             nowMs = nowMs,
             windowStartMs = tapeWindowStartMs
         )
@@ -728,8 +757,9 @@ private fun HorizontalRsrpBar(
 
 @Composable
 private fun PrimaryCarrierHistoryBar(
+    title: String,
+    detail: String?,
     entries: List<PrimaryCarrierTapeEntry>,
-    reselectsPerMinute: Int,
     nowMs: Long,
     windowStartMs: Long,
     modifier: Modifier = Modifier
@@ -758,19 +788,18 @@ private fun PrimaryCarrierHistoryBar(
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
-                    text = stringResource(R.string.rsrp_histogram_carrier_history_title),
+                    text = title,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = Sushi
                 )
-                Text(
-                    text = stringResource(
-                        R.string.metric_cell_reselect_rate_value,
-                        reselectsPerMinute
-                    ),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                if (detail != null) {
+                    Text(
+                        text = detail,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
             Text(
                 text = valueText,
@@ -1267,15 +1296,17 @@ private fun HistogramBinningModeOption(
     label: String,
     onSelect: () -> Unit
 ) {
+    val controlsEnabled = settingsControlsEnabled()
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onSelect),
+            .clickable(enabled = controlsEnabled, onClick = onSelect),
         verticalAlignment = Alignment.CenterVertically
     ) {
         RadioButton(
             selected = selected,
-            onClick = onSelect
+            onClick = onSelect,
+            enabled = controlsEnabled
         )
         Text(
             text = label,

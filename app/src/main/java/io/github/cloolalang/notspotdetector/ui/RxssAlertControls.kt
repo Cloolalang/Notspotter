@@ -31,6 +31,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.cloolalang.notspotdetector.R
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
+import io.github.cloolalang.notspotdetector.model.CellReselectAlertScope
 import io.github.cloolalang.notspotdetector.model.CellReselectBandNamingStyle
 import io.github.cloolalang.notspotdetector.model.PeriodicVoiceRepeat
 import io.github.cloolalang.notspotdetector.model.TechnologyChangeTarget
@@ -500,7 +501,8 @@ fun CellChangeAlertControls(
     onPreviewCellChangeBell: () -> Unit,
     onPreviewCellChangeVoice: () -> Unit,
     onCellChangeSpeakBandEnabledChange: (Boolean) -> Unit = {},
-    onCellChangeBandNamingStyleChange: (CellReselectBandNamingStyle) -> Unit = {}
+    onCellChangeBandNamingStyleChange: (CellReselectBandNamingStyle) -> Unit = {},
+    onCellReselectAlertScopeChange: (CellReselectAlertScope) -> Unit = {}
 ) {
     RxssVolumeSlider(
         label = stringResource(R.string.audio_volume_cell_change_bell),
@@ -559,6 +561,23 @@ fun CellChangeAlertControls(
         label = stringResource(R.string.audio_cell_change_band_naming_mhz),
         onSelect = onCellChangeBandNamingStyleChange
     )
+    CellReselectAlertScopeOption(
+        selected = CellReselectAlertScope.LTE_ONLY,
+        current = audioVolumes.cellReselectAlertScope,
+        label = stringResource(R.string.audio_cell_reselect_lte_only),
+        onSelect = onCellReselectAlertScopeChange
+    )
+    CellReselectAlertScopeOption(
+        selected = CellReselectAlertScope.BOTH,
+        current = audioVolumes.cellReselectAlertScope,
+        label = stringResource(R.string.audio_cell_reselect_both),
+        onSelect = onCellReselectAlertScopeChange
+    )
+    Text(
+        text = stringResource(R.string.audio_cell_reselect_scope_hint),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
 }
 
 @Composable
@@ -567,6 +586,30 @@ private fun CellChangeBandNamingStyleOption(
     current: CellReselectBandNamingStyle,
     label: String,
     onSelect: (CellReselectBandNamingStyle) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = settingsControlsEnabled()) { onSelect(selected) },
+        verticalAlignment = Alignment.Top
+    ) {
+        RadioButton(
+            selected = current == selected,
+            onClick = { onSelect(selected) },
+            enabled = settingsControlsEnabled()
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = label, style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
+@Composable
+private fun CellReselectAlertScopeOption(
+    selected: CellReselectAlertScope,
+    current: CellReselectAlertScope,
+    label: String,
+    onSelect: (CellReselectAlertScope) -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -717,6 +760,40 @@ fun LimitedServiceVoiceAnnouncementControls(
     VoicePhraseToggles(
         group = VoicePhraseGroup.LIMITED_SERVICE,
         phrases = audioVolumes.limitedServicePhrases,
+        previewEnabled = previewEnabled,
+        accentColor = accentColor
+    )
+}
+
+@Composable
+fun TimingAdvanceVoiceAnnouncementControls(
+    audioVolumes: AudioVolumeSettings,
+    previewEnabled: Boolean,
+    accentColor: Color,
+    onTimingAdvanceVoiceEnabledChange: (Boolean) -> Unit,
+    onTimingAdvanceVoiceVolumeChange: (Float) -> Unit,
+    onPreviewTimingAdvanceVoice: () -> Unit
+) {
+    RxssVoiceAnnouncementOption(
+        enabled = audioVolumes.timingAdvanceVoiceEnabled,
+        onEnabledChange = onTimingAdvanceVoiceEnabledChange,
+        title = stringResource(R.string.audio_timing_advance_voice_enabled),
+        volumeLabel = stringResource(R.string.audio_volume_timing_advance_voice),
+        volume = audioVolumes.timingAdvanceVoiceVolume,
+        onVolumeChange = onTimingAdvanceVoiceVolumeChange,
+        previewEnabled = previewEnabled,
+        onPreviewVoice = onPreviewTimingAdvanceVoice,
+        accentColor = accentColor
+    )
+    PeriodicVoiceRepeatOption(
+        kind = PeriodicVoiceRepeat.TIMING_ADVANCE,
+        checked = audioVolumes.timingAdvancePeriodicVoiceEnabled,
+        enabled = audioVolumes.timingAdvanceVoiceEnabled,
+        accentColor = accentColor
+    )
+    VoicePhraseToggles(
+        group = VoicePhraseGroup.TIMING_ADVANCE,
+        phrases = audioVolumes.timingAdvancePhrases,
         previewEnabled = previewEnabled,
         accentColor = accentColor
     )

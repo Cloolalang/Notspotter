@@ -2,6 +2,7 @@ package io.github.cloolalang.notspotdetector.data
 
 import io.github.cloolalang.notspotdetector.model.AppSettingsSnapshot
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
+import io.github.cloolalang.notspotdetector.model.CellReselectAlertScope
 import io.github.cloolalang.notspotdetector.model.CellReselectBandNamingStyle
 import io.github.cloolalang.notspotdetector.model.MockNetworkScenario
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
@@ -9,6 +10,7 @@ import io.github.cloolalang.notspotdetector.model.PassiveMockSettings
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
 import io.github.cloolalang.notspotdetector.model.PingSettings
 import io.github.cloolalang.notspotdetector.model.RxssStateFilterSettings
+import io.github.cloolalang.notspotdetector.model.RadioDebugSettings
 import io.github.cloolalang.notspotdetector.model.RsrpHistogramBinningMode
 import io.github.cloolalang.notspotdetector.model.SettingsProfile
 import io.github.cloolalang.notspotdetector.model.ThresholdSettings
@@ -31,6 +33,7 @@ class AppSettingsSnapshotCodecCompletenessTest {
         assertExactKeys(settingsJson.getJSONObject("passiveSignal"), PASSIVE_SIGNAL_KEYS, "passiveSignal")
         assertExactKeys(settingsJson.getJSONObject("passiveMock"), PASSIVE_MOCK_KEYS, "passiveMock")
         assertExactKeys(settingsJson.getJSONObject("audio"), AUDIO_KEYS, "audio")
+        assertExactKeys(settingsJson.getJSONObject("radioDebug"), RADIO_DEBUG_KEYS, "radioDebug")
 
         assertEquals(persistedPropertyNames(ThresholdSettings::class.java), THRESHOLD_KEYS)
         assertEquals(persistedPropertyNames(PingSettings::class.java), PING_KEYS)
@@ -38,6 +41,7 @@ class AppSettingsSnapshotCodecCompletenessTest {
         assertEquals(persistedPropertyNames(PassiveSignalSettings::class.java), PASSIVE_SIGNAL_KEYS)
         assertEquals(persistedPropertyNames(PassiveMockSettings::class.java), PASSIVE_MOCK_KEYS)
         assertEquals(audioJsonKeysFromModel(), AUDIO_KEYS)
+        assertEquals(persistedPropertyNames(RadioDebugSettings::class.java), RADIO_DEBUG_KEYS)
     }
 
     @Test
@@ -91,7 +95,8 @@ class AppSettingsSnapshotCodecCompletenessTest {
             matchingDefaultFields(custom.monitoringSettings, defaults.monitoringSettings) +
             matchingDefaultFields(custom.passiveSignalSettings, defaults.passiveSignalSettings) +
             matchingDefaultFields(custom.passiveMockSettings, defaults.passiveMockSettings) +
-            matchingDefaultFields(custom.audioVolumes, defaults.audioVolumes)
+            matchingDefaultFields(custom.audioVolumes, defaults.audioVolumes) +
+            matchingDefaultFields(custom.radioDebugSettings, defaults.radioDebugSettings)
         val allowedSameAsDefault = setOf(
             "fairRsrpMinDbm",
             "goodRsrpMinDbm",
@@ -155,7 +160,8 @@ class AppSettingsSnapshotCodecCompletenessTest {
             "technologyChangeTo5gEndcPhrases",
             "signalLowPhrases",
             "noSignalPhrases",
-            "limitedServicePhrases"
+            "limitedServicePhrases",
+            "timingAdvancePhrases"
         )
         val scalarKeys = persistedPropertyNames(AudioVolumeSettings::class.java) - phraseObjects
         return scalarKeys + setOf(
@@ -181,7 +187,10 @@ class AppSettingsSnapshotCodecCompletenessTest {
             "limitedServiceSpeakTechnology",
             "limitedServiceSpeakBand",
             "limitedServiceSpeakHomeLimitedService",
-            "limitedServiceSpeakVisitingLimitedService"
+            "limitedServiceSpeakVisitingLimitedService",
+            "timingAdvanceSpeakOperatorName",
+            "timingAdvanceSpeakTechnology",
+            "timingAdvanceSpeakBand"
         )
     }
 
@@ -320,6 +329,7 @@ class AppSettingsSnapshotCodecCompletenessTest {
                 cellChangeVoiceVolume = 0.35f,
                 cellChangeSpeakBandEnabled = false,
                 cellChangeBandNamingStyle = CellReselectBandNamingStyle.BAND_NUMBER,
+                cellReselectAlertScope = CellReselectAlertScope.BOTH,
                 technologyChangeTo2gSoundEnabled = false,
                 technologyChangeTo2gToneVolume = 0.41f,
                 technologyChangeTo2gVoiceEnabled = false,
@@ -348,6 +358,9 @@ class AppSettingsSnapshotCodecCompletenessTest {
                 limitedServiceVoiceEnabled = false,
                 limitedServicePeriodicVoiceEnabled = false,
                 limitedServiceVoiceVolume = 0.53f,
+                timingAdvanceVoiceEnabled = false,
+                timingAdvancePeriodicVoiceEnabled = false,
+                timingAdvanceVoiceVolume = 0.54f,
                 speakOperatorNameEnabled = true,
                 speakTechnologyEnabled = true,
                 cellChangePhrases = VoicePhraseOptions(speakOperatorName = false, speakTechnology = true, speakBand = true),
@@ -363,12 +376,18 @@ class AppSettingsSnapshotCodecCompletenessTest {
                     speakHomeLimitedService = false,
                     speakVisitingLimitedService = false
                 ),
+                timingAdvancePhrases = VoicePhraseOptions(
+                    speakOperatorName = true,
+                    speakTechnology = true,
+                    speakBand = true
+                ),
                 specialCellsDetectionEnabled = false,
                 specialCellsVoiceEnabled = false,
                 specialCellsSpeakType = false,
                 specialCellsSpeakSite = false,
                 specialCellsSpeakSector = false
-            )
+            ),
+            radioDebugSettings = RadioDebugSettings(enabled = true)
         )
     }
 
@@ -511,6 +530,7 @@ class AppSettingsSnapshotCodecCompletenessTest {
             "cellChangeVoiceVolume",
             "cellChangeSpeakBandEnabled",
             "cellChangeBandNamingStyle",
+            "cellReselectAlertScope",
             "technologyChangeTo2gSoundEnabled",
             "technologyChangeTo2gToneVolume",
             "technologyChangeTo2gVoiceEnabled",
@@ -564,11 +584,19 @@ class AppSettingsSnapshotCodecCompletenessTest {
             "limitedServiceSpeakBand",
             "limitedServiceSpeakHomeLimitedService",
             "limitedServiceSpeakVisitingLimitedService",
+            "timingAdvanceVoiceEnabled",
+            "timingAdvancePeriodicVoiceEnabled",
+            "timingAdvanceVoiceVolume",
+            "timingAdvanceSpeakOperatorName",
+            "timingAdvanceSpeakTechnology",
+            "timingAdvanceSpeakBand",
             "specialCellsDetectionEnabled",
             "specialCellsVoiceEnabled",
             "specialCellsSpeakType",
             "specialCellsSpeakSite",
             "specialCellsSpeakSector"
         )
+
+        private val RADIO_DEBUG_KEYS = setOf("enabled")
     }
 }

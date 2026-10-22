@@ -5,6 +5,54 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.123.1] - 2026-10-22
+
+### Fixed
+
+- **RSRP flickering to N/A** — The level histogram was counting a scan as N/A once its timestamp was 3 seconds old, even while RSRP was still a real reading. Phones that refresh CellInfo slowly, such as the Samsung A32, then flipped between N/A and the correct level every few seconds. A faster phone such as the S23 stayed under that 3 second mark. The histogram now keeps the reading until the scan is 15 seconds old, which is when cell metrics already say "no new scan". From 3 seconds the metrics row still shows how old the scan is.
+
+## [2.123.0] - 2026-10-21
+
+### Added
+
+- **NR EARFCN/PCI tape** — A tape under Primary Carrier History shows the NR channel and PCI while the phone is on 5G standalone or 5G EN-DC, in the same colours as the LTE tape. Off 5G, including 4G, 2G, and no signal, that tape is grey. It shares the clock with the other tapes. Clear graph clears it too.
+
+### Changed
+
+- **Timing advance** — Not every phone or Android version reports timing advance. When the modem does not provide it, the metric and the distance voice stay blank. 5G timing advance needs Android 14 or newer.
+- **NR RSRP** — Cellular metrics show the 5G carrier’s SS-RSRP from the modem (Android 10 and newer). On EN-DC it is a separate RSRP (5G) row beside the 4G anchor. On 5G standalone the RSRP row is that reading.
+- **Reselect carriers** — Cell-reselect bell and voice can follow 4G handovers only, or 4G and 5G. The default is 4G only, so an NR-only handover on EN-DC stays quiet. Standalone 5G still announces, because that NR cell is the serving carrier. Find the choice under the cell-reselect alert options.
+
+## [2.122.1] - 2026-10-20
+
+### Fixed
+
+- **Dark theme** — The dark colour scheme uses Bondi Blue again. A mistyped colour name had stopped the app from building.
+
+## [2.122.0] - 2026-10-19
+
+### Changed
+
+- **Settings profiles** — Saving a profile now includes the radio debug log switch, so loading a profile restores that choice with the rest of the settings. Profiles saved before this version load with the switch off. The known-cells list stays a separate file.
+
+## [2.121.1] - 2026-10-19
+
+### Fixed
+
+- **Histogram settings lock** — The histogram mode, threshold floors, and sample window stay locked until the settings password is entered.
+
+## [2.121.0] - 2026-10-19
+
+### Added
+
+- **Timing advance voice** — Speaks the approximate distance to the primary cell when that distance changes. It has the same voice switch, volume, test button, 30-second repeat, and operator, technology, and band toggles as the other announcements. Find it under Passive mode monitoring, in the cell-state section.
+
+## [2.120.0] - 2026-10-19
+
+### Changed
+
+- **Histogram after stop** — Stopping monitoring leaves the level histogram and its history tapes on screen. Clear graph still wipes them.
+
 ## [2.119.0] - 2026-10-19
 
 ### Added
@@ -22,7 +70,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Timing advance** — Cellular metrics show the serving cell's timing advance on 2G, 4G, and 5G (Android 14 and newer for 5G), with an approximate distance from the tower.
+- **Timing advance** — Cellular metrics show the serving cell's timing advance on 2G, 4G, and 5G, with an approximate distance from the tower. Not every phone or Android version reports it, so the reading stays blank when the modem does not provide one. 5G timing advance needs Android 14 or newer.
 
 ## [2.116.1] - 2026-10-19
 

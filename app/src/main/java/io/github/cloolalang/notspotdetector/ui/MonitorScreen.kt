@@ -42,6 +42,7 @@ import io.github.cloolalang.notspotdetector.network.CellularSignalReader
 import io.github.cloolalang.notspotdetector.R
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
 import io.github.cloolalang.notspotdetector.model.CarrierConfigSnapshot
+import io.github.cloolalang.notspotdetector.model.CellReselectAlertScope
 import io.github.cloolalang.notspotdetector.model.CellReselectBandNamingStyle
 import io.github.cloolalang.notspotdetector.model.ConnectivityStats
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
@@ -60,6 +61,7 @@ import io.github.cloolalang.notspotdetector.model.formatVisitedOperatorDisplay
 import io.github.cloolalang.notspotdetector.model.ServingBandMhz
 import io.github.cloolalang.notspotdetector.model.shouldBlankStaleCellIdentity
 import io.github.cloolalang.notspotdetector.model.ServingCellSelection
+import io.github.cloolalang.notspotdetector.model.displayedNrRsrpDbm
 import io.github.cloolalang.notspotdetector.model.displayedRsrpDbm
 import io.github.cloolalang.notspotdetector.model.isLimitedServiceVisited
 import io.github.cloolalang.notspotdetector.model.displayedRsrqDb
@@ -171,6 +173,10 @@ fun MonitorScreen(
     onCellChangeVoiceVolumeChange: (Float) -> Unit,
     onCellChangeSpeakBandEnabledChange: (Boolean) -> Unit = {},
     onCellChangeBandNamingStyleChange: (CellReselectBandNamingStyle) -> Unit = {},
+    onCellReselectAlertScopeChange: (CellReselectAlertScope) -> Unit = {},
+    onTimingAdvanceVoiceEnabledChange: (Boolean) -> Unit = {},
+    onTimingAdvanceVoiceVolumeChange: (Float) -> Unit = {},
+    onPreviewTimingAdvanceVoice: () -> Unit = {},
     onTechnologyChangeSoundEnabledChange: (TechnologyChangeTarget, Boolean) -> Unit,
     onTechnologyChangeToneVolumeChange: (TechnologyChangeTarget, Float) -> Unit,
     onTechnologyChangeVoiceEnabledChange: (TechnologyChangeTarget, Boolean) -> Unit,
@@ -254,7 +260,7 @@ fun MonitorScreen(
             onStop = onStop
         )
 
-        if (isRunning) {
+        if (isRunning || rsrpHistory.isNotEmpty()) {
             HistogramControlsCard(
                 samples = rsrpHistory,
                 stats = stats,
@@ -267,7 +273,9 @@ fun MonitorScreen(
                 onThresholdChange = onRsrpHistogramThresholdChange,
                 onClearHistogram = onClearRsrpHistogram
             )
+        }
 
+        if (isRunning) {
             if (stats.isPassiveIdleMode) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -419,6 +427,10 @@ fun MonitorScreen(
                 onPreviewCellChangeVoice = onPreviewCellChangeVoice,
                 onCellChangeSpeakBandEnabledChange = onCellChangeSpeakBandEnabledChange,
                 onCellChangeBandNamingStyleChange = onCellChangeBandNamingStyleChange,
+                onCellReselectAlertScopeChange = onCellReselectAlertScopeChange,
+                onTimingAdvanceVoiceEnabledChange = onTimingAdvanceVoiceEnabledChange,
+                onTimingAdvanceVoiceVolumeChange = onTimingAdvanceVoiceVolumeChange,
+                onPreviewTimingAdvanceVoice = onPreviewTimingAdvanceVoice,
                 onApplyMacroDefaults = onApplyMacroDefaults,
                 fiveGFeaturesEnabled = monitoringSettings.fiveGFeaturesEnabled,
                 onVoicePhrasesChange = onVoicePhrasesChange,
@@ -736,11 +748,22 @@ private fun MetricsCard(
             MetricRow(
                 label = when (stats.radioAccessType) {
                     CellularSignalReader.RADIO_5G_ENDC -> stringResource(R.string.metric_rsrp_lte)
+                    CellularSignalReader.RADIO_5G -> stringResource(R.string.metric_rsrp_nr)
                     CellularSignalReader.RADIO_2G -> stringResource(R.string.metric_signal_dbm_2g)
                     else -> stringResource(R.string.metric_rsrp)
                 },
                 value = formatRsrpMetric(stats)
             )
+            if (stats.radioAccessType == CellularSignalReader.RADIO_5G_ENDC) {
+                MetricRow(
+                    label = stringResource(R.string.metric_rsrp_nr),
+                    value = formatSignalValue(
+                        value = stats.displayedNrRsrpDbm(),
+                        unit = "dBm",
+                        permissionGranted = stats.signalPermissionGranted
+                    )
+                )
+            }
             if (stats.radioAccessType != CellularSignalReader.RADIO_2G) {
                 MetricRow(
                     label = if (stats.radioAccessType == CellularSignalReader.RADIO_5G_ENDC) {

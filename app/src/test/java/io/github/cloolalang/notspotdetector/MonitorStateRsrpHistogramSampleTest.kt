@@ -15,6 +15,7 @@ class MonitorStateRsrpHistogramSampleTest {
     @Before
     fun setUp() {
         MonitorState.setRunning(false)
+        MonitorState.clearRsrpHistogram()
         MonitorState.setMonitoringSettings(MonitoringSettings())
         MonitorState.setPassiveSignalSettings(PassiveSignalSettings())
         MonitorState.setRunning(true)
@@ -59,6 +60,17 @@ class MonitorStateRsrpHistogramSampleTest {
         val history = MonitorState.rsrpHistory.value
         assertEquals(1, history.size)
         assertEquals(-80, history.single().rsrpDbm)
+    }
+
+    @Test
+    fun stoppingDoesNotClearHistogram() {
+        MonitorState.tickRsrpHistogramSample()
+        MonitorState.tickRsrpHistogramSample()
+
+        MonitorState.setRunning(false)
+
+        assertEquals(2, MonitorState.rsrpHistory.value.size)
+        assertTrue(MonitorState.rsrpHistory.value.all { it.rsrpDbm == -95 })
     }
 
     @Test
@@ -109,12 +121,12 @@ class MonitorStateRsrpHistogramSampleTest {
     }
 
     @Test
-    fun tickRsrpHistogramSample_agingScanCountsAsNoSignal() {
+    fun tickRsrpHistogramSample_agingScanKeepsTheReading() {
         MonitorState.clearRsrpHistogram()
         MonitorState.updateStats(lteStats(-95).copy(cellInfoAgeMs = 8_000L))
         MonitorState.tickRsrpHistogramSample()
 
-        assertEquals(null, MonitorState.rsrpHistory.value.single().rsrpDbm)
+        assertEquals(-95, MonitorState.rsrpHistory.value.single().rsrpDbm)
     }
 
     @Test

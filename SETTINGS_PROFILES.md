@@ -39,7 +39,8 @@ Multi-profile export uses a top-level `"profiles"` array with the same object sh
 | Monitoring | `monitoring` | `MonitoringSettings` | 2G fallback, inhibit 2G (root), SIM, RSRP histogram window / binning mode / three threshold floors, 5G features, home Manual select operator button, keep screen on while monitoring. Measurement cycle is fixed at 1 s; quiet passive alerts are off. |
 | Signal thresholds & tiers | `passiveSignal` | `PassiveSignalSettings` | RSRP/RSRQ bands, per-RXSS click interval, pulse duration, sound toggles (tiers 0–15, 12, 13, RSRQ 14) |
 | **Mock network** | `passiveMock` | `PassiveMockSettings` | Mock enable, scenario, RSRP, RSRQ, voice-only — see below |
-| Alert audio & voice | `audio` | `AudioVolumeSettings` | Volumes, voice toggles, TTS engine choice, tier-5 announcer |
+| Alert audio & voice | `audio` | `AudioVolumeSettings` | Volumes, voice toggles (including timing advance), TTS engine choice, tier-5 announcer, special-cell detection and voice |
+| Radio debug | `radioDebug` | `RadioDebugSettings` | Log switch only. The log file is not saved |
 
 ### `passiveMock` keys (full capture)
 
@@ -50,6 +51,9 @@ Multi-profile export uses a top-level `"profiles"` array with the same object sh
 | `rsrpDbm` | int | Mock RSRP / 2G RX level (−140 … max tier RSRP) |
 | `rsrqDb` | int | Mock RSRQ (LTE/NR scenarios only) |
 | `voiceOnlyNoData` | boolean | CS camped with no packet data — Service “voice only” (ignored on dead zone, searching 2G, WiFi calling) |
+| `pingMockEnabled` | boolean | In active mode, replace the live ping with the mock RTT and packet loss |
+| `pingRttMs` | int | Mock round-trip time |
+| `packetLossPercent` | int | Mock packet loss |
 
 Scenario reference and trigger states: [MOCK_NETWORK_SCENARIOS.md](MOCK_NETWORK_SCENARIOS.md).
 
@@ -80,9 +84,15 @@ Full key list: `PASSIVE_SIGNAL_KEYS` in `AppSettingsSnapshotCodecCompletenessTes
 
 ### `audio` keys (summary)
 
-Ping click volume, signal pulse frequency/duration, per-tier pulse frequencies, cell-change bell/voice, technology-change tone/voice (2G/4G/5G ENDC), tier-5 announcer, no-signal tone/voice/vibration, limited-service tone/voice, voice announcer choice + engine id.
+Ping click volume, signal pulse frequency/duration, per-tier pulse frequencies, cell-change bell/voice, technology-change tone/voice (2G/4G/5G ENDC), tier-5 announcer, no-signal tone/voice/vibration, limited-service tone/voice, timing-advance voice, special-cell detection and voice, voice announcer choice + engine id.
 
 Full key list: `AUDIO_KEYS` in `AppSettingsSnapshotCodecCompletenessTest`.
+
+### `radioDebug` keys
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `enabled` | boolean | Radio debug log on or off. Missing on older profiles, which load with the switch off. |
 
 ---
 
@@ -93,7 +103,7 @@ Full key list: `AUDIO_KEYS` in `AppSettingsSnapshotCodecCompletenessTest`.
 | Monitoring running / stopped | Session state only |
 | Settings lock | Session-only unlock; not stored in profiles |
 | Known-cells CSV | Separate imported file; detection/voice toggles are in `audio` |
-| Radio debug log toggle | Development-area only; not stored in profiles |
+| Radio debug log file | The on/off switch is in `radioDebug`; the log text is not |
 | Current `ConnectivityStats` / RXSS display | Recomputed after load |
 | Passive-only vs active ping session | User starts monitoring again after load |
 | Saved profile list metadata beyond each profile | Each file is self-contained |

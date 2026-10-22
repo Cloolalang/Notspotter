@@ -28,6 +28,8 @@ data class ConnectivityStats(
     val lteSinrDb: Int? = null,
     /** NR SS-SINR (SNIR) in dB. */
     val nrSinrDb: Int? = null,
+    /** NR SS-RSRP. See [CellularRadioMetrics.nrRsrpDbm]. */
+    val nrRsrpDbm: Int? = null,
     /** Serving-cell timing advance. See [CellularRadioMetrics.timingAdvance]. */
     val timingAdvance: TimingAdvanceReading? = null,
     val radioAccessType: String? = null,
@@ -152,6 +154,10 @@ data class ConnectivityStats(
 fun ConnectivityStats.displayedRsrpDbm(): Int? =
     rsrpDbm.takeIf { signalQualityFresh && !isLimitedServiceVisited() }
 
+/** NR SS-RSRP shown in cellular metrics — blank when not a live scan. */
+fun ConnectivityStats.displayedNrRsrpDbm(): Int? =
+    nrRsrpDbm.takeIf { signalQualityFresh && !isLimitedServiceVisited() }
+
 /** RSRQ shown in cellular metrics — blank when not a live scan. */
 fun ConnectivityStats.displayedRsrqDb(): Int? =
     rsrqDb.takeIf { signalQualityFresh && !isLimitedServiceVisited() }
@@ -176,6 +182,7 @@ fun ConnectivityStats.hidingFiveGIfDisabled(fiveGFeaturesEnabled: Boolean): Conn
         nrNci = null,
         nrBand = null,
         nrSinrDb = null,
+        nrRsrpDbm = null,
         timingAdvance = timingAdvance?.takeIf { it.kind != TimingAdvanceKind.NR_MICROS }
     )
 }

@@ -29,6 +29,10 @@ object VoiceAnnouncement {
     const val VA_19_SPECIAL_CELL = 19
     /** Periodic reminder while mock network mode is on. */
     const val VA_20_MOCK_NETWORK_REPEAT = 20
+    /** Distance to the primary cell when timing advance changes. */
+    const val VA_21_TIMING_ADVANCE = 21
+    /** Repeats the timing-advance distance while it stays current. */
+    const val VA_22_TIMING_ADVANCE_REPEAT = 22
 
     /** Lower number speaks first when several announcements queue together. */
     fun priorityFor(kind: MonitoringAnnouncementKind): Int = when (kind) {
@@ -41,6 +45,7 @@ object VoiceAnnouncement {
         MonitoringAnnouncementKind.TECHNOLOGY_CHANGE -> 8
         MonitoringAnnouncementKind.CELL_IDENTITY -> 9
         MonitoringAnnouncementKind.SPECIAL_CELL -> 10
+        MonitoringAnnouncementKind.TIMING_ADVANCE -> 11
     }
 
     /** Maps an immediate [MonitoringAnnouncementKind] to catalogue VA number(s). */
@@ -55,6 +60,8 @@ object VoiceAnnouncement {
         MonitoringAnnouncementKind.TECHNOLOGY_CHANGE -> listOf(VA_9_TECHNOLOGY_CHANGE)
         MonitoringAnnouncementKind.CELL_IDENTITY -> listOf(VA_10_CELL_RESELECT)
         MonitoringAnnouncementKind.SPECIAL_CELL -> listOf(VA_19_SPECIAL_CELL)
+        MonitoringAnnouncementKind.TIMING_ADVANCE ->
+            listOf(VA_21_TIMING_ADVANCE, VA_22_TIMING_ADVANCE_REPEAT)
     }
 
     /** Same-poll immediate playback order (lowest [priorityFor] first; tie-break by list order). */
@@ -67,6 +74,7 @@ object VoiceAnnouncement {
         MonitoringAnnouncementKind.LIMITED_SERVICE_OPERATOR,
         MonitoringAnnouncementKind.TECHNOLOGY_CHANGE,
         MonitoringAnnouncementKind.CELL_IDENTITY,
-        MonitoringAnnouncementKind.SPECIAL_CELL
+        MonitoringAnnouncementKind.SPECIAL_CELL,
+        MonitoringAnnouncementKind.TIMING_ADVANCE
     )
 }

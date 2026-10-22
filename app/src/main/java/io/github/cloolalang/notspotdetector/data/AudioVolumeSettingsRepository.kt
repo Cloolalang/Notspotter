@@ -2,6 +2,7 @@ package io.github.cloolalang.notspotdetector.data
 
 import android.content.Context
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
+import io.github.cloolalang.notspotdetector.model.CellReselectAlertScope
 import io.github.cloolalang.notspotdetector.model.CellReselectBandNamingStyle
 import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerChoice
 import io.github.cloolalang.notspotdetector.model.VoicePhraseOptions
@@ -156,6 +157,9 @@ class AudioVolumeSettingsRepository(context: Context) {
             cellChangeBandNamingStyle = CellReselectBandNamingStyle.fromId(
                 prefs.getString(KEY_CELL_CHANGE_BAND_NAMING_STYLE, null)
             ),
+            cellReselectAlertScope = CellReselectAlertScope.fromId(
+                prefs.getString(KEY_CELL_RESELECT_ALERT_SCOPE, null)
+            ),
             technologyChangeTo2gSoundEnabled = prefs.getBoolean(
                 KEY_TECHNOLOGY_CHANGE_TO_2G_SOUND_ENABLED,
                 AudioVolumeSettings.DEFAULT_TECHNOLOGY_CHANGE_SOUND_ENABLED
@@ -261,6 +265,18 @@ class AudioVolumeSettingsRepository(context: Context) {
                 KEY_LIMITED_SERVICE_VOICE,
                 AudioVolumeSettings.DEFAULT_VOLUME
             ),
+            timingAdvanceVoiceEnabled = prefs.getBoolean(
+                KEY_TIMING_ADVANCE_VOICE_ENABLED,
+                AudioVolumeSettings.DEFAULT_VOICE_ANNOUNCEMENT_ENABLED
+            ),
+            timingAdvancePeriodicVoiceEnabled = prefs.getBoolean(
+                KEY_TIMING_ADVANCE_PERIODIC_VOICE_ENABLED,
+                AudioVolumeSettings.DEFAULT_PERIODIC_VOICE_ENABLED
+            ),
+            timingAdvanceVoiceVolume = prefs.getFloat(
+                KEY_TIMING_ADVANCE_VOICE,
+                AudioVolumeSettings.DEFAULT_VOLUME
+            ),
             speakOperatorNameEnabled = prefs.getBoolean(
                 KEY_SPEAK_OPERATOR_NAME_ENABLED,
                 AudioVolumeSettings.DEFAULT_SPEAK_OPERATOR_NAME_ENABLED
@@ -332,6 +348,11 @@ class AudioVolumeSettingsRepository(context: Context) {
                     KEY_LIMITED_SERVICE_SPEAK_VISITING_LIMITED,
                     VoicePhraseOptions.DEFAULT_SPEAK_VISITING_LIMITED_SERVICE
                 )
+            ),
+            timingAdvancePhrases = loadPhrases(
+                KEY_TIMING_ADVANCE_SPEAK_OPERATOR,
+                KEY_TIMING_ADVANCE_SPEAK_TECHNOLOGY,
+                KEY_TIMING_ADVANCE_SPEAK_BAND
             )
         ).normalized()
     }
@@ -391,6 +412,7 @@ class AudioVolumeSettingsRepository(context: Context) {
             .putFloat(KEY_CELL_CHANGE_VOICE, normalized.cellChangeVoiceVolume)
             .putBoolean(KEY_CELL_CHANGE_SPEAK_BAND_ENABLED, normalized.cellChangeSpeakBandEnabled)
             .putString(KEY_CELL_CHANGE_BAND_NAMING_STYLE, normalized.cellChangeBandNamingStyle.id)
+            .putString(KEY_CELL_RESELECT_ALERT_SCOPE, normalized.cellReselectAlertScope.id)
             .putBoolean(KEY_TECHNOLOGY_CHANGE_TO_2G_SOUND_ENABLED, normalized.technologyChangeTo2gSoundEnabled)
             .putFloat(KEY_TECHNOLOGY_CHANGE_TO_2G_TONE, normalized.technologyChangeTo2gToneVolume)
             .putBoolean(KEY_TECHNOLOGY_CHANGE_TO_2G_VOICE_ENABLED, normalized.technologyChangeTo2gVoiceEnabled)
@@ -419,6 +441,9 @@ class AudioVolumeSettingsRepository(context: Context) {
             .putBoolean(KEY_LIMITED_SERVICE_VOICE_ENABLED, normalized.limitedServiceVoiceEnabled)
             .putBoolean(KEY_LIMITED_SERVICE_PERIODIC_VOICE_ENABLED, normalized.limitedServicePeriodicVoiceEnabled)
             .putFloat(KEY_LIMITED_SERVICE_VOICE, normalized.limitedServiceVoiceVolume)
+            .putBoolean(KEY_TIMING_ADVANCE_VOICE_ENABLED, normalized.timingAdvanceVoiceEnabled)
+            .putBoolean(KEY_TIMING_ADVANCE_PERIODIC_VOICE_ENABLED, normalized.timingAdvancePeriodicVoiceEnabled)
+            .putFloat(KEY_TIMING_ADVANCE_VOICE, normalized.timingAdvanceVoiceVolume)
             .putBoolean(KEY_SPEAK_OPERATOR_NAME_ENABLED, normalized.speakOperatorNameEnabled)
             .putBoolean(KEY_SPEAK_TECHNOLOGY_ENABLED, normalized.speakTechnologyEnabled)
             .putBoolean(KEY_CELL_CHANGE_SPEAK_OPERATOR, normalized.cellChangePhrases.speakOperatorName)
@@ -450,6 +475,9 @@ class AudioVolumeSettingsRepository(context: Context) {
                 KEY_LIMITED_SERVICE_SPEAK_VISITING_LIMITED,
                 normalized.limitedServicePhrases.speakVisitingLimitedService
             )
+            .putBoolean(KEY_TIMING_ADVANCE_SPEAK_OPERATOR, normalized.timingAdvancePhrases.speakOperatorName)
+            .putBoolean(KEY_TIMING_ADVANCE_SPEAK_TECHNOLOGY, normalized.timingAdvancePhrases.speakTechnology)
+            .putBoolean(KEY_TIMING_ADVANCE_SPEAK_BAND, normalized.timingAdvancePhrases.speakBand)
             .putBoolean(KEY_SPECIAL_CELLS_DETECTION_ENABLED, normalized.specialCellsDetectionEnabled)
             .putBoolean(KEY_SPECIAL_CELLS_VOICE_ENABLED, normalized.specialCellsVoiceEnabled)
             .putBoolean(KEY_SPECIAL_CELLS_SPEAK_TYPE, normalized.specialCellsSpeakType)
@@ -484,6 +512,7 @@ class AudioVolumeSettingsRepository(context: Context) {
         private const val KEY_CELL_CHANGE_VOICE = "cell_change_voice_volume"
         private const val KEY_CELL_CHANGE_SPEAK_BAND_ENABLED = "cell_change_speak_band_enabled"
         private const val KEY_CELL_CHANGE_BAND_NAMING_STYLE = "cell_change_band_naming_style"
+        private const val KEY_CELL_RESELECT_ALERT_SCOPE = "cell_reselect_alert_scope"
         private const val KEY_TECHNOLOGY_CHANGE = "technology_change_volume"
         private const val KEY_TECHNOLOGY_CHANGE_VOICE_ENABLED = "technology_change_voice_enabled"
         private const val KEY_TECHNOLOGY_CHANGE_VOICE = "technology_change_voice_volume"
@@ -515,6 +544,12 @@ class AudioVolumeSettingsRepository(context: Context) {
         private const val KEY_LIMITED_SERVICE_VOICE_ENABLED = "limited_service_voice_enabled"
         private const val KEY_LIMITED_SERVICE_PERIODIC_VOICE_ENABLED = "limited_service_periodic_voice_enabled"
         private const val KEY_LIMITED_SERVICE_VOICE = "limited_service_voice_volume"
+        private const val KEY_TIMING_ADVANCE_VOICE_ENABLED = "timing_advance_voice_enabled"
+        private const val KEY_TIMING_ADVANCE_PERIODIC_VOICE_ENABLED = "timing_advance_periodic_voice_enabled"
+        private const val KEY_TIMING_ADVANCE_VOICE = "timing_advance_voice_volume"
+        private const val KEY_TIMING_ADVANCE_SPEAK_OPERATOR = "timing_advance_phrase_speak_operator"
+        private const val KEY_TIMING_ADVANCE_SPEAK_TECHNOLOGY = "timing_advance_phrase_speak_technology"
+        private const val KEY_TIMING_ADVANCE_SPEAK_BAND = "timing_advance_phrase_speak_band"
         private const val KEY_SPEAK_OPERATOR_NAME_ENABLED = "speak_operator_name_enabled"
         private const val KEY_SPEAK_TECHNOLOGY_ENABLED = "speak_technology_enabled"
         private const val KEY_CELL_CHANGE_SPEAK_OPERATOR = "cell_change_phrase_speak_operator"

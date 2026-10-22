@@ -67,6 +67,11 @@ data class AudioVolumeSettings(
     val cellChangeSpeakBandEnabled: Boolean = DEFAULT_CELL_CHANGE_SPEAK_BAND_ENABLED,
     /** How [cellChangeSpeakBandEnabled] speaks the resolved band — number vs. MHz nickname. */
     val cellChangeBandNamingStyle: CellReselectBandNamingStyle = CellReselectBandNamingStyle.DEFAULT,
+    /**
+     * Cell-reselect bell and voice. [CellReselectAlertScope.LTE_ONLY] ignores an NR-only
+     * handover on EN-DC. Standalone 5G still announces the NR cell.
+     */
+    val cellReselectAlertScope: CellReselectAlertScope = CellReselectAlertScope.DEFAULT,
     val technologyChangeTo2gSoundEnabled: Boolean = DEFAULT_TECHNOLOGY_CHANGE_SOUND_ENABLED,
     val technologyChangeTo2gToneVolume: Float = DEFAULT_VOLUME,
     val technologyChangeTo2gVoiceEnabled: Boolean = DEFAULT_VOICE_ANNOUNCEMENT_ENABLED,
@@ -96,6 +101,9 @@ data class AudioVolumeSettings(
     val limitedServiceVoiceEnabled: Boolean = DEFAULT_VOICE_ANNOUNCEMENT_ENABLED,
     val limitedServicePeriodicVoiceEnabled: Boolean = DEFAULT_PERIODIC_VOICE_ENABLED,
     val limitedServiceVoiceVolume: Float = DEFAULT_LIMITED_SERVICE_VOICE_VOLUME,
+    val timingAdvanceVoiceEnabled: Boolean = DEFAULT_VOICE_ANNOUNCEMENT_ENABLED,
+    val timingAdvancePeriodicVoiceEnabled: Boolean = DEFAULT_PERIODIC_VOICE_ENABLED,
+    val timingAdvanceVoiceVolume: Float = DEFAULT_VOLUME,
     /**
      * Legacy app-wide seed for [VoicePhraseOptions.speakOperatorName]. Per-RXSS copies live in
      * [cellChangePhrases] and siblings; kept so older profiles migrate cleanly.
@@ -112,6 +120,7 @@ data class AudioVolumeSettings(
     val signalLowPhrases: VoicePhraseOptions = DEFAULT_SIGNAL_LOW_PHRASES,
     val noSignalPhrases: VoicePhraseOptions = DEFAULT_NO_SIGNAL_PHRASES,
     val limitedServicePhrases: VoicePhraseOptions = DEFAULT_LIMITED_SERVICE_PHRASES,
+    val timingAdvancePhrases: VoicePhraseOptions = DEFAULT_TIMING_ADVANCE_PHRASES,
     val specialCellsDetectionEnabled: Boolean = DEFAULT_SPECIAL_CELLS_DETECTION_ENABLED,
     val specialCellsVoiceEnabled: Boolean = DEFAULT_SPECIAL_CELLS_VOICE_ENABLED,
     val specialCellsSpeakType: Boolean = DEFAULT_SPECIAL_CELLS_SPEAK_TYPE,
@@ -146,6 +155,7 @@ data class AudioVolumeSettings(
             VoicePhraseGroup.SIGNAL_LOW -> signalLowPhrases
             VoicePhraseGroup.NO_SIGNAL -> noSignalPhrases
             VoicePhraseGroup.LIMITED_SERVICE -> limitedServicePhrases
+            VoicePhraseGroup.TIMING_ADVANCE -> timingAdvancePhrases
         }
     }
 
@@ -158,6 +168,7 @@ data class AudioVolumeSettings(
             VoicePhraseGroup.SIGNAL_LOW -> copy(signalLowPhrases = phrases)
             VoicePhraseGroup.NO_SIGNAL -> copy(noSignalPhrases = phrases)
             VoicePhraseGroup.LIMITED_SERVICE -> copy(limitedServicePhrases = phrases)
+            VoicePhraseGroup.TIMING_ADVANCE -> copy(timingAdvancePhrases = phrases)
         }
     }
 
@@ -281,6 +292,11 @@ data class AudioVolumeSettings(
             technologyChangeTo2gVoiceEnabled &&
             technologyChangeTo2gPeriodicVoiceEnabled
 
+    fun allowsTimingAdvancePeriodicVoice(): Boolean =
+        masterVoiceAnnouncementsEnabled &&
+            timingAdvanceVoiceEnabled &&
+            timingAdvancePeriodicVoiceEnabled
+
     fun allowsSpecialCellVoice(): Boolean =
         masterVoiceAnnouncementsEnabled &&
             specialCellsDetectionEnabled &&
@@ -292,6 +308,7 @@ data class AudioVolumeSettings(
             PeriodicVoiceRepeat.LIMITED_SERVICE -> copy(limitedServicePeriodicVoiceEnabled = enabled)
             PeriodicVoiceRepeat.SIGNAL_LOW -> copy(tier5PeriodicVoiceEnabled = enabled)
             PeriodicVoiceRepeat.G2_CAMPED -> copy(technologyChangeTo2gPeriodicVoiceEnabled = enabled)
+            PeriodicVoiceRepeat.TIMING_ADVANCE -> copy(timingAdvancePeriodicVoiceEnabled = enabled)
         }
     }
 
@@ -369,6 +386,7 @@ data class AudioVolumeSettings(
             noSignalVoiceVolume = noSignalVoiceVolume.coerceIn(MIN_VOLUME, MAX_VOLUME),
             limitedServiceToneVolume = limitedServiceToneVolume.coerceIn(MIN_VOLUME, MAX_VOLUME),
             limitedServiceVoiceVolume = limitedServiceVoiceVolume.coerceIn(MIN_VOLUME, MAX_VOLUME),
+            timingAdvanceVoiceVolume = timingAdvanceVoiceVolume.coerceIn(MIN_VOLUME, MAX_VOLUME),
             voiceSpeechRate = snapVoiceSpeechRate(voiceSpeechRate)
         )
     }
@@ -449,6 +467,11 @@ data class AudioVolumeSettings(
             speakTechnology = false,
             speakBand = false
         )
+        val DEFAULT_TIMING_ADVANCE_PHRASES = VoicePhraseOptions(
+            speakOperatorName = false,
+            speakTechnology = false,
+            speakBand = false
+        )
 
         const val DEFAULT_SIGNAL_PULSE_DURATION_MS = 70
         const val DEFAULT_LEVEL_RANGE_BCD_PULSE_DURATION_MS = 60
@@ -498,5 +521,6 @@ enum class PeriodicVoiceRepeat {
     NO_SIGNAL,
     LIMITED_SERVICE,
     SIGNAL_LOW,
-    G2_CAMPED
+    G2_CAMPED,
+    TIMING_ADVANCE
 }

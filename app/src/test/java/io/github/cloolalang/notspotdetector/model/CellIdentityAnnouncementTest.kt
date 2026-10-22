@@ -295,4 +295,67 @@ class CellIdentityAnnouncementTest {
 
         assertEquals("4 G, eight hundred", announcement)
     }
+
+    @Test
+    fun shouldAnnounce_lteOnlySkipsNrHandoverOnEndc_andKeepsStandalone5g() {
+        val lte = CellIdentitySnapshot(lteEarfcn = 3_000, ltePci = 42, nrEarfcn = 620_000, nrPci = 10)
+        val nrHandover = lte.copy(nrEarfcn = 630_000, nrPci = 11)
+        val lteHandover = lte.copy(lteEarfcn = 3_100, ltePci = 43)
+        val saPrevious = CellIdentitySnapshot(nrEarfcn = 620_000, nrPci = 10)
+        val saNext = CellIdentitySnapshot(nrEarfcn = 630_000, nrPci = 11)
+
+        assertEquals(
+            false,
+            CellIdentityAnnouncement.shouldAnnounce(
+                lte,
+                nrHandover,
+                CellularSignalReader.RADIO_5G_ENDC,
+                CellReselectAlertScope.LTE_ONLY
+            )
+        )
+        assertEquals(
+            true,
+            CellIdentityAnnouncement.shouldAnnounce(
+                lte,
+                nrHandover,
+                CellularSignalReader.RADIO_5G_ENDC,
+                CellReselectAlertScope.BOTH
+            )
+        )
+        assertEquals(
+            true,
+            CellIdentityAnnouncement.shouldAnnounce(
+                lte,
+                lteHandover,
+                CellularSignalReader.RADIO_5G_ENDC,
+                CellReselectAlertScope.LTE_ONLY
+            )
+        )
+        assertEquals(
+            true,
+            CellIdentityAnnouncement.shouldAnnounce(
+                saPrevious,
+                saNext,
+                CellularSignalReader.RADIO_5G,
+                CellReselectAlertScope.LTE_ONLY
+            )
+        )
+    }
+
+    @Test
+    fun format_lteOnlyOmitsNrFromAnEndcAnnouncement() {
+        val previous = CellIdentitySnapshot(lteEarfcn = 1_800, ltePci = 42, nrEarfcn = 620_000, nrPci = 10, nrBand = 78)
+        val next = CellIdentitySnapshot(lteEarfcn = 3_000, ltePci = 123, nrEarfcn = 630_000, nrPci = 11, nrBand = 77)
+
+        val announcement = CellIdentityAnnouncement.format(
+            previous,
+            next,
+            CellularSignalReader.RADIO_5G_ENDC,
+            speakBandEnabled = true,
+            bandNamingStyle = CellReselectBandNamingStyle.BAND_NUMBER,
+            includeNrIdentity = false
+        )
+
+        assertEquals("5 G E N D C, seven", announcement)
+    }
 }

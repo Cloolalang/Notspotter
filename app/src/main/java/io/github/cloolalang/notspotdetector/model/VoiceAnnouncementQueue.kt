@@ -159,7 +159,8 @@ class VoiceAnnouncementQueue {
 
         fun hasSoundIcon(kind: MonitoringAnnouncementKind): Boolean {
             return kind != MonitoringAnnouncementKind.TIER5 &&
-                kind != MonitoringAnnouncementKind.SPECIAL_CELL
+                kind != MonitoringAnnouncementKind.SPECIAL_CELL &&
+                kind != MonitoringAnnouncementKind.TIMING_ADVANCE
         }
 
         fun estimatedSpokenMs(kind: MonitoringAnnouncementKind): Long {
@@ -172,7 +173,8 @@ class VoiceAnnouncementQueue {
                 MonitoringAnnouncementKind.LIMITED_SERVICE_STATE,
                 MonitoringAnnouncementKind.LIMITED_SERVICE_OPERATOR -> 800L
                 MonitoringAnnouncementKind.TIER5,
-                MonitoringAnnouncementKind.SPECIAL_CELL -> 0L
+                MonitoringAnnouncementKind.SPECIAL_CELL,
+                MonitoringAnnouncementKind.TIMING_ADVANCE -> 0L
             }
             return toneMs + ALERT_VOICE_GAP_MS + ESTIMATED_SPEECH_MS
         }

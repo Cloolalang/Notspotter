@@ -49,16 +49,18 @@ object CellIdentityAnnouncement {
         prefixPhrases: VoicePhraseOptions = VoicePhraseOptions(
             speakOperatorName = speakOperatorNameEnabled,
             speakTechnology = speakTechnologyEnabled
-        )
+        ),
+        includeNrIdentity: Boolean = true
     ): String {
         if (previous == next) return ""
 
         val is2g = radioAccessType == CellularSignalReader.RADIO_2G
+        val spokenNrBand = next.nrBand.takeIf { includeNrIdentity }
         // 2G cell reselect always speaks channel/BSIC — never the band alternative or prefix.
         val bandPhrase = if (speakBandEnabled && !is2g) {
             formatServingBandPhrase(
                 lteEarfcn = next.lteEarfcn,
-                nrBand = next.nrBand,
+                nrBand = spokenNrBand,
                 namingStyle = bandNamingStyle,
                 gsmEarfcn = next.gsmEarfcn
             )
@@ -89,7 +91,7 @@ object CellIdentityAnnouncement {
         if (lteChanged && hasLteIdentity(next)) {
             identityParts.add(formatRatIdentity(useLtePrefix, next.lteEarfcn, next.ltePci))
         }
-        if (nrChanged && hasNrIdentity(next)) {
+        if (includeNrIdentity && nrChanged && hasNrIdentity(next)) {
             identityParts.add(formatRatIdentity(prefix = true, next.nrEarfcn, next.nrPci, ratLabel = "NR"))
         }
         if (gsmChanged && hasGsmIdentity(next)) {
@@ -97,7 +99,7 @@ object CellIdentityAnnouncement {
         }
 
         if (identityParts.isEmpty()) {
-            appendFallbackIdentity(identityParts, next, radioAccessType)
+            appendFallbackIdentity(identityParts, next, radioAccessType, includeNrIdentity)
         }
 
         return formatAnnouncementBody(
@@ -113,7 +115,7 @@ object CellIdentityAnnouncement {
             } else {
                 prefixPhrases.bandPhraseFor(
                     next.lteEarfcn,
-                    next.nrBand,
+                    spokenNrBand,
                     next.gsmEarfcn,
                     namingStyle = bandNamingStyle
                 )
@@ -240,13 +242,45 @@ object CellIdentityAnnouncement {
         )
     }
 
+    /**
+     * Whether this identity change should ring the reselect alert.
+     * [CellReselectAlertScope.LTE_ONLY] skips an NR-only handover while an LTE anchor
+     * is still the serving cell. Standalone 5G still alerts, because NR is that cell.
+     */
+    fun shouldAnnounce(
+        previous: CellIdentitySnapshot,
+        next: CellIdentitySnapshot,
+        radioAccessType: String?,
+        scope: CellReselectAlertScope
+    ): Boolean {
+        if (previous == next) return false
+        if (scope == CellReselectAlertScope.BOTH ||
+            radioAccessType == CellularSignalReader.RADIO_5G
+        ) {
+            return true
+        }
+        val nrChanged = previous.nrEarfcn != next.nrEarfcn || previous.nrPci != next.nrPci
+        val lteChanged = previous.lteEarfcn != next.lteEarfcn || previous.ltePci != next.ltePci
+        val gsmChanged = previous.gsmEarfcn != next.gsmEarfcn || previous.gsmBsic != next.gsmBsic
+        return !(nrChanged && !lteChanged && !gsmChanged)
+    }
+
+    fun includeNrInAnnouncement(
+        radioAccessType: String?,
+        scope: CellReselectAlertScope
+    ): Boolean {
+        return scope == CellReselectAlertScope.BOTH ||
+            radioAccessType == CellularSignalReader.RADIO_5G
+    }
+
     private fun appendFallbackIdentity(
         parts: MutableList<String>,
         next: CellIdentitySnapshot,
-        radioAccessType: String?
+        radioAccessType: String?,
+        includeNrIdentity: Boolean = true
     ) {
         when {
-            hasNrIdentity(next) && radioAccessType?.contains("5G") == true -> {
+            includeNrIdentity && hasNrIdentity(next) && radioAccessType?.contains("5G") == true -> {
                 val prefixNr = radioAccessType == CellularSignalReader.RADIO_5G_ENDC
                 parts.add(formatRatIdentity(prefixNr, next.nrEarfcn, next.nrPci, ratLabel = "NR"))
             }

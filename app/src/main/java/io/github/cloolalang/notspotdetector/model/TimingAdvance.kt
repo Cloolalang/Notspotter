@@ -29,6 +29,31 @@ data class TimingAdvanceReading(
         return "$reading · ${distanceLabel(oneWayMetres())}"
     }
 
+    /** Spoken form of [distanceLabel], for the timing-advance voice announcement. */
+    fun distanceSpeech(): String {
+        val metres = oneWayMetres()
+        if (metres < 1_000) {
+            val unit = if (metres == 1) "metre" else "metres"
+            return "${NumberWords.toWords(metres)} $unit"
+        }
+        val wholeKm = metres / 1_000
+        if (wholeKm >= 10) {
+            return "${NumberWords.toWords(wholeKm)} kilometres"
+        }
+        var tenths = ((metres % 1_000) + 50) / 100
+        var km = wholeKm
+        if (tenths == 10) {
+            km += 1
+            tenths = 0
+        }
+        val kilometres = if (km == 1 && tenths == 0) "kilometre" else "kilometres"
+        return if (tenths == 0) {
+            "${NumberWords.toWords(km)} $kilometres"
+        } else {
+            "${NumberWords.toWords(km)} point ${NumberWords.toWords(tenths)} $kilometres"
+        }
+    }
+
     private fun distanceLabel(metres: Int): String {
         if (metres < 1_000) return "$metres m"
         val wholeKm = metres / 1_000

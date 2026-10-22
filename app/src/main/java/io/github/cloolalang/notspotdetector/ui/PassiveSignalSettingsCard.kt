@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import io.github.cloolalang.notspotdetector.R
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
 import io.github.cloolalang.notspotdetector.model.ExpandedRangeSlider
+import io.github.cloolalang.notspotdetector.model.CellReselectAlertScope
 import io.github.cloolalang.notspotdetector.model.CellReselectBandNamingStyle
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
 import io.github.cloolalang.notspotdetector.model.PeriodicVoiceRepeat
@@ -102,6 +103,10 @@ fun PassiveSignalSettingsCard(
     onPreviewCellChangeVoice: () -> Unit,
     onCellChangeSpeakBandEnabledChange: (Boolean) -> Unit = {},
     onCellChangeBandNamingStyleChange: (CellReselectBandNamingStyle) -> Unit = {},
+    onCellReselectAlertScopeChange: (CellReselectAlertScope) -> Unit = {},
+    onTimingAdvanceVoiceEnabledChange: (Boolean) -> Unit = {},
+    onTimingAdvanceVoiceVolumeChange: (Float) -> Unit = {},
+    onPreviewTimingAdvanceVoice: () -> Unit = {},
     onLowSignalClickVolumeChange: (Float) -> Unit,
     onSignalPulseDurationChange: (Int) -> Unit,
     onPreviewLowSignalClick: (frequencyHz: Int, pulseDurationMs: Int) -> Unit,
@@ -215,7 +220,16 @@ fun PassiveSignalSettingsCard(
                     onPreviewCellChangeBell = onPreviewCellChangeBell,
                     onPreviewCellChangeVoice = onPreviewCellChangeVoice,
                     onCellChangeSpeakBandEnabledChange = onCellChangeSpeakBandEnabledChange,
-                    onCellChangeBandNamingStyleChange = onCellChangeBandNamingStyleChange
+                    onCellChangeBandNamingStyleChange = onCellChangeBandNamingStyleChange,
+                    onCellReselectAlertScopeChange = onCellReselectAlertScopeChange
+                )
+
+                TimingAdvanceVoiceSettings(
+                    audioVolumes = audioVolumes,
+                    previewEnabled = previewEnabled,
+                    onTimingAdvanceVoiceEnabledChange = onTimingAdvanceVoiceEnabledChange,
+                    onTimingAdvanceVoiceVolumeChange = onTimingAdvanceVoiceVolumeChange,
+                    onPreviewTimingAdvanceVoice = onPreviewTimingAdvanceVoice
                 )
 
                 AlertSettingsGroupHeading(stringResource(R.string.passive_signal_camped_state_section))
@@ -1277,6 +1291,35 @@ private fun RsrpTierSettings(
 }
 
 @Composable
+private fun TimingAdvanceVoiceSettings(
+    audioVolumes: AudioVolumeSettings,
+    previewEnabled: Boolean,
+    onTimingAdvanceVoiceEnabledChange: (Boolean) -> Unit,
+    onTimingAdvanceVoiceVolumeChange: (Float) -> Unit,
+    onPreviewTimingAdvanceVoice: () -> Unit
+) {
+    Text(
+        text = stringResource(R.string.audio_timing_advance_section),
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.SemiBold,
+        color = Sushi
+    )
+    Text(
+        text = stringResource(R.string.audio_timing_advance_voice_hint),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+    TimingAdvanceVoiceAnnouncementControls(
+        audioVolumes = audioVolumes,
+        previewEnabled = previewEnabled,
+        accentColor = Sushi,
+        onTimingAdvanceVoiceEnabledChange = onTimingAdvanceVoiceEnabledChange,
+        onTimingAdvanceVoiceVolumeChange = onTimingAdvanceVoiceVolumeChange,
+        onPreviewTimingAdvanceVoice = onPreviewTimingAdvanceVoice
+    )
+}
+
+@Composable
 private fun CellChangeTierSettings(
     audioVolumes: AudioVolumeSettings,
     previewEnabled: Boolean,
@@ -1286,7 +1329,8 @@ private fun CellChangeTierSettings(
     onPreviewCellChangeBell: () -> Unit,
     onPreviewCellChangeVoice: () -> Unit,
     onCellChangeSpeakBandEnabledChange: (Boolean) -> Unit = {},
-    onCellChangeBandNamingStyleChange: (CellReselectBandNamingStyle) -> Unit = {}
+    onCellChangeBandNamingStyleChange: (CellReselectBandNamingStyle) -> Unit = {},
+    onCellReselectAlertScopeChange: (CellReselectAlertScope) -> Unit = {}
 ) {
     val accent = SignalTierColors.forRxssNumber(CELL_CHANGE_RXSS_NUMBER)
     TierSettingSection(tierNumber = CELL_CHANGE_RXSS_NUMBER, accentColor = accent) {
@@ -1300,7 +1344,8 @@ private fun CellChangeTierSettings(
             onPreviewCellChangeBell = onPreviewCellChangeBell,
             onPreviewCellChangeVoice = onPreviewCellChangeVoice,
             onCellChangeSpeakBandEnabledChange = onCellChangeSpeakBandEnabledChange,
-            onCellChangeBandNamingStyleChange = onCellChangeBandNamingStyleChange
+            onCellChangeBandNamingStyleChange = onCellChangeBandNamingStyleChange,
+            onCellReselectAlertScopeChange = onCellReselectAlertScopeChange
         )
     }
 }

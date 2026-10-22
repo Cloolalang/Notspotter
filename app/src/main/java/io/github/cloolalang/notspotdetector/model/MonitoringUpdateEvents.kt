@@ -11,6 +11,7 @@ data class MonitoringUpdateEvents(
     val g2FallbackAnnouncement: String? = null,
     val deadzoneAnnouncement: String? = null,
     val tier5Announcement: String? = null,
+    val timingAdvanceAnnouncement: String? = null,
     val searching2gStateEntered: Boolean = false,
     /** Restart the 2G periodic voice timer (e.g. flatline entered/exited on 2G). */
     val g2PeriodicReset: Boolean = false,
@@ -45,6 +46,9 @@ data class MonitoringUpdateEvents(
 
     val tier5Announced: Boolean
         get() = !tier5Announcement.isNullOrBlank()
+
+    val timingAdvanceAnnounced: Boolean
+        get() = !timingAdvanceAnnouncement.isNullOrBlank()
 
     /** Immediate voice alerts in [VoiceAnnouncement.immediatePlaybackOrder] (see VOICE_ANNOUNCEMENTS.md). */
     fun immediateAnnouncements(): List<MonitoringAnnouncement> {
@@ -92,6 +96,9 @@ data class MonitoringUpdateEvents(
             MonitoringAnnouncementKind.SPECIAL_CELL -> specialCellChanged.takeIf { it }?.let {
                 MonitoringAnnouncement(kind, specialCellAnnouncement)
             }
+            MonitoringAnnouncementKind.TIMING_ADVANCE -> timingAdvanceAnnounced.takeIf { it }?.let {
+                MonitoringAnnouncement(kind, timingAdvanceAnnouncement)
+            }
         }
     }
 }
@@ -105,7 +112,8 @@ enum class MonitoringAnnouncementKind {
     TIER5,
     TECHNOLOGY_CHANGE,
     CELL_IDENTITY,
-    SPECIAL_CELL;
+    SPECIAL_CELL,
+    TIMING_ADVANCE;
 
     /** Playback priority — see [VoiceAnnouncement.priorityFor]. */
     val playbackPriority: Int

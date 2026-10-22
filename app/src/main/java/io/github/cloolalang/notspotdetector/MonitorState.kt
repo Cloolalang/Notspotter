@@ -9,7 +9,9 @@ import io.github.cloolalang.notspotdetector.model.CellularRadioMetrics
 import io.github.cloolalang.notspotdetector.model.ConnectionQuality
 import io.github.cloolalang.notspotdetector.model.ConnectivityStats
 import io.github.cloolalang.notspotdetector.model.ServingCellSelection
+import io.github.cloolalang.notspotdetector.model.displayedTimingAdvance
 import io.github.cloolalang.notspotdetector.model.hidingFiveGIfDisabled
+import io.github.cloolalang.notspotdetector.model.TimingAdvanceAnnouncement
 import io.github.cloolalang.notspotdetector.model.TechnologyChangeTarget
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.MonitoringUpdateEvents
@@ -110,6 +112,8 @@ object MonitorState {
     private var lastSpokenSpecialCellKey: String? = null
     private var specialCellMatchHoldUntilMs: Long = 0L
     private var cellIdentityBaselineReady = false
+    private var timingAdvanceBaselineReady = false
+    private var lastTimingAdvanceSpeech: String? = null
     private val cellReselectTimestamps = mutableListOf<Long>()
     private val technologyChangeTimestamps = mutableListOf<Long>()
     private var radioTechnologyBaselineReady = false
@@ -208,6 +212,10 @@ object MonitorState {
             phrases = volumes.signalLowPhrases,
             bandNamingStyle = volumes.cellChangeBandNamingStyle
         )
+    }
+
+    fun formatTimingAdvanceAnnouncement(stats: ConnectivityStats = _stats.value): String? {
+        return TimingAdvanceAnnouncement.format(stats, _audioVolumes.value)
     }
 
     fun formatLimitedServiceAnnouncement(stats: ConnectivityStats = _stats.value): String {
@@ -419,19 +427,21 @@ object MonitorState {
     /**
      * Records one occupancy sample of the latest RSRP. Called on a 1 s tick so a longer sample
      * window actually accumulates more counts instead of only storing one point per radio poll.
+     * A scan timestamp a few seconds old is still that reading: some modems (Samsung A32) only
+     * refresh CellInfo every several seconds. N/A starts when the scan is stale, same as
+     * "no new scan" in cell metrics.
      */
     fun tickRsrpHistogramSample() {
         synchronized(monitorLock) {
             val stats = _stats.value
-            val scanStalled = !stats.isLimitedServiceVisited() &&
-                ServingCellSelection.isScanAgeNotable(stats.cellInfoAgeMs)
+            val scanStale = !stats.isLimitedServiceVisited() &&
+                ServingCellSelection.isScanAgeStale(stats.cellInfoAgeMs)
             recordRsrpSample(
-                rsrpDbm = if (scanStalled) null else stats.rsrpDbm,
+                rsrpDbm = if (scanStale) null else stats.rsrpDbm,
                 isMonitoring = stats.isMonitoring,
                 radioAccessType = stats.radioAccessType,
                 signalQualityFresh = stats.signalQualityFresh && !stats.isLimitedServiceVisited(),
-                recordStaleScan = !stats.isLimitedServiceVisited() &&
-                    ServingCellSelection.isScanAgeStale(stats.cellInfoAgeMs)
+                recordStaleScan = scanStale
             )
         }
     }
@@ -445,7 +455,8 @@ object MonitorState {
     ) {
         // Skip frozen CellInfo leftovers so the histogram only counts live scans.
         // Null RSRP on a fresh read is still recorded for the "no signal" bin.
-        // A scan whose timestamp has stopped is recorded as N/A, including after it goes stale.
+        // A stale scan (no new reading) is recorded as N/A. A timestamp only a few
+        // seconds old is still the last real measurement.
         if (!_isRunning.value || !isMonitoring) return
         if (!signalQualityFresh && !recordStaleScan) return
         clearRsrpHistogramIfTechnologyChanged(radioAccessType)
@@ -522,6 +533,7 @@ object MonitorState {
             rsrqDb = metrics.rsrqDb,
             lteSinrDb = metrics.lteSinrDb,
             nrSinrDb = metrics.nrSinrDb,
+            nrRsrpDbm = metrics.nrRsrpDbm,
             timingAdvance = metrics.timingAdvance,
             radioAccessType = metrics.radioAccessType,
             ltePlusIcon = metrics.ltePlusIcon,
@@ -602,6 +614,7 @@ object MonitorState {
             rsrqDb = metrics.rsrqDb,
             lteSinrDb = metrics.lteSinrDb,
             nrSinrDb = metrics.nrSinrDb,
+            nrRsrpDbm = metrics.nrRsrpDbm,
             timingAdvance = metrics.timingAdvance,
             radioAccessType = metrics.radioAccessType,
             ltePlusIcon = metrics.ltePlusIcon,
@@ -1002,6 +1015,7 @@ object MonitorState {
                 networkOperatorName = networkOperatorName
             ),
             tier5Announcement = tier5Announcement,
+            timingAdvanceAnnouncement = consumeTimingAdvanceChange(nextDebounced),
             searching2gStateEntered = shouldScheduleSearching2gAnnouncement(nextDebounced) &&
                 !previous.noSignalActive &&
                 nextDebounced.noSignalActive,
@@ -1441,6 +1455,26 @@ object MonitorState {
         )
     }
 
+    private fun consumeTimingAdvanceChange(stats: ConnectivityStats): String? {
+        if (!_isRunning.value || !stats.isMonitoring || stats.isPassiveIdleMode) return null
+        val phrase = stats.displayedTimingAdvance()?.distanceSpeech()
+        if (!timingAdvanceBaselineReady) {
+            timingAdvanceBaselineReady = true
+            lastTimingAdvanceSpeech = phrase
+            return null
+        }
+        if (phrase == lastTimingAdvanceSpeech) return null
+        lastTimingAdvanceSpeech = phrase
+        val volumes = _audioVolumes.value
+        if (phrase == null ||
+            !volumes.masterVoiceAnnouncementsEnabled ||
+            !volumes.timingAdvanceVoiceEnabled
+        ) {
+            return null
+        }
+        return TimingAdvanceAnnouncement.format(stats, volumes)
+    }
+
     private fun consumeCellIdentityChange(
         next: CellIdentitySnapshot,
         stats: ConnectivityStats,
@@ -1466,6 +1500,10 @@ object MonitorState {
         }
 
         val volumes = _audioVolumes.value
+        val scope = volumes.cellReselectAlertScope
+        if (!CellIdentityAnnouncement.shouldAnnounce(previous, next, radioAccessType, scope)) {
+            return null
+        }
         return CellIdentityAnnouncement.format(
             previous = previous,
             next = next,
@@ -1474,7 +1512,11 @@ object MonitorState {
             campedOnVisitedOperator = stats.resolveCampedVisitedOperatorName() != null,
             speakBandEnabled = volumes.cellChangeSpeakBandEnabled,
             bandNamingStyle = volumes.cellChangeBandNamingStyle,
-            prefixPhrases = volumes.cellChangePhrases
+            prefixPhrases = volumes.cellChangePhrases,
+            includeNrIdentity = CellIdentityAnnouncement.includeNrInAnnouncement(
+                radioAccessType,
+                scope
+            )
         )
     }
 
@@ -1555,6 +1597,8 @@ object MonitorState {
         cellReselectTimestamps.clear()
         technologyChangeTimestamps.clear()
         cellIdentityBaselineReady = false
+        timingAdvanceBaselineReady = false
+        lastTimingAdvanceSpeech = null
         radioTechnologyBaselineReady = false
         announcedRadioAccessType = null
         pendingLteFamilyRat = null
@@ -1685,8 +1729,6 @@ object MonitorState {
                 _stats.value = ConnectivityStats(isMonitoring = false)
                 publishSpecialCellMatch(_stats.value)
                 _rttHistory.value = emptyList()
-                _rsrpHistory.value = emptyList()
-                histogramRadioAccessType = null
             }
         }
     }

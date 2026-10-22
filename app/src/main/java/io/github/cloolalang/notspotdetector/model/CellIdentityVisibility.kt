@@ -13,6 +13,7 @@ fun ConnectivityStats.withCellIdentityForDisplay(
         rsrqDb = null,
         lteSinrDb = null,
         nrSinrDb = null,
+        nrRsrpDbm = null,
         timingAdvance = null,
         lteEarfcn = null,
         ltePci = null,

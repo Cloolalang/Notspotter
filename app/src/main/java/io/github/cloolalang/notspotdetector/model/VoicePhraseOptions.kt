@@ -47,7 +47,8 @@ enum class VoicePhraseGroup {
     TECH_CHANGE_TO_5G_ENDC,
     SIGNAL_LOW,
     NO_SIGNAL,
-    LIMITED_SERVICE;
+    LIMITED_SERVICE,
+    TIMING_ADVANCE;
 
     companion object {
         fun forTechnologyChange(target: TechnologyChangeTarget): VoicePhraseGroup {

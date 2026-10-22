@@ -232,6 +232,11 @@ object CellularSignalReader {
                 fromSignal = signalMetrics.nrSinrDb,
                 useSignal = useSignalMetrics
             ),
+            nrRsrpDbm = ServingCellSelection.pickServingMetric(
+                fromCell = servingCell.nrRsrpDbm,
+                fromSignal = signalMetrics.nrRsrpDbm,
+                useSignal = useSignalMetrics
+            ),
             timingAdvance = servingCell.timingAdvance
                 ?: signalMetrics.timingAdvance.takeIf { useSignalMetrics },
             radioAccessType = mergeRadioAccessType(
@@ -296,6 +301,7 @@ object CellularSignalReader {
                 rsrqDb = null,
                 lteSinrDb = null,
                 nrSinrDb = null,
+                nrRsrpDbm = null,
                 timingAdvance = metrics.timingAdvance?.takeIf { it.kind == TimingAdvanceKind.GSM },
                 lteEarfcn = null,
                 ltePci = null,
@@ -813,6 +819,7 @@ object CellularSignalReader {
                                 rsrpDbm = rsrp,
                                 rsrqDb = rsrq,
                                 nrSinrDb = sinr,
+                                nrRsrpDbm = rsrp,
                                 timingAdvance = timingAdvance,
                                 permissionGranted = true
                             )
@@ -854,6 +861,7 @@ object CellularSignalReader {
                     lteMetrics.copy(
                         radioAccessType = RADIO_5G_ENDC,
                         nrSinrDb = nrMetrics.nrSinrDb,
+                        nrRsrpDbm = nrMetrics.nrRsrpDbm,
                         timingAdvance = lteMetrics.timingAdvance ?: nrMetrics.timingAdvance
                     )
                 nrMetrics != null ->
@@ -1465,6 +1473,7 @@ object CellularSignalReader {
             rsrqDb = primary?.rsrqDb,
             lteSinrDb = bestLte?.lteSinrDb,
             nrSinrDb = bestNr?.nrSinrDb,
+            nrRsrpDbm = bestNr?.rsrpDbm,
             timingAdvance = primary?.timingAdvance ?: bestNr?.timingAdvance,
             radioAccessType = radioAccessType,
             servingPlmn = primary?.servingPlmn,
@@ -1712,6 +1721,7 @@ object CellularSignalReader {
         val rsrqDb: Int? = null,
         val lteSinrDb: Int? = null,
         val nrSinrDb: Int? = null,
+        val nrRsrpDbm: Int? = null,
         val timingAdvance: TimingAdvanceReading? = null,
         val radioAccessType: String? = null,
         val servingPlmn: String? = null,
@@ -1803,6 +1813,7 @@ object CellularSignalReader {
                 rsrqDb = rsrqDb ?: fallback.rsrqDb.takeIf { sameCell },
                 lteSinrDb = lteSinrDb ?: fallback.lteSinrDb.takeIf { sameCell },
                 nrSinrDb = nrSinrDb ?: fallback.nrSinrDb.takeIf { sameCell },
+                nrRsrpDbm = nrRsrpDbm ?: fallback.nrRsrpDbm.takeIf { sameCell },
                 timingAdvance = timingAdvance ?: fallback.timingAdvance.takeIf { sameCell },
                 radioAccessType = radioAccessType ?: fallback.radioAccessType,
                 servingPlmn = servingPlmn ?: fallback.servingPlmn,

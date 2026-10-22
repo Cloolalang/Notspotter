@@ -2,6 +2,7 @@ package io.github.cloolalang.notspotdetector.data
 
 import io.github.cloolalang.notspotdetector.model.AppSettingsSnapshot
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
+import io.github.cloolalang.notspotdetector.model.CellReselectAlertScope
 import io.github.cloolalang.notspotdetector.model.CellReselectBandNamingStyle
 import io.github.cloolalang.notspotdetector.model.MockNetworkScenario
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
@@ -9,6 +10,7 @@ import io.github.cloolalang.notspotdetector.model.PassiveMockSettings
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
 import io.github.cloolalang.notspotdetector.model.PingSettings
 import io.github.cloolalang.notspotdetector.model.RxssStateFilterSettings
+import io.github.cloolalang.notspotdetector.model.RadioDebugSettings
 import io.github.cloolalang.notspotdetector.model.RsrpHistogram
 import io.github.cloolalang.notspotdetector.model.RsrpHistogramBinningMode
 import io.github.cloolalang.notspotdetector.model.SettingsProfile
@@ -22,7 +24,7 @@ import org.json.JSONObject
 /**
  * JSON codec for settings profiles (schema v1).
  *
- * `settings` sections: `thresholds`, `ping`, `monitoring`, `passiveSignal`, `passiveMock`, `audio`.
+ * `settings` sections: `thresholds`, `ping`, `monitoring`, `passiveSignal`, `passiveMock`, `audio`, `radioDebug`.
  * Mock block keys: `enabled`, `scenario` ([MockNetworkScenario.name]), `rsrpDbm`, `rsrqDb`, `voiceOnlyNoData`.
  * Full field lists: [AppSettingsSnapshotCodecCompletenessTest].
  * Documentation: [SETTINGS_PROFILES.md].
@@ -104,6 +106,7 @@ object AppSettingsSnapshotCodec {
             .put("passiveSignal", encodePassiveSignal(settings.passiveSignalSettings))
             .put("passiveMock", encodePassiveMock(settings.passiveMockSettings))
             .put("audio", encodeAudio(settings.audioVolumes))
+            .put("radioDebug", encodeRadioDebug(settings.radioDebugSettings))
     }
 
     private fun decodeSettings(json: JSONObject): AppSettingsSnapshot {
@@ -114,8 +117,19 @@ object AppSettingsSnapshotCodec {
             monitoringSettings = decodeMonitoring(json.optJSONObject("monitoring")),
             passiveSignalSettings = decodePassiveSignal(json.optJSONObject("passiveSignal"), audioVolumes),
             passiveMockSettings = decodePassiveMock(json.optJSONObject("passiveMock")),
-            audioVolumes = audioVolumes
+            audioVolumes = audioVolumes,
+            radioDebugSettings = decodeRadioDebug(json.optJSONObject("radioDebug"))
         ).normalized()
+    }
+
+    private fun encodeRadioDebug(settings: RadioDebugSettings): JSONObject {
+        return JSONObject()
+            .put("enabled", settings.enabled)
+    }
+
+    private fun decodeRadioDebug(json: JSONObject?): RadioDebugSettings {
+        if (json == null) return RadioDebugSettings()
+        return RadioDebugSettings(enabled = json.optBoolean("enabled", false))
     }
 
     private fun encodeThresholds(settings: ThresholdSettings): JSONObject {
@@ -647,6 +661,7 @@ object AppSettingsSnapshotCodec {
             .put("cellChangeVoiceVolume", settings.cellChangeVoiceVolume.toDouble())
             .put("cellChangeSpeakBandEnabled", settings.cellChangeSpeakBandEnabled)
             .put("cellChangeBandNamingStyle", settings.cellChangeBandNamingStyle.id)
+            .put("cellReselectAlertScope", settings.cellReselectAlertScope.id)
             .put("technologyChangeTo2gSoundEnabled", settings.technologyChangeTo2gSoundEnabled)
             .put("technologyChangeTo2gToneVolume", settings.technologyChangeTo2gToneVolume.toDouble())
             .put("technologyChangeTo2gVoiceEnabled", settings.technologyChangeTo2gVoiceEnabled)
@@ -675,6 +690,9 @@ object AppSettingsSnapshotCodec {
             .put("limitedServiceVoiceEnabled", settings.limitedServiceVoiceEnabled)
             .put("limitedServicePeriodicVoiceEnabled", settings.limitedServicePeriodicVoiceEnabled)
             .put("limitedServiceVoiceVolume", settings.limitedServiceVoiceVolume.toDouble())
+            .put("timingAdvanceVoiceEnabled", settings.timingAdvanceVoiceEnabled)
+            .put("timingAdvancePeriodicVoiceEnabled", settings.timingAdvancePeriodicVoiceEnabled)
+            .put("timingAdvanceVoiceVolume", settings.timingAdvanceVoiceVolume.toDouble())
             .put("speakOperatorNameEnabled", settings.speakOperatorNameEnabled)
             .put("speakTechnologyEnabled", settings.speakTechnologyEnabled)
             .putPhrases("cellChange", settings.cellChangePhrases)
@@ -684,6 +702,7 @@ object AppSettingsSnapshotCodec {
             .putPhrases("signalLow", settings.signalLowPhrases)
             .putPhrases("noSignal", settings.noSignalPhrases)
             .putPhrases("limitedService", settings.limitedServicePhrases)
+            .putPhrases("timingAdvance", settings.timingAdvancePhrases)
             .put("specialCellsDetectionEnabled", settings.specialCellsDetectionEnabled)
             .put("specialCellsVoiceEnabled", settings.specialCellsVoiceEnabled)
             .put("specialCellsSpeakType", settings.specialCellsSpeakType)
@@ -921,6 +940,9 @@ object AppSettingsSnapshotCodec {
             cellChangeBandNamingStyle = CellReselectBandNamingStyle.fromId(
                 json.optString("cellChangeBandNamingStyle", CellReselectBandNamingStyle.DEFAULT.id)
             ),
+            cellReselectAlertScope = CellReselectAlertScope.fromId(
+                json.optString("cellReselectAlertScope", CellReselectAlertScope.DEFAULT.id)
+            ),
             technologyChangeTo2gSoundEnabled = json.optBoolean(
                 "technologyChangeTo2gSoundEnabled",
                 AudioVolumeSettings.DEFAULT_TECHNOLOGY_CHANGE_SOUND_ENABLED
@@ -1002,6 +1024,18 @@ object AppSettingsSnapshotCodec {
                 "limitedServiceVoiceVolume",
                 AudioVolumeSettings.DEFAULT_VOLUME.toDouble()
             ).toFloat(),
+            timingAdvanceVoiceEnabled = json.optBoolean(
+                "timingAdvanceVoiceEnabled",
+                AudioVolumeSettings.DEFAULT_VOICE_ANNOUNCEMENT_ENABLED
+            ),
+            timingAdvancePeriodicVoiceEnabled = json.optBoolean(
+                "timingAdvancePeriodicVoiceEnabled",
+                AudioVolumeSettings.DEFAULT_PERIODIC_VOICE_ENABLED
+            ),
+            timingAdvanceVoiceVolume = json.optDouble(
+                "timingAdvanceVoiceVolume",
+                AudioVolumeSettings.DEFAULT_VOLUME.toDouble()
+            ).toFloat(),
             speakOperatorNameEnabled = json.optBoolean(
                 "speakOperatorNameEnabled",
                 AudioVolumeSettings.DEFAULT_SPEAK_OPERATOR_NAME_ENABLED
@@ -1049,6 +1083,12 @@ object AppSettingsSnapshotCodec {
             limitedServicePhrases = decodePhrases(
                 json,
                 "limitedService",
+                json.optBoolean("speakOperatorNameEnabled", AudioVolumeSettings.DEFAULT_SPEAK_OPERATOR_NAME_ENABLED),
+                json.optBoolean("speakTechnologyEnabled", AudioVolumeSettings.DEFAULT_SPEAK_TECHNOLOGY_ENABLED)
+            ),
+            timingAdvancePhrases = decodePhrases(
+                json,
+                "timingAdvance",
                 json.optBoolean("speakOperatorNameEnabled", AudioVolumeSettings.DEFAULT_SPEAK_OPERATOR_NAME_ENABLED),
                 json.optBoolean("speakTechnologyEnabled", AudioVolumeSettings.DEFAULT_SPEAK_TECHNOLOGY_ENABLED)
             ),

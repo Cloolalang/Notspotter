@@ -7,6 +7,12 @@ data class CellularRadioMetrics(
     val lteSinrDb: Int? = null,
     /** NR SS-SINR (SNIR) in dB. */
     val nrSinrDb: Int? = null,
+    /**
+     * NR SS-RSRP in dBm from [android.telephony.CellSignalStrengthNr.getSsRsrp]
+     * (API 29+). On EN-DC this is the NR carrier, separate from the LTE anchor in [rsrpDbm].
+     * On 5G standalone it matches [rsrpDbm].
+     */
+    val nrRsrpDbm: Int? = null,
     /** Serving-cell timing advance, when the modem reports one. */
     val timingAdvance: TimingAdvanceReading? = null,
     val radioAccessType: String? = null,
@@ -110,6 +116,7 @@ data class CellularRadioMetrics(
             rsrqDb = null,
             lteSinrDb = null,
             nrSinrDb = null,
+            nrRsrpDbm = null,
             timingAdvance = null,
             radioAccessType = null,
             ltePlusIcon = false,
