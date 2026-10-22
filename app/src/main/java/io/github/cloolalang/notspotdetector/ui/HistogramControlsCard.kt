@@ -51,7 +51,19 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.cloolalang.notspotdetector.R
+import io.github.cloolalang.notspotdetector.model.ActiveTestBand
+import io.github.cloolalang.notspotdetector.model.ActiveTestHistory
+import io.github.cloolalang.notspotdetector.model.ActiveTestSegment
+import io.github.cloolalang.notspotdetector.model.ActiveTestTape
+import io.github.cloolalang.notspotdetector.model.AggregatedBandwidthBand
+import io.github.cloolalang.notspotdetector.model.AggregatedBandwidthHistory
+import io.github.cloolalang.notspotdetector.model.AggregatedBandwidthSegment
+import io.github.cloolalang.notspotdetector.model.AggregatedBandwidthTape
 import io.github.cloolalang.notspotdetector.model.ConnectivityStats
+import io.github.cloolalang.notspotdetector.model.DistanceHistory
+import io.github.cloolalang.notspotdetector.model.DistanceSegment
+import io.github.cloolalang.notspotdetector.model.DistanceTape
+import io.github.cloolalang.notspotdetector.model.DistanceVisit
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.PrimaryCarrierHistory
 import io.github.cloolalang.notspotdetector.model.PrimaryCarrierTape
@@ -76,6 +88,7 @@ import io.github.cloolalang.notspotdetector.model.TapeTimeline
 import io.github.cloolalang.notspotdetector.model.TechnologyHistory
 import io.github.cloolalang.notspotdetector.model.TechnologySegment
 import io.github.cloolalang.notspotdetector.model.TechnologyTape
+import io.github.cloolalang.notspotdetector.model.TimingAdvance
 import io.github.cloolalang.notspotdetector.network.CellularSignalReader
 import io.github.cloolalang.notspotdetector.model.coerceToHistogramWindowStep
 import io.github.cloolalang.notspotdetector.ui.theme.BondiBlue
@@ -90,9 +103,9 @@ private val HistogramMinBarWidth = 12.dp
 private val HistogramMaxBarWidth = 36.dp
 
 /**
- * Collapsible "Level histogram" panel: shows one live RSRP histogram (5 dB bins or threshold
- * bins). Mode, thresholds, and sample window live in a nested Histogram settings sub-panel.
- * Stays on screen after monitoring stops so the last chart and tapes remain.
+ * Level histogram chart, plus a separate collapsible KPI history panel for the tapes.
+ * Mode, thresholds, and sample window live in a nested Histogram settings sub-panel.
+ * Both stay on screen after monitoring stops so the last chart and tapes remain.
  */
 @Composable
 fun HistogramControlsCard(
@@ -108,12 +121,16 @@ fun HistogramControlsCard(
     onClearHistogram: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var expanded by rememberSaveable { mutableStateOf(false) }
+    var histogramExpanded by rememberSaveable { mutableStateOf(false) }
+    var kpiHistoryExpanded by rememberSaveable { mutableStateOf(false) }
     var nowMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var carrierTape by remember { mutableStateOf(PrimaryCarrierTape()) }
     var nrCarrierTape by remember { mutableStateOf(PrimaryCarrierTape()) }
     var technologyTape by remember { mutableStateOf(TechnologyTape()) }
     var rsrpBinTape by remember { mutableStateOf(RsrpBinTape()) }
+    var distanceTape by remember { mutableStateOf(DistanceTape()) }
+    var activeTestTape by remember { mutableStateOf(ActiveTestTape()) }
+    var aggregatedBandwidthTape by remember { mutableStateOf(AggregatedBandwidthTape()) }
     val currentCarrier = PrimaryCarrierHistory.visitFromStats(stats)
     val currentNrCarrier = PrimaryCarrierHistory.nrVisitFromStats(stats)
     val currentTechnology = TechnologyHistory.technologyFromStats(stats)
@@ -122,6 +139,26 @@ fun HistogramControlsCard(
         nowMs = nowMs,
         noSignal = TechnologyHistory.isNoSignalPeriod(stats)
     )
+    val currentDistance = DistanceHistory.current(
+        samples = samples,
+        nowMs = nowMs,
+        noSignal = TechnologyHistory.isNoSignalPeriod(stats)
+    )
+    val currentActiveTest = ActiveTestHistory.current(stats)
+    val currentAggregatedBandwidth = AggregatedBandwidthHistory.current(stats)
+    fun resetTapes(now: Long = System.currentTimeMillis()) {
+        carrierTape = PrimaryCarrierHistory.record(PrimaryCarrierTape(), currentCarrier, now)
+        nrCarrierTape = PrimaryCarrierHistory.record(PrimaryCarrierTape(), currentNrCarrier, now)
+        technologyTape = TechnologyHistory.record(TechnologyTape(), currentTechnology, now)
+        rsrpBinTape = RsrpBinHistory.record(RsrpBinTape(), currentRsrpBin, now)
+        distanceTape = DistanceHistory.record(DistanceTape(), currentDistance, now)
+        activeTestTape = ActiveTestHistory.record(ActiveTestTape(), currentActiveTest, now)
+        aggregatedBandwidthTape = AggregatedBandwidthHistory.record(
+            AggregatedBandwidthTape(),
+            currentAggregatedBandwidth,
+            now
+        )
+    }
     LaunchedEffect(currentCarrier) {
         carrierTape = PrimaryCarrierHistory.record(
             carrierTape,
@@ -151,6 +188,30 @@ fun HistogramControlsCard(
             System.currentTimeMillis()
         )
     }
+    LaunchedEffect(currentDistance, isActive) {
+        if (!isActive) return@LaunchedEffect
+        distanceTape = DistanceHistory.record(
+            distanceTape,
+            currentDistance,
+            System.currentTimeMillis()
+        )
+    }
+    LaunchedEffect(currentActiveTest, isActive) {
+        if (!isActive) return@LaunchedEffect
+        activeTestTape = ActiveTestHistory.record(
+            activeTestTape,
+            currentActiveTest,
+            System.currentTimeMillis()
+        )
+    }
+    LaunchedEffect(currentAggregatedBandwidth, isActive) {
+        if (!isActive) return@LaunchedEffect
+        aggregatedBandwidthTape = AggregatedBandwidthHistory.record(
+            aggregatedBandwidthTape,
+            currentAggregatedBandwidth,
+            System.currentTimeMillis()
+        )
+    }
 
     LaunchedEffect(samples) {
         nowMs = System.currentTimeMillis()
@@ -167,7 +228,11 @@ fun HistogramControlsCard(
         windowMs = windowMs.coerceToHistogramWindowStep()
     )
 
-    Card(modifier = modifier.fillMaxWidth()) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+    Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -175,7 +240,7 @@ fun HistogramControlsCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { expanded = !expanded },
+                    .clickable { histogramExpanded = !histogramExpanded },
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -186,13 +251,13 @@ fun HistogramControlsCard(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = if (expanded) "▲" else "▼",
+                    text = if (histogramExpanded) "▲" else "▼",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
-            if (expanded) {
+            if (histogramExpanded) {
                 RsrpHistogramDisplay(
                     samples = samples,
                     windowMs = windowMs.coerceToHistogramWindowStep(),
@@ -200,44 +265,22 @@ fun HistogramControlsCard(
                     thresholdsDbm = thresholdsDbm,
                     nowMs = nowMs,
                     elapsedMs = elapsedMs,
-                    carrierEntries = carrierTape.entries,
-                    nrCarrierEntries = nrCarrierTape.entries,
-                    reselectsPerMinute = stats.cellReselectsPerMinute,
-                    technologyEntries = technologyTape.entries,
-                    technologyChangesPerMinute = stats.technologyChangesPerMinute,
-                    rsrpBinEntries = rsrpBinTape.entries,
                     cellInfoAgeMs = stats.cellInfoAgeMs
                 )
 
                 OutlinedButton(
                     onClick = {
-                        carrierTape = PrimaryCarrierHistory.record(
-                            PrimaryCarrierTape(),
-                            currentCarrier,
-                            System.currentTimeMillis()
-                        )
-                        nrCarrierTape = PrimaryCarrierHistory.record(
-                            PrimaryCarrierTape(),
-                            currentNrCarrier,
-                            System.currentTimeMillis()
-                        )
-                        technologyTape = TechnologyHistory.record(
-                            TechnologyTape(),
-                            currentTechnology,
-                            System.currentTimeMillis()
-                        )
-                        rsrpBinTape = RsrpBinHistory.record(
-                            RsrpBinTape(),
-                            currentRsrpBin,
-                            System.currentTimeMillis()
-                        )
+                        resetTapes()
                         onClearHistogram()
                     },
                     enabled = samples.isNotEmpty() ||
                         carrierTape.entries.size > 1 ||
                         nrCarrierTape.entries.size > 1 ||
                         technologyTape.entries.size > 1 ||
-                        rsrpBinTape.entries.size > 1,
+                        rsrpBinTape.entries.size > 1 ||
+                        distanceTape.entries.size > 1 ||
+                        activeTestTape.entries.size > 1 ||
+                        aggregatedBandwidthTape.entries.size > 1,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(text = stringResource(R.string.rsrp_histogram_clear))
@@ -254,6 +297,22 @@ fun HistogramControlsCard(
                 )
             }
         }
+    }
+    KpiHistoryPanel(
+        expanded = kpiHistoryExpanded,
+        onExpandedChange = { kpiHistoryExpanded = it },
+        nowMs = nowMs,
+        carrierEntries = carrierTape.entries,
+        nrCarrierEntries = nrCarrierTape.entries,
+        reselectsPerMinute = stats.cellReselectsPerMinute,
+        technologyEntries = technologyTape.entries,
+        technologyChangesPerMinute = stats.technologyChangesPerMinute,
+        rsrpBinEntries = rsrpBinTape.entries,
+        distanceEntries = distanceTape.entries,
+        activeTestEntries = activeTestTape.entries,
+        aggregatedBandwidthEntries = aggregatedBandwidthTape.entries,
+        onClearHistory = { resetTapes() }
+    )
     }
 }
 
@@ -342,12 +401,6 @@ private fun RsrpHistogramDisplay(
     thresholdsDbm: List<Int>,
     nowMs: Long,
     elapsedMs: Long?,
-    carrierEntries: List<PrimaryCarrierTapeEntry>,
-    nrCarrierEntries: List<PrimaryCarrierTapeEntry>,
-    reselectsPerMinute: Int,
-    technologyEntries: List<TechnologySegment>,
-    technologyChangesPerMinute: Int,
-    rsrpBinEntries: List<RsrpBinSegment>,
     cellInfoAgeMs: Long?,
     modifier: Modifier = Modifier
 ) {
@@ -447,40 +500,117 @@ private fun RsrpHistogramDisplay(
                 scanAgeMs = cellInfoAgeMs
             )
         }
-        val tapeWindowStartMs = TapeTimeline.windowStartMs(
-            carrierEntries.map { it.startedAtMs } +
-                nrCarrierEntries.map { it.startedAtMs } +
-                technologyEntries.map { it.startedAtMs } +
-                rsrpBinEntries.map { it.startedAtMs }
-        ) ?: nowMs
-        PrimaryCarrierHistoryBar(
-            title = stringResource(R.string.rsrp_histogram_carrier_history_title),
-            detail = stringResource(
-                R.string.metric_cell_reselect_rate_value,
-                reselectsPerMinute
-            ),
-            entries = carrierEntries,
-            nowMs = nowMs,
-            windowStartMs = tapeWindowStartMs
-        )
-        PrimaryCarrierHistoryBar(
-            title = stringResource(R.string.rsrp_histogram_nr_carrier_history_title),
-            detail = null,
-            entries = nrCarrierEntries,
-            nowMs = nowMs,
-            windowStartMs = tapeWindowStartMs
-        )
-        TechnologyHistoryBar(
-            entries = technologyEntries,
-            changesPerMinute = technologyChangesPerMinute,
-            nowMs = nowMs,
-            windowStartMs = tapeWindowStartMs
-        )
-        RsrpBinHistoryBar(
-            entries = rsrpBinEntries,
-            nowMs = nowMs,
-            windowStartMs = tapeWindowStartMs
-        )
+    }
+}
+
+@Composable
+private fun KpiHistoryPanel(
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    nowMs: Long,
+    carrierEntries: List<PrimaryCarrierTapeEntry>,
+    nrCarrierEntries: List<PrimaryCarrierTapeEntry>,
+    reselectsPerMinute: Int,
+    technologyEntries: List<TechnologySegment>,
+    technologyChangesPerMinute: Int,
+    rsrpBinEntries: List<RsrpBinSegment>,
+    distanceEntries: List<DistanceSegment>,
+    activeTestEntries: List<ActiveTestSegment>,
+    aggregatedBandwidthEntries: List<AggregatedBandwidthSegment>,
+    onClearHistory: () -> Unit
+) {
+    val tapeWindowStartMs = TapeTimeline.windowStartMs(
+        carrierEntries.map { it.startedAtMs } +
+            nrCarrierEntries.map { it.startedAtMs } +
+            technologyEntries.map { it.startedAtMs } +
+            rsrpBinEntries.map { it.startedAtMs } +
+            distanceEntries.map { it.startedAtMs } +
+            activeTestEntries.map { it.startedAtMs } +
+            aggregatedBandwidthEntries.map { it.startedAtMs }
+    ) ?: nowMs
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onExpandedChange(!expanded) },
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.kpi_history_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = Sushi,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = if (expanded) "▲" else "▼",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            if (expanded) {
+                PrimaryCarrierHistoryBar(
+                    title = stringResource(R.string.rsrp_histogram_carrier_history_title),
+                    detail = stringResource(
+                        R.string.metric_cell_reselect_rate_value,
+                        reselectsPerMinute
+                    ),
+                    entries = carrierEntries,
+                    nowMs = nowMs,
+                    windowStartMs = tapeWindowStartMs
+                )
+                PrimaryCarrierHistoryBar(
+                    title = stringResource(R.string.rsrp_histogram_nr_carrier_history_title),
+                    detail = null,
+                    entries = nrCarrierEntries,
+                    nowMs = nowMs,
+                    windowStartMs = tapeWindowStartMs
+                )
+                TechnologyHistoryBar(
+                    entries = technologyEntries,
+                    changesPerMinute = technologyChangesPerMinute,
+                    nowMs = nowMs,
+                    windowStartMs = tapeWindowStartMs
+                )
+                RsrpBinHistoryBar(
+                    entries = rsrpBinEntries,
+                    nowMs = nowMs,
+                    windowStartMs = tapeWindowStartMs
+                )
+                DistanceHistoryBar(
+                    entries = distanceEntries,
+                    nowMs = nowMs,
+                    windowStartMs = tapeWindowStartMs
+                )
+                ActiveTestHistoryBar(
+                    entries = activeTestEntries,
+                    nowMs = nowMs,
+                    windowStartMs = tapeWindowStartMs
+                )
+                AggregatedBandwidthHistoryBar(
+                    entries = aggregatedBandwidthEntries,
+                    nowMs = nowMs,
+                    windowStartMs = tapeWindowStartMs
+                )
+                OutlinedButton(
+                    onClick = onClearHistory,
+                    enabled = carrierEntries.isNotEmpty() ||
+                        nrCarrierEntries.isNotEmpty() ||
+                        technologyEntries.isNotEmpty() ||
+                        rsrpBinEntries.isNotEmpty() ||
+                        distanceEntries.isNotEmpty() ||
+                        activeTestEntries.isNotEmpty() ||
+                        aggregatedBandwidthEntries.isNotEmpty(),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(text = stringResource(R.string.kpi_history_clear))
+                }
+            }
+        }
     }
 }
 
@@ -1120,6 +1250,348 @@ private fun rsrpBinTapeColor(bin: RsrpBin): Color {
         RsrpBin.ABOVE_115 -> MeanRsrpYellow
         RsrpBin.BELOW_115 -> MeanRsrpRed
         RsrpBin.NO_SIGNAL -> Color(0xFF90A4AE)
+    }
+}
+
+@Composable
+private fun DistanceHistoryBar(
+    entries: List<DistanceSegment>,
+    nowMs: Long,
+    windowStartMs: Long,
+    modifier: Modifier = Modifier
+) {
+    val current = entries.lastOrNull()
+    val valueText = current?.let { distanceLabel(it.metres) }
+        ?: stringResource(R.string.signal_unavailable)
+    val segmentLabels = entries.map { distanceLabel(it.metres) }
+    val trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+    val textMeasurer = rememberTextMeasurer()
+    val labelStyle = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp)
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = stringResource(R.string.distance_history_title),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Sushi
+                )
+                Text(
+                    text = stringResource(R.string.distance_history_rule),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Text(
+                text = valueText,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Medium
+            )
+        }
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(24.dp)
+                .clip(RoundedCornerShape(9.dp))
+                .background(trackColor)
+        ) {
+            if (entries.isEmpty()) return@Canvas
+            val canvasScope = this
+            val bounds = tapeSegmentBounds(
+                startsMs = entries.map { it.startedAtMs },
+                windowStartMs = windowStartMs,
+                nowMs = nowMs,
+                tapeWidth = size.width
+            )
+            entries.forEachIndexed { index, segment ->
+                val (left, segmentWidth) = bounds[index]
+                if (segmentWidth <= 0f) return@forEachIndexed
+                val color = distanceTapeColor(segment.metres)
+                val label = segmentLabels[index]
+                canvasScope.clipRect(
+                    left = left,
+                    top = 0f,
+                    right = left + segmentWidth,
+                    bottom = size.height
+                ) {
+                    drawRect(
+                        color = color,
+                        topLeft = Offset(left, 0f),
+                        size = Size(segmentWidth, size.height)
+                    )
+                    val layout = textMeasurer.measure(
+                        text = label,
+                        style = labelStyle.merge(TextStyle(color = carrierTapeLabelColor(color))),
+                        overflow = TextOverflow.Ellipsis,
+                        softWrap = false,
+                        maxLines = 1,
+                        constraints = Constraints(
+                            maxWidth = segmentWidth.roundToInt().coerceAtLeast(0)
+                        )
+                    )
+                    drawText(
+                        textLayoutResult = layout,
+                        topLeft = Offset(
+                            x = left + (segmentWidth - layout.size.width) / 2f,
+                            y = (size.height - layout.size.height) / 2f
+                        )
+                    )
+                }
+            }
+        }
+        TapeTimeScale(
+            oldestStartedAtMs = if (entries.isEmpty()) null else windowStartMs,
+            nowMs = nowMs
+        )
+    }
+}
+
+private fun distanceLabel(metres: Int?): String {
+    if (metres == null) return TechnologyHistory.LABEL_NO_SIGNAL
+    return TimingAdvance.formatOneWayDistance(metres)
+}
+
+private fun distanceTapeColor(metres: Int?): Color {
+    return when {
+        metres == null -> Color(0xFF90A4AE)
+        metres < 500 -> MeanRsrpLightBlue
+        metres < 1_000 -> MeanRsrpGreen
+        metres < 3_000 -> MeanRsrpYellow
+        else -> MeanRsrpRed
+    }
+}
+
+@Composable
+private fun ActiveTestHistoryBar(
+    entries: List<ActiveTestSegment>,
+    nowMs: Long,
+    windowStartMs: Long,
+    modifier: Modifier = Modifier
+) {
+    val current = entries.lastOrNull()
+    val valueText = current?.let { ActiveTestHistory.label(it) }
+        ?: stringResource(R.string.signal_unavailable)
+    val segmentLabels = entries.map { ActiveTestHistory.label(it) }
+    val trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+    val textMeasurer = rememberTextMeasurer()
+    val labelStyle = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp)
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = stringResource(R.string.active_test_history_title),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Sushi
+                )
+                Text(
+                    text = stringResource(R.string.active_test_history_rule),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Text(
+                text = valueText,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Medium
+            )
+        }
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(24.dp)
+                .clip(RoundedCornerShape(9.dp))
+                .background(trackColor)
+        ) {
+            if (entries.isEmpty()) return@Canvas
+            val canvasScope = this
+            val bounds = tapeSegmentBounds(
+                startsMs = entries.map { it.startedAtMs },
+                windowStartMs = windowStartMs,
+                nowMs = nowMs,
+                tapeWidth = size.width
+            )
+            entries.forEachIndexed { index, segment ->
+                val (left, segmentWidth) = bounds[index]
+                if (segmentWidth <= 0f) return@forEachIndexed
+                val color = activeTestTapeColor(segment.band)
+                val label = segmentLabels[index]
+                canvasScope.clipRect(
+                    left = left,
+                    top = 0f,
+                    right = left + segmentWidth,
+                    bottom = size.height
+                ) {
+                    drawRect(
+                        color = color,
+                        topLeft = Offset(left, 0f),
+                        size = Size(segmentWidth, size.height)
+                    )
+                    val layout = textMeasurer.measure(
+                        text = label,
+                        style = labelStyle.merge(TextStyle(color = carrierTapeLabelColor(color))),
+                        overflow = TextOverflow.Ellipsis,
+                        softWrap = false,
+                        maxLines = 1,
+                        constraints = Constraints(
+                            maxWidth = segmentWidth.roundToInt().coerceAtLeast(0)
+                        )
+                    )
+                    drawText(
+                        textLayoutResult = layout,
+                        topLeft = Offset(
+                            x = left + (segmentWidth - layout.size.width) / 2f,
+                            y = (size.height - layout.size.height) / 2f
+                        )
+                    )
+                }
+            }
+        }
+        TapeTimeScale(
+            oldestStartedAtMs = if (entries.isEmpty()) null else windowStartMs,
+            nowMs = nowMs
+        )
+    }
+}
+
+private fun activeTestTapeColor(band: ActiveTestBand): Color {
+    return when (band) {
+        ActiveTestBand.NO_MEASUREMENT -> Color(0xFF90A4AE)
+        ActiveTestBand.TOTAL_LOSS -> Color.Black
+        ActiveTestBand.HIGH_LOSS,
+        ActiveTestBand.VERY_SLOW -> MeanRsrpRed
+        ActiveTestBand.SLOW -> MeanRsrpYellow
+        ActiveTestBand.OK -> MeanRsrpGreen
+        ActiveTestBand.FAST -> MeanRsrpLightBlue
+    }
+}
+
+@Composable
+private fun AggregatedBandwidthHistoryBar(
+    entries: List<AggregatedBandwidthSegment>,
+    nowMs: Long,
+    windowStartMs: Long,
+    modifier: Modifier = Modifier
+) {
+    val current = entries.lastOrNull()
+    val valueText = current?.let { AggregatedBandwidthHistory.label(it) }
+        ?: stringResource(R.string.signal_unavailable)
+    val segmentLabels = entries.map { AggregatedBandwidthHistory.label(it) }
+    val trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+    val textMeasurer = rememberTextMeasurer()
+    val labelStyle = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp)
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = stringResource(R.string.aggregated_bandwidth_history_title),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Sushi
+                )
+                Text(
+                    text = stringResource(R.string.aggregated_bandwidth_history_rule),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Text(
+                text = valueText,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Medium
+            )
+        }
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(24.dp)
+                .clip(RoundedCornerShape(9.dp))
+                .background(trackColor)
+        ) {
+            if (entries.isEmpty()) return@Canvas
+            val canvasScope = this
+            val bounds = tapeSegmentBounds(
+                startsMs = entries.map { it.startedAtMs },
+                windowStartMs = windowStartMs,
+                nowMs = nowMs,
+                tapeWidth = size.width
+            )
+            entries.forEachIndexed { index, segment ->
+                val (left, segmentWidth) = bounds[index]
+                if (segmentWidth <= 0f) return@forEachIndexed
+                val color = aggregatedBandwidthTapeColor(segment.band)
+                val label = segmentLabels[index]
+                canvasScope.clipRect(
+                    left = left,
+                    top = 0f,
+                    right = left + segmentWidth,
+                    bottom = size.height
+                ) {
+                    drawRect(
+                        color = color,
+                        topLeft = Offset(left, 0f),
+                        size = Size(segmentWidth, size.height)
+                    )
+                    val layout = textMeasurer.measure(
+                        text = label,
+                        style = labelStyle.merge(TextStyle(color = carrierTapeLabelColor(color))),
+                        overflow = TextOverflow.Ellipsis,
+                        softWrap = false,
+                        maxLines = 1,
+                        constraints = Constraints(
+                            maxWidth = segmentWidth.roundToInt().coerceAtLeast(0)
+                        )
+                    )
+                    drawText(
+                        textLayoutResult = layout,
+                        topLeft = Offset(
+                            x = left + (segmentWidth - layout.size.width) / 2f,
+                            y = (size.height - layout.size.height) / 2f
+                        )
+                    )
+                }
+            }
+        }
+        TapeTimeScale(
+            oldestStartedAtMs = if (entries.isEmpty()) null else windowStartMs,
+            nowMs = nowMs
+        )
+    }
+}
+
+private fun aggregatedBandwidthTapeColor(band: AggregatedBandwidthBand): Color {
+    return when (band) {
+        AggregatedBandwidthBand.NONE -> Color(0xFF90A4AE)
+        AggregatedBandwidthBand.MHZ_5 -> MeanRsrpRed
+        AggregatedBandwidthBand.MHZ_10 -> MeanRsrpYellow
+        AggregatedBandwidthBand.MHZ_15 -> MeanRsrpOrange
+        AggregatedBandwidthBand.MHZ_20 -> MeanRsrpGreen
+        AggregatedBandwidthBand.BLUE_40 -> Color(0xFFB3E5FC)
+        AggregatedBandwidthBand.BLUE_60 -> Color(0xFF81D4FA)
+        AggregatedBandwidthBand.BLUE_100 -> Color(0xFF29B6F6)
+        AggregatedBandwidthBand.BLUE_150 -> Color(0xFF0288D1)
+        AggregatedBandwidthBand.BLUE_WIDE -> Color(0xFF01579B)
     }
 }
 

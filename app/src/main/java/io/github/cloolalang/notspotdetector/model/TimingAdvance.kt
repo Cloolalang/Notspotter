@@ -26,7 +26,7 @@ data class TimingAdvanceReading(
             TimingAdvanceKind.NR_MICROS -> "$value μs"
             else -> value.toString()
         }
-        return "$reading · ${distanceLabel(oneWayMetres())}"
+        return "$reading · ${TimingAdvance.formatOneWayDistance(oneWayMetres())}"
     }
 
     /** Spoken form of [distanceLabel], for the timing-advance voice announcement. */
@@ -52,19 +52,6 @@ data class TimingAdvanceReading(
         } else {
             "${NumberWords.toWords(km)} point ${NumberWords.toWords(tenths)} $kilometres"
         }
-    }
-
-    private fun distanceLabel(metres: Int): String {
-        if (metres < 1_000) return "$metres m"
-        val wholeKm = metres / 1_000
-        if (wholeKm >= 10) return "$wholeKm km"
-        var tenths = ((metres % 1_000) + 50) / 100
-        var km = wholeKm
-        if (tenths == 10) {
-            km += 1
-            tenths = 0
-        }
-        return "$km.$tenths km"
     }
 
     private companion object {
@@ -93,6 +80,20 @@ object TimingAdvance {
     fun takeNrMicros(value: Int): TimingAdvanceReading? {
         if (value < 0 || value == Int.MAX_VALUE || value > 2_000) return null
         return TimingAdvanceReading(value, TimingAdvanceKind.NR_MICROS)
+    }
+
+    /** One-way timing-advance distance, such as 469 m or 1.2 km. */
+    fun formatOneWayDistance(metres: Int): String {
+        if (metres < 1_000) return "$metres m"
+        val wholeKm = metres / 1_000
+        if (wholeKm >= 10) return "$wholeKm km"
+        var tenths = ((metres % 1_000) + 50) / 100
+        var km = wholeKm
+        if (tenths == 10) {
+            km += 1
+            tenths = 0
+        }
+        return "$km.$tenths km"
     }
 
     private fun takeIndex(value: Int, max: Int, kind: TimingAdvanceKind): TimingAdvanceReading? {

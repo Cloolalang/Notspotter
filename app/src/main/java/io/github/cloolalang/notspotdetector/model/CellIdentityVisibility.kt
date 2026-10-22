@@ -23,6 +23,9 @@ fun ConnectivityStats.withCellIdentityForDisplay(
         nrPci = null,
         nrNci = null,
         gsmEarfcn = null,
-        gsmBsic = null
+        gsmBsic = null,
+        primaryCarrierBandwidthKhz = emptyList(),
+        secondaryCarrierBandwidthKhz = emptyList(),
+        aggregatedBandwidthKhz = null
     )
 }

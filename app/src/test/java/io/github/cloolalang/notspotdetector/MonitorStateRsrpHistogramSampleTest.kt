@@ -1,6 +1,8 @@
 package io.github.cloolalang.notspotdetector
 
 import io.github.cloolalang.notspotdetector.model.ConnectivityStats
+import io.github.cloolalang.notspotdetector.model.TimingAdvanceKind
+import io.github.cloolalang.notspotdetector.model.TimingAdvanceReading
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
 import io.github.cloolalang.notspotdetector.network.CellularSignalReader
@@ -53,7 +55,9 @@ class MonitorStateRsrpHistogramSampleTest {
         assertEquals(2, MonitorState.rsrpHistory.value.size)
 
         MonitorState.setMonitoringSettings(MonitoringSettings(fiveGFeaturesEnabled = true))
-        MonitorState.updateStats(lteStats(-80, CellularSignalReader.RADIO_5G))
+        repeat(3) {
+            MonitorState.updateStats(lteStats(-80, CellularSignalReader.RADIO_5G))
+        }
 
         assertTrue(MonitorState.rsrpHistory.value.isEmpty())
         MonitorState.tickRsrpHistogramSample()
@@ -82,6 +86,28 @@ class MonitorStateRsrpHistogramSampleTest {
         MonitorState.clearRsrpHistogram()
 
         assertTrue(MonitorState.rsrpHistory.value.isEmpty())
+    }
+
+    @Test
+    fun histogramKeepsSamplesWhen4gAndEndcAlternate() {
+        MonitorState.tickRsrpHistogramSample()
+        MonitorState.setMonitoringSettings(MonitoringSettings(fiveGFeaturesEnabled = true))
+        MonitorState.updateStats(lteStats(-90, CellularSignalReader.RADIO_5G_ENDC))
+        MonitorState.tickRsrpHistogramSample()
+        MonitorState.updateStats(lteStats(-90, CellularSignalReader.RADIO_4G))
+        MonitorState.tickRsrpHistogramSample()
+
+        assertEquals(3, MonitorState.rsrpHistory.value.size)
+    }
+
+    @Test
+    fun histogramDoesNotClearOnASingleTechnologyPoll() {
+        MonitorState.tickRsrpHistogramSample()
+        MonitorState.tickRsrpHistogramSample()
+        MonitorState.setMonitoringSettings(MonitoringSettings(fiveGFeaturesEnabled = true))
+        MonitorState.updateStats(lteStats(-80, CellularSignalReader.RADIO_5G))
+
+        assertEquals(2, MonitorState.rsrpHistory.value.size)
     }
 
     @Test
@@ -118,6 +144,17 @@ class MonitorStateRsrpHistogramSampleTest {
         MonitorState.tickRsrpHistogramSample()
 
         assertTrue(MonitorState.rsrpHistory.value.isEmpty())
+    }
+
+    @Test
+    fun tickRsrpHistogramSample_storesTimingAdvanceDistance() {
+        MonitorState.clearRsrpHistogram()
+        MonitorState.updateStats(
+            lteStats(-95).copy(timingAdvance = TimingAdvanceReading(6, TimingAdvanceKind.LTE))
+        )
+        MonitorState.tickRsrpHistogramSample()
+
+        assertEquals(469, MonitorState.rsrpHistory.value.single().distanceMetres)
     }
 
     @Test

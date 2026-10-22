@@ -156,6 +156,8 @@ object MonitorState {
     private var lastKnownRadioAccessType: String? = null
     /** Camped RAT the current histogram belongs to; a change wipes the sample window. */
     private var histogramRadioAccessType: String? = null
+    private var pendingHistogramRat: String? = null
+    private var pendingHistogramRatPolls = 0
     private var lteRatBeforeNoSignalEpisode: String? = null
     private var searching2gAnnounced = false
     private var deadzoneAnnouncedThisEpisode = false
@@ -438,6 +440,7 @@ object MonitorState {
                 ServingCellSelection.isScanAgeStale(stats.cellInfoAgeMs)
             recordRsrpSample(
                 rsrpDbm = if (scanStale) null else stats.rsrpDbm,
+                distanceMetres = stats.displayedTimingAdvance()?.oneWayMetres(),
                 isMonitoring = stats.isMonitoring,
                 radioAccessType = stats.radioAccessType,
                 signalQualityFresh = stats.signalQualityFresh && !stats.isLimitedServiceVisited(),
@@ -448,6 +451,7 @@ object MonitorState {
 
     private fun recordRsrpSample(
         rsrpDbm: Int?,
+        distanceMetres: Int?,
         isMonitoring: Boolean,
         radioAccessType: String?,
         signalQualityFresh: Boolean,
@@ -463,22 +467,53 @@ object MonitorState {
         val timestampMs = System.currentTimeMillis()
         val retainMs = rsrpHistoryRetentionMs()
         val cutoff = timestampMs - retainMs
-        _rsrpHistory.value = (_rsrpHistory.value + RsrpSample(timestampMs, rsrpDbm))
+        _rsrpHistory.value = (_rsrpHistory.value + RsrpSample(timestampMs, rsrpDbm, distanceMetres))
             .filter { it.timestampMs >= cutoff }
     }
 
     /**
-     * Drops the rolling histogram when the camped RAT changes so 2G / 4G / 5G / EN-DC
-     * measurements never share one window. A blank or missing type (no-signal) does not
-     * count as a change — those N/A samples stay with the last camped technology.
+     * Drops the rolling histogram when the camped measurement family changes, so 2G RSSI,
+     * LTE RSRP, and 5G standalone SS-RSRP do not share one window. 4G and 5G EN-DC are one
+     * family: both plot the LTE anchor, and phones often flip that label when the NR cell
+     * appears and disappears. Any other new label has to hold for a few polls, the same
+     * wait as the technology-change voice, so one odd reading does not empty the chart.
+     * A blank or missing type (no-signal) does not count as a change.
      */
     private fun clearRsrpHistogramIfTechnologyChanged(radioAccessType: String?) {
-        val currentTech = radioAccessType?.takeIf { it.isNotBlank() } ?: return
-        val previousTech = histogramRadioAccessType
-        if (previousTech != null && previousTech != currentTech) {
-            _rsrpHistory.value = emptyList()
+        val currentTech = radioAccessType?.takeIf { it.isNotBlank() }
+        if (currentTech == null) {
+            pendingHistogramRat = null
+            pendingHistogramRatPolls = 0
+            return
         }
-        histogramRadioAccessType = currentTech
+        val currentKey = histogramTechnologyKey(currentTech)
+        val previousKey = histogramRadioAccessType
+        if (previousKey == null || previousKey == currentKey) {
+            histogramRadioAccessType = currentKey
+            pendingHistogramRat = null
+            pendingHistogramRatPolls = 0
+            return
+        }
+        if (pendingHistogramRat != currentKey) {
+            pendingHistogramRat = currentKey
+            pendingHistogramRatPolls = 1
+            return
+        }
+        pendingHistogramRatPolls++
+        if (pendingHistogramRatPolls < LTE_FAMILY_RAT_VOICE_HOLD_POLLS) return
+        _rsrpHistory.value = emptyList()
+        histogramRadioAccessType = currentKey
+        pendingHistogramRat = null
+        pendingHistogramRatPolls = 0
+    }
+
+    /** 4G and EN-DC both record LTE RSRP. Standalone 5G and 2G stay their own series. */
+    private fun histogramTechnologyKey(radioAccessType: String): String {
+        return when (radioAccessType) {
+            CellularSignalReader.RADIO_4G,
+            CellularSignalReader.RADIO_5G_ENDC -> CellularSignalReader.RADIO_4G
+            else -> radioAccessType
+        }
     }
 
     /** Empties the live histogram so sampling restarts from the next tick. */
@@ -547,6 +582,9 @@ object MonitorState {
             nrBand = metrics.nrBand,
             gsmEarfcn = metrics.gsmEarfcn,
             gsmBsic = metrics.gsmBsic,
+            primaryCarrierBandwidthKhz = metrics.primaryCarrierBandwidthKhz,
+            secondaryCarrierBandwidthKhz = metrics.secondaryCarrierBandwidthKhz,
+            aggregatedBandwidthKhz = metrics.aggregatedBandwidthKhz,
             isOn2g = metrics.isOn2g,
             networkModePreference = metrics.networkModePreference,
             restrictedTo2gNetwork = metrics.restrictedTo2gNetwork,
@@ -628,6 +666,9 @@ object MonitorState {
             nrBand = metrics.nrBand,
             gsmEarfcn = metrics.gsmEarfcn,
             gsmBsic = metrics.gsmBsic,
+            primaryCarrierBandwidthKhz = metrics.primaryCarrierBandwidthKhz,
+            secondaryCarrierBandwidthKhz = metrics.secondaryCarrierBandwidthKhz,
+            aggregatedBandwidthKhz = metrics.aggregatedBandwidthKhz,
             isOn2g = metrics.isOn2g,
             networkModePreference = metrics.networkModePreference,
             restrictedTo2gNetwork = metrics.restrictedTo2gNetwork,
@@ -1603,6 +1644,9 @@ object MonitorState {
         announcedRadioAccessType = null
         pendingLteFamilyRat = null
         pendingLteFamilyPolls = 0
+        histogramRadioAccessType = null
+        pendingHistogramRat = null
+        pendingHistogramRatPolls = 0
         noSignalBaselineReady = false
         limitedServiceBaselineReady = false
         limitedServiceVoiceFilter.reset()

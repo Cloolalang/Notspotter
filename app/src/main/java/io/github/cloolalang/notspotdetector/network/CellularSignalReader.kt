@@ -24,11 +24,17 @@ import android.telephony.SignalStrength
 import android.telephony.TelephonyManager
 import androidx.core.content.ContextCompat
 import io.github.cloolalang.notspotdetector.data.RadioDebugLogger
+import io.github.cloolalang.notspotdetector.model.CarrierBandwidth
+import io.github.cloolalang.notspotdetector.model.CarrierBandwidths
+import io.github.cloolalang.notspotdetector.model.CarrierRadio
 import io.github.cloolalang.notspotdetector.model.CellularRadioMetrics
+import io.github.cloolalang.notspotdetector.model.ChannelBandwidth
 import io.github.cloolalang.notspotdetector.model.GsmBand
 import io.github.cloolalang.notspotdetector.model.RadioDebugSnapshot
 import io.github.cloolalang.notspotdetector.model.ServingCellSelection
+import io.github.cloolalang.notspotdetector.model.EndcCarrier
 import io.github.cloolalang.notspotdetector.model.DetectedLteCell
+import io.github.cloolalang.notspotdetector.model.NrCarrierReading
 import io.github.cloolalang.notspotdetector.model.LteLayerResilience
 import io.github.cloolalang.notspotdetector.model.LteLayerResilienceReading
 import io.github.cloolalang.notspotdetector.model.LtePlusCamp
@@ -159,7 +165,11 @@ object CellularSignalReader {
                 registeredKeys = registeredKeys,
                 signalLtePcis = signalLtePcis,
                 signalNrPcis = signalNrPcis
-            )
+            ).withNrPhysicalChannel(NrPhysicalChannelMonitor.current(telephonyManager, subscriptionId))
+                .withSignalNrIdentity(
+                    pci = signalNrPcis.singleOrNull(),
+                    earfcn = readSignalNrArfcn(telephonyManager.signalStrength)
+                )
         }
         val isOn2g = when {
             servingCell.radioAccessType in LTE_NR_RADIO_TYPES -> false
@@ -211,6 +221,31 @@ object CellularSignalReader {
             signalQualityStale = !signalQualityFresh,
             isVisitedLimitedService = isVisitedLimitedService
         )
+        val physicalChannels = if (radioOff || networkServiceMode == NetworkServiceMode.OUT_OF_SERVICE) {
+            emptyList()
+        } else {
+            NrPhysicalChannelMonitor.currentChannels(telephonyManager, subscriptionId)
+        }
+        val lteChannels = if (radioOff || networkServiceMode == NetworkServiceMode.OUT_OF_SERVICE) {
+            emptyList()
+        } else {
+            readLteCellBandwidthChannels(cellInfoList)
+        }
+        val unlabeledBandwidthKhz = if (radioOff || networkServiceMode == NetworkServiceMode.OUT_OF_SERVICE) {
+            emptyList()
+        } else {
+            readServiceBandwidths(serviceState)
+        }
+        val carrierBandwidth = CarrierBandwidth.merge(
+            physical = CarrierBandwidth.fromChannels(physicalChannels),
+            lteCell = CarrierBandwidth.fromChannels(lteChannels),
+            unlabeledKhz = unlabeledBandwidthKhz
+        )
+        val aggregatedBandwidthKhz = CarrierBandwidth.aggregatedKhz(
+            physical = physicalChannels,
+            lteCell = lteChannels,
+            unlabeledKhz = unlabeledBandwidthKhz
+        )
         var metrics = signalMetrics.copy(
             rsrpDbm = ServingCellSelection.pickServingMetric(
                 fromCell = servingCell.rsrpDbm,
@@ -261,6 +296,9 @@ object CellularSignalReader {
             nrBand = servingCell.nrBand,
             gsmEarfcn = servingCell.gsmEarfcn,
             gsmBsic = servingCell.gsmBsic,
+            primaryCarrierBandwidthKhz = carrierBandwidth.primaryDownlinkKhz,
+            secondaryCarrierBandwidthKhz = carrierBandwidth.secondaryDownlinkKhz,
+            aggregatedBandwidthKhz = aggregatedBandwidthKhz,
             cellIdentityPermissionGranted = cellIdentityPermissionGranted,
             isOn2g = isOn2g,
             networkModePreference = networkModePreference,
@@ -311,7 +349,10 @@ object CellularSignalReader {
                 nrPci = null,
                 nrNci = null,
                 gsmEarfcn = null,
-                gsmBsic = null
+                gsmBsic = null,
+                primaryCarrierBandwidthKhz = emptyList(),
+                secondaryCarrierBandwidthKhz = emptyList(),
+                aggregatedBandwidthKhz = null
             )
         } else if (isOn2g && monitor2gFallback && metrics.radioAccessType == null) {
             metrics = metrics.copy(radioAccessType = RADIO_2G)
@@ -458,10 +499,7 @@ object CellularSignalReader {
     }
 
     private fun mergeRadioAccessType(fromSignal: String?, fromCell: String?): String? {
-        if (fromCell in LTE_NR_RADIO_TYPES && (fromSignal == null || fromSignal == RADIO_2G)) {
-            return fromCell
-        }
-        return fromSignal ?: fromCell
+        return EndcCarrier.mergeRadioAccessType(fromSignal, fromCell)
     }
 
     private fun expectedPlmns(servingPlmn: String?, homePlmn: String?): List<String> {
@@ -775,8 +813,25 @@ object CellularSignalReader {
 
     private fun invokeIntMethod(target: Any, methodName: String): Int {
         return runCatching {
-            target.javaClass.getMethod(methodName).invoke(target) as Int
+            val method = target.javaClass.methods.firstOrNull { it.name == methodName && it.parameterCount == 0 }
+                ?: target.javaClass.declaredMethods.firstOrNull {
+                    it.name == methodName && it.parameterCount == 0
+                }?.also { it.isAccessible = true }
+            (method?.invoke(target) as? Int) ?: Int.MIN_VALUE
         }.getOrDefault(Int.MIN_VALUE)
+    }
+
+    private fun readIntField(target: Any, fieldName: String): Int? {
+        return runCatching {
+            var type: Class<*>? = target.javaClass
+            var field: java.lang.reflect.Field? = null
+            while (type != null && field == null) {
+                field = type.declaredFields.firstOrNull { it.name == fieldName }
+                type = type.superclass
+            }
+            field?.isAccessible = true
+            field?.get(target) as? Int
+        }.getOrNull()
     }
 
     @SuppressLint("MissingPermission")
@@ -1102,9 +1157,16 @@ object CellularSignalReader {
         val hasExplicitNrPlmnMatches = hasExplicitPlmnMatchForRat(cellInfoList, expectedPlmns) { it is CellInfoNr }
         val hasExplicitGsmPlmnMatches = hasExplicitPlmnMatchForRat(cellInfoList, expectedPlmns) { it is CellInfoGsm }
         val newestAgeMs = newestCellInfoAgeMs(cellInfoList)
+        val newestNrAgeMs = newestNrCellInfoAgeMs(cellInfoList)
 
         for (info in cellInfoList) {
-            if (ServingCellSelection.isStaleCell(cellInfoAgeMs(info), newestAgeMs)) continue
+            val ageMs = cellInfoAgeMs(info)
+            val stale = if (info is CellInfoNr) {
+                ServingCellSelection.isStaleNrCell(ageMs, newestNrAgeMs)
+            } else {
+                ServingCellSelection.isStaleCell(ageMs, newestAgeMs)
+            }
+            if (stale) continue
             if (registeredOnly && !info.isRegistered) continue
             val connectionRank = cellConnectionRank(info)
             if (registeredOnly && connectionRank == 0) continue
@@ -1158,19 +1220,24 @@ object CellularSignalReader {
                 }
                 is CellInfoNr -> {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        if (!shouldUseCellIdentity(
-                                identity = info.cellIdentity,
-                                expectedPlmns = expectedPlmns,
-                                hasExplicitPlmnMatches = hasExplicitNrPlmnMatches,
-                                isDualSimActive = isDualSimActive,
-                                isRegistered = info.isRegistered,
-                                acceptRegisteredPlmnMismatch = acceptRegisteredPlmnMismatch
-                            )
-                        ) {
-                            continue
-                        }
                         val identity = info.cellIdentity
                         if (identity is CellIdentityNr) {
+                            val earfcn = identity.nrarfcn.takeIf { isValidCellIdentityValue(it) }
+                            val pci = identity.pci.takeIf { isValidCellIdentityValue(it) && it in 0..1007 }
+                            // EN-DC secondary cells on Samsung often have a blank or non-matching
+                            // PLMN while still carrying the NR-ARFCN and PCI. Keep that identity.
+                            val usableIdentity = earfcn != null || pci != null
+                            if (!usableIdentity && !shouldUseCellIdentity(
+                                    identity = identity,
+                                    expectedPlmns = expectedPlmns,
+                                    hasExplicitPlmnMatches = hasExplicitNrPlmnMatches,
+                                    isDualSimActive = isDualSimActive,
+                                    isRegistered = info.isRegistered,
+                                    acceptRegisteredPlmnMismatch = acceptRegisteredPlmnMismatch
+                                )
+                            ) {
+                                continue
+                            }
                             val strength = info.cellSignalStrength
                             val rsrp = if (strength is CellSignalStrengthNr) {
                                 nrRsrpDbm(strength)
@@ -1192,8 +1259,6 @@ object CellularSignalReader {
                             } else {
                                 null
                             }
-                            val earfcn = identity.nrarfcn.takeIf { isValidCellIdentityValue(it) }
-                            val pci = identity.pci.takeIf { isValidCellIdentityValue(it) }
                             val nci = identity.nci.takeIf { isValidNrNci(it) }
                             val candidate = RankedServingCell(
                                 connectionRank = connectionRank,
@@ -1896,13 +1961,37 @@ object CellularSignalReader {
         val pcis = mutableSetOf<Int>()
         for (strength in signalStrength.cellSignalStrengths) {
             if (strength is CellSignalStrengthNr) {
-                val pci = invokeIntMethod(strength, "getPci")
-                if (pci != Int.MIN_VALUE && isValidCellIdentityValue(pci)) {
-                    pcis.add(pci)
-                }
+                val pci = readHiddenNrInt(strength, NR_PCI_METHODS, NR_PCI_FIELDS)
+                if (pci != null && pci in 0..1007) pcis.add(pci)
             }
         }
         return pcis
+    }
+
+    /**
+     * Samsung keeps SS-RSRP on [CellSignalStrengthNr] and often leaves NR-ARFCN off
+     * [android.telephony.CellIdentityNr]. The channel, when present, is a hidden method or field.
+     */
+    private fun readSignalNrArfcn(signalStrength: SignalStrength?): Int? {
+        if (signalStrength == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
+        for (strength in signalStrength.cellSignalStrengths) {
+            if (strength !is CellSignalStrengthNr) continue
+            val arfcn = readHiddenNrInt(strength, NR_ARFCN_METHODS, NR_ARFCN_FIELDS) ?: continue
+            if (arfcn in NR_ARFCN_MIN..NR_ARFCN_MAX) return arfcn
+        }
+        return null
+    }
+
+    private fun readHiddenNrInt(target: Any, methods: List<String>, fields: List<String>): Int? {
+        for (name in methods) {
+            val value = invokeIntMethod(target, name)
+            if (value != Int.MIN_VALUE && isValidCellIdentityValue(value)) return value
+        }
+        for (name in fields) {
+            val value = readIntField(target, name) ?: continue
+            if (isValidCellIdentityValue(value)) return value
+        }
+        return null
     }
 
     private fun isValidCellIdentityValue(value: Int): Boolean {
@@ -2041,8 +2130,55 @@ object CellularSignalReader {
         }
     }
 
+    private fun readLteCellBandwidthChannels(cellInfoList: List<CellInfo>): List<ChannelBandwidth> {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return emptyList()
+        return cellInfoList.mapNotNull { info ->
+            if (info !is CellInfoLte) return@mapNotNull null
+            ChannelBandwidth(
+                connectionStatus = info.cellConnectionStatus,
+                downlinkKhz = info.cellIdentity.bandwidth,
+                radio = CarrierRadio.LTE
+            )
+        }
+    }
+
+    private fun readServiceBandwidths(serviceState: ServiceState?): List<Int> {
+        if (serviceState == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return emptyList()
+        val reported = runCatching { serviceState.cellBandwidths }.getOrNull() ?: return emptyList()
+        return reported.filter { CarrierBandwidth.isReportedKhz(it) }
+    }
+
+    private fun ServingCellIdentity.withNrPhysicalChannel(physical: NrCarrierReading?): ServingCellIdentity {
+        val filled = EndcCarrier.fillFromPhysicalChannel(
+            radioAccessType = radioAccessType,
+            hasLteCamp = lteEarfcn != null || ltePci != null,
+            nrEarfcn = nrEarfcn,
+            nrPci = nrPci,
+            nrBand = nrBand,
+            physical = physical
+        )
+        return copy(
+            radioAccessType = filled.radioAccessType,
+            nrEarfcn = filled.nrEarfcn,
+            nrPci = filled.nrPci,
+            nrBand = filled.nrBand
+        )
+    }
+
+    private fun ServingCellIdentity.withSignalNrIdentity(pci: Int?, earfcn: Int?): ServingCellIdentity {
+        if (pci == null && earfcn == null) return this
+        return withNrPhysicalChannel(NrCarrierReading(earfcn = earfcn, pci = pci))
+    }
+
     private fun newestCellInfoAgeMs(cellInfoList: List<CellInfo>): Long? {
         return cellInfoList.mapNotNull { cellInfoAgeMs(it) }.minOrNull()
+    }
+
+    private fun newestNrCellInfoAgeMs(cellInfoList: List<CellInfo>): Long? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
+        return cellInfoList.mapNotNull { info ->
+            if (info is CellInfoNr) cellInfoAgeMs(info) else null
+        }.minOrNull()
     }
 
     private fun cellInfoAgeMs(info: CellInfo): Long? {
@@ -2063,6 +2199,23 @@ object CellularSignalReader {
     private const val LTE_ECI_MAX = 0x0FFFFFFF
     private const val LTE_TAC_MAX = 0xFFFF
     private const val NR_NCI_MAX = 0xF_FFFF_FFFFL
+    private const val NR_ARFCN_MIN = 123_400
+    private const val NR_ARFCN_MAX = 3_279_165
+    private val NR_PCI_METHODS = listOf("getPci", "getPhysicalCellId")
+    private val NR_PCI_FIELDS = listOf("mPci", "mPhysicalCellId")
+    private val NR_ARFCN_METHODS = listOf(
+        "getNrarfcn",
+        "getNrArfcn",
+        "getArfcn",
+        "getDownlinkChannelNumber",
+        "getChannelNumber"
+    )
+    private val NR_ARFCN_FIELDS = listOf(
+        "mNrarfcn",
+        "mNrArfcn",
+        "mArfcn",
+        "mDownlinkChannelNumber"
+    )
 
     private val TWO_G_NETWORK_TYPES = setOf(
         TelephonyManager.NETWORK_TYPE_GPRS,

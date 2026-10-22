@@ -81,6 +81,13 @@ class ServingCellSelectionTest {
     }
 
     @Test
+    fun isStaleNrCell_keepsAnNrRowThatLagsTheLteTimestamp() {
+        assertFalse(ServingCellSelection.isStaleNrCell(ageMs = 30_000L, newestNrAgeMs = 30_000L))
+        assertFalse(ServingCellSelection.isStaleNrCell(ageMs = 180_000L, newestNrAgeMs = 180_000L))
+        assertTrue(ServingCellSelection.isStaleNrCell(ageMs = 4_000_000L, newestNrAgeMs = 1_000L))
+    }
+
+    @Test
     fun isStaleCell_dropsRemovedSimCacheOlderThanFreshGroup() {
         assertTrue(ServingCellSelection.isStaleCell(ageMs = 4_507_078L, newestAgeMs = 37_636L))
         assertFalse(ServingCellSelection.isStaleCell(ageMs = 37_636L, newestAgeMs = 37_636L))

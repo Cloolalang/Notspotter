@@ -5,6 +5,62 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.129.0] - 2026-10-22
+
+### Changed
+
+- **RTT chart** — The RTT, jitter, and packet loss chart collapses. It starts closed, and the title row opens and closes it.
+
+## [2.128.0] - 2026-10-22
+
+### Added
+
+- **Aggregated bandwidth tape** — KPI history has a tape under the ping tape. It shows the sum of the primary 4G carrier, every secondary 4G carrier, and any NR carrier. 5 MHz is red, 10 MHz yellow, 15 MHz orange, and up to 30 MHz green. Wider totals are blue, and the blue deepens as the total grows. No bandwidth is grey.
+
+## [2.127.0] - 2026-10-22
+
+### Added
+
+- **Carrier bandwidth** — Cellular metrics show the downlink bandwidth of the primary and secondary carriers, for example 20 MHz or 100 MHz. Secondary carriers include carrier aggregation and the NR leg of EN-DC when the modem marks that leg as secondary. A dash means this phone did not report a bandwidth.
+
+## [2.126.0] - 2026-10-22
+
+### Added
+
+- **Active test tape** — KPI history has a ping tape on the same clock as the other tapes. Up to 50 ms is blue, up to 75 ms green, up to 150 ms yellow, and slower is red. No ping and no signal are grey. Packet loss above 5% is red, and 100% packet loss is black.
+- **Clear history** — KPI history has a Clear history button at the bottom of the panel. It clears the tapes and leaves the level histogram as it is.
+
+## [2.125.1] - 2026-10-22
+
+### Fixed
+
+- **NR EARFCN and PCI on EN-DC** — Cellular metrics showed SS-RSRP for the 5G carrier while the 5G carrier row stayed blank. Samsung often omits NR-ARFCN and PCI from the cell identity and does not label the modem's NR channel as 5G. The app now keeps that NR cell, reads the channel from the modem report even when it is unlabeled, and uses the PCI carried with the NR signal.
+
+## [2.125.0] - 2026-10-22
+
+### Changed
+
+- **KPI history** — The history tapes (primary carrier, NR EARFCN/PCI, technology, RSRP bin, and distance) are in their own collapsible panel under the level histogram. Clear graph still clears them. They keep the same clock.
+- **Distance tape** — The distance tape shows each timing-advance measurement, such as 469 m or 1.2 km. It changes when that measurement changes. No signal is still grey.
+
+## [2.124.2] - 2026-10-22
+
+### Fixed
+
+- **NR EARFCN/PCI on EN-DC** — Cellular metrics now show the 5G carrier channel and PCI while the phone is on EN-DC. Samsung often leaves that NR cell off the registered LTE row, and its timestamp can lag the LTE cell, so the channel was dropped. The app now reads the NR channel the modem is using and keeps an NR cell whose timestamp is only behind the LTE cell. 5G features still need to be on for these rows to show.
+
+## [2.124.1] - 2026-10-22
+
+### Fixed
+
+- **Histogram vanishing** — The level chart was cleared as soon as the radio-type label changed. A phone that flips between 4G and 5G EN-DC, or reports standalone 5G for a single poll, then showed "Waiting for RSRP samples…" and started the chart again. 4G and EN-DC now share one chart, because both are the LTE RSRP. A change to 2G or standalone 5G has to hold for a few polls before the chart clears.
+
+## [2.124.0] - 2026-10-22
+
+### Added
+
+- **Distance tape** — A tape under the RSRP tape shows the approximate distance to the cell from timing advance. Light blue when at least 95% of the last 30 seconds is under 500 m, green under 1 km, yellow under 3 km, and red at 3 km or more. No signal is grey, on the same clock as the other tapes. Seconds with no timing advance are left out, so a phone that only reports it some of the time can still fill a bin. Clear graph clears it too.
+
 ## [2.123.1] - 2026-10-22
 
 ### Fixed

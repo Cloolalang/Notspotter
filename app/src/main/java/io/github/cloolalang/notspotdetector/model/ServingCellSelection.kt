@@ -109,6 +109,17 @@ object ServingCellSelection {
     }
 
     /**
+     * NR cells are compared with other NR cells. The newest NR cell is kept even when its
+     * timestamp is stuck: on EN-DC Samsung often stops updating that timestamp while SS-RSRP
+     * continues, and that row is the only public NR EARFCN/PCI.
+     */
+    fun isStaleNrCell(ageMs: Long?, newestNrAgeMs: Long?): Boolean {
+        if (ageMs != null && newestNrAgeMs != null && ageMs <= newestNrAgeMs) return false
+        if (ageMs != null && ageMs > ABSOLUTE_STALE_MS) return true
+        return isStaleCell(ageMs, newestNrAgeMs)
+    }
+
+    /**
      * ServiceState often reports PCI 0 and no EARFCN when the serving identity is blank
      * (`ss=—/0`). PCI 0 is a real LTE PCI only when an EARFCN is also present.
      */

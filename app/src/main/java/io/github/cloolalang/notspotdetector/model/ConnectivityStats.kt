@@ -49,6 +49,12 @@ data class ConnectivityStats(
     val nrBand: Int? = null,
     val gsmEarfcn: Int? = null,
     val gsmBsic: Int? = null,
+    /** Downlink bandwidth of each primary serving carrier, in kHz. */
+    val primaryCarrierBandwidthKhz: List<Int> = emptyList(),
+    /** Downlink bandwidth of each secondary serving carrier, in kHz. */
+    val secondaryCarrierBandwidthKhz: List<Int> = emptyList(),
+    /** Sum of primary LTE, every secondary LTE carrier, and every NR carrier, in kHz. */
+    val aggregatedBandwidthKhz: Int? = null,
     val isOn2g: Boolean = false,
     val networkModePreference: NetworkModePreference = NetworkModePreference.UNKNOWN,
     /** Phone network-mode preference allows 2G only (API 31+). */

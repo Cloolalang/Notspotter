@@ -95,7 +95,10 @@ fun ConnectivityStats.withStabilizedCellIdentity(
             nrNci = null,
             nrBand = null,
             gsmEarfcn = null,
-            gsmBsic = null
+            gsmBsic = null,
+            primaryCarrierBandwidthKhz = emptyList(),
+            secondaryCarrierBandwidthKhz = emptyList(),
+            aggregatedBandwidthKhz = null
         ) to CellIdentitySnapshot()
     }
 

@@ -287,6 +287,8 @@
     <string name="metric_nr_band">5G band</string>
     <string name="metric_band_mhz">Band (MHz)</string>
     <string name="metric_primary_carrier">Primary Carrier</string>
+    <string name="metric_primary_bandwidth">Primary bandwidth</string>
+    <string name="metric_secondary_bandwidth">Secondary bandwidth</string>
     <string name="metric_serving_cell">Serving cell</string>
     <string name="metric_nr_carrier">5G Carrier</string>
     <string name="metric_neighbor_cells">Neighbor cells</string>
@@ -372,6 +374,12 @@
     <string name="rsrp_histogram_elapsed">elapsed %1$d m %2$d s</string>
     <string name="rsrp_histogram_window_hint">One sample every 1 s. A longer window shows more samples after they have been collected (and immediately includes any already stored in the last hour).</string>
     <string name="histogram_controls_title">Level histogram</string>
+    <string name="kpi_history_title">KPI history</string>
+    <string name="kpi_history_clear">Clear history</string>
+    <string name="active_test_history_title">Active test</string>
+    <string name="active_test_history_rule">ping</string>
+    <string name="aggregated_bandwidth_history_title">Aggregated bandwidth</string>
+    <string name="aggregated_bandwidth_history_rule">primary 4G + secondary 4G + NR</string>
     <string name="histogram_settings_title">Histogram settings</string>
     <string name="histogram_settings_summary">Choose 5 dB bins or threshold bins, set the three threshold floors, and change the sample window. Unlock settings to change these.</string>
     <string name="rsrp_histogram_summary">−70 to −135 dBm · 5 dB bins · active bins only</string>
@@ -404,6 +412,8 @@
     <string name="rsrp_bin_above_105">&gt; −105</string>
     <string name="rsrp_bin_above_115">&gt; −115</string>
     <string name="rsrp_bin_below_115">&lt; −115</string>
+    <string name="distance_history_title">Distance</string>
+    <string name="distance_history_rule">timing advance</string>
     <string name="rsrp_histogram_tape_now">now</string>
     <string name="rsrp_histogram_tape_ago">%1$s ago</string>
     <string name="rsrp_histogram_tape_seconds">%1$d s</string>

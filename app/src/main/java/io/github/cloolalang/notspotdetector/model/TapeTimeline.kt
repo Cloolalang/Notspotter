@@ -2,7 +2,8 @@ package io.github.cloolalang.notspotdetector.model
 
 /**
  * One time scale for the history tapes. The same fraction is the same moment on
- * the LTE EARFCN/PCI tape, the NR EARFCN/PCI tape, and the technology tape.
+ * the LTE EARFCN/PCI tape, the NR EARFCN/PCI tape, the technology tape, the RSRP tape,
+ * the distance tape, the active-test tape, and the aggregated-bandwidth tape.
  * Fraction 0 is the oldest moment and fraction 1 is now, drawn on the right.
  */
 object TapeTimeline {

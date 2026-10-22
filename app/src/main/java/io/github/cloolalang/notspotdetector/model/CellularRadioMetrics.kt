@@ -40,6 +40,15 @@ data class CellularRadioMetrics(
     val nrBand: Int? = null,
     val gsmEarfcn: Int? = null,
     val gsmBsic: Int? = null,
+    /** Downlink bandwidth of each primary serving carrier, in kHz. */
+    val primaryCarrierBandwidthKhz: List<Int> = emptyList(),
+    /** Downlink bandwidth of each secondary serving carrier, in kHz. */
+    val secondaryCarrierBandwidthKhz: List<Int> = emptyList(),
+    /**
+     * Sum of primary LTE, every secondary LTE carrier, and every NR carrier, in kHz.
+     * Null when the modem did not report a bandwidth.
+     */
+    val aggregatedBandwidthKhz: Int? = null,
     /**
      * True when [android.telephony.ServiceState.getNetworkRegistrationInfoList] reports a
      * home-registered WLAN (WiFi calling / VoWiFi) transport — i.e. the modem/carrier is treating
@@ -130,6 +139,9 @@ data class CellularRadioMetrics(
             nrBand = null,
             gsmEarfcn = null,
             gsmBsic = null,
+            primaryCarrierBandwidthKhz = emptyList(),
+            secondaryCarrierBandwidthKhz = emptyList(),
+            aggregatedBandwidthKhz = null,
             isOn2g = false,
             isVoiceOnlyNoData = false,
             hasHomeGsmSignal = false,

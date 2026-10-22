@@ -7,5 +7,7 @@ package io.github.cloolalang.notspotdetector.model
  */
 data class RsrpSample(
     val timestampMs: Long,
-    val rsrpDbm: Int?
+    val rsrpDbm: Int?,
+    /** Timing-advance one-way distance, when the modem reported it on this tick. */
+    val distanceMetres: Int? = null
 )

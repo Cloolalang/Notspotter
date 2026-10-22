@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.sp
 import io.github.cloolalang.notspotdetector.network.CellularSignalReader
 import io.github.cloolalang.notspotdetector.R
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
+import io.github.cloolalang.notspotdetector.model.CarrierBandwidth
 import io.github.cloolalang.notspotdetector.model.CarrierConfigSnapshot
 import io.github.cloolalang.notspotdetector.model.CellReselectAlertScope
 import io.github.cloolalang.notspotdetector.model.CellReselectBandNamingStyle
@@ -950,7 +951,26 @@ private fun CellIdentityMetrics(
                 plmn = stats.plmn,
                 permissionGranted = permissionGranted
             )
+            if (nrEarfcn != null || nrPci != null) {
+                MetricRow(
+                    label = stringResource(R.string.metric_nr_carrier),
+                    value = formatChannelIdentityValue(nrEarfcn, nrPci, permissionGranted)
+                )
+            }
         }
+    }
+
+    val primaryBandwidthKhz = stats.primaryCarrierBandwidthKhz.takeUnless { staleNoSignal }.orEmpty()
+    val secondaryBandwidthKhz = stats.secondaryCarrierBandwidthKhz.takeUnless { staleNoSignal }.orEmpty()
+    if (!is2g || primaryBandwidthKhz.isNotEmpty() || secondaryBandwidthKhz.isNotEmpty()) {
+        MetricRow(
+            label = stringResource(R.string.metric_primary_bandwidth),
+            value = formatBandwidthValue(primaryBandwidthKhz, permissionGranted)
+        )
+        MetricRow(
+            label = stringResource(R.string.metric_secondary_bandwidth),
+            value = formatBandwidthValue(secondaryBandwidthKhz, permissionGranted)
+        )
     }
 
     MetricRow(
@@ -1215,6 +1235,14 @@ private fun formatLongCellIdentityValue(
         return "—"
     }
     return value.toString()
+}
+
+@Composable
+private fun formatBandwidthValue(khz: List<Int>, permissionGranted: Boolean): String {
+    if (!permissionGranted) {
+        return stringResource(R.string.cell_identity_permission_required)
+    }
+    return CarrierBandwidth.formatList(khz) ?: "—"
 }
 
 @Composable
