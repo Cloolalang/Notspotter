@@ -3,6 +3,7 @@ package io.github.cloolalang.notspotdetector.network
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.telephony.CellInfo
 import android.telephony.PhysicalChannelConfig
 import android.telephony.TelephonyCallback
@@ -34,6 +35,12 @@ object NrPhysicalChannelMonitor {
 
     @Volatile
     private var bandwidthChannels: List<ChannelBandwidth> = emptyList()
+
+    @Volatile
+    private var bandwidthAtElapsedMs: Long = 0L
+
+    @Volatile
+    private var bandwidthFromCallback: Boolean = false
     private var desiredManager: TelephonyManager? = null
     private var desiredSubId: Int? = null
     private var registerQueued: Boolean = false
@@ -51,13 +58,18 @@ object NrPhysicalChannelMonitor {
     fun currentChannels(telephonyManager: TelephonyManager, subscriptionId: Int): List<ChannelBandwidth> {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return emptyList()
         refresh(telephonyManager, subscriptionId)
+        val updatedAt = bandwidthAtElapsedMs
+        if (updatedAt == 0L) return emptyList()
+        if (SystemClock.elapsedRealtime() - updatedAt > BANDWIDTH_FRESH_MS) return emptyList()
         return bandwidthChannels
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
     private fun refresh(telephonyManager: TelephonyManager, subscriptionId: Int) {
-        val immediate = hiddenConfigs(telephonyManager)
-        if (immediate != null) apply(immediate)
+        if (!bandwidthFromCallback) {
+            val immediate = hiddenConfigs(telephonyManager)
+            if (immediate != null) apply(immediate, fromCallback = false)
+        }
         synchronized(lock) {
             desiredManager = telephonyManager
             desiredSubId = subscriptionId
@@ -119,24 +131,30 @@ object NrPhysicalChannelMonitor {
             }?.also { it.isAccessible = true }
             method?.invoke(telephonyManager) as? List<*>
         }.getOrNull() ?: return null
-        val typed = configs.filterIsInstance<PhysicalChannelConfig>()
-        if (typed.isEmpty()) return null
-        return typed
+        return configs.filterIsInstance<PhysicalChannelConfig>()
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
-    private fun apply(configs: List<PhysicalChannelConfig>) {
+    private fun apply(configs: List<PhysicalChannelConfig>, fromCallback: Boolean) {
         val next = readingFrom(configs)
         if (next != null) reading = next
-        val channels = configs.map { config ->
+        bandwidthChannels = configs.map { config ->
             ChannelBandwidth(
-                connectionStatus = config.connectionStatus,
-                downlinkKhz = reportedDownlinkKhz(config),
-                radio = radioOf(config)
+                connectionStatus = CarrierBandwidth.physicalConnectionStatus(config.connectionStatus),
+                downlinkKhz = downlinkKhz(config),
+                radio = radioOf(config),
+                channelNumber = config.downlinkChannelNumber.takeIf { validNrArfcn(it) }
             )
         }
-        val nextBandwidths = CarrierBandwidth.fromChannels(channels)
-        if (nextBandwidths.hasAny()) bandwidthChannels = channels
+        bandwidthAtElapsedMs = SystemClock.elapsedRealtime()
+        if (fromCallback) bandwidthFromCallback = true
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    private fun downlinkKhz(config: PhysicalChannelConfig): Int {
+        val downlink = config.cellBandwidthDownlinkKhz
+        if (CarrierBandwidth.isReportedKhz(downlink)) return downlink
+        return config.cellBandwidthUplinkKhz
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -154,17 +172,10 @@ object NrPhysicalChannelMonitor {
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
-    private fun reportedDownlinkKhz(config: PhysicalChannelConfig): Int {
-        val downlink = config.cellBandwidthDownlinkKhz
-        if (CarrierBandwidth.isReportedKhz(downlink)) return downlink
-        return config.cellBandwidthUplinkKhz
-    }
-
-    @RequiresApi(Build.VERSION_CODES.S)
     private fun registerCallback(telephonyManager: TelephonyManager): Boolean {
         val callback = object : TelephonyCallback(), TelephonyCallback.PhysicalChannelConfigListener {
             override fun onPhysicalChannelConfigChanged(configs: List<PhysicalChannelConfig>) {
-                apply(configs)
+                apply(configs, fromCallback = true)
             }
         }
         val registered = runCatching {
@@ -184,6 +195,8 @@ object NrPhysicalChannelMonitor {
         registeredManager = null
         registeredSubId = null
         bandwidthChannels = emptyList()
+        bandwidthAtElapsedMs = 0L
+        bandwidthFromCallback = false
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -204,4 +217,7 @@ object NrPhysicalChannelMonitor {
 
     /** [android.telephony.TelephonyManager.NETWORK_TYPE_LTE_CA], removed from newer SDKs. */
     private const val LTE_CA_NETWORK_TYPE = 19
+
+    /** Drop a carrier list that the modem has stopped refreshing. */
+    private const val BANDWIDTH_FRESH_MS = 15_000L
 }

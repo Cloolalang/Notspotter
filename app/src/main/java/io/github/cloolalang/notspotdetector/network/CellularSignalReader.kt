@@ -236,15 +236,18 @@ object CellularSignalReader {
         } else {
             readServiceBandwidths(serviceState)
         }
+        val servingLteChannels = CarrierBandwidth.lteServingChannels(lteChannels)
+        val campedPhysical = CarrierBandwidth.campedFirst(physicalChannels, servingCell.lteEarfcn)
         val carrierBandwidth = CarrierBandwidth.merge(
-            physical = CarrierBandwidth.fromChannels(physicalChannels),
-            lteCell = CarrierBandwidth.fromChannels(lteChannels),
+            physical = CarrierBandwidth.fromChannels(campedPhysical),
+            lteCell = CarrierBandwidth.fromChannels(servingLteChannels),
             unlabeledKhz = unlabeledBandwidthKhz
         )
         val aggregatedBandwidthKhz = CarrierBandwidth.aggregatedKhz(
-            physical = physicalChannels,
-            lteCell = lteChannels,
-            unlabeledKhz = unlabeledBandwidthKhz
+            physical = campedPhysical,
+            lteCell = servingLteChannels,
+            unlabeledKhz = unlabeledBandwidthKhz,
+            servingChannel = servingCell.lteEarfcn
         )
         var metrics = signalMetrics.copy(
             rsrpDbm = ServingCellSelection.pickServingMetric(
@@ -2134,10 +2137,13 @@ object CellularSignalReader {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return emptyList()
         return cellInfoList.mapNotNull { info ->
             if (info !is CellInfoLte) return@mapNotNull null
+            val identity = info.cellIdentity
             ChannelBandwidth(
                 connectionStatus = info.cellConnectionStatus,
-                downlinkKhz = info.cellIdentity.bandwidth,
-                radio = CarrierRadio.LTE
+                downlinkKhz = identity.bandwidth,
+                radio = CarrierRadio.LTE,
+                channelNumber = identity.earfcn.takeIf { isValidCellIdentityValue(it) && it > 0 },
+                registered = info.isRegistered
             )
         }
     }

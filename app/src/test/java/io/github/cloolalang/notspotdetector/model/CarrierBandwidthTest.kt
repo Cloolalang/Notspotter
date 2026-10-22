@@ -103,7 +103,7 @@ class CarrierBandwidthTest {
             unlabeledKhz = emptyList()
         )
 
-        assertEquals(130_000, total)
+        assertEquals(120_000, total)
     }
 
     @Test
@@ -136,7 +136,7 @@ class CarrierBandwidthTest {
     }
 
     @Test
-    fun aggregatedKhz_keepsTheCellSecondaryWhenTheModemReportIsOnlyThePrimary() {
+    fun aggregatedKhz_usesTheModemReportInsteadOfExtraCellWidths() {
         val total = CarrierBandwidth.aggregatedKhz(
             physical = listOf(
                 ChannelBandwidth(CarrierBandwidth.CONNECTION_PRIMARY, 20_000, CarrierRadio.LTE)
@@ -148,6 +148,139 @@ class CarrierBandwidthTest {
             unlabeledKhz = emptyList()
         )
 
-        assertEquals(35_000, total)
+        assertEquals(20_000, total)
+    }
+
+    @Test
+    fun aggregatedKhz_countsTwoCarriersOfTheSameWidthOnDifferentChannels() {
+        val total = CarrierBandwidth.aggregatedKhz(
+            physical = listOf(
+                ChannelBandwidth(
+                    CarrierBandwidth.CONNECTION_PRIMARY,
+                    20_000,
+                    CarrierRadio.LTE,
+                    channelNumber = 100
+                ),
+                ChannelBandwidth(
+                    CarrierBandwidth.CONNECTION_SECONDARY,
+                    20_000,
+                    CarrierRadio.LTE,
+                    channelNumber = 200
+                ),
+                ChannelBandwidth(
+                    CarrierBandwidth.CONNECTION_SECONDARY,
+                    20_000,
+                    CarrierRadio.LTE,
+                    channelNumber = 100
+                )
+            ),
+            lteCell = emptyList(),
+            unlabeledKhz = emptyList()
+        )
+
+        assertEquals(40_000, total)
+    }
+
+    @Test
+    fun aggregatedKhz_ignoresNeighbourCellsWhenTheModemReportIsMissing() {
+        val total = CarrierBandwidth.aggregatedKhz(
+            physical = emptyList(),
+            lteCell = listOf(
+                ChannelBandwidth(
+                    connectionStatus = Int.MAX_VALUE,
+                    downlinkKhz = 20_000,
+                    radio = CarrierRadio.LTE,
+                    registered = true
+                ),
+                ChannelBandwidth(
+                    connectionStatus = Int.MAX_VALUE,
+                    downlinkKhz = 15_000,
+                    radio = CarrierRadio.LTE
+                ),
+                ChannelBandwidth(
+                    connectionStatus = Int.MAX_VALUE,
+                    downlinkKhz = 20_000,
+                    radio = CarrierRadio.LTE
+                ),
+                ChannelBandwidth(
+                    connectionStatus = Int.MAX_VALUE,
+                    downlinkKhz = 20_000,
+                    radio = CarrierRadio.LTE
+                )
+            ),
+            unlabeledKhz = emptyList()
+        )
+
+        assertEquals(20_000, total)
+    }
+
+    @Test
+    fun aggregatedKhz_usesTheCampedCellWhenAnotherCellIsMarkedPrimary() {
+        val total = CarrierBandwidth.aggregatedKhz(
+            physical = emptyList(),
+            lteCell = listOf(
+                ChannelBandwidth(
+                    CarrierBandwidth.CONNECTION_PRIMARY,
+                    15_000,
+                    CarrierRadio.LTE,
+                    channelNumber = 100
+                ),
+                ChannelBandwidth(
+                    connectionStatus = Int.MAX_VALUE,
+                    downlinkKhz = 5_000,
+                    radio = CarrierRadio.LTE,
+                    channelNumber = 6_200,
+                    registered = true
+                )
+            ),
+            unlabeledKhz = emptyList()
+        )
+
+        assertEquals(5_000, total)
+    }
+
+    @Test
+    fun aggregatedKhz_usesTheModemWidthForTheCampedChannel() {
+        val total = CarrierBandwidth.aggregatedKhz(
+            physical = listOf(
+                ChannelBandwidth(
+                    CarrierBandwidth.CONNECTION_SECONDARY,
+                    5_000,
+                    CarrierRadio.LTE,
+                    channelNumber = 6_200
+                )
+            ),
+            lteCell = listOf(
+                ChannelBandwidth(
+                    CarrierBandwidth.CONNECTION_PRIMARY,
+                    15_000,
+                    CarrierRadio.LTE,
+                    channelNumber = 6_200,
+                    registered = true
+                )
+            ),
+            unlabeledKhz = emptyList(),
+            servingChannel = 6_200
+        )
+
+        assertEquals(5_000, total)
+    }
+
+    @Test
+    fun aggregatedKhz_prefersASingleLiveBandwidthOverTheCellIdentity() {
+        val total = CarrierBandwidth.aggregatedKhz(
+            physical = emptyList(),
+            lteCell = listOf(
+                ChannelBandwidth(
+                    CarrierBandwidth.CONNECTION_PRIMARY,
+                    15_000,
+                    CarrierRadio.LTE,
+                    registered = true
+                )
+            ),
+            unlabeledKhz = listOf(5_000)
+        )
+
+        assertEquals(5_000, total)
     }
 }
