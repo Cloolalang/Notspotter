@@ -9,7 +9,7 @@ import org.junit.Test
 class TechnologyHistoryTest {
 
     @Test
-    fun record_keepsLastFourAndIgnoresARepeatOrABlank() {
+    fun record_keepsEventsInsideTheWindowAndIgnoresARepeatOrABlank() {
         var tape = TechnologyTape()
         tape = TechnologyHistory.record(tape, null)
         assertEquals(emptyList<String>(), tape.entries.map { it.label })
@@ -25,6 +25,7 @@ class TechnologyHistoryTest {
 
         assertEquals(
             listOf(
+                CellularSignalReader.RADIO_4G,
                 CellularSignalReader.RADIO_5G_ENDC,
                 CellularSignalReader.RADIO_5G,
                 CellularSignalReader.RADIO_2G,

@@ -8,6 +8,7 @@ data class MonitoringSettings(
     val passiveQuietUntilCritical: Boolean = DEFAULT_PASSIVE_QUIET_UNTIL_CRITICAL,
     val passiveMeasurementIntervalMs: Long = DEFAULT_PASSIVE_MEASUREMENT_INTERVAL_MS,
     val rsrpHistogramWindowMs: Long = DEFAULT_RSRP_HISTOGRAM_WINDOW_MS,
+    val tapeWindowMs: Long = DEFAULT_TAPE_WINDOW_MS,
     val rsrpHistogramBinningMode: RsrpHistogramBinningMode = RsrpHistogramBinningMode.DEFAULT,
     val rsrpHistogramThreshold1Dbm: Int = RsrpHistogram.DEFAULT_THRESHOLD_1_DBM,
     val rsrpHistogramThreshold2Dbm: Int = RsrpHistogram.DEFAULT_THRESHOLD_2_DBM,
@@ -24,6 +25,7 @@ data class MonitoringSettings(
             passiveQuietUntilCritical = DEFAULT_PASSIVE_QUIET_UNTIL_CRITICAL,
             passiveMeasurementIntervalMs = DEFAULT_PASSIVE_MEASUREMENT_INTERVAL_MS,
             rsrpHistogramWindowMs = rsrpHistogramWindowMs.coerceToHistogramWindowStep(),
+            tapeWindowMs = tapeWindowMs.coerceToTapeWindowStep(),
             rsrpHistogramThreshold1Dbm = rsrpHistogramThreshold1Dbm.coerceToHistogramThresholdDbm(),
             rsrpHistogramThreshold2Dbm = rsrpHistogramThreshold2Dbm.coerceToHistogramThresholdDbm(),
             rsrpHistogramThreshold3Dbm = rsrpHistogramThreshold3Dbm.coerceToHistogramThresholdDbm()
@@ -49,6 +51,10 @@ data class MonitoringSettings(
         const val MIN_RSRP_HISTOGRAM_WINDOW_MS = 30_000L
         const val MAX_RSRP_HISTOGRAM_WINDOW_MS = 3_600_000L
         const val RSRP_HISTOGRAM_WINDOW_STEP_MS = 30_000L
+        const val DEFAULT_TAPE_WINDOW_MS = 600_000L
+        const val MIN_TAPE_WINDOW_MS = 300_000L
+        const val MAX_TAPE_WINDOW_MS = 7_200_000L
+        const val TAPE_WINDOW_STEP_MS = 300_000L
         const val DEFAULT_FIVE_G_FEATURES_ENABLED = false
         const val DEFAULT_SHOW_MANUAL_SELECT_OPERATOR_BUTTON = false
         const val DEFAULT_INHIBIT_2G = false
@@ -73,3 +79,14 @@ fun Long.coerceToHistogramWindowStep(): Long {
 private val MIN_RSRP_HISTOGRAM_WINDOW_MS = MonitoringSettings.MIN_RSRP_HISTOGRAM_WINDOW_MS
 private val MAX_RSRP_HISTOGRAM_WINDOW_MS = MonitoringSettings.MAX_RSRP_HISTOGRAM_WINDOW_MS
 private val RSRP_HISTOGRAM_WINDOW_STEP_MS = MonitoringSettings.RSRP_HISTOGRAM_WINDOW_STEP_MS
+
+fun Long.coerceToTapeWindowStep(): Long {
+    val stepped = MIN_TAPE_WINDOW_MS +
+        (((this - MIN_TAPE_WINDOW_MS) / TAPE_WINDOW_STEP_MS)
+            .coerceAtLeast(0) * TAPE_WINDOW_STEP_MS)
+    return stepped.coerceIn(MIN_TAPE_WINDOW_MS, MAX_TAPE_WINDOW_MS)
+}
+
+private val MIN_TAPE_WINDOW_MS = MonitoringSettings.MIN_TAPE_WINDOW_MS
+private val MAX_TAPE_WINDOW_MS = MonitoringSettings.MAX_TAPE_WINDOW_MS
+private val TAPE_WINDOW_STEP_MS = MonitoringSettings.TAPE_WINDOW_STEP_MS

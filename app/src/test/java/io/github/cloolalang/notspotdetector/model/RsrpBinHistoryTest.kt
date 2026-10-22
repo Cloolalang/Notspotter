@@ -53,7 +53,7 @@ class RsrpBinHistoryTest {
     }
 
     @Test
-    fun record_keepsTheLastFourAndHoldsUntilTheBinChanges() {
+    fun record_keepsEventsInsideTheWindowAndHoldsUntilTheBinChanges() {
         var tape = RsrpBinTape()
         tape = RsrpBinHistory.record(tape, null)
         tape = RsrpBinHistory.record(tape, RsrpBin.ABOVE_95, nowMs = 1_000L)
@@ -64,10 +64,16 @@ class RsrpBinHistoryTest {
         tape = RsrpBinHistory.record(tape, RsrpBin.BELOW_115, nowMs = 6_000L)
 
         assertEquals(
-            listOf(RsrpBin.NO_SIGNAL, RsrpBin.ABOVE_105, RsrpBin.ABOVE_115, RsrpBin.BELOW_115),
+            listOf(
+                RsrpBin.ABOVE_95,
+                RsrpBin.NO_SIGNAL,
+                RsrpBin.ABOVE_105,
+                RsrpBin.ABOVE_115,
+                RsrpBin.BELOW_115
+            ),
             tape.entries.map { it.bin }
         )
-        assertEquals(3_000L, tape.entries.first().startedAtMs)
+        assertEquals(1_000L, tape.entries.first().startedAtMs)
     }
 
     private fun window(

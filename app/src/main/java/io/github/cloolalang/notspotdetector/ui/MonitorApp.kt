@@ -115,6 +115,7 @@ fun MonitorApp(
             onPassiveSignalSettingsChange = viewModel::updatePassiveSignalSettings,
             onPassiveMockSettingsChange = viewModel::updatePassiveMockSettings,
             onRsrpHistogramWindowChange = viewModel::updateRsrpHistogramWindowMs,
+            onTapeWindowChange = viewModel::updateTapeWindowMs,
             onRsrpHistogramBinningModeChange = viewModel::updateRsrpHistogramBinningMode,
             onRsrpHistogramThresholdChange = viewModel::updateRsrpHistogramThresholdDbm,
             onClearRsrpHistogram = viewModel::clearRsrpHistogram,

@@ -139,7 +139,9 @@ object PrimaryCarrierHistory {
                     shade = 0,
                     startedAtMs = nowMs,
                     noSignal = true
-                )).takeLast(VISIBLE_PAIRS)
+                )).let { entries ->
+                    TapeTimeline.retainForScale(entries, nowMs) { it.startedAtMs }
+                }
             )
         }
         val pair = next.pair ?: return tape
@@ -159,7 +161,7 @@ object PrimaryCarrierHistory {
             startedAtMs = nowMs
         )
         return tape.copy(
-            entries = (tape.entries + entry).takeLast(VISIBLE_PAIRS),
+            entries = TapeTimeline.retainForScale(tape.entries + entry, nowMs) { it.startedAtMs },
             shades = shades
         )
     }

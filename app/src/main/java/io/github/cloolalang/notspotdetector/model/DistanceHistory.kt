@@ -31,7 +31,9 @@ object DistanceHistory {
         if (next == null) return tape
         if (tape.entries.lastOrNull()?.metres == next.metres) return tape
         val entry = DistanceSegment(metres = next.metres, startedAtMs = nowMs)
-        return tape.copy(entries = (tape.entries + entry).takeLast(VISIBLE))
+        return tape.copy(
+            entries = TapeTimeline.retainForScale(tape.entries + entry, nowMs) { it.startedAtMs }
+        )
     }
 }
 

@@ -64,7 +64,9 @@ object ActiveTestHistory {
             packetLossPercent = next.packetLossPercent,
             startedAtMs = nowMs
         )
-        return tape.copy(entries = (tape.entries + entry).takeLast(VISIBLE))
+        return tape.copy(
+            entries = TapeTimeline.retainForScale(tape.entries + entry, nowMs) { it.startedAtMs }
+        )
     }
 
     fun label(visit: ActiveTestVisit): String = label(visit.band, visit.rttMs, visit.packetLossPercent)

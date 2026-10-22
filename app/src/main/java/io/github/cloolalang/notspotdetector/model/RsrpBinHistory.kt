@@ -52,7 +52,9 @@ object RsrpBinHistory {
         if (next == null) return tape
         if (tape.entries.lastOrNull()?.bin == next) return tape
         val entry = RsrpBinSegment(bin = next, startedAtMs = nowMs)
-        return tape.copy(entries = (tape.entries + entry).takeLast(VISIBLE))
+        return tape.copy(
+            entries = TapeTimeline.retainForScale(tape.entries + entry, nowMs) { it.startedAtMs }
+        )
     }
 
     private fun covers(count: Int, total: Int): Boolean {

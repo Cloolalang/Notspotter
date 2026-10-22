@@ -42,7 +42,7 @@ class DistanceHistoryTest {
     }
 
     @Test
-    fun record_keepsTheLastFourAndHoldsUntilTheMeasurementChanges() {
+    fun record_keepsEventsInsideTheWindowAndHoldsUntilTheMeasurementChanges() {
         var tape = DistanceTape()
         tape = DistanceHistory.record(tape, null)
         tape = DistanceHistory.record(tape, DistanceVisit(200), nowMs = 1_000L)
@@ -52,7 +52,7 @@ class DistanceHistoryTest {
         tape = DistanceHistory.record(tape, DistanceVisit(2_000), nowMs = 5_000L)
         tape = DistanceHistory.record(tape, DistanceVisit(4_000), nowMs = 6_000L)
 
-        assertEquals(listOf(null, 800, 2_000, 4_000), tape.entries.map { it.metres })
-        assertEquals(3_000L, tape.entries.first().startedAtMs)
+        assertEquals(listOf(200, null, 800, 2_000, 4_000), tape.entries.map { it.metres })
+        assertEquals(1_000L, tape.entries.first().startedAtMs)
     }
 }

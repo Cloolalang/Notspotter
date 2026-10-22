@@ -267,6 +267,10 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         updateMonitoringSettings(monitoringSettings.value.copy(rsrpHistogramWindowMs = value))
     }
 
+    fun updateTapeWindowMs(value: Long) {
+        updateMonitoringSettings(monitoringSettings.value.copy(tapeWindowMs = value))
+    }
+
     fun updateRsrpHistogramBinningMode(mode: RsrpHistogramBinningMode) {
         updateMonitoringSettings(monitoringSettings.value.copy(rsrpHistogramBinningMode = mode))
     }

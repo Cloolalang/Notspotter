@@ -67,16 +67,16 @@ class PrimaryCarrierHistoryTest {
     }
 
     @Test
-    fun record_keepsLastFourAndAssignsANewShadePerPciOnThatBand() {
+    fun record_keepsEventsInsideTheWindowAndAssignsANewShadePerPciOnThatBand() {
         var tape = PrimaryCarrierTape()
         val visits = listOf(10, 20, 30, 40, 50).map { pci ->
             PrimaryCarrierPair(channel = 3_000, pci = pci, nominalMhz = 2600)
         }
         visits.forEach { tape = PrimaryCarrierHistory.record(tape, it) }
 
-        assertEquals(listOf(20, 30, 40, 50), tape.entries.map { it.pair!!.pci })
+        assertEquals(listOf(10, 20, 30, 40, 50), tape.entries.map { it.pair!!.pci })
         assertEquals(PrimaryCarrierHistory.L2600_HUE, PrimaryCarrierHistory.hueForMhz(tape.entries.last().pair!!.nominalMhz)!!, 0.01f)
-        assertEquals(listOf(1, 2, 3, 4), tape.entries.map { it.shade })
+        assertEquals(listOf(0, 1, 2, 3, 4), tape.entries.map { it.shade })
         assertEquals(0, tape.shades[CarrierShadeKey(2600, 10)])
     }
 

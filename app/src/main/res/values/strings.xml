@@ -391,6 +391,9 @@
     <string name="rsrp_histogram_threshold_bin_label">&gt; %1$d dBm</string>
     <string name="rsrp_histogram_empty">Waiting for RSRP samples…</string>
     <string name="rsrp_histogram_clear">Clear graph</string>
+    <string name="tape_window_label">Tape time scale</string>
+    <string name="tape_window_hint">The same clock on every tape. The right edge is now, and older time rolls off the left.</string>
+    <string name="tape_window_hours_minutes">%1$d h %2$d min</string>
     <string name="rsrp_histogram_bin_label">%1$d dBm</string>
     <string name="rsrp_histogram_sample_count">%1$d samples in window</string>
     <string name="rsrp_histogram_sample_count_active">%1$d samples · %2$d active bins</string>

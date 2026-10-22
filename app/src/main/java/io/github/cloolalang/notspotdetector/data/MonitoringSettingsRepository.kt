@@ -31,6 +31,10 @@ class MonitoringSettingsRepository(context: Context) {
                 KEY_RSRP_HISTOGRAM_WINDOW,
                 MonitoringSettings.DEFAULT_RSRP_HISTOGRAM_WINDOW_MS
             ),
+            tapeWindowMs = prefs.getLong(
+                KEY_TAPE_WINDOW,
+                MonitoringSettings.DEFAULT_TAPE_WINDOW_MS
+            ),
             rsrpHistogramBinningMode = RsrpHistogramBinningMode.fromStoredName(
                 prefs.getString(KEY_RSRP_HISTOGRAM_BINNING_MODE, null)
             ),
@@ -73,6 +77,7 @@ class MonitoringSettingsRepository(context: Context) {
             .putBoolean(KEY_PASSIVE_QUIET_UNTIL_CRITICAL, normalized.passiveQuietUntilCritical)
             .putLong(KEY_PASSIVE_MEASUREMENT_INTERVAL, normalized.passiveMeasurementIntervalMs)
             .putLong(KEY_RSRP_HISTOGRAM_WINDOW, normalized.rsrpHistogramWindowMs)
+            .putLong(KEY_TAPE_WINDOW, normalized.tapeWindowMs)
             .putString(KEY_RSRP_HISTOGRAM_BINNING_MODE, normalized.rsrpHistogramBinningMode.name)
             .putInt(KEY_RSRP_HISTOGRAM_THRESHOLD_1, normalized.rsrpHistogramThreshold1Dbm)
             .putInt(KEY_RSRP_HISTOGRAM_THRESHOLD_2, normalized.rsrpHistogramThreshold2Dbm)
@@ -91,6 +96,7 @@ class MonitoringSettingsRepository(context: Context) {
         private const val KEY_PASSIVE_QUIET_UNTIL_CRITICAL = "passive_quiet_until_critical"
         private const val KEY_PASSIVE_MEASUREMENT_INTERVAL = "passive_measurement_interval_ms"
         private const val KEY_RSRP_HISTOGRAM_WINDOW = "rsrp_histogram_window_ms"
+        private const val KEY_TAPE_WINDOW = "tape_window_ms"
         private const val KEY_RSRP_HISTOGRAM_BINNING_MODE = "rsrp_histogram_binning_mode"
         private const val KEY_RSRP_HISTOGRAM_THRESHOLD_1 = "rsrp_histogram_threshold_1_dbm"
         private const val KEY_RSRP_HISTOGRAM_THRESHOLD_2 = "rsrp_histogram_threshold_2_dbm"

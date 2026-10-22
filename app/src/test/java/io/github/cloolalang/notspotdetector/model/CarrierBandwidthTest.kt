@@ -114,4 +114,40 @@ class CarrierBandwidthTest {
         )
         assertNull(CarrierBandwidth.aggregatedKhz(emptyList(), emptyList(), emptyList()))
     }
+
+    @Test
+    fun aggregatedKhz_countsARepeatedPrimaryOnce() {
+        val repeatedPrimary = List(3) {
+            ChannelBandwidth(CarrierBandwidth.CONNECTION_PRIMARY, 20_000, CarrierRadio.LTE)
+        }
+        val total = CarrierBandwidth.aggregatedKhz(
+            physical = repeatedPrimary + ChannelBandwidth(
+                CarrierBandwidth.CONNECTION_SECONDARY,
+                15_000,
+                CarrierRadio.LTE
+            ),
+            lteCell = listOf(
+                ChannelBandwidth(CarrierBandwidth.CONNECTION_PRIMARY, 20_000, CarrierRadio.LTE)
+            ),
+            unlabeledKhz = emptyList()
+        )
+
+        assertEquals(35_000, total)
+    }
+
+    @Test
+    fun aggregatedKhz_keepsTheCellSecondaryWhenTheModemReportIsOnlyThePrimary() {
+        val total = CarrierBandwidth.aggregatedKhz(
+            physical = listOf(
+                ChannelBandwidth(CarrierBandwidth.CONNECTION_PRIMARY, 20_000, CarrierRadio.LTE)
+            ),
+            lteCell = listOf(
+                ChannelBandwidth(CarrierBandwidth.CONNECTION_PRIMARY, 20_000, CarrierRadio.LTE),
+                ChannelBandwidth(CarrierBandwidth.CONNECTION_SECONDARY, 15_000, CarrierRadio.LTE)
+            ),
+            unlabeledKhz = emptyList()
+        )
+
+        assertEquals(35_000, total)
+    }
 }

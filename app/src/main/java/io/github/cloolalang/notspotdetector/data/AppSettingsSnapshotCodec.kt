@@ -185,6 +185,7 @@ object AppSettingsSnapshotCodec {
             .put("passiveQuietUntilCritical", settings.passiveQuietUntilCritical)
             .put("passiveMeasurementIntervalMs", settings.passiveMeasurementIntervalMs)
             .put("rsrpHistogramWindowMs", settings.rsrpHistogramWindowMs)
+            .put("tapeWindowMs", settings.tapeWindowMs)
             .put("rsrpHistogramBinningMode", settings.rsrpHistogramBinningMode.name)
             .put("rsrpHistogramThreshold1Dbm", settings.rsrpHistogramThreshold1Dbm)
             .put("rsrpHistogramThreshold2Dbm", settings.rsrpHistogramThreshold2Dbm)
@@ -217,6 +218,10 @@ object AppSettingsSnapshotCodec {
             rsrpHistogramWindowMs = json.optLong(
                 "rsrpHistogramWindowMs",
                 MonitoringSettings.DEFAULT_RSRP_HISTOGRAM_WINDOW_MS
+            ),
+            tapeWindowMs = json.optLong(
+                "tapeWindowMs",
+                MonitoringSettings.DEFAULT_TAPE_WINDOW_MS
             ),
             rsrpHistogramBinningMode = RsrpHistogramBinningMode.fromStoredName(
                 json.optString("rsrpHistogramBinningMode", null)

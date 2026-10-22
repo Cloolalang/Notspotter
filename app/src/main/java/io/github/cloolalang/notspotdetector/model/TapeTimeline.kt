@@ -1,13 +1,29 @@
 package io.github.cloolalang.notspotdetector.model
 
 /**
- * One time scale for the history tapes. The same fraction is the same moment on
- * the LTE EARFCN/PCI tape, the NR EARFCN/PCI tape, the technology tape, the RSRP tape,
- * the distance tape, the active-test tape, and the aggregated-bandwidth tape.
- * Fraction 0 is the oldest moment and fraction 1 is now, drawn on the right.
+ * One fixed time scale for the history tapes. The right edge is now and the left
+ * edge is now minus the chosen window, on every tape. The window does not shrink
+ * or grow to fit the events. Fraction 0 is the left edge and fraction 1 is now.
  */
 object TapeTimeline {
-    fun windowStartMs(segmentStartsMs: List<Long>): Long? = segmentStartsMs.minOrNull()
+    fun windowStartMs(nowMs: Long, windowMs: Long): Long = nowMs - windowMs.coerceAtLeast(0L)
+
+    /**
+     * Keep the segment that still covers the left edge of the longest window, and
+     * every segment after it. Older segments have already rolled off.
+     */
+    fun <T> retainForScale(
+        entries: List<T>,
+        nowMs: Long,
+        retainMs: Long = MonitoringSettings.MAX_TAPE_WINDOW_MS,
+        startedAtMs: (T) -> Long
+    ): List<T> {
+        if (entries.isEmpty()) return entries
+        val cutoff = nowMs - retainMs
+        val overlap = entries.indexOfLast { startedAtMs(it) <= cutoff }
+        if (overlap <= 0) return entries
+        return entries.drop(overlap)
+    }
 
     fun placements(
         segmentStartsMs: List<Long>,

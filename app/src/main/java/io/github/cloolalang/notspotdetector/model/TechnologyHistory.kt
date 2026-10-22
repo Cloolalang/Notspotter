@@ -56,7 +56,9 @@ object TechnologyHistory {
         if (next == null) return tape
         if (tape.entries.lastOrNull()?.label == next) return tape
         val entry = TechnologySegment(label = next, startedAtMs = nowMs)
-        return tape.copy(entries = (tape.entries + entry).takeLast(VISIBLE))
+        return tape.copy(
+            entries = TapeTimeline.retainForScale(tape.entries + entry, nowMs) { it.startedAtMs }
+        )
     }
 }
 

@@ -5,6 +5,18 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.130.0] - 2026-10-22
+
+### Changed
+
+- **Tape time scale** — Every KPI history tape uses the same rolling clock. The right edge is now, and older time moves off the left. The scale does not shrink or stretch to fit the events, so a change lines up across the tapes. The window is set under Clear graph, from 5 minutes to 2 hours, and starts at 10 minutes.
+
+## [2.129.1] - 2026-10-22
+
+### Fixed
+
+- **Aggregated bandwidth tape** — The tape could read 75 MHz while cellular metrics showed a 20 MHz primary and a 15 MHz secondary. During pings the modem repeats the primary carrier, and the tape added every copy. With no traffic the modem often reports only the primary, and the tape then dropped the secondary and fell to 20 MHz. The tape now sums the primary and secondary widths once, in both modes. An NR width still counts, and it is one of the widths on the secondary row.
+
 ## [2.129.0] - 2026-10-22
 
 ### Changed

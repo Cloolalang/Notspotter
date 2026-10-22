@@ -65,6 +65,7 @@ import io.github.cloolalang.notspotdetector.model.DistanceSegment
 import io.github.cloolalang.notspotdetector.model.DistanceTape
 import io.github.cloolalang.notspotdetector.model.DistanceVisit
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
+import io.github.cloolalang.notspotdetector.model.coerceToTapeWindowStep
 import io.github.cloolalang.notspotdetector.model.PrimaryCarrierHistory
 import io.github.cloolalang.notspotdetector.model.PrimaryCarrierTape
 import io.github.cloolalang.notspotdetector.model.PrimaryCarrierTapeEntry
@@ -82,8 +83,6 @@ import io.github.cloolalang.notspotdetector.model.RsrpMeanColorBand
 import io.github.cloolalang.notspotdetector.model.RsrpSample
 import io.github.cloolalang.notspotdetector.model.RsrpSampleTrend
 import io.github.cloolalang.notspotdetector.model.ServingCellSelection
-import io.github.cloolalang.notspotdetector.model.TapeAge
-import io.github.cloolalang.notspotdetector.model.TapeAgeUnit
 import io.github.cloolalang.notspotdetector.model.TapeTimeline
 import io.github.cloolalang.notspotdetector.model.TechnologyHistory
 import io.github.cloolalang.notspotdetector.model.TechnologySegment
@@ -112,10 +111,12 @@ fun HistogramControlsCard(
     samples: List<RsrpSample>,
     stats: ConnectivityStats,
     windowMs: Long,
+    tapeWindowMs: Long,
     binningMode: RsrpHistogramBinningMode,
     thresholdsDbm: List<Int>,
     isActive: Boolean,
     onWindowChange: (Long) -> Unit,
+    onTapeWindowChange: (Long) -> Unit,
     onBinningModeChange: (RsrpHistogramBinningMode) -> Unit,
     onThresholdChange: (Int, Int) -> Unit,
     onClearHistogram: () -> Unit,
@@ -216,8 +217,8 @@ fun HistogramControlsCard(
     LaunchedEffect(samples) {
         nowMs = System.currentTimeMillis()
     }
-    LaunchedEffect(isActive) {
-        while (isActive) {
+    LaunchedEffect(Unit) {
+        while (true) {
             nowMs = System.currentTimeMillis()
             delay(1_000)
         }
@@ -286,6 +287,11 @@ fun HistogramControlsCard(
                     Text(text = stringResource(R.string.rsrp_histogram_clear))
                 }
 
+                TapeWindowSlider(
+                    windowMs = tapeWindowMs.coerceToTapeWindowStep(),
+                    onWindowChange = onTapeWindowChange
+                )
+
                 HistogramSettingsPanel(
                     windowMs = windowMs.coerceToHistogramWindowStep(),
                     binningMode = binningMode,
@@ -311,6 +317,7 @@ fun HistogramControlsCard(
         distanceEntries = distanceTape.entries,
         activeTestEntries = activeTestTape.entries,
         aggregatedBandwidthEntries = aggregatedBandwidthTape.entries,
+        tapeWindowMs = tapeWindowMs.coerceToTapeWindowStep(),
         onClearHistory = { resetTapes() }
     )
     }
@@ -517,17 +524,10 @@ private fun KpiHistoryPanel(
     distanceEntries: List<DistanceSegment>,
     activeTestEntries: List<ActiveTestSegment>,
     aggregatedBandwidthEntries: List<AggregatedBandwidthSegment>,
+    tapeWindowMs: Long,
     onClearHistory: () -> Unit
 ) {
-    val tapeWindowStartMs = TapeTimeline.windowStartMs(
-        carrierEntries.map { it.startedAtMs } +
-            nrCarrierEntries.map { it.startedAtMs } +
-            technologyEntries.map { it.startedAtMs } +
-            rsrpBinEntries.map { it.startedAtMs } +
-            distanceEntries.map { it.startedAtMs } +
-            activeTestEntries.map { it.startedAtMs } +
-            aggregatedBandwidthEntries.map { it.startedAtMs }
-    ) ?: nowMs
+    val tapeWindowStartMs = TapeTimeline.windowStartMs(nowMs, tapeWindowMs)
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(20.dp),
@@ -992,10 +992,7 @@ private fun PrimaryCarrierHistoryBar(
                 }
             }
         }
-        TapeTimeScale(
-            oldestStartedAtMs = if (entries.isEmpty()) null else windowStartMs,
-            nowMs = nowMs
-        )
+        TapeTimeScale(windowMs = (nowMs - windowStartMs).coerceAtLeast(0L))
     }
 }
 
@@ -1125,10 +1122,7 @@ private fun TechnologyHistoryBar(
                 }
             }
         }
-        TapeTimeScale(
-            oldestStartedAtMs = if (entries.isEmpty()) null else windowStartMs,
-            nowMs = nowMs
-        )
+        TapeTimeScale(windowMs = (nowMs - windowStartMs).coerceAtLeast(0L))
     }
 }
 
@@ -1225,10 +1219,7 @@ private fun RsrpBinHistoryBar(
                 }
             }
         }
-        TapeTimeScale(
-            oldestStartedAtMs = if (entries.isEmpty()) null else windowStartMs,
-            nowMs = nowMs
-        )
+        TapeTimeScale(windowMs = (nowMs - windowStartMs).coerceAtLeast(0L))
     }
 }
 
@@ -1346,10 +1337,7 @@ private fun DistanceHistoryBar(
                 }
             }
         }
-        TapeTimeScale(
-            oldestStartedAtMs = if (entries.isEmpty()) null else windowStartMs,
-            nowMs = nowMs
-        )
+        TapeTimeScale(windowMs = (nowMs - windowStartMs).coerceAtLeast(0L))
     }
 }
 
@@ -1461,10 +1449,7 @@ private fun ActiveTestHistoryBar(
                 }
             }
         }
-        TapeTimeScale(
-            oldestStartedAtMs = if (entries.isEmpty()) null else windowStartMs,
-            nowMs = nowMs
-        )
+        TapeTimeScale(windowMs = (nowMs - windowStartMs).coerceAtLeast(0L))
     }
 }
 
@@ -1573,10 +1558,7 @@ private fun AggregatedBandwidthHistoryBar(
                 }
             }
         }
-        TapeTimeScale(
-            oldestStartedAtMs = if (entries.isEmpty()) null else windowStartMs,
-            nowMs = nowMs
-        )
+        TapeTimeScale(windowMs = (nowMs - windowStartMs).coerceAtLeast(0L))
     }
 }
 
@@ -1623,18 +1605,13 @@ private fun technologyTapeColor(technology: String): Color {
 }
 
 @Composable
-private fun TapeTimeScale(
-    oldestStartedAtMs: Long?,
-    nowMs: Long
-) {
-    if (oldestStartedAtMs == null) return
-    val age = tapeAgeText(oldestStartedAtMs, nowMs)
+private fun TapeTimeScale(windowMs: Long) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(
-            text = stringResource(R.string.rsrp_histogram_tape_ago, age),
+            text = stringResource(R.string.rsrp_histogram_tape_ago, formatTapeWindow(windowMs)),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -1647,12 +1624,60 @@ private fun TapeTimeScale(
 }
 
 @Composable
-private fun tapeAgeText(startedAtMs: Long, nowMs: Long): String {
-    val amount = TapeAge.amount(startedAtMs, nowMs)
-    return when (amount.unit) {
-        TapeAgeUnit.SECONDS -> stringResource(R.string.rsrp_histogram_tape_seconds, amount.value.toInt())
-        TapeAgeUnit.MINUTES -> stringResource(R.string.rsrp_histogram_tape_minutes, amount.value.toInt())
-        TapeAgeUnit.HOURS -> stringResource(R.string.rsrp_histogram_tape_hours, amount.value.toInt())
+private fun TapeWindowSlider(
+    windowMs: Long,
+    onWindowChange: (Long) -> Unit
+) {
+    val minMs = MonitoringSettings.MIN_TAPE_WINDOW_MS
+    val stepMs = MonitoringSettings.TAPE_WINDOW_STEP_MS
+    val maxMs = MonitoringSettings.MAX_TAPE_WINDOW_MS
+    val stepCount = ((maxMs - minMs) / stepMs).toInt()
+    val sliderValue = ((windowMs - minMs) / stepMs).toFloat().coerceIn(0f, stepCount.toFloat())
+
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.tape_window_label),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = formatTapeWindow(windowMs),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+        Slider(
+            enabled = settingsControlsEnabled(),
+            value = sliderValue,
+            onValueChange = { value ->
+                onWindowChange(minMs + value.roundToInt() * stepMs)
+            },
+            valueRange = 0f..stepCount.toFloat(),
+            steps = (stepCount - 1).coerceAtLeast(0),
+            modifier = Modifier.fillMaxWidth()
+        )
+        Text(
+            text = stringResource(R.string.tape_window_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun formatTapeWindow(windowMs: Long): String {
+    val totalMinutes = (windowMs / 60_000L).toInt()
+    val hours = totalMinutes / 60
+    val minutes = totalMinutes % 60
+    return when {
+        hours <= 0 -> stringResource(R.string.rsrp_histogram_tape_minutes, totalMinutes)
+        minutes == 0 -> stringResource(R.string.rsrp_histogram_tape_hours, hours)
+        else -> stringResource(R.string.tape_window_hours_minutes, hours, minutes)
     }
 }
 

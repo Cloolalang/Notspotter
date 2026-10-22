@@ -106,37 +106,24 @@ object CarrierBandwidth {
     }
 
     /**
-     * Primary LTE, every secondary LTE carrier, and every NR carrier.
-     * Two LTE carriers of the same width both count. A physical-channel LTE width
-     * is kept in preference to the same width repeated on the LTE cell identity.
-     * An unlabeled list is used only when no LTE or NR width was named.
+     * Sum of the primary and secondary widths shown in cellular metrics.
+     * A width the modem repeats while data is moving counts once. A secondary
+     * width that is only on the LTE cell still counts when the modem report
+     * lists the primary alone. An unlabeled list is used only when neither
+     * source named a carrier.
      */
     fun aggregatedKhz(
         physical: List<ChannelBandwidth>,
         lteCell: List<ChannelBandwidth>,
         unlabeledKhz: List<Int>
     ): Int? {
-        val physicalLte = includedKhz(physical, CarrierRadio.LTE)
-        val physicalNr = includedKhz(physical, CarrierRadio.NR)
-        val physicalUnknown = includedKhz(physical, CarrierRadio.UNKNOWN)
-        val lteFromCell = includedKhz(lteCell, CarrierRadio.LTE) + includedKhz(lteCell, CarrierRadio.UNKNOWN)
-        val lte = physicalLte.ifEmpty { lteFromCell }
-        val unknown = when {
-            physicalLte.isNotEmpty() || lteFromCell.isNotEmpty() -> emptyList()
-            physicalUnknown.isNotEmpty() -> physicalUnknown
-            else -> unlabeledKhz.filter { isReportedKhz(it) }
-        }
-        val total = (lte + physicalNr + unknown).sum()
+        val merged = merge(
+            physical = fromChannels(physical),
+            lteCell = fromChannels(lteCell),
+            unlabeledKhz = unlabeledKhz
+        )
+        val total = (merged.primaryDownlinkKhz + merged.secondaryDownlinkKhz).sum()
         return total.takeIf { it > 0 }
-    }
-
-    private fun includedKhz(channels: List<ChannelBandwidth>, radio: CarrierRadio): List<Int> {
-        return channels.mapNotNull { channel ->
-            if (channel.radio != radio) return@mapNotNull null
-            if (channel.connectionStatus == CONNECTION_NONE) return@mapNotNull null
-            if (!isReportedKhz(channel.downlinkKhz)) return@mapNotNull null
-            channel.downlinkKhz
-        }
     }
 
     private const val CONNECTION_UNKNOWN = -1
