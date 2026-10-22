@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Tape time scale** — Every KPI history tape uses the same rolling clock. The right edge is now, and older time moves off the left. The scale does not shrink or stretch to fit the events, so a change lines up across the tapes. The window is set under Clear graph, from 5 minutes to 2 hours, and starts at 10 minutes.
+- **Tape time scale** — Every KPI history tape uses the same rolling clock. The right edge is now, and older time moves off the left. The scale does not shrink or stretch to fit the events, so a change lines up across the tapes. The window is set under Clear graph, from 5 minutes to 2 hours, and starts at 10 minutes. Saving or loading a settings profile keeps that window.
 
 ## [2.129.1] - 2026-10-22
 

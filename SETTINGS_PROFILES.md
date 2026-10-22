@@ -36,7 +36,7 @@ Multi-profile export uses a top-level `"profiles"` array with the same object sh
 |---------|----------|-------------|---------|
 | Ping / active test | `thresholds` | `ThresholdSettings` | RTT, jitter, packet loss, good-connection click suppression |
 | Ping target | `ping` | `PingSettings` | Host, port, pings per test, interval |
-| Monitoring | `monitoring` | `MonitoringSettings` | 2G fallback, inhibit 2G (root), SIM, RSRP histogram window / binning mode / three threshold floors, 5G features, home Manual select operator button, keep screen on while monitoring. Measurement cycle is fixed at 1 s; quiet passive alerts are off. |
+| Monitoring | `monitoring` | `MonitoringSettings` | 2G fallback, inhibit 2G (root), SIM, RSRP histogram window / binning mode / three threshold floors, KPI tape time scale, 5G features, home Manual select operator button, keep screen on while monitoring. Measurement cycle is fixed at 1 s; quiet passive alerts are off. |
 | Signal thresholds & tiers | `passiveSignal` | `PassiveSignalSettings` | RSRP/RSRQ bands, per-RXSS click interval, pulse duration, sound toggles (tiers 0–15, 12, 13, RSRQ 14) |
 | **Mock network** | `passiveMock` | `PassiveMockSettings` | Mock enable, scenario, RSRP, RSRQ, voice-only — see below |
 | Alert audio & voice | `audio` | `AudioVolumeSettings` | Volumes, voice toggles (including timing advance), TTS engine choice, tier-5 announcer, special-cell detection and voice |
@@ -61,7 +61,8 @@ Scenario reference and trigger states: [MOCK_NETWORK_SCENARIOS.md](MOCK_NETWORK_
 
 | Key | Type | Description |
 |-----|------|-------------|
-| `rsrpHistogramWindowMs` | long | Sample window (30 s–5 min, 30 s steps) |
+| `rsrpHistogramWindowMs` | long | Level-histogram sample window (30 s–1 h, 30 s steps) |
+| `tapeWindowMs` | long | Shared KPI tape time scale (5 min–2 h, 5 min steps, default 10 min). The same window is restored on every tape when the profile loads. |
 | `rsrpHistogramBinningMode` | string | `LEVEL` (5 dB bins) or `THRESHOLD` (three “stronger than” floors) |
 | `rsrpHistogramThreshold1Dbm` | int | Threshold 1 floor (default −95) |
 | `rsrpHistogramThreshold2Dbm` | int | Threshold 2 floor (default −105) |
