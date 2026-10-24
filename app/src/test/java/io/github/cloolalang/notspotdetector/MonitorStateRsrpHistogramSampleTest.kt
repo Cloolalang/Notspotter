@@ -41,6 +41,15 @@ class MonitorStateRsrpHistogramSampleTest {
     }
 
     @Test
+    fun tickRsrpHistogramSample_storesRsrqFromTheSameTick() {
+        MonitorState.clearRsrpHistogram()
+        MonitorState.updateStats(lteStats(-95).copy(rsrqDb = -12))
+        MonitorState.tickRsrpHistogramSample()
+
+        assertEquals(-12, MonitorState.rsrpHistory.value.single().rsrqDb)
+    }
+
+    @Test
     fun tickRsrpHistogramSample_ignoredWhenNotRunning() {
         MonitorState.setRunning(false)
         MonitorState.tickRsrpHistogramSample()
@@ -170,11 +179,16 @@ class MonitorStateRsrpHistogramSampleTest {
     fun tickRsrpHistogramSample_staleScanStillCountsAsNoSignal() {
         MonitorState.clearRsrpHistogram()
         MonitorState.updateStats(
-            lteStats(-95).copy(signalQualityFresh = false, cellInfoAgeMs = 20_000L)
+            lteStats(-95).copy(
+                signalQualityFresh = false,
+                cellInfoAgeMs = 20_000L,
+                rsrqDb = -12
+            )
         )
         MonitorState.tickRsrpHistogramSample()
 
         assertEquals(null, MonitorState.rsrpHistory.value.single().rsrpDbm)
+        assertEquals(null, MonitorState.rsrpHistory.value.single().rsrqDb)
     }
 
     private fun lteStats(

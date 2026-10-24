@@ -5,6 +5,12 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.139.0] - 2026-10-24
+
+### Added
+
+- **RSRQ tape in KPI history** — A tape under the RSRP bin tape colours RSRQ for the last 30 seconds. Green when at least 95% of readings are better than −15 dB, yellow when 95% are from −17 dB through −15 dB, and red when 95% are worse than −17 dB. No signal, and 2G (which has no RSRQ), are grey.
+
 ## [2.138.0] - 2026-10-24
 
 ### Added

@@ -419,6 +419,10 @@
     <string name="rsrp_bin_above_105">&gt; −105</string>
     <string name="rsrp_bin_above_115">&gt; −115</string>
     <string name="rsrp_bin_below_115">&lt; −115</string>
+    <string name="rsrq_bin_history_title">RSRQ</string>
+    <string name="rsrq_bin_above_15">&gt; −15</string>
+    <string name="rsrq_bin_from_17_to_15">−17 to −15</string>
+    <string name="rsrq_bin_below_17">&lt; −17</string>
     <string name="distance_history_title">Distance</string>
     <string name="distance_history_rule">timing advance</string>
     <string name="rsrp_histogram_tape_now">now</string>

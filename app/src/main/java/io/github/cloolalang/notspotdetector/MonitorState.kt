@@ -440,6 +440,7 @@ object MonitorState {
                 ServingCellSelection.isScanAgeStale(stats.cellInfoAgeMs)
             recordRsrpSample(
                 rsrpDbm = if (scanStale) null else stats.rsrpDbm,
+                rsrqDb = if (scanStale) null else stats.rsrqDb,
                 distanceMetres = stats.displayedTimingAdvance()?.oneWayMetres(),
                 isMonitoring = stats.isMonitoring,
                 radioAccessType = stats.radioAccessType,
@@ -451,6 +452,7 @@ object MonitorState {
 
     private fun recordRsrpSample(
         rsrpDbm: Int?,
+        rsrqDb: Int?,
         distanceMetres: Int?,
         isMonitoring: Boolean,
         radioAccessType: String?,
@@ -467,8 +469,12 @@ object MonitorState {
         val timestampMs = System.currentTimeMillis()
         val retainMs = rsrpHistoryRetentionMs()
         val cutoff = timestampMs - retainMs
-        _rsrpHistory.value = (_rsrpHistory.value + RsrpSample(timestampMs, rsrpDbm, distanceMetres))
-            .filter { it.timestampMs >= cutoff }
+        _rsrpHistory.value = (_rsrpHistory.value + RsrpSample(
+            timestampMs = timestampMs,
+            rsrpDbm = rsrpDbm,
+            distanceMetres = distanceMetres,
+            rsrqDb = rsrqDb
+        )).filter { it.timestampMs >= cutoff }
     }
 
     /**

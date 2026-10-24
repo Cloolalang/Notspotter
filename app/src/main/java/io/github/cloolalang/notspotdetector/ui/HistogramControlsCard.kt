@@ -75,6 +75,10 @@ import io.github.cloolalang.notspotdetector.model.RsrpBin
 import io.github.cloolalang.notspotdetector.model.RsrpBinHistory
 import io.github.cloolalang.notspotdetector.model.RsrpBinSegment
 import io.github.cloolalang.notspotdetector.model.RsrpBinTape
+import io.github.cloolalang.notspotdetector.model.RsrqBin
+import io.github.cloolalang.notspotdetector.model.RsrqBinHistory
+import io.github.cloolalang.notspotdetector.model.RsrqBinSegment
+import io.github.cloolalang.notspotdetector.model.RsrqBinTape
 import io.github.cloolalang.notspotdetector.model.RsrpHistogram
 import io.github.cloolalang.notspotdetector.model.RsrpHistogramBand
 import io.github.cloolalang.notspotdetector.model.RsrpHistogramBin
@@ -130,12 +134,18 @@ fun HistogramControlsCard(
     var carrierTape by remember { mutableStateOf(PrimaryCarrierTape()) }
     var technologyTape by remember { mutableStateOf(TechnologyTape()) }
     var rsrpBinTape by remember { mutableStateOf(RsrpBinTape()) }
+    var rsrqBinTape by remember { mutableStateOf(RsrqBinTape()) }
     var distanceTape by remember { mutableStateOf(DistanceTape()) }
     var activeTestTape by remember { mutableStateOf(ActiveTestTape()) }
     var aggregatedBandwidthTape by remember { mutableStateOf(AggregatedBandwidthTape()) }
     val currentCarrier = PrimaryCarrierHistory.visitFromStats(stats)
     val currentTechnology = TechnologyHistory.technologyFromStats(stats)
     val currentRsrpBin = RsrpBinHistory.classify(
+        samples = samples,
+        nowMs = nowMs,
+        noSignal = TechnologyHistory.isNoSignalPeriod(stats)
+    )
+    val currentRsrqBin = RsrqBinHistory.classify(
         samples = samples,
         nowMs = nowMs,
         noSignal = TechnologyHistory.isNoSignalPeriod(stats)
@@ -164,6 +174,7 @@ fun HistogramControlsCard(
             carrierTape = PrimaryCarrierTape()
             technologyTape = TechnologyTape()
             rsrpBinTape = RsrpBinTape()
+            rsrqBinTape = RsrqBinTape()
             distanceTape = DistanceTape()
             activeTestTape = ActiveTestTape()
             aggregatedBandwidthTape = AggregatedBandwidthTape()
@@ -172,6 +183,7 @@ fun HistogramControlsCard(
         carrierTape = PrimaryCarrierHistory.record(PrimaryCarrierTape(), currentCarrier, now)
         technologyTape = TechnologyHistory.record(TechnologyTape(), currentTechnology, now)
         rsrpBinTape = RsrpBinHistory.record(RsrpBinTape(), currentRsrpBin, now)
+        rsrqBinTape = RsrqBinHistory.record(RsrqBinTape(), currentRsrqBin, now)
         distanceTape = DistanceHistory.record(DistanceTape(), currentDistance, now)
         activeTestTape = ActiveTestHistory.record(ActiveTestTape(), currentActiveTest, now)
         aggregatedBandwidthTape = AggregatedBandwidthHistory.record(
@@ -191,6 +203,10 @@ fun HistogramControlsCard(
     LaunchedEffect(currentRsrpBin, testsRunning) {
         if (!testsRunning) return@LaunchedEffect
         rsrpBinTape = RsrpBinHistory.record(rsrpBinTape, currentRsrpBin, tapeNowMs)
+    }
+    LaunchedEffect(currentRsrqBin, testsRunning) {
+        if (!testsRunning) return@LaunchedEffect
+        rsrqBinTape = RsrqBinHistory.record(rsrqBinTape, currentRsrqBin, tapeNowMs)
     }
     LaunchedEffect(currentDistance, testsRunning) {
         if (!testsRunning) return@LaunchedEffect
@@ -273,6 +289,7 @@ fun HistogramControlsCard(
                         carrierTape.entries.size > 1 ||
                         technologyTape.entries.size > 1 ||
                         rsrpBinTape.entries.size > 1 ||
+                        rsrqBinTape.entries.size > 1 ||
                         distanceTape.entries.size > 1 ||
                         activeTestTape.entries.size > 1 ||
                         aggregatedBandwidthTape.entries.size > 1,
@@ -313,6 +330,7 @@ fun HistogramControlsCard(
         technologyEntries = technologyTape.entries,
         technologyChangesPerMinute = stats.technologyChangesPerMinute,
         rsrpBinEntries = rsrpBinTape.entries,
+        rsrqBinEntries = rsrqBinTape.entries,
         distanceEntries = distanceTape.entries,
         activeTestEntries = activeTestTape.entries,
         aggregatedBandwidthEntries = aggregatedBandwidthTape.entries,
@@ -520,6 +538,7 @@ private fun KpiHistoryPanel(
     technologyEntries: List<TechnologySegment>,
     technologyChangesPerMinute: Int,
     rsrpBinEntries: List<RsrpBinSegment>,
+    rsrqBinEntries: List<RsrqBinSegment>,
     distanceEntries: List<DistanceSegment>,
     activeTestEntries: List<ActiveTestSegment>,
     aggregatedBandwidthEntries: List<AggregatedBandwidthSegment>,
@@ -577,6 +596,11 @@ private fun KpiHistoryPanel(
                     nowMs = nowMs,
                     windowStartMs = tapeWindowStartMs
                 )
+                RsrqBinHistoryBar(
+                    entries = rsrqBinEntries,
+                    nowMs = nowMs,
+                    windowStartMs = tapeWindowStartMs
+                )
                 DistanceHistoryBar(
                     entries = distanceEntries,
                     nowMs = nowMs,
@@ -597,6 +621,7 @@ private fun KpiHistoryPanel(
                     enabled = carrierEntries.isNotEmpty() ||
                         technologyEntries.isNotEmpty() ||
                         rsrpBinEntries.isNotEmpty() ||
+                        rsrqBinEntries.isNotEmpty() ||
                         distanceEntries.isNotEmpty() ||
                         activeTestEntries.isNotEmpty() ||
                         aggregatedBandwidthEntries.isNotEmpty(),
@@ -1257,6 +1282,124 @@ private fun rsrpBinTapeColor(bin: RsrpBin): Color {
         RsrpBin.ABOVE_115 -> MeanRsrpYellow
         RsrpBin.BELOW_115 -> MeanRsrpRed
         RsrpBin.NO_SIGNAL -> Color(0xFF90A4AE)
+    }
+}
+
+@Composable
+private fun RsrqBinHistoryBar(
+    entries: List<RsrqBinSegment>,
+    nowMs: Long,
+    windowStartMs: Long,
+    modifier: Modifier = Modifier
+) {
+    val current = entries.lastOrNull()
+    val valueText = current?.let { rsrqBinLabel(it.bin) }
+        ?: stringResource(R.string.signal_unavailable)
+    val segmentLabels = entries.map { rsrqBinLabel(it.bin) }
+    val trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+    val textMeasurer = rememberTextMeasurer()
+    val labelStyle = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp)
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = stringResource(R.string.rsrq_bin_history_title),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Sushi
+                )
+                Text(
+                    text = stringResource(R.string.rsrp_bin_history_rule),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Text(
+                text = valueText,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Medium
+            )
+        }
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(24.dp)
+                .clip(RoundedCornerShape(9.dp))
+                .background(trackColor)
+        ) {
+            if (entries.isEmpty()) return@Canvas
+            val canvasScope = this
+            val bounds = tapeSegmentBounds(
+                startsMs = entries.map { it.startedAtMs },
+                windowStartMs = windowStartMs,
+                nowMs = nowMs,
+                tapeWidth = size.width
+            )
+            entries.forEachIndexed { index, segment ->
+                val (left, segmentWidth) = bounds[index]
+                if (segmentWidth <= 0f) return@forEachIndexed
+                val color = rsrqBinTapeColor(segment.bin)
+                val label = segmentLabels[index]
+                canvasScope.clipRect(
+                    left = left,
+                    top = 0f,
+                    right = left + segmentWidth,
+                    bottom = size.height
+                ) {
+                    drawRect(
+                        color = color,
+                        topLeft = Offset(left, 0f),
+                        size = Size(segmentWidth, size.height)
+                    )
+                    val layout = textMeasurer.measure(
+                        text = label,
+                        style = labelStyle.merge(TextStyle(color = carrierTapeLabelColor(color))),
+                        overflow = TextOverflow.Ellipsis,
+                        softWrap = false,
+                        maxLines = 1,
+                        constraints = Constraints(
+                            maxWidth = segmentWidth.roundToInt().coerceAtLeast(0)
+                        )
+                    )
+                    drawText(
+                        textLayoutResult = layout,
+                        topLeft = Offset(
+                            x = left + (segmentWidth - layout.size.width) / 2f,
+                            y = (size.height - layout.size.height) / 2f
+                        )
+                    )
+                }
+            }
+        }
+        TapeTimeScale(windowMs = (nowMs - windowStartMs).coerceAtLeast(0L))
+    }
+}
+
+@Composable
+private fun rsrqBinLabel(bin: RsrqBin): String {
+    return when (bin) {
+        RsrqBin.ABOVE_15 -> stringResource(R.string.rsrq_bin_above_15)
+        RsrqBin.FROM_17_TO_15 -> stringResource(R.string.rsrq_bin_from_17_to_15)
+        RsrqBin.BELOW_17 -> stringResource(R.string.rsrq_bin_below_17)
+        RsrqBin.NO_SIGNAL,
+        RsrqBin.NO_RSRQ -> TechnologyHistory.LABEL_NO_SIGNAL
+    }
+}
+
+private fun rsrqBinTapeColor(bin: RsrqBin): Color {
+    return when (bin) {
+        RsrqBin.ABOVE_15 -> MeanRsrpGreen
+        RsrqBin.FROM_17_TO_15 -> MeanRsrpYellow
+        RsrqBin.BELOW_17 -> MeanRsrpRed
+        RsrqBin.NO_SIGNAL,
+        RsrqBin.NO_RSRQ -> Color(0xFF90A4AE)
     }
 }
 
