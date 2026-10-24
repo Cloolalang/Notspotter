@@ -1,7 +1,9 @@
 package io.github.cloolalang.notspotdetector.model
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AggregatedBandwidthHistoryTest {
@@ -34,6 +36,28 @@ class AggregatedBandwidthHistoryTest {
         )
         assertEquals(AggregatedBandwidthBand.BLUE_150, visit?.band)
         assertEquals("130 MHz", AggregatedBandwidthHistory.label(visit!!))
+    }
+
+    @Test
+    fun current_marksTheSumAsAMinimumWhen4gPlusHasNoSecondaryWidth() {
+        val unreported = ConnectivityStats(
+            isMonitoring = true,
+            ltePlusIcon = true,
+            primaryCarrierBandwidthKhz = listOf(10_000),
+            aggregatedBandwidthKhz = 10_000
+        )
+        val reported = unreported.copy(
+            secondaryCarrierBandwidthKhz = listOf(5_000),
+            aggregatedBandwidthKhz = 15_000
+        )
+
+        assertTrue(AggregatedBandwidthHistory.secondaryUnreported(unreported))
+        assertEquals("10 MHz+", AggregatedBandwidthHistory.label(AggregatedBandwidthHistory.current(unreported)!!))
+        assertFalse(AggregatedBandwidthHistory.secondaryUnreported(reported))
+        assertEquals("15 MHz", AggregatedBandwidthHistory.label(AggregatedBandwidthHistory.current(reported)!!))
+        assertFalse(
+            AggregatedBandwidthHistory.secondaryUnreported(unreported.copy(ltePlusIcon = false))
+        )
     }
 
     @Test

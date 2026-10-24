@@ -12,7 +12,11 @@ class PingSettingsRepository(context: Context) {
             host = prefs.getString(KEY_HOST, PingSettings.DEFAULT_HOST) ?: PingSettings.DEFAULT_HOST,
             port = prefs.getInt(KEY_PORT, PingSettings.DEFAULT_PORT),
             pingsPerTest = prefs.getInt(KEY_PINGS_PER_TEST, PingSettings.DEFAULT_PINGS_PER_TEST),
-            testIntervalMs = prefs.getLong(KEY_TEST_INTERVAL, PingSettings.DEFAULT_TEST_INTERVAL_MS)
+            testIntervalMs = prefs.getLong(KEY_TEST_INTERVAL, PingSettings.DEFAULT_TEST_INTERVAL_MS),
+            activeTimeLimitEnabled = prefs.getBoolean(
+                KEY_ACTIVE_TIME_LIMIT,
+                PingSettings.DEFAULT_ACTIVE_TIME_LIMIT_ENABLED
+            )
         ).normalized()
     }
 
@@ -23,6 +27,7 @@ class PingSettingsRepository(context: Context) {
             .putInt(KEY_PORT, normalized.port)
             .putInt(KEY_PINGS_PER_TEST, normalized.pingsPerTest)
             .putLong(KEY_TEST_INTERVAL, normalized.testIntervalMs)
+            .putBoolean(KEY_ACTIVE_TIME_LIMIT, normalized.activeTimeLimitEnabled)
             .apply()
     }
 
@@ -32,5 +37,6 @@ class PingSettingsRepository(context: Context) {
         private const val KEY_PORT = "port"
         private const val KEY_PINGS_PER_TEST = "pings_per_test"
         private const val KEY_TEST_INTERVAL = "test_interval_ms"
+        private const val KEY_ACTIVE_TIME_LIMIT = "active_time_limit_enabled"
     }
 }

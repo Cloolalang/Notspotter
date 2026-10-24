@@ -4,7 +4,9 @@ data class PingSettings(
     val host: String = DEFAULT_HOST,
     val port: Int = DEFAULT_PORT,
     val pingsPerTest: Int = DEFAULT_PINGS_PER_TEST,
-    val testIntervalMs: Long = DEFAULT_TEST_INTERVAL_MS
+    val testIntervalMs: Long = DEFAULT_TEST_INTERVAL_MS,
+    /** When true, active ping tests switch to passive idle after [ACTIVE_TIME_LIMIT_MS]. */
+    val activeTimeLimitEnabled: Boolean = DEFAULT_ACTIVE_TIME_LIMIT_ENABLED
 ) {
     fun normalized(): PingSettings {
         return copy(
@@ -28,6 +30,8 @@ data class PingSettings(
         const val DEFAULT_PORT = 443
         const val DEFAULT_PINGS_PER_TEST = 2
         const val DEFAULT_TEST_INTERVAL_MS = 10_000L
+        const val DEFAULT_ACTIVE_TIME_LIMIT_ENABLED = true
+        const val ACTIVE_TIME_LIMIT_MS = 10 * 60 * 1000L
 
         const val MIN_PINGS_PER_TEST = 1
         const val MAX_PINGS_PER_TEST = 10

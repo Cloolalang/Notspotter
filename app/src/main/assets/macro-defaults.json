@@ -17,7 +17,8 @@
         "host": "8.8.8.8",
         "port": 443,
         "pingsPerTest": 2,
-        "testIntervalMs": 10000
+        "testIntervalMs": 10000,
+        "activeTimeLimitEnabled": true
       },
       "monitoring": {
         "monitor2gFallback": true,
@@ -29,7 +30,7 @@
         "rsrpHistogramThreshold1Dbm": -95,
         "rsrpHistogramThreshold2Dbm": -105,
         "rsrpHistogramThreshold3Dbm": -115,
-        "fiveGFeaturesEnabled": false
+        "fiveGFeaturesEnabled": true
       },
       "passiveSignal": {
         "noSignalRsrpDbm": -130,

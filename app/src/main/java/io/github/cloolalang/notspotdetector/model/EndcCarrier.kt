@@ -97,6 +97,34 @@ object EndcCarrier {
         return EndcCarrierFill(radio, earfcn, pci, band)
     }
 
+    /**
+     * NR leg state from a [android.telephony.NetworkRegistrationInfo] text dump, such as
+     * `nrState=CONNECTED`. The getter is hidden, but the text is public on Android 11+.
+     * Null when the dump does not carry an NR state.
+     */
+    fun nrStateFrom(registrationText: String): String? {
+        return NR_STATE_PATTERN.find(registrationText)?.groupValues?.get(1)?.uppercase()
+    }
+
+    /**
+     * Labels an LTE camp as EN-DC when the phone says the NR leg is up but the cell scan,
+     * signal strength, and modem channel list all left it out. Any one sign is enough:
+     * NR state connected, the status-bar 5G icon, or a data network type of NR.
+     */
+    fun promoteToEndc(
+        radioAccessType: String?,
+        nrState: String?,
+        nrNsaIcon: Boolean,
+        dataNetworkType: Int = NETWORK_TYPE_UNKNOWN
+    ): String? {
+        if (radioAccessType != CellularSignalReader.RADIO_4G) return radioAccessType
+        val nrUp = nrState == NR_STATE_CONNECTED || nrNsaIcon || dataNetworkType == NETWORK_TYPE_NR
+        return if (nrUp) CellularSignalReader.RADIO_5G_ENDC else radioAccessType
+    }
+
+    const val NR_STATE_CONNECTED = "CONNECTED"
+    private val NR_STATE_PATTERN = Regex("""nrState\s*=\s*([A-Za-z_]+)""")
+
     private val LTE_NR_RADIO_TYPES = setOf(
         CellularSignalReader.RADIO_4G,
         CellularSignalReader.RADIO_5G,

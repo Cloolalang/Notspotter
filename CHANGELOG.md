@@ -5,6 +5,103 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.138.0] - 2026-10-24
+
+### Added
+
+- **Option to keep ping tests running** — A new "Stop ping tests after 10 minutes" switch in the ping test controls. It is on by default, so nothing changes until you turn it off. With it off, active ping tests keep running until you tap Stop instead of switching to passive idle. Turning it off during a test cancels the countdown. Turning it back on starts a fresh 10 minutes. The setting is saved in settings profiles.
+
+## [2.137.0] - 2026-10-24
+
+### Changed
+
+- **Clearer cell changes on the primary carrier tape** — Cells on the same band now switch between dark and light shades, with a wider hue spread, instead of near-identical shades. A thin divider marks each change of cell, so reselects between the same few cells stand out. Each band keeps its own colour family.
+
+## [2.136.0] - 2026-10-24
+
+### Changed
+
+- **4G+ with no secondary width** — Some phones show 4G+ (carrier aggregation) but, without root, report the secondary carrier only as a neighbour cell with no width. The secondary bandwidth row now reads "In use (4G+), width not reported" instead of "—". The aggregated bandwidth tape shows the known total with a "+" (for example "10 MHz+"), because the real total is higher.
+
+## [2.135.1] - 2026-10-24
+
+### Fixed
+
+- **Missing secondary carrier bandwidth** — Some phones name only the primary carrier in the modem report or cell scan, but still list every carrier's width in the network service state. The extra widths now show as secondary carriers and count towards the aggregated bandwidth, instead of the aggregate showing only the primary width.
+
+### Changed
+
+- **Radio debug bandwidth sources** — The radio debug line and log now show the raw widths from each source (`bw=mdm:… cell:… ss:…`), to diagnose phones that still miss a carrier.
+
+## [2.135.0] - 2026-10-24
+
+### Added
+
+- **Operator in the KPI history title** — The panel title reads "KPI history - EE", "KPI history - Vodafone", or the operator in use, using the same short name as the title bar. After monitoring stops, the title keeps the operator the tapes were recorded on.
+
+## [2.134.1] - 2026-10-24
+
+### Changed
+
+- **Aggregated bandwidth tape label** — The subtitle now reads "primary 4G + secondary 4G". NR is no longer named in it.
+
+## [2.134.0] - 2026-10-24
+
+### Changed
+
+- **5G features on by default** — 5G EN-DC, standalone 5G, and the NR metric rows now show without turning anything on. Before, the switch was off by default and live 5G was shown as 4G. Phones that already have the app switch it on once with this update, and it stays where you set it after that. The Macro default profile also has it on. A settings profile that was saved with it off still turns it off when loaded.
+
+## [2.133.1] - 2026-10-24
+
+### Fixed
+
+- **5G EN-DC still shown as 4G** — The app now shows 5G EN-DC whenever the phone shows the 5G icon over a 4G cell. Before, the phone’s NR state could overrule the icon, and some Samsung builds send the icon with a network type the app did not accept. A data network type of NR on a 4G cell also counts now.
+- **Radio debug** — The banner and log show the NR state, the status-bar network and icon types, and the data network type, so a phone that still shows 4G can be checked.
+
+## [2.133.0] - 2026-10-24
+
+### Changed
+
+- **KPI history tape titles** — "Primary Carrier History" is now "Primary carrier", and "Technology history" is now "Technology". The panel title already says history.
+
+### Fixed
+
+- **5G EN-DC shown as 4G** — Some phones leave the NR leg out of the cell scan, the signal reading, and the modem carrier list, so the app showed 4G while Cellular Pro showed EN-DC. The app now also reads the phone’s own NR connection state, and shows 5G EN-DC on an LTE camp when that state is connected. When the phone does not report that state, the status-bar 5G icon is used instead. 5G features still need to be on for EN-DC to show.
+
+## [2.132.3] - 2026-10-24
+
+### Fixed
+
+- **RSRP bin tape at start** — On some phones the tape stayed blank for about 30 seconds after a fresh start. Those phones report an old cell scan at first, and the app logged those polls as having no RSRP. The tape counted them against the 95% rule until they were 30 seconds old. Polls with no RSRP are now left out, so the tape shows a bin as soon as the first real reading arrives, on every phone. No signal is still grey.
+
+## [2.132.2] - 2026-10-24
+
+### Fixed
+
+- **KPI history in passive monitoring** — The tapes roll again during passive monitoring and after the active test idle timeout, the same as during active mode testing. They hold still only while monitoring is stopped, and the stopped time is not drawn.
+
+## [2.132.1] - 2026-10-24
+
+### Fixed
+
+- **KPI history panel** — The panel stays on screen when a test is stopped, so the last tapes can still be read. The tapes still do not roll until the next active test.
+
+## [2.132.0] - 2026-10-24
+
+### Fixed
+
+- **History tapes while idle** — The KPI history tapes no longer roll unless an active test is running. Passive monitoring, the idle timeout, and a stopped test leave the last plot where it is. Time between tests is not drawn.
+
+## [2.131.0] - 2026-10-23
+
+### Changed
+
+- **Tape time scale** — The shortest window is now 1 minute, in 1-minute steps, up to 2 hours. It still starts at 10 minutes.
+
+### Removed
+
+- **NR EARFCN/PCI tape** — KPI history no longer has that chart. The primary carrier tape still shows the serving cell.
+
 ## [2.130.2] - 2026-10-22
 
 ### Fixed

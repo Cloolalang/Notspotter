@@ -267,6 +267,43 @@ class CarrierBandwidthTest {
     }
 
     @Test
+    fun aggregatedKhz_addsSecondariesFromServiceStateWhenTheCellScanNamesOnlyThePrimary() {
+        val lteCell = listOf(
+            ChannelBandwidth(
+                CarrierBandwidth.CONNECTION_PRIMARY,
+                20_000,
+                CarrierRadio.LTE,
+                registered = true
+            )
+        )
+        val merged = CarrierBandwidth.merge(
+            physical = CarrierBandwidths(),
+            lteCell = CarrierBandwidth.fromChannels(CarrierBandwidth.lteServingChannels(lteCell)),
+            unlabeledKhz = listOf(20_000, 10_000)
+        )
+
+        assertEquals(listOf(20_000), merged.primaryDownlinkKhz)
+        assertEquals(listOf(10_000), merged.secondaryDownlinkKhz)
+        assertEquals(
+            30_000,
+            CarrierBandwidth.aggregatedKhz(emptyList(), lteCell, listOf(20_000, 10_000))
+        )
+    }
+
+    @Test
+    fun aggregatedKhz_addsSecondariesFromServiceStateWhenTheModemNamesOnlyThePrimary() {
+        val total = CarrierBandwidth.aggregatedKhz(
+            physical = listOf(
+                ChannelBandwidth(CarrierBandwidth.CONNECTION_PRIMARY, 15_000, CarrierRadio.LTE)
+            ),
+            lteCell = emptyList(),
+            unlabeledKhz = listOf(20_000, 10_000, 5_000)
+        )
+
+        assertEquals(30_000, total)
+    }
+
+    @Test
     fun aggregatedKhz_prefersASingleLiveBandwidthOverTheCellIdentity() {
         val total = CarrierBandwidth.aggregatedKhz(
             physical = emptyList(),

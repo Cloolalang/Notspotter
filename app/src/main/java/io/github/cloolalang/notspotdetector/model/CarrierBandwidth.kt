@@ -130,7 +130,8 @@ object CarrierBandwidth {
      * The modem's physical-channel downlink list is the carrier list when it names one.
      * A missing primary is filled from the LTE cell. Cell secondaries are not added on
      * top of a modem report. The LTE cell, then an unlabeled list, is used only when
-     * the modem named no carrier.
+     * the modem named no carrier. When the unlabeled list counts more carriers than
+     * the chosen source, the extra widths are the secondaries that source missed.
      */
     fun merge(
         physical: CarrierBandwidths,
@@ -138,20 +139,58 @@ object CarrierBandwidth {
         unlabeledKhz: List<Int>
     ): CarrierBandwidths {
         if (physical.hasAny()) {
-            return CarrierBandwidths(
-                primaryDownlinkKhz = physical.primaryDownlinkKhz.ifEmpty { lteCell.primaryDownlinkKhz },
-                secondaryDownlinkKhz = physical.secondaryDownlinkKhz
+            return withUnlabeledExtras(
+                CarrierBandwidths(
+                    primaryDownlinkKhz = physical.primaryDownlinkKhz.ifEmpty { lteCell.primaryDownlinkKhz },
+                    secondaryDownlinkKhz = physical.secondaryDownlinkKhz
+                ),
+                unlabeledKhz
             )
         }
         if (unlabeledKhz.size == 1 && isReportedKhz(unlabeledKhz.first())) {
             return CarrierBandwidths(primaryDownlinkKhz = unlabeledKhz)
         }
-        if (lteCell.hasAny()) return lteCell
+        if (lteCell.hasAny()) return withUnlabeledExtras(lteCell, unlabeledKhz)
         return fromChannels(
             unlabeledKhz.map {
                 ChannelBandwidth(connectionStatus = CONNECTION_UNKNOWN, downlinkKhz = it)
             }
         )
+    }
+
+    /**
+     * Widths already shown are matched off the unlabeled list once each. Of what is
+     * left, the last entries fill the missing carrier count, because the list leads
+     * with the primary and a primary width can differ between sources.
+     */
+    private fun withUnlabeledExtras(
+        known: CarrierBandwidths,
+        unlabeledKhz: List<Int>
+    ): CarrierBandwidths {
+        val reported = unlabeledKhz.filter { isReportedKhz(it) }
+        val knownKhz = known.primaryDownlinkKhz + known.secondaryDownlinkKhz
+        val missing = reported.size - knownKhz.size
+        if (missing <= 0) return known
+        val leftover = reported.toMutableList()
+        knownKhz.forEach { leftover.remove(it) }
+        val extras = leftover.takeLast(missing)
+        if (extras.isEmpty()) return known
+        return known.copy(secondaryDownlinkKhz = known.secondaryDownlinkKhz + extras)
+    }
+
+    /** "P20000 S10000" for radio debug. Empty sources show as "—". */
+    fun debugChannels(channels: List<ChannelBandwidth>): String {
+        if (channels.isEmpty()) return "—"
+        return channels.joinToString(" ") { channel ->
+            val flag = when (channel.connectionStatus) {
+                CONNECTION_PRIMARY -> "P"
+                CONNECTION_SECONDARY -> "S"
+                CONNECTION_NONE -> "N"
+                else -> "U"
+            }
+            val radio = if (channel.radio == CarrierRadio.NR) "n" else ""
+            "$flag$radio${channel.downlinkKhz}"
+        }
     }
 
     /** 20_000 kHz is "20 MHz". 1_400 kHz is "1.4 MHz". */

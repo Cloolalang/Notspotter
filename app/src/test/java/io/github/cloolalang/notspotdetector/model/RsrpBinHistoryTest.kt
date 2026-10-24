@@ -44,6 +44,21 @@ class RsrpBinHistoryTest {
     }
 
     @Test
+    fun classify_samplesWithNoRsrpDoNotHoldTheBinBlank() {
+        val staleStart = List(5) { index ->
+            RsrpSample(timestampMs = index * 1_000L, rsrpDbm = null)
+        }
+        val fresh = List(3) { index ->
+            RsrpSample(timestampMs = 5_000L + index * 1_000L, rsrpDbm = -90)
+        }
+        assertEquals(
+            RsrpBin.ABOVE_95,
+            RsrpBinHistory.classify(staleStart + fresh, nowMs = 8_000L, noSignal = false)
+        )
+        assertNull(RsrpBinHistory.classify(staleStart, nowMs = 8_000L, noSignal = false))
+    }
+
+    @Test
     fun classify_noSignalIsGreyEvenWhenTheWindowIsStrong() {
         assertEquals(
             RsrpBin.NO_SIGNAL,

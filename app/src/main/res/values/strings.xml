@@ -48,6 +48,9 @@
     <string name="notification_paused_time_limit">Monitoring paused after running 6h in the background — open the app to resume it.</string>
     <string name="notification_passive_idle">Passive idle — checking signal KPIs</string>
     <string name="passive_idle_hint">Active ping tests stopped after 10 minutes. Signal alert sounds and KPI polling continue until you tap Stop.</string>
+    <string name="ping_active_time_limit_label">Stop ping tests after 10 minutes</string>
+    <string name="ping_active_time_limit_hint_on">After 10 minutes, active ping tests stop and the app switches to passive idle (signal KPIs only) to save data and battery.</string>
+    <string name="ping_active_time_limit_hint_off">Ping tests keep running until you tap Stop. This uses more mobile data and battery on long drives.</string>
     <string name="passive_only_idle_hint">Passive-only monitoring — RSRP, EARFCN, and PCI continue updating. Tap Stop to end monitoring.</string>
     <string name="notification_passive_only">Signal monitoring — no pings</string>
     <string name="passive_signal_settings_title">Alert settings</string>
@@ -375,11 +378,13 @@
     <string name="rsrp_histogram_window_hint">One sample every 1 s. A longer window shows more samples after they have been collected (and immediately includes any already stored in the last hour).</string>
     <string name="histogram_controls_title">Level histogram</string>
     <string name="kpi_history_title">KPI history</string>
+    <string name="kpi_history_title_operator">KPI history - %1$s</string>
     <string name="kpi_history_clear">Clear history</string>
     <string name="active_test_history_title">Active test</string>
     <string name="active_test_history_rule">ping</string>
     <string name="aggregated_bandwidth_history_title">Aggregated bandwidth</string>
-    <string name="aggregated_bandwidth_history_rule">primary 4G + secondary 4G + NR</string>
+    <string name="aggregated_bandwidth_history_rule">primary 4G + secondary 4G</string>
+    <string name="metric_secondary_bandwidth_unreported">In use (4G+), width not reported</string>
     <string name="histogram_settings_title">Histogram settings</string>
     <string name="histogram_settings_summary">Choose 5 dB bins or threshold bins, set the three threshold floors, and change the sample window. Unlock settings to change these.</string>
     <string name="rsrp_histogram_summary">−70 to −135 dBm · 5 dB bins · active bins only</string>
@@ -392,7 +397,7 @@
     <string name="rsrp_histogram_empty">Waiting for RSRP samples…</string>
     <string name="rsrp_histogram_clear">Clear graph</string>
     <string name="tape_window_label">Tape time scale</string>
-    <string name="tape_window_hint">The same clock on every tape. The right edge is now, and older time rolls off the left.</string>
+    <string name="tape_window_hint">The same clock on every tape, and only while monitoring is running. The right edge is the latest monitoring time, and older time rolls off the left.</string>
     <string name="tape_window_hours_minutes">%1$d h %2$d min</string>
     <string name="rsrp_histogram_bin_label">%1$d dBm</string>
     <string name="rsrp_histogram_sample_count">%1$d samples in window</string>
@@ -405,10 +410,9 @@
     <string name="rsrp_histogram_last_scan_age">last scan %1$d s ago</string>
     <string name="metric_rsrp_scan_age">%1$s · scan %2$d s</string>
     <string name="metric_rsrp_no_new_scan">no new scan</string>
-    <string name="rsrp_histogram_carrier_history_title">Primary Carrier History</string>
-    <string name="rsrp_histogram_nr_carrier_history_title">NR EARFCN/PCI</string>
+    <string name="rsrp_histogram_carrier_history_title">Primary carrier</string>
     <string name="rsrp_histogram_carrier_history_pair">%1$d/%2$d</string>
-    <string name="rsrp_histogram_technology_history_title">Technology history</string>
+    <string name="rsrp_histogram_technology_history_title">Technology</string>
     <string name="rsrp_bin_history_title">RSRP bin</string>
     <string name="rsrp_bin_history_rule">95% of last 30 s</string>
     <string name="rsrp_bin_above_95">&gt; −95</string>

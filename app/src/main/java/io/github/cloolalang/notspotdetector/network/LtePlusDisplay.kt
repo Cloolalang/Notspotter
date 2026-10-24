@@ -28,6 +28,18 @@ object LtePlusDisplay {
 
     @Volatile
     private var ltePlus: Boolean = false
+
+    @Volatile
+    private var nrNsaIcon: Boolean = false
+
+    /** Last raw display info, for the radio debug log. -1 until the first callback. */
+    @Volatile
+    var displayNetworkType: Int = -1
+        private set
+
+    @Volatile
+    var displayOverrideType: Int = -1
+        private set
     private var desiredSubId: Int? = null
     private var desiredManager: TelephonyManager? = null
     private var registerQueued: Boolean = false
@@ -38,17 +50,52 @@ object LtePlusDisplay {
 
     fun current(telephonyManager: TelephonyManager, subscriptionId: Int): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return false
+        ensureRegistered(telephonyManager, subscriptionId)
+        return ltePlus
+    }
+
+    /** True while the status bar shows the 5G icon over an LTE anchor (EN-DC). */
+    fun currentNrNsaIcon(telephonyManager: TelephonyManager, subscriptionId: Int): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return false
+        ensureRegistered(telephonyManager, subscriptionId)
+        return nrNsaIcon
+    }
+
+    private fun ensureRegistered(telephonyManager: TelephonyManager, subscriptionId: Int) {
         synchronized(lock) {
             desiredManager = telephonyManager
             desiredSubId = subscriptionId
-            if (registeredSubId == subscriptionId && registeredManager != null) return ltePlus
+            if (registeredSubId == subscriptionId && registeredManager != null) return
             if (!registerQueued) {
                 registerQueued = true
                 mainHandler.post { drainRegistration() }
             }
         }
-        return ltePlus
     }
+
+    /**
+     * The 5G icon on an EN-DC anchor. Most phones send LTE with an NR override; some Samsung
+     * builds send the network type as NR instead, so the override counts on any network type.
+     */
+    fun isNrNsaIcon(networkType: Int, overrideNetworkType: Int): Boolean {
+        return overrideNetworkType in NR_OVERRIDE_TYPES
+    }
+
+    private fun onDisplayInfo(telephonyDisplayInfo: TelephonyDisplayInfo) {
+        displayNetworkType = telephonyDisplayInfo.networkType
+        displayOverrideType = telephonyDisplayInfo.overrideNetworkType
+        ltePlus = isLtePlusIcon(
+            telephonyDisplayInfo.networkType,
+            telephonyDisplayInfo.overrideNetworkType
+        )
+        nrNsaIcon = isNrNsaIcon(
+            telephonyDisplayInfo.networkType,
+            telephonyDisplayInfo.overrideNetworkType
+        )
+    }
+
+    /** NR_NSA (3), NR_NSA_MMWAVE (4, deprecated), NR_ADVANCED (5). */
+    private val NR_OVERRIDE_TYPES = setOf(3, 4, 5)
 
     /**
      * True when the display info is LTE with the carrier-aggregation or LTE Advanced Pro
@@ -84,10 +131,7 @@ object LtePlusDisplay {
     private fun registerCallback(telephonyManager: TelephonyManager) {
         val callback = object : TelephonyCallback(), TelephonyCallback.DisplayInfoListener {
             override fun onDisplayInfoChanged(telephonyDisplayInfo: TelephonyDisplayInfo) {
-                ltePlus = isLtePlusIcon(
-                    telephonyDisplayInfo.networkType,
-                    telephonyDisplayInfo.overrideNetworkType
-                )
+                onDisplayInfo(telephonyDisplayInfo)
             }
         }
         telephonyManager.registerTelephonyCallback(callbackExecutor, callback)
@@ -99,10 +143,7 @@ object LtePlusDisplay {
     private fun registerListener(telephonyManager: TelephonyManager) {
         val listener = object : PhoneStateListener() {
             override fun onDisplayInfoChanged(telephonyDisplayInfo: TelephonyDisplayInfo) {
-                ltePlus = isLtePlusIcon(
-                    telephonyDisplayInfo.networkType,
-                    telephonyDisplayInfo.overrideNetworkType
-                )
+                onDisplayInfo(telephonyDisplayInfo)
             }
         }
         telephonyManager.listen(listener, PhoneStateListener.LISTEN_DISPLAY_INFO_CHANGED)
@@ -123,5 +164,8 @@ object LtePlusDisplay {
         registeredListener = null
         registeredManager = null
         registeredSubId = null
+        nrNsaIcon = false
+        displayNetworkType = -1
+        displayOverrideType = -1
     }
 }

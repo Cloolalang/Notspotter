@@ -166,6 +166,7 @@ object AppSettingsSnapshotCodec {
             .put("port", settings.port)
             .put("pingsPerTest", settings.pingsPerTest)
             .put("testIntervalMs", settings.testIntervalMs)
+            .put("activeTimeLimitEnabled", settings.activeTimeLimitEnabled)
     }
 
     private fun decodePing(json: JSONObject?): PingSettings {
@@ -174,7 +175,11 @@ object AppSettingsSnapshotCodec {
             host = json.optString("host", PingSettings.DEFAULT_HOST),
             port = json.optInt("port", PingSettings.DEFAULT_PORT),
             pingsPerTest = json.optInt("pingsPerTest", PingSettings.DEFAULT_PINGS_PER_TEST),
-            testIntervalMs = json.optLong("testIntervalMs", PingSettings.DEFAULT_TEST_INTERVAL_MS)
+            testIntervalMs = json.optLong("testIntervalMs", PingSettings.DEFAULT_TEST_INTERVAL_MS),
+            activeTimeLimitEnabled = json.optBoolean(
+                "activeTimeLimitEnabled",
+                PingSettings.DEFAULT_ACTIVE_TIME_LIMIT_ENABLED
+            )
         )
     }
 

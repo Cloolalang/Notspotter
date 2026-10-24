@@ -10,6 +10,13 @@ class MonitoringSettingsRepository(context: Context) {
     private val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     fun load(): MonitoringSettings {
+        // Installs from before 5G features defaulted to on saved it as off without a choice.
+        if (!prefs.getBoolean(KEY_FIVE_G_DEFAULT_ON_APPLIED, false)) {
+            prefs.edit()
+                .putBoolean(KEY_FIVE_G_FEATURES_ENABLED, true)
+                .putBoolean(KEY_FIVE_G_DEFAULT_ON_APPLIED, true)
+                .apply()
+        }
         return MonitoringSettings(
             monitor2gFallback = prefs.getBoolean(
                 KEY_MONITOR_2G_FALLBACK,
@@ -102,6 +109,7 @@ class MonitoringSettingsRepository(context: Context) {
         private const val KEY_RSRP_HISTOGRAM_THRESHOLD_2 = "rsrp_histogram_threshold_2_dbm"
         private const val KEY_RSRP_HISTOGRAM_THRESHOLD_3 = "rsrp_histogram_threshold_3_dbm"
         private const val KEY_FIVE_G_FEATURES_ENABLED = "five_g_features_enabled"
+        private const val KEY_FIVE_G_DEFAULT_ON_APPLIED = "five_g_default_on_applied"
         private const val KEY_SHOW_MANUAL_SELECT_OPERATOR_BUTTON = "show_manual_select_operator_button"
         private const val KEY_INHIBIT_2G = "inhibit_2g"
         private const val KEY_KEEP_SCREEN_ON_WHILE_MONITORING = "keep_screen_on_while_monitoring"

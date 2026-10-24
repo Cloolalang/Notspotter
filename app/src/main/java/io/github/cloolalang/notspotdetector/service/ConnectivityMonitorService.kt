@@ -29,6 +29,7 @@ import io.github.cloolalang.notspotdetector.model.MonitoringAnnouncement
 import io.github.cloolalang.notspotdetector.model.MonitoringAnnouncementKind
 import io.github.cloolalang.notspotdetector.model.RsrpHistogram
 import io.github.cloolalang.notspotdetector.model.MonitoringUpdateEvents
+import io.github.cloolalang.notspotdetector.model.PingSettings
 import io.github.cloolalang.notspotdetector.model.SignalStateAnnouncement
 import io.github.cloolalang.notspotdetector.model.TechnologyChangeAlertVolumes
 import io.github.cloolalang.notspotdetector.model.TechnologyChangeTarget
@@ -1045,8 +1046,19 @@ class ConnectivityMonitorService : Service() {
     private fun scheduleActivePingTimeout() {
         activePingTimeoutJob?.cancel()
         activePingTimeoutJob = serviceScope.launch {
-            delay(ACTIVE_PING_DURATION_MS)
-            enterPassiveIdleMode()
+            var activeMs = 0L
+            while (isActive) {
+                delay(ACTIVE_TIME_LIMIT_CHECK_MS)
+                if (!MonitorState.pingSettings.value.activeTimeLimitEnabled) {
+                    activeMs = 0L
+                    continue
+                }
+                activeMs += ACTIVE_TIME_LIMIT_CHECK_MS
+                if (activeMs >= PingSettings.ACTIVE_TIME_LIMIT_MS) {
+                    enterPassiveIdleMode()
+                    break
+                }
+            }
         }
     }
 
@@ -1181,7 +1193,7 @@ class ConnectivityMonitorService : Service() {
         const val ACTION_STOP = "io.github.cloolalang.notspotdetector.action.STOP_MONITOR"
         const val EXTRA_PASSIVE_ONLY = "io.github.cloolalang.notspotdetector.extra.PASSIVE_ONLY"
         private const val NOTIFICATION_ID = 1001
-        private const val ACTIVE_PING_DURATION_MS = 10 * 60 * 1000L
+        private const val ACTIVE_TIME_LIMIT_CHECK_MS = 1_000L
         private const val PERIODIC_ANNOUNCEMENT_MS = 30_000L
         private const val TIER5_INITIAL_ANNOUNCEMENT_DELAY_MS = 0L
         private const val SEARCHING_2G_ANNOUNCEMENT_DELAY_MS = 0L

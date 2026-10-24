@@ -15,7 +15,9 @@ object RsrpBinHistory {
 
     /**
      * Bin for [nowMs]. [noSignal] wins, so the grey segment starts with the other tapes.
-     * Null when the window has no samples, or no signal bin yet covers 95% of them.
+     * Null when the window has no RSRP readings, or no signal bin yet covers 95% of them.
+     * Samples with no RSRP (a stale scan, or a poll before the first fresh scan) are left
+     * out, so they cannot hold the tape blank until they age out of the window.
      */
     fun classify(
         samples: List<RsrpSample>,
@@ -31,8 +33,8 @@ object RsrpBinHistory {
         var belowWeak = 0
         for (sample in samples) {
             if (sample.timestampMs < cutoff || sample.timestampMs > nowMs) continue
-            total++
             val rsrpDbm = sample.rsrpDbm ?: continue
+            total++
             if (rsrpDbm > STRONG_DBM) aboveStrong++
             if (rsrpDbm > MID_DBM) aboveMid++
             if (rsrpDbm > WEAK_DBM) aboveWeak++

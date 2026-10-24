@@ -20,15 +20,19 @@ data class RadioDebugSnapshot(
     val simLabel: String?,
     val registeredLteCount: Int,
     val cells: String,
-    val flags: List<String>
+    val flags: List<String>,
+    /** NR state, display network/override type, and data network type, for EN-DC checks. */
+    val endcSignals: String = "—",
+    /** Downlink widths from the modem carrier list, the serving cell scan, and ServiceState. */
+    val bandwidthSignals: String = "—"
 ) {
     val isSuspect: Boolean get() = flags.isNotEmpty()
 
     fun bannerLine(): String {
         val chosen = formatEarfcnPci(chosenLteEarfcn, chosenLtePci)
         val flagText = if (flags.isEmpty()) "ok" else flags.joinToString(",")
-        return "Radio debug: $chosen plmn=${chosenPlmn ?: "?"} " +
-            "expect=${expectedPlmn ?: homePlmn ?: "?"} ss=$serviceStateLte [$flagText]"
+        return "Radio debug: $chosen rat=${chosenRat ?: "—"} plmn=${chosenPlmn ?: "?"} " +
+            "expect=${expectedPlmn ?: homePlmn ?: "?"} ss=$serviceStateLte $endcSignals $bandwidthSignals [$flagText]"
     }
 
     fun bodyForDedupe(): String {
@@ -46,7 +50,9 @@ data class RadioDebugSnapshot(
             dualSim,
             registeredLteCount,
             cells,
-            flags
+            flags,
+            endcSignals,
+            bandwidthSignals
         ).joinToString("|")
     }
 
@@ -56,7 +62,7 @@ data class RadioDebugSnapshot(
             " rat=${chosenRat ?: "—"} plmn=${chosenPlmn ?: "?"} rsrp=${chosenRsrp ?: "—"}" +
             " rsrq=${chosenRsrq ?: "—"} expect=${expectedPlmn ?: "?"} home=${homePlmn ?: "?"}" +
             " ss=$serviceStateLte sigPci=$signalLtePcis dual=${if (dualSim) 1 else 0}" +
-            " sim=${simLabel ?: "—"} flags=$flagText cells=$cells"
+            " sim=${simLabel ?: "—"} $endcSignals $bandwidthSignals flags=$flagText cells=$cells"
     }
 
     companion object {

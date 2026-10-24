@@ -40,6 +40,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -65,6 +66,7 @@ import io.github.cloolalang.notspotdetector.model.DistanceSegment
 import io.github.cloolalang.notspotdetector.model.DistanceTape
 import io.github.cloolalang.notspotdetector.model.DistanceVisit
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
+import io.github.cloolalang.notspotdetector.model.OperatorTitleStyle
 import io.github.cloolalang.notspotdetector.model.coerceToTapeWindowStep
 import io.github.cloolalang.notspotdetector.model.PrimaryCarrierHistory
 import io.github.cloolalang.notspotdetector.model.PrimaryCarrierTape
@@ -126,14 +128,12 @@ fun HistogramControlsCard(
     var kpiHistoryExpanded by rememberSaveable { mutableStateOf(false) }
     var nowMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var carrierTape by remember { mutableStateOf(PrimaryCarrierTape()) }
-    var nrCarrierTape by remember { mutableStateOf(PrimaryCarrierTape()) }
     var technologyTape by remember { mutableStateOf(TechnologyTape()) }
     var rsrpBinTape by remember { mutableStateOf(RsrpBinTape()) }
     var distanceTape by remember { mutableStateOf(DistanceTape()) }
     var activeTestTape by remember { mutableStateOf(ActiveTestTape()) }
     var aggregatedBandwidthTape by remember { mutableStateOf(AggregatedBandwidthTape()) }
     val currentCarrier = PrimaryCarrierHistory.visitFromStats(stats)
-    val currentNrCarrier = PrimaryCarrierHistory.nrVisitFromStats(stats)
     val currentTechnology = TechnologyHistory.technologyFromStats(stats)
     val currentRsrpBin = RsrpBinHistory.classify(
         samples = samples,
@@ -147,9 +147,29 @@ fun HistogramControlsCard(
     )
     val currentActiveTest = ActiveTestHistory.current(stats)
     val currentAggregatedBandwidth = AggregatedBandwidthHistory.current(stats)
-    fun resetTapes(now: Long = System.currentTimeMillis()) {
+    // The tape clock holds still while monitoring is stopped, and that pause is left out of the scale.
+    val testsRunning = isActive
+    var tapePauseOffsetMs by remember { mutableLongStateOf(0L) }
+    var tapeHeldWallMs by remember { mutableStateOf<Long?>(null) }
+    val heldWallMs = tapeHeldWallMs
+    if (testsRunning && heldWallMs != null) {
+        tapePauseOffsetMs += nowMs - heldWallMs
+        tapeHeldWallMs = null
+    } else if (!testsRunning && heldWallMs == null) {
+        tapeHeldWallMs = nowMs
+    }
+    val tapeNowMs = (tapeHeldWallMs ?: nowMs) - tapePauseOffsetMs
+    fun resetTapes(now: Long = tapeNowMs) {
+        if (!testsRunning) {
+            carrierTape = PrimaryCarrierTape()
+            technologyTape = TechnologyTape()
+            rsrpBinTape = RsrpBinTape()
+            distanceTape = DistanceTape()
+            activeTestTape = ActiveTestTape()
+            aggregatedBandwidthTape = AggregatedBandwidthTape()
+            return
+        }
         carrierTape = PrimaryCarrierHistory.record(PrimaryCarrierTape(), currentCarrier, now)
-        nrCarrierTape = PrimaryCarrierHistory.record(PrimaryCarrierTape(), currentNrCarrier, now)
         technologyTape = TechnologyHistory.record(TechnologyTape(), currentTechnology, now)
         rsrpBinTape = RsrpBinHistory.record(RsrpBinTape(), currentRsrpBin, now)
         distanceTape = DistanceHistory.record(DistanceTape(), currentDistance, now)
@@ -160,57 +180,32 @@ fun HistogramControlsCard(
             now
         )
     }
-    LaunchedEffect(currentCarrier) {
-        carrierTape = PrimaryCarrierHistory.record(
-            carrierTape,
-            currentCarrier,
-            System.currentTimeMillis()
-        )
+    LaunchedEffect(currentCarrier, testsRunning) {
+        if (!testsRunning) return@LaunchedEffect
+        carrierTape = PrimaryCarrierHistory.record(carrierTape, currentCarrier, tapeNowMs)
     }
-    LaunchedEffect(currentNrCarrier) {
-        nrCarrierTape = PrimaryCarrierHistory.record(
-            nrCarrierTape,
-            currentNrCarrier,
-            System.currentTimeMillis()
-        )
+    LaunchedEffect(currentTechnology, testsRunning) {
+        if (!testsRunning) return@LaunchedEffect
+        technologyTape = TechnologyHistory.record(technologyTape, currentTechnology, tapeNowMs)
     }
-    LaunchedEffect(currentTechnology) {
-        technologyTape = TechnologyHistory.record(
-            technologyTape,
-            currentTechnology,
-            System.currentTimeMillis()
-        )
+    LaunchedEffect(currentRsrpBin, testsRunning) {
+        if (!testsRunning) return@LaunchedEffect
+        rsrpBinTape = RsrpBinHistory.record(rsrpBinTape, currentRsrpBin, tapeNowMs)
     }
-    LaunchedEffect(currentRsrpBin, isActive) {
-        if (!isActive) return@LaunchedEffect
-        rsrpBinTape = RsrpBinHistory.record(
-            rsrpBinTape,
-            currentRsrpBin,
-            System.currentTimeMillis()
-        )
+    LaunchedEffect(currentDistance, testsRunning) {
+        if (!testsRunning) return@LaunchedEffect
+        distanceTape = DistanceHistory.record(distanceTape, currentDistance, tapeNowMs)
     }
-    LaunchedEffect(currentDistance, isActive) {
-        if (!isActive) return@LaunchedEffect
-        distanceTape = DistanceHistory.record(
-            distanceTape,
-            currentDistance,
-            System.currentTimeMillis()
-        )
+    LaunchedEffect(currentActiveTest, testsRunning) {
+        if (!testsRunning) return@LaunchedEffect
+        activeTestTape = ActiveTestHistory.record(activeTestTape, currentActiveTest, tapeNowMs)
     }
-    LaunchedEffect(currentActiveTest, isActive) {
-        if (!isActive) return@LaunchedEffect
-        activeTestTape = ActiveTestHistory.record(
-            activeTestTape,
-            currentActiveTest,
-            System.currentTimeMillis()
-        )
-    }
-    LaunchedEffect(currentAggregatedBandwidth, isActive) {
-        if (!isActive) return@LaunchedEffect
+    LaunchedEffect(currentAggregatedBandwidth, testsRunning) {
+        if (!testsRunning) return@LaunchedEffect
         aggregatedBandwidthTape = AggregatedBandwidthHistory.record(
             aggregatedBandwidthTape,
             currentAggregatedBandwidth,
-            System.currentTimeMillis()
+            tapeNowMs
         )
     }
 
@@ -276,7 +271,6 @@ fun HistogramControlsCard(
                     },
                     enabled = samples.isNotEmpty() ||
                         carrierTape.entries.size > 1 ||
-                        nrCarrierTape.entries.size > 1 ||
                         technologyTape.entries.size > 1 ||
                         rsrpBinTape.entries.size > 1 ||
                         distanceTape.entries.size > 1 ||
@@ -304,12 +298,17 @@ fun HistogramControlsCard(
             }
         }
     }
+    val currentOperator = OperatorTitleStyle.resolveLabel(stats)
+    var tapeOperator by remember { mutableStateOf(currentOperator) }
+    if (currentOperator != null && currentOperator != tapeOperator) {
+        tapeOperator = currentOperator
+    }
     KpiHistoryPanel(
         expanded = kpiHistoryExpanded,
         onExpandedChange = { kpiHistoryExpanded = it },
-        nowMs = nowMs,
+        operatorLabel = tapeOperator,
+        nowMs = tapeNowMs,
         carrierEntries = carrierTape.entries,
-        nrCarrierEntries = nrCarrierTape.entries,
         reselectsPerMinute = stats.cellReselectsPerMinute,
         technologyEntries = technologyTape.entries,
         technologyChangesPerMinute = stats.technologyChangesPerMinute,
@@ -514,9 +513,9 @@ private fun RsrpHistogramDisplay(
 private fun KpiHistoryPanel(
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
+    operatorLabel: String?,
     nowMs: Long,
     carrierEntries: List<PrimaryCarrierTapeEntry>,
-    nrCarrierEntries: List<PrimaryCarrierTapeEntry>,
     reselectsPerMinute: Int,
     technologyEntries: List<TechnologySegment>,
     technologyChangesPerMinute: Int,
@@ -541,7 +540,11 @@ private fun KpiHistoryPanel(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = stringResource(R.string.kpi_history_title),
+                    text = if (operatorLabel != null) {
+                        stringResource(R.string.kpi_history_title_operator, operatorLabel)
+                    } else {
+                        stringResource(R.string.kpi_history_title)
+                    },
                     style = MaterialTheme.typography.titleSmall,
                     color = Sushi,
                     fontWeight = FontWeight.Bold
@@ -560,13 +563,6 @@ private fun KpiHistoryPanel(
                         reselectsPerMinute
                     ),
                     entries = carrierEntries,
-                    nowMs = nowMs,
-                    windowStartMs = tapeWindowStartMs
-                )
-                PrimaryCarrierHistoryBar(
-                    title = stringResource(R.string.rsrp_histogram_nr_carrier_history_title),
-                    detail = null,
-                    entries = nrCarrierEntries,
                     nowMs = nowMs,
                     windowStartMs = tapeWindowStartMs
                 )
@@ -599,7 +595,6 @@ private fun KpiHistoryPanel(
                 OutlinedButton(
                     onClick = onClearHistory,
                     enabled = carrierEntries.isNotEmpty() ||
-                        nrCarrierEntries.isNotEmpty() ||
                         technologyEntries.isNotEmpty() ||
                         rsrpBinEntries.isNotEmpty() ||
                         distanceEntries.isNotEmpty() ||
@@ -905,6 +900,8 @@ private fun PrimaryCarrierHistoryBar(
         )
     }
     val trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+    val dividerColor = MaterialTheme.colorScheme.surface
+    val dividerWidth = with(LocalDensity.current) { 1.5.dp.toPx() }
     val textMeasurer = rememberTextMeasurer()
     val labelStyle = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp)
     Column(
@@ -990,6 +987,13 @@ private fun PrimaryCarrierHistoryBar(
                         )
                     )
                 }
+                if (index > 0 && left > 0f) {
+                    drawRect(
+                        color = dividerColor,
+                        topLeft = Offset(left - dividerWidth / 2f, 0f),
+                        size = Size(dividerWidth, size.height)
+                    )
+                }
             }
         }
         TapeTimeScale(windowMs = (nowMs - windowStartMs).coerceAtLeast(0L))
@@ -997,14 +1001,31 @@ private fun PrimaryCarrierHistoryBar(
 }
 
 private val CarrierNeutralShades = listOf(
-    Color(0xFF263238),
     Color(0xFF37474F),
-    Color(0xFF455A64),
-    Color(0xFF546E7A),
+    Color(0xFFB0BEC5),
     Color(0xFF607D8B),
-    Color(0xFF78909C),
+    Color(0xFF263238),
     Color(0xFF90A4AE),
-    Color(0xFFB0BEC5)
+    Color(0xFF455A64),
+    Color(0xFFCFD8DC),
+    Color(0xFF546E7A)
+)
+
+private data class CarrierShadeStep(val hueOffset: Float, val saturation: Float, val value: Float)
+
+/**
+ * Cells on one band take these in order. Each step flips between dark and light
+ * so a reselect between the first two or three cells reads as a clear change.
+ */
+private val CarrierShadeSteps = listOf(
+    CarrierShadeStep(hueOffset = 0f, saturation = 0.90f, value = 0.48f),
+    CarrierShadeStep(hueOffset = 14f, saturation = 0.40f, value = 0.95f),
+    CarrierShadeStep(hueOffset = -14f, saturation = 0.95f, value = 0.72f),
+    CarrierShadeStep(hueOffset = 8f, saturation = 0.65f, value = 0.34f),
+    CarrierShadeStep(hueOffset = -8f, saturation = 0.70f, value = 0.88f),
+    CarrierShadeStep(hueOffset = 20f, saturation = 0.55f, value = 0.58f),
+    CarrierShadeStep(hueOffset = -20f, saturation = 0.25f, value = 0.98f),
+    CarrierShadeStep(hueOffset = 4f, saturation = 0.95f, value = 0.40f)
 )
 
 private fun carrierTapeColor(entry: PrimaryCarrierTapeEntry): Color {
@@ -1012,15 +1033,10 @@ private fun carrierTapeColor(entry: PrimaryCarrierTapeEntry): Color {
     val mhz = entry.pair?.nominalMhz
     val hue = PrimaryCarrierHistory.hueForMhz(mhz)
         ?: return CarrierNeutralShades[entry.shade.mod(CarrierNeutralShades.size)]
-    val slot = entry.shade.mod(PrimaryCarrierHistory.SHADES_PER_BAND)
-    val hueJitter = (slot - 3.5f) * if (mhz == 2600) 6f else 3f
-    val value = (0.42f + slot * 0.065f).coerceAtMost(0.92f)
-    val saturation = when {
-        mhz != null && mhz < 1_000 -> 0.9f
-        mhz == 2600 -> 0.8f
-        else -> 0.72f
-    }
-    return Color.hsv((hue + hueJitter + 360f) % 360f, saturation, value)
+    val step = CarrierShadeSteps[entry.shade.mod(CarrierShadeSteps.size)]
+    val hueSpread = if (mhz != null && mhz < 1_000) 0.6f else 1f
+    val hue360 = (hue + step.hueOffset * hueSpread + 360f) % 360f
+    return Color.hsv(hue360, step.saturation, step.value)
 }
 
 private fun carrierTapeLabelColor(background: Color): Color {

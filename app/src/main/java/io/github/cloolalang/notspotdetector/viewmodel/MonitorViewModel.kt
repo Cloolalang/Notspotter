@@ -242,6 +242,10 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         updatePingSettings(pingSettings.value.copy(testIntervalMs = value))
     }
 
+    fun updateActiveTimeLimitEnabled(enabled: Boolean) {
+        updatePingSettings(pingSettings.value.copy(activeTimeLimitEnabled = enabled))
+    }
+
     fun updateMonitor2gFallback(enabled: Boolean) {
         updateMonitoringSettings(monitoringSettings.value.copy(monitor2gFallback = enabled))
         refreshCellularSignal()

@@ -66,6 +66,52 @@ class EndcCarrierTest {
     }
 
     @Test
+    fun nrState_isReadFromTheRegistrationText() {
+        val text = "NetworkRegistrationInfo{ domain=PS transportType=WWAN " +
+            "accessNetworkTechnology=LTE nrState=CONNECTED rRplmn=23410 isUsingCarrierAggregation=false}"
+        assertEquals("CONNECTED", EndcCarrier.nrStateFrom(text))
+        assertEquals("NOT_RESTRICTED", EndcCarrier.nrStateFrom("x nrState=NOT_RESTRICTED y"))
+        assertEquals(null, EndcCarrier.nrStateFrom("domain=PS accessNetworkTechnology=LTE"))
+    }
+
+    @Test
+    fun promote_lteBecomesEndcWhenTheNrLegIsConnected() {
+        assertEquals(
+            CellularSignalReader.RADIO_5G_ENDC,
+            EndcCarrier.promoteToEndc(CellularSignalReader.RADIO_4G, nrState = "CONNECTED", nrNsaIcon = false)
+        )
+        assertEquals(
+            CellularSignalReader.RADIO_5G_ENDC,
+            EndcCarrier.promoteToEndc(CellularSignalReader.RADIO_4G, nrState = "NOT_RESTRICTED", nrNsaIcon = true)
+        )
+        assertEquals(
+            CellularSignalReader.RADIO_5G_ENDC,
+            EndcCarrier.promoteToEndc(
+                CellularSignalReader.RADIO_4G,
+                nrState = "NOT_RESTRICTED",
+                nrNsaIcon = false,
+                dataNetworkType = EndcCarrier.NETWORK_TYPE_NR
+            )
+        )
+        assertEquals(
+            CellularSignalReader.RADIO_4G,
+            EndcCarrier.promoteToEndc(CellularSignalReader.RADIO_4G, nrState = "NOT_RESTRICTED", nrNsaIcon = false)
+        )
+        assertEquals(
+            CellularSignalReader.RADIO_5G_ENDC,
+            EndcCarrier.promoteToEndc(CellularSignalReader.RADIO_4G, nrState = null, nrNsaIcon = true)
+        )
+        assertEquals(
+            CellularSignalReader.RADIO_4G,
+            EndcCarrier.promoteToEndc(CellularSignalReader.RADIO_4G, nrState = null, nrNsaIcon = false)
+        )
+        assertEquals(
+            CellularSignalReader.RADIO_2G,
+            EndcCarrier.promoteToEndc(CellularSignalReader.RADIO_2G, nrState = "CONNECTED", nrNsaIcon = true)
+        )
+    }
+
+    @Test
     fun isNrDownlink_acceptsNrTypeHighChannelUnknownTypeAndNrOnlyBand() {
         assertEquals(true, EndcCarrier.isNrDownlink(networkType = 20, downlinkChannel = 151600, band = 28))
         assertEquals(true, EndcCarrier.isNrDownlink(networkType = 13, downlinkChannel = 627264, band = null))

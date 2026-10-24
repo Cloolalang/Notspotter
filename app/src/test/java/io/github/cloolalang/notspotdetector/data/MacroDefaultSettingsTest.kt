@@ -31,7 +31,7 @@ class MacroDefaultSettingsTest {
         assertEquals(2, settings.pingSettings.pingsPerTest)
         assertEquals(10_000L, settings.pingSettings.testIntervalMs)
         assertTrue(settings.monitoringSettings.monitor2gFallback)
-        assertFalse(settings.monitoringSettings.fiveGFeaturesEnabled)
+        assertTrue(settings.monitoringSettings.fiveGFeaturesEnabled)
         assertEquals(300_000L, settings.monitoringSettings.rsrpHistogramWindowMs)
         assertEquals(
             RsrpHistogramBinningMode.THRESHOLD,

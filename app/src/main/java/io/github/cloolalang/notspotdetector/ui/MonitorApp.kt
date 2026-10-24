@@ -111,6 +111,7 @@ fun MonitorApp(
             onPingAddressChange = viewModel::updatePingAddress,
             onPingsPerTestChange = viewModel::updatePingsPerTest,
             onTestIntervalChange = viewModel::updateTestIntervalMs,
+            onActiveTimeLimitChange = viewModel::updateActiveTimeLimitEnabled,
             onMonitor2gFallbackChange = viewModel::updateMonitor2gFallback,
             onPassiveSignalSettingsChange = viewModel::updatePassiveSignalSettings,
             onPassiveMockSettingsChange = viewModel::updatePassiveMockSettings,

@@ -371,6 +371,19 @@ object CellularSignalReader {
                 isWifiCallingActive = if (radioOff) false else metrics.isWifiCallingActive
             )
         }
+        val nrState = readNrState(serviceState)
+        val nrNsaIcon = LtePlusDisplay.currentNrNsaIcon(telephonyManager, subscriptionId)
+        val dataNetworkType = readDataNetworkType(telephonyManager)
+        if (metrics.radioAccessType == RADIO_4G) {
+            metrics = metrics.copy(
+                radioAccessType = EndcCarrier.promoteToEndc(
+                    radioAccessType = metrics.radioAccessType,
+                    nrState = nrState,
+                    nrNsaIcon = nrNsaIcon,
+                    dataNetworkType = dataNetworkType
+                )
+            )
+        }
         val limitedOnAnySim = hasLimitedServiceOnAnySim || metrics.isLimitedService
         val rawLtePlus = LtePlusDisplay.current(telephonyManager, subscriptionId)
         metrics = metrics.copy(
@@ -394,7 +407,12 @@ object CellularSignalReader {
                     registeredKeys = registeredKeys,
                     signalLtePcis = signalLtePcis,
                     isDualSimActive = isDualSimActive,
-                    simLabel = simDisplayName
+                    simLabel = simDisplayName,
+                    endcSignals = "nrState=${nrState ?: "—"} icon=${LtePlusDisplay.displayNetworkType}/" +
+                        "${LtePlusDisplay.displayOverrideType} data=$dataNetworkType",
+                    bandwidthSignals = "bw=mdm:${CarrierBandwidth.debugChannels(campedPhysical)}" +
+                        " cell:${CarrierBandwidth.debugChannels(servingLteChannels)}" +
+                        " ss:${unlabeledBandwidthKhz.joinToString(",").ifBlank { "—" }}"
                 )
             )
         }
@@ -2039,7 +2057,9 @@ object CellularSignalReader {
         registeredKeys: RegisteredServingKeys,
         signalLtePcis: Set<Int>,
         isDualSimActive: Boolean,
-        simLabel: String?
+        simLabel: String?,
+        endcSignals: String,
+        bandwidthSignals: String
     ): RadioDebugSnapshot {
         val cells = StringBuilder()
         var registeredLteCount = 0
@@ -2075,6 +2095,8 @@ object CellularSignalReader {
             simLabel = simLabel,
             registeredLteCount = registeredLteCount,
             cells = cells.toString().ifBlank { "—" },
+            endcSignals = endcSignals,
+            bandwidthSignals = bandwidthSignals,
             flags = RadioDebugSnapshot.flags(
                 chosenLteEarfcn = metrics.lteEarfcn,
                 chosenPlmn = metrics.plmn,
@@ -2146,6 +2168,25 @@ object CellularSignalReader {
                 registered = info.isRegistered
             )
         }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun readDataNetworkType(telephonyManager: TelephonyManager): Int {
+        return runCatching { telephonyManager.dataNetworkType }
+            .getOrDefault(TelephonyManager.NETWORK_TYPE_UNKNOWN)
+    }
+
+    /** NR leg state on the packet-switched WWAN registration, or null when not reported. */
+    private fun readNrState(serviceState: ServiceState?): String? {
+        if (serviceState == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
+        return runCatching {
+            serviceState.networkRegistrationInfoList
+                .filter { info ->
+                    info.transportType == AccessNetworkConstants.TRANSPORT_TYPE_WWAN &&
+                        info.isPacketSwitchedDomain()
+                }
+                .firstNotNullOfOrNull { info -> EndcCarrier.nrStateFrom(info.toString()) }
+        }.getOrNull()
     }
 
     private fun readServiceBandwidths(serviceState: ServiceState?): List<Int> {

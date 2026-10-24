@@ -81,32 +81,6 @@ object PrimaryCarrierHistory {
         return PrimaryCarrierPair(channel = channel, pci = pci, nominalMhz = mhz)
     }
 
-    /**
-     * NR EARFCN/PCI while the phone is on 5G standalone or EN-DC.
-     * Any other technology, and no-signal, is a grey segment. A 5G poll that
-     * has not reported an NR channel yet leaves the tape unchanged.
-     */
-    fun nrVisitFromStats(stats: ConnectivityStats): PrimaryCarrierVisit? {
-        if (TechnologyHistory.isNoSignalPeriod(stats)) {
-            return PrimaryCarrierVisit(noSignal = true)
-        }
-        val on5g = stats.radioAccessType == CellularSignalReader.RADIO_5G ||
-            stats.radioAccessType == CellularSignalReader.RADIO_5G_ENDC
-        if (!on5g) {
-            if (stats.radioAccessType == null) return null
-            return PrimaryCarrierVisit(noSignal = true)
-        }
-        val channel = stats.nrEarfcn ?: return null
-        val pci = stats.nrPci ?: return null
-        return PrimaryCarrierVisit(
-            pair = PrimaryCarrierPair(
-                channel = channel,
-                pci = pci,
-                nominalMhz = stats.nrBand?.let { NrBand.nominalMhz(it) }
-            )
-        )
-    }
-
     /** Cell visit, or a grey no-signal segment while monitoring has no service. */
     fun visitFromStats(stats: ConnectivityStats): PrimaryCarrierVisit? {
         if (TechnologyHistory.isNoSignalPeriod(stats)) {

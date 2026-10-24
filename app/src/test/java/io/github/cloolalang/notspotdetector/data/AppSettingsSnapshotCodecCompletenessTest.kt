@@ -208,7 +208,8 @@ class AppSettingsSnapshotCodecCompletenessTest {
                 host = "1.0.0.1",
                 port = 53,
                 pingsPerTest = 5,
-                testIntervalMs = 20_000L
+                testIntervalMs = 20_000L,
+                activeTimeLimitEnabled = false
             ),
             monitoringSettings = MonitoringSettings(
                 monitor2gFallback = false,
@@ -221,7 +222,7 @@ class AppSettingsSnapshotCodecCompletenessTest {
                 rsrpHistogramThreshold1Dbm = -90,
                 rsrpHistogramThreshold2Dbm = -100,
                 rsrpHistogramThreshold3Dbm = -120,
-                fiveGFeaturesEnabled = true,
+                fiveGFeaturesEnabled = false,
                 showManualSelectOperatorButton = true,
                 inhibit2g = true,
                 keepScreenOnWhileMonitoring = false
@@ -406,7 +407,8 @@ class AppSettingsSnapshotCodecCompletenessTest {
             "host",
             "port",
             "pingsPerTest",
-            "testIntervalMs"
+            "testIntervalMs",
+            "activeTimeLimitEnabled"
         )
 
         private val MONITORING_KEYS = setOf(

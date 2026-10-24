@@ -12,6 +12,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -38,6 +39,7 @@ fun PingSettingsCard(
     onAddressChange: (String) -> Unit,
     onPingsPerTestChange: (Int) -> Unit,
     onTestIntervalChange: (Long) -> Unit,
+    onActiveTimeLimitChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
@@ -114,8 +116,48 @@ fun PingSettingsCard(
                     valueSeconds = (pingSettings.testIntervalMs / 1_000L).toInt(),
                     onValueChange = { onTestIntervalChange(it * 1_000L) }
                 )
+
+                ActiveTimeLimitSwitch(
+                    enabled = pingSettings.activeTimeLimitEnabled,
+                    onEnabledChange = onActiveTimeLimitChange
+                )
             }
         }
+    }
+}
+
+@Composable
+private fun ActiveTimeLimitSwitch(
+    enabled: Boolean,
+    onEnabledChange: (Boolean) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.ping_active_time_limit_label),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f)
+            )
+            Switch(
+                checked = enabled,
+                onCheckedChange = onEnabledChange
+            )
+        }
+        Text(
+            text = stringResource(
+                if (enabled) {
+                    R.string.ping_active_time_limit_hint_on
+                } else {
+                    R.string.ping_active_time_limit_hint_off
+                }
+            ),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 

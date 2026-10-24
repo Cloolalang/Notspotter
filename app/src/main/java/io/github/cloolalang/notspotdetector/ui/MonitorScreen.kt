@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.cloolalang.notspotdetector.network.CellularSignalReader
 import io.github.cloolalang.notspotdetector.R
+import io.github.cloolalang.notspotdetector.model.AggregatedBandwidthHistory
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
 import io.github.cloolalang.notspotdetector.model.CarrierBandwidth
 import io.github.cloolalang.notspotdetector.model.CarrierConfigSnapshot
@@ -132,6 +133,7 @@ fun MonitorScreen(
     onPingAddressChange: (String) -> Unit,
     onPingsPerTestChange: (Int) -> Unit,
     onTestIntervalChange: (Long) -> Unit,
+    onActiveTimeLimitChange: (Boolean) -> Unit,
     onMonitor2gFallbackChange: (Boolean) -> Unit,
     onPassiveSignalSettingsChange: (PassiveSignalSettings) -> Unit,
     onPassiveMockSettingsChange: (PassiveMockSettings) -> Unit,
@@ -262,22 +264,20 @@ fun MonitorScreen(
             onStop = onStop
         )
 
-        if (isRunning || rsrpHistory.isNotEmpty()) {
-            HistogramControlsCard(
-                samples = rsrpHistory,
-                stats = stats,
-                windowMs = monitoringSettings.rsrpHistogramWindowMs,
-                tapeWindowMs = monitoringSettings.tapeWindowMs,
-                binningMode = monitoringSettings.rsrpHistogramBinningMode,
-                thresholdsDbm = monitoringSettings.rsrpHistogramThresholdsDbm(),
-                isActive = isRunning,
-                onWindowChange = onRsrpHistogramWindowChange,
-                onTapeWindowChange = onTapeWindowChange,
-                onBinningModeChange = onRsrpHistogramBinningModeChange,
-                onThresholdChange = onRsrpHistogramThresholdChange,
-                onClearHistogram = onClearRsrpHistogram
-            )
-        }
+        HistogramControlsCard(
+            samples = rsrpHistory,
+            stats = stats,
+            windowMs = monitoringSettings.rsrpHistogramWindowMs,
+            tapeWindowMs = monitoringSettings.tapeWindowMs,
+            binningMode = monitoringSettings.rsrpHistogramBinningMode,
+            thresholdsDbm = monitoringSettings.rsrpHistogramThresholdsDbm(),
+            isActive = isRunning,
+            onWindowChange = onRsrpHistogramWindowChange,
+            onTapeWindowChange = onTapeWindowChange,
+            onBinningModeChange = onRsrpHistogramBinningModeChange,
+            onThresholdChange = onRsrpHistogramThresholdChange,
+            onClearHistogram = onClearRsrpHistogram
+        )
 
         if (isRunning) {
             if (stats.isPassiveIdleMode) {
@@ -476,7 +476,8 @@ fun MonitorScreen(
                 pingSettings = pingSettings,
                 onAddressChange = onPingAddressChange,
                 onPingsPerTestChange = onPingsPerTestChange,
-                onTestIntervalChange = onTestIntervalChange
+                onTestIntervalChange = onTestIntervalChange,
+                onActiveTimeLimitChange = onActiveTimeLimitChange
             )
 
             AudioVolumeSettingsCard(
@@ -972,7 +973,14 @@ private fun CellIdentityMetrics(
         )
         MetricRow(
             label = stringResource(R.string.metric_secondary_bandwidth),
-            value = formatBandwidthValue(secondaryBandwidthKhz, permissionGranted)
+            value = if (
+                permissionGranted && !staleNoSignal &&
+                AggregatedBandwidthHistory.secondaryUnreported(stats)
+            ) {
+                stringResource(R.string.metric_secondary_bandwidth_unreported)
+            } else {
+                formatBandwidthValue(secondaryBandwidthKhz, permissionGranted)
+            }
         )
     }
 
