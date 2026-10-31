@@ -247,11 +247,11 @@ class RsrpHistogramTest {
     }
 
     @Test
-    fun sigmaBarFillFraction_isLinearToTenDb() {
+    fun sigmaBarFillFraction_isLinearToTwentyDb() {
         assertEquals(0f, RsrpHistogram.sigmaBarFillFraction(0.0), 0.001f)
-        assertEquals(0.5f, RsrpHistogram.sigmaBarFillFraction(5.0), 0.001f)
-        assertEquals(1f, RsrpHistogram.sigmaBarFillFraction(10.0), 0.001f)
-        assertEquals(1f, RsrpHistogram.sigmaBarFillFraction(15.0), 0.001f)
+        assertEquals(0.5f, RsrpHistogram.sigmaBarFillFraction(10.0), 0.001f)
+        assertEquals(1f, RsrpHistogram.sigmaBarFillFraction(20.0), 0.001f)
+        assertEquals(1f, RsrpHistogram.sigmaBarFillFraction(25.0), 0.001f)
     }
 
     @Test

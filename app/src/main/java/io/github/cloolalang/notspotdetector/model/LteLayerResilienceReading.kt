@@ -1,5 +1,7 @@
 package io.github.cloolalang.notspotdetector.model
 
+import io.github.cloolalang.notspotdetector.network.CellularSignalReader
+
 /**
  * "4G layers detected" — split into a primary-channel reading and an alternate-layer reading,
  * computed by [io.github.cloolalang.notspotdetector.network.CellularSignalReader] from
@@ -48,11 +50,30 @@ enum class PrimaryLayerDominance {
  * [PrimaryLayerDominance.HIGH]. Null when [LteLayerResilienceReading.primaryLayerDominanceDb] is
  * null (no competing intra-channel sector detected).
  */
-fun LteLayerResilienceReading.primaryLayerDominance(): PrimaryLayerDominance? {
-    val gapDb = primaryLayerDominanceDb ?: return null
+fun primaryLayerDominance(gapDb: Int): PrimaryLayerDominance {
     return if (gapDb < PRIMARY_LAYER_LOW_DOMINANCE_THRESHOLD_DB) {
         PrimaryLayerDominance.LOW
     } else {
         PrimaryLayerDominance.HIGH
     }
+}
+
+fun LteLayerResilienceReading.primaryLayerDominance(): PrimaryLayerDominance? {
+    val gapDb = primaryLayerDominanceDb ?: return null
+    return primaryLayerDominance(gapDb)
+}
+
+/**
+ * The primary intra dominance gap shown on the cell-metrics row, in dB.
+ * Null in every case that row shows a blank: 2G, no signal, WiFi calling,
+ * complete no service, or no competing cell on the serving channel.
+ */
+fun ConnectivityStats.primaryIntracellDominanceDb(
+    settings: PassiveSignalSettings = PassiveSignalSettings()
+): Int? {
+    if (radioAccessType == CellularSignalReader.RADIO_2G) return null
+    if (isWifiCallingActive || isCompleteNoService || shouldBlankStaleCellIdentity(settings)) {
+        return null
+    }
+    return lteLayerResilience?.primaryLayerDominanceDb
 }

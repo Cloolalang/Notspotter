@@ -51,12 +51,17 @@ object RsrqBinHistory {
         }
     }
 
-    fun record(tape: RsrqBinTape, next: RsrqBin?, nowMs: Long = 0L): RsrqBinTape {
+    fun record(
+        tape: RsrqBinTape,
+        next: RsrqBin?,
+        nowMs: Long = 0L,
+        retainMs: Long = MonitoringSettings.MAX_TAPE_WINDOW_MS
+    ): RsrqBinTape {
         if (next == null) return tape
         if (tape.entries.lastOrNull()?.bin == next) return tape
         val entry = RsrqBinSegment(bin = next, startedAtMs = nowMs)
         return tape.copy(
-            entries = TapeTimeline.retainForScale(tape.entries + entry, nowMs) { it.startedAtMs }
+            entries = TapeTimeline.retainForScale(tape.entries + entry, nowMs, retainMs) { it.startedAtMs }
         )
     }
 

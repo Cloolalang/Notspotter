@@ -60,7 +60,8 @@ object SignalTierColors {
         29 to (0xFF0D47A1L to 0xFF64B5F6L),
         30 to (0xFF311B92L to 0xFFB39DDBL),
         // RXSS 31 (WiFi calling, no cellular signal) reuses RXSS 10's tone.
-        31 to (0xFFB71C1CL to 0xFFE57373L)
+        31 to (0xFFB71C1CL to 0xFFE57373L),
+        32 to (0xFF01579BL to 0xFF81D4FAL)
     )
 
     @Composable

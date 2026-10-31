@@ -1298,25 +1298,22 @@ private fun TimingAdvanceVoiceSettings(
     onTimingAdvanceVoiceVolumeChange: (Float) -> Unit,
     onPreviewTimingAdvanceVoice: () -> Unit
 ) {
-    Text(
-        text = stringResource(R.string.audio_timing_advance_section),
-        style = MaterialTheme.typography.titleSmall,
-        fontWeight = FontWeight.SemiBold,
-        color = Sushi
-    )
-    Text(
-        text = stringResource(R.string.audio_timing_advance_voice_hint),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
-    TimingAdvanceVoiceAnnouncementControls(
-        audioVolumes = audioVolumes,
-        previewEnabled = previewEnabled,
-        accentColor = Sushi,
-        onTimingAdvanceVoiceEnabledChange = onTimingAdvanceVoiceEnabledChange,
-        onTimingAdvanceVoiceVolumeChange = onTimingAdvanceVoiceVolumeChange,
-        onPreviewTimingAdvanceVoice = onPreviewTimingAdvanceVoice
-    )
+    val accent = SignalTierColors.forRxssNumber(Rxss.TIMING_ADVANCE)
+    TierSettingSection(tierNumber = Rxss.TIMING_ADVANCE, accentColor = accent) {
+        Text(
+            text = stringResource(R.string.audio_timing_advance_voice_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        TimingAdvanceVoiceAnnouncementControls(
+            audioVolumes = audioVolumes,
+            previewEnabled = previewEnabled,
+            accentColor = accent,
+            onTimingAdvanceVoiceEnabledChange = onTimingAdvanceVoiceEnabledChange,
+            onTimingAdvanceVoiceVolumeChange = onTimingAdvanceVoiceVolumeChange,
+            onPreviewTimingAdvanceVoice = onPreviewTimingAdvanceVoice
+        )
+    }
 }
 
 @Composable

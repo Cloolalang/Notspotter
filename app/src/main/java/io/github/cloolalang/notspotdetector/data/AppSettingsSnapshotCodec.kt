@@ -1,5 +1,6 @@
 package io.github.cloolalang.notspotdetector.data
 
+import io.github.cloolalang.notspotdetector.model.AppBrand
 import io.github.cloolalang.notspotdetector.model.AppSettingsSnapshot
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
 import io.github.cloolalang.notspotdetector.model.CellReselectAlertScope
@@ -199,6 +200,7 @@ object AppSettingsSnapshotCodec {
             .put("showManualSelectOperatorButton", settings.showManualSelectOperatorButton)
             .put("inhibit2g", settings.inhibit2g)
             .put("keepScreenOnWhileMonitoring", settings.keepScreenOnWhileMonitoring)
+            .put("appBrand", settings.appBrand.name)
     }
 
     private fun decodeMonitoring(json: JSONObject?): MonitoringSettings {
@@ -258,7 +260,8 @@ object AppSettingsSnapshotCodec {
             keepScreenOnWhileMonitoring = json.optBoolean(
                 "keepScreenOnWhileMonitoring",
                 MonitoringSettings.DEFAULT_KEEP_SCREEN_ON_WHILE_MONITORING
-            )
+            ),
+            appBrand = AppBrand.fromStoredName(json.optString("appBrand", AppBrand.NOTSPOTTER.name))
         )
     }
 

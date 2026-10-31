@@ -47,7 +47,8 @@ object AggregatedBandwidthHistory {
     fun record(
         tape: AggregatedBandwidthTape,
         next: AggregatedBandwidthVisit?,
-        nowMs: Long = 0L
+        nowMs: Long = 0L,
+        retainMs: Long = MonitoringSettings.MAX_TAPE_WINDOW_MS
     ): AggregatedBandwidthTape {
         if (next == null) return tape
         val last = tape.entries.lastOrNull()
@@ -64,7 +65,7 @@ object AggregatedBandwidthHistory {
             startedAtMs = nowMs
         )
         return tape.copy(
-            entries = TapeTimeline.retainForScale(tape.entries + entry, nowMs) { it.startedAtMs }
+            entries = TapeTimeline.retainForScale(tape.entries + entry, nowMs, retainMs) { it.startedAtMs }
         )
     }
 

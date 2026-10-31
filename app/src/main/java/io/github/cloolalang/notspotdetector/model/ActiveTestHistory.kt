@@ -48,7 +48,12 @@ object ActiveTestHistory {
         return ActiveTestVisit(band = band, rttMs = rttMs, packetLossPercent = loss)
     }
 
-    fun record(tape: ActiveTestTape, next: ActiveTestVisit?, nowMs: Long = 0L): ActiveTestTape {
+    fun record(
+        tape: ActiveTestTape,
+        next: ActiveTestVisit?,
+        nowMs: Long = 0L,
+        retainMs: Long = MonitoringSettings.MAX_TAPE_WINDOW_MS
+    ): ActiveTestTape {
         if (next == null) return tape
         val last = tape.entries.lastOrNull()
         if (last != null && last.band == next.band) {
@@ -65,7 +70,7 @@ object ActiveTestHistory {
             startedAtMs = nowMs
         )
         return tape.copy(
-            entries = TapeTimeline.retainForScale(tape.entries + entry, nowMs) { it.startedAtMs }
+            entries = TapeTimeline.retainForScale(tape.entries + entry, nowMs, retainMs) { it.startedAtMs }
         )
     }
 

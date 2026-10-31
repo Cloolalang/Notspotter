@@ -5,6 +5,33 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.141.0] - 2026-10-31
+
+### Added
+
+- **Primary Intracell Dominance tape** — KPI history and zone test follow the Primary intra dominance value from cell metrics. Low (under 6 dB) is red and High is green. The tape stays grey whenever that metric is blank.
+
+### Changed
+
+- **Operator name** — The network name is on its own line under the app name again, with the version beside the name. KPI history and zone test show the operator on the line under the panel title.
+
+## [2.140.0] - 2026-10-31
+
+### Added
+
+- **App title** — General App settings (unlock with the password) can switch the name at the top of the screen between NotSpotter and Cellnex.
+- **RXSS 32 timing advance** — Timing-advance voice has its own collapsible panel, like the other RXSS controls.
+- **Zone test** — Start a zone test to keep every KPI history tape from that moment until you stop. The bars squeeze the whole run onto one scale. On stop, name the run and save a JPEG (with the network name) to Downloads/NotSpotter, or clear it.
+
+### Changed
+
+- **Histogram sigma scale** — The sigma bar now fills across 0–20 dB, so a spread above 10 dB is no longer stuck at the top.
+- **Tape time scale** — The tape speed control now sits in Histogram settings with the other histogram controls.
+
+### Fixed
+
+- **RXSS during active mode testing** — Radio is read every second while a ping test runs, including while a ping is in flight, and ping results no longer replace that reading. RSRQ (RXSS 14), a change to 5G/EN-DC (RXSS 30), and the other signal states keep updating. Mock network state works in an active test as well, and the live or mock ping result stays on screen.
+
 ## [2.139.0] - 2026-10-24
 
 ### Added

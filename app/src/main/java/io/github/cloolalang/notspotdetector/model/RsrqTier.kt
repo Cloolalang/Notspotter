@@ -23,17 +23,16 @@ fun ConnectivityStats.isRsrqPoor(
 
 fun PassiveSignalSettings.shouldCoupleRsrqWhiteNoise(
     rsrqDb: Int?,
-    isPassiveOnlySession: Boolean
+    @Suppress("UNUSED_PARAMETER") isPassiveOnlySession: Boolean = true
 ): Boolean {
-    return isPassiveOnlySession &&
-        rsrqTierSoundEnabled &&
+    return rsrqTierSoundEnabled &&
         rsrqTierCoupledToSignalTier &&
         isRsrqPoor(rsrqDb)
 }
 
 fun PassiveSignalSettings.rsrqTierWhiteNoiseMix(
     rsrqDb: Int?,
-    isPassiveOnlySession: Boolean
+    isPassiveOnlySession: Boolean = true
 ): Double {
     if (!shouldCoupleRsrqWhiteNoise(rsrqDb, isPassiveOnlySession)) return 0.0
     return rsrqTierWhiteNoiseVolume.toDouble()
@@ -43,9 +42,7 @@ fun PassiveSignalSettings.rsrqTierWhiteNoiseMix(
 fun PassiveSignalSettings.rsrqTierWhiteNoiseMix(
     stats: ConnectivityStats
 ): Double {
-    if (!stats.isPassiveOnlySession || !rsrqTierSoundEnabled || !rsrqTierCoupledToSignalTier) {
-        return 0.0
-    }
+    if (!rsrqTierSoundEnabled || !rsrqTierCoupledToSignalTier) return 0.0
     if (!stats.isRsrqPoor(this)) return 0.0
     return rsrqTierWhiteNoiseVolume.toDouble()
         .coerceIn(PassiveSignalSettings.MIN_RSRQ_TIER_WHITE_NOISE_VOLUME.toDouble(), 1.0)
@@ -54,7 +51,7 @@ fun PassiveSignalSettings.rsrqTierWhiteNoiseMix(
 fun ConnectivityStats.shouldPlayDecoupledRsrqTier(
     settings: PassiveSignalSettings = PassiveSignalSettings()
 ): Boolean {
-    if (!isMonitoring || !isPassiveOnlySession || !cellularAvailable) return false
+    if (!isMonitoring || !cellularAvailable) return false
     if (shouldPlayFlatline(settings)) return false
     if (shouldPlayLimitedServiceTone() || shouldPlay2gLimitedServicePulse()) return false
     if (!signalPermissionGranted) return false

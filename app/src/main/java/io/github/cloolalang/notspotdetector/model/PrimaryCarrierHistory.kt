@@ -101,7 +101,8 @@ object PrimaryCarrierHistory {
     fun record(
         tape: PrimaryCarrierTape,
         next: PrimaryCarrierVisit?,
-        nowMs: Long = 0L
+        nowMs: Long = 0L,
+        retainMs: Long = MonitoringSettings.MAX_TAPE_WINDOW_MS
     ): PrimaryCarrierTape {
         if (next == null) return tape
         val last = tape.entries.lastOrNull()
@@ -114,7 +115,7 @@ object PrimaryCarrierHistory {
                     startedAtMs = nowMs,
                     noSignal = true
                 )).let { entries ->
-                    TapeTimeline.retainForScale(entries, nowMs) { it.startedAtMs }
+                    TapeTimeline.retainForScale(entries, nowMs, retainMs) { it.startedAtMs }
                 }
             )
         }
@@ -135,7 +136,7 @@ object PrimaryCarrierHistory {
             startedAtMs = nowMs
         )
         return tape.copy(
-            entries = TapeTimeline.retainForScale(tape.entries + entry, nowMs) { it.startedAtMs },
+            entries = TapeTimeline.retainForScale(tape.entries + entry, nowMs, retainMs) { it.startedAtMs },
             shades = shades
         )
     }

@@ -293,26 +293,58 @@ object MonitorState {
     }
 
     /**
-     * Applies mock RSRP/RSRQ immediately during passive-only mock monitoring.
+     * Applies mock radio immediately during monitoring, including an active ping test.
      *
-     * The displayed radio metrics update at once, but RXSS state filters do not consume a
-     * sample here — those stay on the 1 Hz measurement cycle so dragging the mock slider
-     * cannot burn through the flicker wait.
+     * Ping RTT, jitter, and loss already on the session are kept. RXSS state filters do not
+     * consume a sample here unless [recordFilterSample] is true — slider drags stay off the
+     * 1 Hz cycle so they cannot burn through the flicker wait. The active-test radio poll
+     * passes true so mock RXSS advance on the same clock as live radio.
      */
-    fun pushMockStatsIfActive(): Boolean {
+    fun pushMockStatsIfActive(recordFilterSample: Boolean = false): Boolean {
         val mock = _passiveMockSettings.value
         val currentStats = _stats.value
-        if (!mock.enabled || !_isRunning.value || !currentStats.isPassiveOnlySession) {
-            return false
-        }
+        if (!mock.enabled || !_isRunning.value) return false
+        if (!currentStats.isMonitoring && !recordFilterSample) return false
         val mockStats = mock.toConnectivityStats(
             monitor2gFallback = _monitoringSettings.value.monitor2gFallback,
             passiveSettings = _passiveSignalSettings.value,
             passiveIdleMode = currentStats.isPassiveIdleMode,
-            passiveOnlySession = true
+            passiveOnlySession = currentStats.isPassiveOnlySession
+        ).copy(
+            rttMs = currentStats.rttMs,
+            jitterMs = currentStats.jitterMs,
+            packetLossPercent = currentStats.packetLossPercent,
+            pingsSent = currentStats.pingsSent,
+            pingsFailed = currentStats.pingsFailed,
+            lastPingTimestampMs = currentStats.lastPingTimestampMs,
+            mockPingActive = currentStats.mockPingActive
         ).hidingFiveGIfDisabled(_monitoringSettings.value.fiveGFeaturesEnabled)
-        updateStats(mockStats, recordFilterSample = false)
+        updateStats(mockStats, recordFilterSample = recordFilterSample)
         return true
+    }
+
+    /**
+     * Writes ping RTT, jitter, and loss onto the current radio reading.
+     *
+     * Active tests sample the radio on their own 1 Hz clock. A ping result must not replace
+     * that reading, or a snapshot taken before the ping would hide EN-DC, RSRQ, and cell
+     * changes that appeared while data was flowing.
+     */
+    fun applyPingSample(rawStats: ConnectivityStats) {
+        val previous = _stats.value
+        if (!_isRunning.value || !previous.isMonitoring) return
+        updateStats(
+            previous.copy(
+                rttMs = rawStats.rttMs,
+                jitterMs = rawStats.jitterMs,
+                packetLossPercent = rawStats.packetLossPercent,
+                pingsSent = rawStats.pingsSent,
+                pingsFailed = rawStats.pingsFailed,
+                lastPingTimestampMs = rawStats.lastPingTimestampMs,
+                isPassiveIdleMode = false
+            ),
+            recordFilterSample = false
+        )
     }
 
     fun setPingSettings(settings: PingSettings) {
@@ -654,6 +686,9 @@ object MonitorState {
         val passiveSettings = _passiveSignalSettings.value
         val previous = _stats.value
         val merged = previous.copy(
+            isMonitoring = true,
+            cellularAvailable = !metrics.isCompleteNoService &&
+                metrics.hasUsableSignalForMonitoring(monitor2gFallback, passiveSettings),
             rsrpDbm = metrics.rsrpDbm,
             rsrqDb = metrics.rsrqDb,
             lteSinrDb = metrics.lteSinrDb,
@@ -706,7 +741,7 @@ object MonitorState {
             lteLayerResilience = metrics.lteLayerResilience,
             signalQualityFresh = metrics.signalQualityFresh,
             cellInfoAgeMs = metrics.cellInfoAgeMs
-        )
+        ).hidingFiveGIfDisabled(_monitoringSettings.value.fiveGFeaturesEnabled)
         val reconciled = merged.reconcileOutOfServiceCamp()
         rememberRadioAccessType(reconciled)
         val withLayers = reconciled.copy(
@@ -1680,7 +1715,7 @@ object MonitorState {
 
     private fun resolveSearching2gFallbackActive(debounced: ConnectivityStats): Boolean {
         val mock = _passiveMockSettings.value
-        if (mock.enabled && debounced.isPassiveOnlySession) {
+        if (mock.enabled && debounced.isMonitoring) {
             when (mock.scenario) {
                 MockNetworkScenario.SEARCHING_2G -> {
                     if (lteRatBeforeNoSignalEpisode == null) {

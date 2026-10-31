@@ -17,9 +17,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
@@ -29,17 +31,23 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -52,6 +60,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.cloolalang.notspotdetector.R
+import io.github.cloolalang.notspotdetector.data.ZoneTestImageSaver
 import io.github.cloolalang.notspotdetector.model.ActiveTestBand
 import io.github.cloolalang.notspotdetector.model.ActiveTestHistory
 import io.github.cloolalang.notspotdetector.model.ActiveTestSegment
@@ -65,8 +74,14 @@ import io.github.cloolalang.notspotdetector.model.DistanceHistory
 import io.github.cloolalang.notspotdetector.model.DistanceSegment
 import io.github.cloolalang.notspotdetector.model.DistanceTape
 import io.github.cloolalang.notspotdetector.model.DistanceVisit
+import io.github.cloolalang.notspotdetector.model.IntracellDominanceSegment
+import io.github.cloolalang.notspotdetector.model.IntracellDominanceTape
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
+import io.github.cloolalang.notspotdetector.model.PrimaryIntracellDominanceHistory
 import io.github.cloolalang.notspotdetector.model.OperatorTitleStyle
+import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
+import io.github.cloolalang.notspotdetector.model.PrimaryLayerDominance
+import io.github.cloolalang.notspotdetector.model.primaryLayerDominance
 import io.github.cloolalang.notspotdetector.model.coerceToTapeWindowStep
 import io.github.cloolalang.notspotdetector.model.PrimaryCarrierHistory
 import io.github.cloolalang.notspotdetector.model.PrimaryCarrierTape
@@ -94,10 +109,13 @@ import io.github.cloolalang.notspotdetector.model.TechnologyHistory
 import io.github.cloolalang.notspotdetector.model.TechnologySegment
 import io.github.cloolalang.notspotdetector.model.TechnologyTape
 import io.github.cloolalang.notspotdetector.model.TimingAdvance
+import io.github.cloolalang.notspotdetector.model.ZoneTest
 import io.github.cloolalang.notspotdetector.network.CellularSignalReader
 import io.github.cloolalang.notspotdetector.model.coerceToHistogramWindowStep
 import io.github.cloolalang.notspotdetector.ui.theme.BondiBlue
 import io.github.cloolalang.notspotdetector.ui.theme.Sushi
+import android.graphics.Bitmap
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -116,6 +134,7 @@ private val HistogramMaxBarWidth = 36.dp
 fun HistogramControlsCard(
     samples: List<RsrpSample>,
     stats: ConnectivityStats,
+    passiveSignalSettings: PassiveSignalSettings,
     windowMs: Long,
     tapeWindowMs: Long,
     binningMode: RsrpHistogramBinningMode,
@@ -136,6 +155,7 @@ fun HistogramControlsCard(
     var rsrpBinTape by remember { mutableStateOf(RsrpBinTape()) }
     var rsrqBinTape by remember { mutableStateOf(RsrqBinTape()) }
     var distanceTape by remember { mutableStateOf(DistanceTape()) }
+    var intracellDominanceTape by remember { mutableStateOf(IntracellDominanceTape()) }
     var activeTestTape by remember { mutableStateOf(ActiveTestTape()) }
     var aggregatedBandwidthTape by remember { mutableStateOf(AggregatedBandwidthTape()) }
     val currentCarrier = PrimaryCarrierHistory.visitFromStats(stats)
@@ -155,6 +175,7 @@ fun HistogramControlsCard(
         nowMs = nowMs,
         noSignal = TechnologyHistory.isNoSignalPeriod(stats)
     )
+    val currentIntracellDominance = PrimaryIntracellDominanceHistory.current(stats, passiveSignalSettings)
     val currentActiveTest = ActiveTestHistory.current(stats)
     val currentAggregatedBandwidth = AggregatedBandwidthHistory.current(stats)
     // The tape clock holds still while monitoring is stopped, and that pause is left out of the scale.
@@ -176,6 +197,7 @@ fun HistogramControlsCard(
             rsrpBinTape = RsrpBinTape()
             rsrqBinTape = RsrqBinTape()
             distanceTape = DistanceTape()
+            intracellDominanceTape = IntracellDominanceTape()
             activeTestTape = ActiveTestTape()
             aggregatedBandwidthTape = AggregatedBandwidthTape()
             return
@@ -185,6 +207,11 @@ fun HistogramControlsCard(
         rsrpBinTape = RsrpBinHistory.record(RsrpBinTape(), currentRsrpBin, now)
         rsrqBinTape = RsrqBinHistory.record(RsrqBinTape(), currentRsrqBin, now)
         distanceTape = DistanceHistory.record(DistanceTape(), currentDistance, now)
+        intracellDominanceTape = PrimaryIntracellDominanceHistory.record(
+            IntracellDominanceTape(),
+            currentIntracellDominance,
+            now
+        )
         activeTestTape = ActiveTestHistory.record(ActiveTestTape(), currentActiveTest, now)
         aggregatedBandwidthTape = AggregatedBandwidthHistory.record(
             AggregatedBandwidthTape(),
@@ -211,6 +238,14 @@ fun HistogramControlsCard(
     LaunchedEffect(currentDistance, testsRunning) {
         if (!testsRunning) return@LaunchedEffect
         distanceTape = DistanceHistory.record(distanceTape, currentDistance, tapeNowMs)
+    }
+    LaunchedEffect(currentIntracellDominance, testsRunning) {
+        if (!testsRunning) return@LaunchedEffect
+        intracellDominanceTape = PrimaryIntracellDominanceHistory.record(
+            intracellDominanceTape,
+            currentIntracellDominance,
+            tapeNowMs
+        )
     }
     LaunchedEffect(currentActiveTest, testsRunning) {
         if (!testsRunning) return@LaunchedEffect
@@ -291,6 +326,7 @@ fun HistogramControlsCard(
                         rsrpBinTape.entries.size > 1 ||
                         rsrqBinTape.entries.size > 1 ||
                         distanceTape.entries.size > 1 ||
+                        intracellDominanceTape.entries.size > 1 ||
                         activeTestTape.entries.size > 1 ||
                         aggregatedBandwidthTape.entries.size > 1,
                     modifier = Modifier.fillMaxWidth()
@@ -298,17 +334,14 @@ fun HistogramControlsCard(
                     Text(text = stringResource(R.string.rsrp_histogram_clear))
                 }
 
-                TapeWindowSlider(
-                    windowMs = tapeWindowMs.coerceToTapeWindowStep(),
-                    onWindowChange = onTapeWindowChange
-                )
-
                 HistogramSettingsPanel(
                     windowMs = windowMs.coerceToHistogramWindowStep(),
+                    tapeWindowMs = tapeWindowMs.coerceToTapeWindowStep(),
                     binningMode = binningMode,
                     thresholdsDbm = thresholdsDbm,
                     elapsedMs = elapsedMs,
                     onWindowChange = onWindowChange,
+                    onTapeWindowChange = onTapeWindowChange,
                     onBinningModeChange = onBinningModeChange,
                     onThresholdChange = onThresholdChange
                 )
@@ -320,6 +353,14 @@ fun HistogramControlsCard(
     if (currentOperator != null && currentOperator != tapeOperator) {
         tapeOperator = currentOperator
     }
+    ZoneTestPanel(
+        isMonitoring = isActive,
+        stats = stats,
+        passiveSignalSettings = passiveSignalSettings,
+        samples = samples,
+        nowMs = nowMs,
+        tapeNowMs = tapeNowMs
+    )
     KpiHistoryPanel(
         expanded = kpiHistoryExpanded,
         onExpandedChange = { kpiHistoryExpanded = it },
@@ -332,6 +373,7 @@ fun HistogramControlsCard(
         rsrpBinEntries = rsrpBinTape.entries,
         rsrqBinEntries = rsrqBinTape.entries,
         distanceEntries = distanceTape.entries,
+        intracellDominanceEntries = intracellDominanceTape.entries,
         activeTestEntries = activeTestTape.entries,
         aggregatedBandwidthEntries = aggregatedBandwidthTape.entries,
         tapeWindowMs = tapeWindowMs.coerceToTapeWindowStep(),
@@ -343,10 +385,12 @@ fun HistogramControlsCard(
 @Composable
 private fun HistogramSettingsPanel(
     windowMs: Long,
+    tapeWindowMs: Long,
     binningMode: RsrpHistogramBinningMode,
     thresholdsDbm: List<Int>,
     elapsedMs: Long?,
     onWindowChange: (Long) -> Unit,
+    onTapeWindowChange: (Long) -> Unit,
     onBinningModeChange: (RsrpHistogramBinningMode) -> Unit,
     onThresholdChange: (Int, Int) -> Unit
 ) {
@@ -411,6 +455,10 @@ private fun HistogramSettingsPanel(
                     windowMs = windowMs,
                     elapsedMs = elapsedMs,
                     onWindowChange = onWindowChange
+                )
+                TapeWindowSlider(
+                    windowMs = tapeWindowMs,
+                    onWindowChange = onTapeWindowChange
                 )
             }
         }
@@ -540,6 +588,7 @@ private fun KpiHistoryPanel(
     rsrpBinEntries: List<RsrpBinSegment>,
     rsrqBinEntries: List<RsrqBinSegment>,
     distanceEntries: List<DistanceSegment>,
+    intracellDominanceEntries: List<IntracellDominanceSegment>,
     activeTestEntries: List<ActiveTestSegment>,
     aggregatedBandwidthEntries: List<AggregatedBandwidthSegment>,
     tapeWindowMs: Long,
@@ -558,16 +607,21 @@ private fun KpiHistoryPanel(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = if (operatorLabel != null) {
-                        stringResource(R.string.kpi_history_title_operator, operatorLabel)
-                    } else {
-                        stringResource(R.string.kpi_history_title)
-                    },
-                    style = MaterialTheme.typography.titleSmall,
-                    color = Sushi,
-                    fontWeight = FontWeight.Bold
-                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.kpi_history_title),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = Sushi,
+                        fontWeight = FontWeight.Bold
+                    )
+                    if (operatorLabel != null) {
+                        Text(
+                            text = operatorLabel,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
                 Text(
                     text = if (expanded) "▲" else "▼",
                     style = MaterialTheme.typography.bodyMedium,
@@ -601,6 +655,11 @@ private fun KpiHistoryPanel(
                     nowMs = nowMs,
                     windowStartMs = tapeWindowStartMs
                 )
+                IntracellDominanceHistoryBar(
+                    entries = intracellDominanceEntries,
+                    nowMs = nowMs,
+                    windowStartMs = tapeWindowStartMs
+                )
                 DistanceHistoryBar(
                     entries = distanceEntries,
                     nowMs = nowMs,
@@ -622,6 +681,7 @@ private fun KpiHistoryPanel(
                         technologyEntries.isNotEmpty() ||
                         rsrpBinEntries.isNotEmpty() ||
                         rsrqBinEntries.isNotEmpty() ||
+                        intracellDominanceEntries.isNotEmpty() ||
                         distanceEntries.isNotEmpty() ||
                         activeTestEntries.isNotEmpty() ||
                         aggregatedBandwidthEntries.isNotEmpty(),
@@ -629,6 +689,345 @@ private fun KpiHistoryPanel(
                 ) {
                     Text(text = stringResource(R.string.kpi_history_clear))
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ZoneTestPanel(
+    isMonitoring: Boolean,
+    stats: ConnectivityStats,
+    passiveSignalSettings: PassiveSignalSettings,
+    samples: List<RsrpSample>,
+    nowMs: Long,
+    tapeNowMs: Long
+) {
+    var running by remember { mutableStateOf(false) }
+    var startMs by remember { mutableStateOf<Long?>(null) }
+    var endMs by remember { mutableStateOf<Long?>(null) }
+    var zoneName by remember { mutableStateOf("") }
+    var operatorLabel by remember { mutableStateOf<String?>(null) }
+    var statusMessage by remember { mutableStateOf<String?>(null) }
+    var carrierTape by remember { mutableStateOf(PrimaryCarrierTape()) }
+    var technologyTape by remember { mutableStateOf(TechnologyTape()) }
+    var rsrpBinTape by remember { mutableStateOf(RsrpBinTape()) }
+    var rsrqBinTape by remember { mutableStateOf(RsrqBinTape()) }
+    var distanceTape by remember { mutableStateOf(DistanceTape()) }
+    var intracellDominanceTape by remember { mutableStateOf(IntracellDominanceTape()) }
+    var activeTestTape by remember { mutableStateOf(ActiveTestTape()) }
+    var aggregatedBandwidthTape by remember { mutableStateOf(AggregatedBandwidthTape()) }
+    val noSignal = TechnologyHistory.isNoSignalPeriod(stats)
+    val currentCarrier = PrimaryCarrierHistory.visitFromStats(stats)
+    val currentTechnology = TechnologyHistory.technologyFromStats(stats)
+    val currentRsrpBin = RsrpBinHistory.classify(samples, nowMs, noSignal)
+    val currentRsrqBin = RsrqBinHistory.classify(samples, nowMs, noSignal)
+    val currentDistance = DistanceHistory.current(samples, nowMs, noSignal)
+    val currentIntracellDominance = PrimaryIntracellDominanceHistory.current(stats, passiveSignalSettings)
+    val currentActiveTest = ActiveTestHistory.current(stats)
+    val currentAggregatedBandwidth = AggregatedBandwidthHistory.current(stats)
+    val liveOperator = OperatorTitleStyle.resolveLabel(stats)
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val graphicsLayer = rememberGraphicsLayer()
+    val savedTemplate = stringResource(R.string.zone_test_saved)
+    val failedText = stringResource(R.string.zone_test_save_failed)
+
+    fun freshTapes(atMs: Long) {
+        carrierTape = PrimaryCarrierHistory.record(
+            PrimaryCarrierTape(),
+            currentCarrier,
+            atMs,
+            ZoneTest.RETAIN_MS
+        )
+        technologyTape = TechnologyHistory.record(
+            TechnologyTape(),
+            currentTechnology,
+            atMs,
+            ZoneTest.RETAIN_MS
+        )
+        rsrpBinTape = RsrpBinHistory.record(RsrpBinTape(), currentRsrpBin, atMs, ZoneTest.RETAIN_MS)
+        rsrqBinTape = RsrqBinHistory.record(RsrqBinTape(), currentRsrqBin, atMs, ZoneTest.RETAIN_MS)
+        distanceTape = DistanceHistory.record(DistanceTape(), currentDistance, atMs, ZoneTest.RETAIN_MS)
+        intracellDominanceTape = PrimaryIntracellDominanceHistory.record(
+            IntracellDominanceTape(),
+            currentIntracellDominance,
+            atMs,
+            ZoneTest.RETAIN_MS
+        )
+        activeTestTape = ActiveTestHistory.record(
+            ActiveTestTape(),
+            currentActiveTest,
+            atMs,
+            ZoneTest.RETAIN_MS
+        )
+        aggregatedBandwidthTape = AggregatedBandwidthHistory.record(
+            AggregatedBandwidthTape(),
+            currentAggregatedBandwidth,
+            atMs,
+            ZoneTest.RETAIN_MS
+        )
+    }
+
+    LaunchedEffect(isMonitoring) {
+        if (!isMonitoring && running) {
+            running = false
+            endMs = tapeNowMs
+        }
+    }
+    LaunchedEffect(liveOperator, running) {
+        if (running && liveOperator != null) {
+            operatorLabel = liveOperator
+        }
+    }
+    LaunchedEffect(currentCarrier, running) {
+        if (!running) return@LaunchedEffect
+        carrierTape = PrimaryCarrierHistory.record(carrierTape, currentCarrier, tapeNowMs, ZoneTest.RETAIN_MS)
+    }
+    LaunchedEffect(currentTechnology, running) {
+        if (!running) return@LaunchedEffect
+        technologyTape = TechnologyHistory.record(
+            technologyTape,
+            currentTechnology,
+            tapeNowMs,
+            ZoneTest.RETAIN_MS
+        )
+    }
+    LaunchedEffect(currentRsrpBin, running) {
+        if (!running) return@LaunchedEffect
+        rsrpBinTape = RsrpBinHistory.record(rsrpBinTape, currentRsrpBin, tapeNowMs, ZoneTest.RETAIN_MS)
+    }
+    LaunchedEffect(currentRsrqBin, running) {
+        if (!running) return@LaunchedEffect
+        rsrqBinTape = RsrqBinHistory.record(rsrqBinTape, currentRsrqBin, tapeNowMs, ZoneTest.RETAIN_MS)
+    }
+    LaunchedEffect(currentDistance, running) {
+        if (!running) return@LaunchedEffect
+        distanceTape = DistanceHistory.record(distanceTape, currentDistance, tapeNowMs, ZoneTest.RETAIN_MS)
+    }
+    LaunchedEffect(currentIntracellDominance, running) {
+        if (!running) return@LaunchedEffect
+        intracellDominanceTape = PrimaryIntracellDominanceHistory.record(
+            intracellDominanceTape,
+            currentIntracellDominance,
+            tapeNowMs,
+            ZoneTest.RETAIN_MS
+        )
+    }
+    LaunchedEffect(currentActiveTest, running) {
+        if (!running) return@LaunchedEffect
+        activeTestTape = ActiveTestHistory.record(
+            activeTestTape,
+            currentActiveTest,
+            tapeNowMs,
+            ZoneTest.RETAIN_MS
+        )
+    }
+    LaunchedEffect(currentAggregatedBandwidth, running) {
+        if (!running) return@LaunchedEffect
+        aggregatedBandwidthTape = AggregatedBandwidthHistory.record(
+            aggregatedBandwidthTape,
+            currentAggregatedBandwidth,
+            tapeNowMs,
+            ZoneTest.RETAIN_MS
+        )
+    }
+
+    val zoneStart = startMs
+    val chartNowMs = if (running) tapeNowMs else endMs ?: tapeNowMs
+    val chartTitle = stringResource(R.string.kpi_history_title)
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.zone_test_title),
+                style = MaterialTheme.typography.titleSmall,
+                color = Sushi,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = stringResource(
+                    when {
+                        running -> R.string.zone_test_running
+                        !isMonitoring && startMs == null -> R.string.zone_test_need_monitoring
+                        else -> R.string.zone_test_hint
+                    }
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (running) {
+                Button(
+                    onClick = {
+                        running = false
+                        endMs = tapeNowMs
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(text = stringResource(R.string.zone_test_stop))
+                }
+            } else {
+                Button(
+                    onClick = {
+                        val atMs = tapeNowMs
+                        startMs = atMs
+                        endMs = null
+                        zoneName = ""
+                        statusMessage = null
+                        operatorLabel = liveOperator
+                        freshTapes(atMs)
+                        running = true
+                    },
+                    enabled = isMonitoring,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(text = stringResource(R.string.zone_test_start))
+                }
+            }
+            if (zoneStart != null) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .drawWithContent {
+                            graphicsLayer.record {
+                                this@drawWithContent.drawContent()
+                            }
+                            drawLayer(graphicsLayer)
+                        }
+                        .background(MaterialTheme.colorScheme.surface)
+                        .padding(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = chartTitle,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = Sushi,
+                        fontWeight = FontWeight.Bold
+                    )
+                    if (operatorLabel != null) {
+                        Text(
+                            text = operatorLabel!!,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    if (zoneName.isNotBlank()) {
+                        Text(
+                            text = zoneName.trim(),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                    PrimaryCarrierHistoryBar(
+                        title = stringResource(R.string.rsrp_histogram_carrier_history_title),
+                        detail = stringResource(
+                            R.string.metric_cell_reselect_rate_value,
+                            stats.cellReselectsPerMinute
+                        ),
+                        entries = carrierTape.entries,
+                        nowMs = chartNowMs,
+                        windowStartMs = zoneStart
+                    )
+                    TechnologyHistoryBar(
+                        entries = technologyTape.entries,
+                        changesPerMinute = stats.technologyChangesPerMinute,
+                        nowMs = chartNowMs,
+                        windowStartMs = zoneStart
+                    )
+                    RsrpBinHistoryBar(
+                        entries = rsrpBinTape.entries,
+                        nowMs = chartNowMs,
+                        windowStartMs = zoneStart
+                    )
+                    RsrqBinHistoryBar(
+                        entries = rsrqBinTape.entries,
+                        nowMs = chartNowMs,
+                        windowStartMs = zoneStart
+                    )
+                    IntracellDominanceHistoryBar(
+                        entries = intracellDominanceTape.entries,
+                        nowMs = chartNowMs,
+                        windowStartMs = zoneStart
+                    )
+                    DistanceHistoryBar(
+                        entries = distanceTape.entries,
+                        nowMs = chartNowMs,
+                        windowStartMs = zoneStart
+                    )
+                    ActiveTestHistoryBar(
+                        entries = activeTestTape.entries,
+                        nowMs = chartNowMs,
+                        windowStartMs = zoneStart
+                    )
+                    AggregatedBandwidthHistoryBar(
+                        entries = aggregatedBandwidthTape.entries,
+                        nowMs = chartNowMs,
+                        windowStartMs = zoneStart
+                    )
+                }
+            }
+            if (!running && startMs != null) {
+                OutlinedTextField(
+                    value = zoneName,
+                    onValueChange = { zoneName = it },
+                    label = { Text(stringResource(R.string.zone_test_name_label)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Button(
+                    onClick = {
+                        scope.launch {
+                            val image = graphicsLayer.toImageBitmap()
+                            val raw = image.asAndroidBitmap()
+                            val bitmap = if (raw.config == Bitmap.Config.HARDWARE) {
+                                raw.copy(Bitmap.Config.ARGB_8888, false)
+                            } else {
+                                raw
+                            }
+                            val path = ZoneTestImageSaver.save(
+                                context = context,
+                                bitmap = bitmap,
+                                name = zoneName,
+                                operator = operatorLabel
+                            )
+                            statusMessage = if (path == null) failedText else savedTemplate.format(path)
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(text = stringResource(R.string.zone_test_save))
+                }
+                OutlinedButton(
+                    onClick = {
+                        running = false
+                        startMs = null
+                        endMs = null
+                        zoneName = ""
+                        operatorLabel = null
+                        statusMessage = null
+                        carrierTape = PrimaryCarrierTape()
+                        technologyTape = TechnologyTape()
+                        rsrpBinTape = RsrpBinTape()
+                        rsrqBinTape = RsrqBinTape()
+                        distanceTape = DistanceTape()
+                        intracellDominanceTape = IntracellDominanceTape()
+                        activeTestTape = ActiveTestTape()
+                        aggregatedBandwidthTape = AggregatedBandwidthTape()
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(text = stringResource(R.string.zone_test_clear))
+                }
+            }
+            if (statusMessage != null) {
+                Text(
+                    text = statusMessage!!,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }
@@ -1400,6 +1799,121 @@ private fun rsrqBinTapeColor(bin: RsrqBin): Color {
         RsrqBin.BELOW_17 -> MeanRsrpRed
         RsrqBin.NO_SIGNAL,
         RsrqBin.NO_RSRQ -> Color(0xFF90A4AE)
+    }
+}
+
+@Composable
+private fun IntracellDominanceHistoryBar(
+    entries: List<IntracellDominanceSegment>,
+    nowMs: Long,
+    windowStartMs: Long,
+    modifier: Modifier = Modifier
+) {
+    val current = entries.lastOrNull()
+    val valueText = current?.let { intracellDominanceLabel(it.gapDb) }
+        ?: stringResource(R.string.signal_unavailable)
+    val segmentLabels = entries.map { intracellDominanceLabel(it.gapDb) }
+    val trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+    val textMeasurer = rememberTextMeasurer()
+    val labelStyle = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp)
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = stringResource(R.string.intracell_dominance_history_title),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Sushi
+                )
+                Text(
+                    text = stringResource(R.string.intracell_dominance_history_rule),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Text(
+                text = valueText,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Medium
+            )
+        }
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(24.dp)
+                .clip(RoundedCornerShape(9.dp))
+                .background(trackColor)
+        ) {
+            if (entries.isEmpty()) return@Canvas
+            val canvasScope = this
+            val bounds = tapeSegmentBounds(
+                startsMs = entries.map { it.startedAtMs },
+                windowStartMs = windowStartMs,
+                nowMs = nowMs,
+                tapeWidth = size.width
+            )
+            entries.forEachIndexed { index, segment ->
+                val (left, segmentWidth) = bounds[index]
+                if (segmentWidth <= 0f) return@forEachIndexed
+                val color = intracellDominanceTapeColor(segment.gapDb)
+                val label = segmentLabels[index]
+                canvasScope.clipRect(
+                    left = left,
+                    top = 0f,
+                    right = left + segmentWidth,
+                    bottom = size.height
+                ) {
+                    drawRect(
+                        color = color,
+                        topLeft = Offset(left, 0f),
+                        size = Size(segmentWidth, size.height)
+                    )
+                    val layout = textMeasurer.measure(
+                        text = label,
+                        style = labelStyle.merge(TextStyle(color = carrierTapeLabelColor(color))),
+                        overflow = TextOverflow.Ellipsis,
+                        softWrap = false,
+                        maxLines = 1,
+                        constraints = Constraints(
+                            maxWidth = segmentWidth.roundToInt().coerceAtLeast(0)
+                        )
+                    )
+                    drawText(
+                        textLayoutResult = layout,
+                        topLeft = Offset(
+                            x = left + (segmentWidth - layout.size.width) / 2f,
+                            y = (size.height - layout.size.height) / 2f
+                        )
+                    )
+                }
+            }
+        }
+        TapeTimeScale(windowMs = (nowMs - windowStartMs).coerceAtLeast(0L))
+    }
+}
+
+@Composable
+private fun intracellDominanceLabel(gapDb: Int?): String {
+    val dominanceDb = gapDb ?: return TechnologyHistory.LABEL_NO_SIGNAL
+    val band = when (primaryLayerDominance(dominanceDb)) {
+        PrimaryLayerDominance.LOW -> stringResource(R.string.primary_layer_dominance_low)
+        PrimaryLayerDominance.HIGH -> stringResource(R.string.primary_layer_dominance_high)
+    }
+    return stringResource(R.string.metric_primary_layer_dominance_value, dominanceDb, band)
+}
+
+private fun intracellDominanceTapeColor(gapDb: Int?): Color {
+    return when (gapDb?.let(::primaryLayerDominance)) {
+        null -> Color(0xFF90A4AE)
+        PrimaryLayerDominance.LOW -> MeanRsrpRed
+        PrimaryLayerDominance.HIGH -> MeanRsrpGreen
     }
 }
 

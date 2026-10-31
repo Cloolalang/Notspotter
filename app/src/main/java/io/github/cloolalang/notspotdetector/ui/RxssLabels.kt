@@ -36,6 +36,7 @@ fun rxssStateNameResId(tierNumber: Int): Int? {
         Rxss.RSRQ_POOR -> R.string.rxss_state_rsrq_poor
         Rxss.HOME_2G_NO_SIGNAL -> R.string.rxss_state_home_2g_no_signal
         Rxss.WIFI_CALLING_NO_SIGNAL -> R.string.rxss_state_wifi_calling
+        Rxss.TIMING_ADVANCE -> R.string.rxss_state_timing_advance
         else -> null
     }
 }

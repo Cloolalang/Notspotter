@@ -3,10 +3,13 @@ package io.github.cloolalang.notspotdetector.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.geometry.Offset
@@ -16,6 +19,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import io.github.cloolalang.notspotdetector.R
+import io.github.cloolalang.notspotdetector.model.AppBrand
 import io.github.cloolalang.notspotdetector.model.ConnectivityStats
 import io.github.cloolalang.notspotdetector.model.OperatorTitleStyle
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
@@ -30,8 +34,10 @@ private val Vmo2GoodColor = Color(0xFF0066CC)
 fun HomeTitleBar(
     stats: ConnectivityStats,
     passiveSignalSettings: PassiveSignalSettings,
+    appBrand: AppBrand = AppBrand.NOTSPOTTER,
     showManualSelectOperator: Boolean = false,
     onChooseOperator: () -> Unit = {},
+    versionLabel: String? = null,
     modifier: Modifier = Modifier
 ) {
     val operatorLabel = OperatorTitleStyle.resolveLabel(stats)
@@ -42,15 +48,32 @@ fun HomeTitleBar(
     val titleWeight = FontWeight.Bold
 
     Column(
-        modifier = modifier,
+        modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
-        Text(
-            text = stringResource(R.string.home_title),
-            style = titleStyle,
-            color = Sushi,
-            fontWeight = titleWeight
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(
+                    if (appBrand == AppBrand.CELLNEX) R.string.home_title_cellnex else R.string.home_title
+                ),
+                style = titleStyle,
+                color = Sushi,
+                fontWeight = titleWeight,
+                modifier = Modifier.weight(1f)
+            )
+            if (versionLabel != null) {
+                Text(
+                    text = versionLabel,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
         if (operatorLabel != null) {
             Text(
                 text = operatorLabel,

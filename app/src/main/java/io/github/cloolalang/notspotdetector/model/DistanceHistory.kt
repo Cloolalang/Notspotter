@@ -27,12 +27,17 @@ object DistanceHistory {
         return DistanceVisit(metres = metres)
     }
 
-    fun record(tape: DistanceTape, next: DistanceVisit?, nowMs: Long = 0L): DistanceTape {
+    fun record(
+        tape: DistanceTape,
+        next: DistanceVisit?,
+        nowMs: Long = 0L,
+        retainMs: Long = MonitoringSettings.MAX_TAPE_WINDOW_MS
+    ): DistanceTape {
         if (next == null) return tape
         if (tape.entries.lastOrNull()?.metres == next.metres) return tape
         val entry = DistanceSegment(metres = next.metres, startedAtMs = nowMs)
         return tape.copy(
-            entries = TapeTimeline.retainForScale(tape.entries + entry, nowMs) { it.startedAtMs }
+            entries = TapeTimeline.retainForScale(tape.entries + entry, nowMs, retainMs) { it.startedAtMs }
         )
     }
 }

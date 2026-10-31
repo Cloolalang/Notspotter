@@ -350,7 +350,7 @@ fun ConnectivityStats.isSignalLowVoiceCamp(
 
 /**
  * RX Signal State catalogue numbers — see [RXSS_CATALOGUE.md].
- * Implemented in the app: **0**, **1–9**, **10–15**, **14** (overlay), **19** / **21** / **22** (limited home), **20** / **23** (limited no-signal overlays), **28–30** (technology change), **31** (WiFi calling, no cellular signal).
+ * Implemented in the app: **0**, **1–9**, **10–15**, **14** (overlay), **19** / **21** / **22** (limited home), **20** / **23** (limited no-signal overlays), **28–30** (technology change), **31** (WiFi calling, no cellular signal), **32** (timing advance).
  */
 object Rxss {
     const val DEADZONE = 0
@@ -393,6 +393,9 @@ object Rxss {
      * being misclassified as RXSS 11 (searching for home 2G).
      */
     const val WIFI_CALLING_NO_SIGNAL = 31
+
+    /** Distance to the serving cell, spoken when timing advance changes. */
+    const val TIMING_ADVANCE = 32
 
     /** RXSS rows whose Signal column is **No** in [RXSS_CATALOGUE.md] — no VA-10 cell reselect voice. */
     val NO_SIGNAL_RXSS_NUMBERS = setOf(

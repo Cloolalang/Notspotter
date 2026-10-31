@@ -37,6 +37,7 @@ class MonitorStateTechnologyAnnouncementTest {
     @After
     fun tearDown() {
         MonitorState.setRunning(false)
+        MonitorState.setPassiveMockSettings(PassiveMockSettings())
         MonitorState.setAudioVolumes(AudioVolumeSettings())
     }
 
@@ -336,6 +337,43 @@ class MonitorStateTechnologyAnnouncementTest {
         assertNotNull(events.technologyChangeAnnouncement)
         assertTrue(events.technologyChangeAnnouncement!!.contains("4 G"))
         assertEquals(CellularSignalReader.RADIO_4G, events.technologyChangeTargetRadioAccessType)
+    }
+
+    @Test
+    fun endcChange_announcesDuringActiveTest() {
+        MonitorState.setMonitoringSettings(monitor2gFallback.copy(fiveGFeaturesEnabled = true))
+        val active4g = live4gStats().copy(isPassiveOnlySession = false, rttMs = 30, pingsSent = 2)
+        MonitorState.updateStats(active4g)
+        val endc = active4g.copy(radioAccessType = CellularSignalReader.RADIO_5G_ENDC)
+        var stayed = MonitorState.updateStats(endc)
+        repeat(2) { stayed = MonitorState.updateStats(endc) }
+        assertTrue(stayed.radioTechnologyChanged)
+        assertTrue(stayed.technologyChangeAnnouncement!!.contains("5 G"))
+        assertFalse(MonitorState.stats.value.isPassiveOnlySession)
+    }
+
+    @Test
+    fun mockNetwork_appliesDuringActiveTestAndKeepsPing() {
+        MonitorState.updateStats(
+            live4gStats().copy(
+                isPassiveOnlySession = false,
+                rttMs = 42,
+                pingsSent = 3,
+                lastPingTimestampMs = 1_000L
+            )
+        )
+        MonitorState.setPassiveMockSettings(
+            PassiveMockSettings(
+                enabled = true,
+                scenario = MockNetworkScenario.HOME_4G,
+                rsrpDbm = -88
+            )
+        )
+        val stats = MonitorState.stats.value
+        assertFalse(stats.isPassiveOnlySession)
+        assertEquals(-88, stats.rsrpDbm)
+        assertEquals(42L, stats.rttMs)
+        assertEquals(3, stats.pingsSent)
     }
 
     @Test

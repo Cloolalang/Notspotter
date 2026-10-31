@@ -17,6 +17,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.cloolalang.notspotdetector.network.CellularSignalReader
 import io.github.cloolalang.notspotdetector.R
+import io.github.cloolalang.notspotdetector.model.AppBrand
 import io.github.cloolalang.notspotdetector.model.AggregatedBandwidthHistory
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
 import io.github.cloolalang.notspotdetector.model.CarrierBandwidth
@@ -50,10 +52,10 @@ import io.github.cloolalang.notspotdetector.model.ConnectivityStats
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.LteEciSplit
 import io.github.cloolalang.notspotdetector.model.LteEcgi
-import io.github.cloolalang.notspotdetector.model.LteLayerResilienceReading
 import io.github.cloolalang.notspotdetector.model.ServiceStateMetricLabel
 import io.github.cloolalang.notspotdetector.model.resolveServiceStateMetricLabel
 import io.github.cloolalang.notspotdetector.model.PrimaryLayerDominance
+import io.github.cloolalang.notspotdetector.model.primaryIntracellDominanceDb
 import io.github.cloolalang.notspotdetector.model.primaryLayerDominance
 import io.github.cloolalang.notspotdetector.model.formatHomeOperatorDisplay
 import io.github.cloolalang.notspotdetector.model.formatMobileDataEnabledSuffix
@@ -172,6 +174,7 @@ fun MonitorScreen(
     onFiveGFeaturesEnabledChange: (Boolean) -> Unit = {},
     settingsUnlocked: Boolean = false,
     onSettingsUnlockedChange: (Boolean) -> Unit = {},
+    onAppBrandChange: (AppBrand) -> Unit = {},
     onCellChangeBellVolumeChange: (Float) -> Unit,
     onCellChangeVoiceEnabledChange: (Boolean) -> Unit,
     onCellChangeVoiceVolumeChange: (Float) -> Unit,
@@ -237,25 +240,14 @@ fun MonitorScreen(
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Top
-        ) {
-            HomeTitleBar(
-                stats = stats,
-                passiveSignalSettings = passiveSignalSettings,
-                showManualSelectOperator = monitoringSettings.showManualSelectOperatorButton,
-                onChooseOperator = onOpenNetworkOperatorPicker,
-                modifier = Modifier.weight(1f)
-            )
-            Text(
-                text = stringResource(R.string.app_version, appVersion),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontWeight = FontWeight.Medium
-            )
-        }
+        HomeTitleBar(
+            stats = stats,
+            passiveSignalSettings = passiveSignalSettings,
+            appBrand = monitoringSettings.appBrand,
+            showManualSelectOperator = monitoringSettings.showManualSelectOperatorButton,
+            onChooseOperator = onOpenNetworkOperatorPicker,
+            versionLabel = stringResource(R.string.app_version, appVersion)
+        )
 
         MonitoringControlButtons(
             isRunning = isRunning,
@@ -267,6 +259,7 @@ fun MonitorScreen(
         HistogramControlsCard(
             samples = rsrpHistory,
             stats = stats,
+            passiveSignalSettings = passiveSignalSettings,
             windowMs = monitoringSettings.rsrpHistogramWindowMs,
             tapeWindowMs = monitoringSettings.tapeWindowMs,
             binningMode = monitoringSettings.rsrpHistogramBinningMode,
@@ -497,6 +490,11 @@ fun MonitorScreen(
                 onUnlockedChange = onSettingsUnlockedChange
             )
 
+            AppTitleSetting(
+                appBrand = monitoringSettings.appBrand,
+                onAppBrandChange = onAppBrandChange
+            )
+
             SettingsProfilesCard(
                 profiles = settingsProfiles,
                 onSaveProfile = onSaveSettingsProfile,
@@ -545,6 +543,56 @@ fun MonitorScreen(
 
         Spacer(modifier = Modifier.size(8.dp))
     }
+    }
+}
+
+@Composable
+private fun AppTitleSetting(
+    appBrand: AppBrand,
+    onAppBrandChange: (AppBrand) -> Unit
+) {
+    val controlsEnabled = settingsControlsEnabled()
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.app_title_setting),
+                style = MaterialTheme.typography.titleMedium,
+                color = Sushi,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = stringResource(R.string.app_title_setting_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            AppBrand.entries.forEach { brand ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = controlsEnabled) { onAppBrandChange(brand) },
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = appBrand == brand,
+                        onClick = { onAppBrandChange(brand) },
+                        enabled = controlsEnabled
+                    )
+                    Text(
+                        text = stringResource(
+                            if (brand == AppBrand.CELLNEX) {
+                                R.string.home_title_cellnex
+                            } else {
+                                R.string.home_title
+                            }
+                        ),
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -1002,13 +1050,13 @@ private fun CellIdentityMetrics(
     val lteLayerResilience = stats.lteLayerResilience.takeUnless {
         staleNoSignal || stats.isWifiCallingActive || stats.isCompleteNoService
     }
-    // RSRP gap between the primary sector and the next-strongest sector on the *same* EARFCN
-    // (see LteLayerResilienceReading.primaryLayerDominanceDb) — undefined ("—") when there's no
-    // competing intra-channel sector detected to compare against.
     if (!is2g) {
         MetricRow(
             label = stringResource(R.string.metric_primary_layer_dominance),
-            value = formatPrimaryLayerDominanceValue(lteLayerResilience, permissionGranted)
+            value = formatPrimaryLayerDominanceValue(
+                dominanceDb = stats.primaryIntracellDominanceDb(passiveSignalSettings),
+                permissionGranted = permissionGranted
+            )
         )
     }
     MetricRow(
@@ -1041,19 +1089,18 @@ private fun CellIdentityMetrics(
 
 @Composable
 private fun formatPrimaryLayerDominanceValue(
-    lteLayerResilience: LteLayerResilienceReading?,
+    dominanceDb: Int?,
     permissionGranted: Boolean
 ): String {
     if (!permissionGranted) {
         return stringResource(R.string.cell_identity_permission_required)
     }
-    val dominanceDb = lteLayerResilience?.primaryLayerDominanceDb ?: return "—"
-    val dominance = lteLayerResilience.primaryLayerDominance() ?: return "—"
-    val dominanceLabel = when (dominance) {
+    val gapDb = dominanceDb ?: return "—"
+    val dominanceLabel = when (primaryLayerDominance(gapDb)) {
         PrimaryLayerDominance.LOW -> stringResource(R.string.primary_layer_dominance_low)
         PrimaryLayerDominance.HIGH -> stringResource(R.string.primary_layer_dominance_high)
     }
-    return stringResource(R.string.metric_primary_layer_dominance_value, dominanceDb, dominanceLabel)
+    return stringResource(R.string.metric_primary_layer_dominance_value, gapDb, dominanceLabel)
 }
 
 @Composable

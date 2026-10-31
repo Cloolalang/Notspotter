@@ -30,6 +30,22 @@ class RsrqTierTest {
     }
 
     @Test
+    fun coupledWhiteNoiseMix_activeDuringActiveTest() {
+        val stats = ConnectivityStats(
+            isMonitoring = true,
+            isPassiveOnlySession = false,
+            cellularAvailable = true,
+            signalPermissionGranted = true,
+            rsrpDbm = -95,
+            rsrqDb = -20
+        )
+
+        assertTrue(settings.shouldCoupleRsrqWhiteNoise(stats.rsrqDb, stats.isPassiveOnlySession))
+        assertEquals(0.5, settings.rsrqTierWhiteNoiseMix(stats), 0.001)
+        assertTrue(stats.shouldPlayDecoupledRsrqTier(settings.copy(rsrqTierCoupledToSignalTier = false)))
+    }
+
+    @Test
     fun decoupledRsrqTier_playsIndependently() {
         val decoupled = settings.copy(rsrqTierCoupledToSignalTier = false)
         val stats = ConnectivityStats(

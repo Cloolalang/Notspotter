@@ -1,6 +1,9 @@
 <resources>
     <string name="app_name">NotSpotter</string>
     <string name="home_title">NotSpotter</string>
+    <string name="home_title_cellnex">Cellnex</string>
+    <string name="app_title_setting">App title</string>
+    <string name="app_title_setting_hint">The name shown at the top of the screen. Unlock settings to change it.</string>
     <string name="app_version">v%1$s</string>
     <string name="start_monitoring">Start monitoring</string>
     <string name="start_active_mode_testing">Start active mode testing</string>
@@ -123,6 +126,7 @@
     <string name="rxss_state_rsrq_poor">RSRQ poor</string>
     <string name="rxss_state_home_2g_no_signal">2G no signal</string>
     <string name="rxss_state_wifi_calling">WiFi calling, no cellular signal</string>
+    <string name="rxss_state_timing_advance">Timing advance</string>
     <string name="passive_signal_rsrp_band_section">RXSS %1$s</string>
     <string name="passive_signal_rsrp_band_click_interval">Alert pulse interval</string>
     <string name="passive_signal_rsrp_band_sound_enabled">Alert pulse</string>
@@ -378,17 +382,28 @@
     <string name="rsrp_histogram_window_hint">One sample every 1 s. A longer window shows more samples after they have been collected (and immediately includes any already stored in the last hour).</string>
     <string name="histogram_controls_title">Level histogram</string>
     <string name="kpi_history_title">KPI history</string>
-    <string name="kpi_history_title_operator">KPI history - %1$s</string>
     <string name="kpi_history_clear">Clear history</string>
+    <string name="zone_test_title">Zone test</string>
+    <string name="zone_test_hint">Starts a KPI history that keeps every change from the moment you start until you stop. The bars squeeze the whole run onto one scale. Stop to name and save a JPEG in Downloads, or clear it.</string>
+    <string name="zone_test_start">Start zone test</string>
+    <string name="zone_test_stop">Stop zone test</string>
+    <string name="zone_test_need_monitoring">Start monitoring or active mode testing first.</string>
+    <string name="zone_test_running">Recording since the start. The time scale compresses as the run gets longer.</string>
+    <string name="zone_test_name_label">Zone name</string>
+    <string name="zone_test_save">Save JPEG to Downloads</string>
+    <string name="zone_test_clear">Clear</string>
+    <string name="zone_test_saved">Saved %1$s</string>
+    <string name="zone_test_save_failed">Could not save the JPEG to Downloads.</string>
+    <string name="zone_test_capture_title">%1$s</string>
     <string name="active_test_history_title">Active test</string>
     <string name="active_test_history_rule">ping</string>
     <string name="aggregated_bandwidth_history_title">Aggregated bandwidth</string>
     <string name="aggregated_bandwidth_history_rule">primary 4G + secondary 4G</string>
     <string name="metric_secondary_bandwidth_unreported">In use (4G+), width not reported</string>
     <string name="histogram_settings_title">Histogram settings</string>
-    <string name="histogram_settings_summary">Choose 5 dB bins or threshold bins, set the three threshold floors, and change the sample window. Unlock settings to change these.</string>
+    <string name="histogram_settings_summary">Choose 5 dB bins or threshold bins, set the three threshold floors, the sample window, and the tape time scale. Unlock settings to change these.</string>
     <string name="rsrp_histogram_summary">−70 to −135 dBm · 5 dB bins · active bins only</string>
-    <string name="rsrp_histogram_threshold_summary">Each threshold bar is the share of samples stronger than that floor (linear 0–100%). The &lt;−115 dBm bar is measured RSRP that is not stronger than any floor. N/A is no RSRP (no signal). Sigma is the window standard deviation (0–10 dB).</string>
+    <string name="rsrp_histogram_threshold_summary">Each threshold bar is the share of samples stronger than that floor (linear 0–100%). The &lt;−115 dBm bar is measured RSRP that is not stronger than any floor. N/A is no RSRP (no signal). Sigma is the window standard deviation (0–20 dB).</string>
     <string name="rsrp_histogram_mode_level">5 dB bins</string>
     <string name="rsrp_histogram_mode_threshold">Threshold bins</string>
     <string name="rsrp_histogram_threshold_slider_label">Threshold %1$d</string>
@@ -423,6 +438,8 @@
     <string name="rsrq_bin_above_15">&gt; −15</string>
     <string name="rsrq_bin_from_17_to_15">−17 to −15</string>
     <string name="rsrq_bin_below_17">&lt; −17</string>
+    <string name="intracell_dominance_history_title">Primary Intracell Dominance</string>
+    <string name="intracell_dominance_history_rule">same-channel RSRP gap</string>
     <string name="distance_history_title">Distance</string>
     <string name="distance_history_rule">timing advance</string>
     <string name="rsrp_histogram_tape_now">now</string>
@@ -519,7 +536,7 @@
     <string name="audio_timing_advance_section">Timing advance</string>
     <string name="audio_timing_advance_voice_enabled">Voice announcement</string>
     <string name="audio_volume_timing_advance_voice">Timing advance voice volume</string>
-    <string name="audio_timing_advance_voice_hint">Speaks the approximate distance to the primary cell when that distance changes.</string>
+    <string name="audio_timing_advance_voice_hint">Speaks the approximate distance to the primary cell when that distance changes, and again every 30 s while a distance is available.</string>
     <string name="audio_limited_service_voice_enabled_hint">After the limited service tone, speaks when emergency-only service starts (e.g. “Vodafone UK, E E, 4 G, limited service”). Repeats every 30 s while active, including when the camped operator changes. Returning to normal 4G/5G service is not announced — that is assumed.</string>
     <string name="audio_volume_limited_service_voice">Volume</string>
     <string name="audio_voice_announcer_title">Voice announcer</string>

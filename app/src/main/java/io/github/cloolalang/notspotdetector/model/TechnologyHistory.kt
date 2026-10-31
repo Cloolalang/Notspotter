@@ -52,12 +52,17 @@ object TechnologyHistory {
         return durations.map { it.toFloat() / total.toFloat() }
     }
 
-    fun record(tape: TechnologyTape, next: String?, nowMs: Long = 0L): TechnologyTape {
+    fun record(
+        tape: TechnologyTape,
+        next: String?,
+        nowMs: Long = 0L,
+        retainMs: Long = MonitoringSettings.MAX_TAPE_WINDOW_MS
+    ): TechnologyTape {
         if (next == null) return tape
         if (tape.entries.lastOrNull()?.label == next) return tape
         val entry = TechnologySegment(label = next, startedAtMs = nowMs)
         return tape.copy(
-            entries = TapeTimeline.retainForScale(tape.entries + entry, nowMs) { it.startedAtMs }
+            entries = TapeTimeline.retainForScale(tape.entries + entry, nowMs, retainMs) { it.startedAtMs }
         )
     }
 }

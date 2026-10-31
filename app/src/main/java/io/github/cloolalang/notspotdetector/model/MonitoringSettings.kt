@@ -18,7 +18,9 @@ data class MonitoringSettings(
     /** When true, the phone’s allowed RATs exclude 2G. Requires root to apply. */
     val inhibit2g: Boolean = DEFAULT_INHIBIT_2G,
     /** Keep the display awake while monitoring is running (car cradle / field test). */
-    val keepScreenOnWhileMonitoring: Boolean = DEFAULT_KEEP_SCREEN_ON_WHILE_MONITORING
+    val keepScreenOnWhileMonitoring: Boolean = DEFAULT_KEEP_SCREEN_ON_WHILE_MONITORING,
+    /** Name drawn in the top title bar. */
+    val appBrand: AppBrand = AppBrand.NOTSPOTTER
 ) {
     fun normalized(): MonitoringSettings {
         return copy(

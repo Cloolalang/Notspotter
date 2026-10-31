@@ -150,6 +150,7 @@ fun MonitorApp(
             onFiveGFeaturesEnabledChange = viewModel::updateFiveGFeaturesEnabled,
             settingsUnlocked = settingsUnlocked,
             onSettingsUnlockedChange = { settingsUnlocked = it },
+            onAppBrandChange = viewModel::updateAppBrand,
             onCellChangeBellVolumeChange = viewModel::updateCellChangeBellVolume,
             onCellChangeVoiceEnabledChange = viewModel::updateCellChangeVoiceEnabled,
             onCellChangeVoiceVolumeChange = viewModel::updateCellChangeVoiceVolume,

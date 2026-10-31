@@ -27,6 +27,8 @@ import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
 import io.github.cloolalang.notspotdetector.model.displayedTimingAdvance
 import io.github.cloolalang.notspotdetector.model.MonitoringAnnouncement
 import io.github.cloolalang.notspotdetector.model.MonitoringAnnouncementKind
+import io.github.cloolalang.notspotdetector.model.MonitoringSettings
+import io.github.cloolalang.notspotdetector.network.CellularSignalReader
 import io.github.cloolalang.notspotdetector.model.RsrpHistogram
 import io.github.cloolalang.notspotdetector.model.MonitoringUpdateEvents
 import io.github.cloolalang.notspotdetector.model.PingSettings
@@ -85,6 +87,7 @@ class ConnectivityMonitorService : Service() {
     private var mockNetworkPeriodicWatcherJob: Job? = null
     private var mockNetworkPeriodicAnnouncementJob: Job? = null
     private var mockPingPulseJob: Job? = null
+    private var activeRadioJob: Job? = null
     private val monitoringAlertMutex = Mutex()
     private val monitoringEventsHandlerMutex = Mutex()
     private val voiceQueue = VoiceAnnouncementQueue()
@@ -264,10 +267,51 @@ class ConnectivityMonitorService : Service() {
     }
 
     private fun startActivePingMonitoring() {
-        pingMonitor.start(serviceScope) { stats ->
-            handleStatsUpdate(stats)
-        }
+        startActiveRadioPolling()
         startGeigerPlayer()
+    }
+
+    /**
+     * Same 1 Hz radio clock as passive monitoring. Ping results update RTT only, so RXSS
+     * (including RSRQ and a 5G/EN-DC change that appears while the ping is in flight) keep
+     * moving during an active test. Mock network state replaces the live radio reading and
+     * leaves the ping result in place. The first radio sample is published before pings start,
+     * so a ping cannot land on an empty radio reading.
+     */
+    private fun startActiveRadioPolling() {
+        activeRadioJob?.cancel()
+        activeRadioJob = serviceScope.launch {
+            publishActiveRadio()
+            if (!isActive || !isMonitoringActive || isPassiveIdleMode) return@launch
+            pingMonitor.start(serviceScope) { stats ->
+                MonitorState.applyPingSample(stats)
+            }
+            while (isActive && isMonitoringActive && !isPassiveIdleMode) {
+                val monitoring = MonitorState.monitoringSettings.value
+                delay(
+                    monitoring.passiveMeasurementIntervalMs.coerceIn(
+                        MonitoringSettings.MIN_PASSIVE_MEASUREMENT_INTERVAL_MS,
+                        MonitoringSettings.MAX_PASSIVE_MEASUREMENT_INTERVAL_MS
+                    )
+                )
+                if (!isMonitoringActive || isPassiveIdleMode) break
+                publishActiveRadio()
+            }
+        }
+    }
+
+    private fun publishActiveRadio() {
+        val monitoring = MonitorState.monitoringSettings.value
+        if (MonitorState.passiveMockSettings.value.enabled) {
+            MonitorState.pushMockStatsIfActive(recordFilterSample = true)
+            return
+        }
+        val metrics = CellularSignalReader.read(
+            this,
+            monitoring.monitor2gFallback,
+            monitoring.subscriptionId
+        )
+        MonitorState.refreshSignalMetrics(metrics)
     }
 
     private fun startPassiveOnlyMonitoring() {
@@ -1070,6 +1114,8 @@ class ConnectivityMonitorService : Service() {
         activePingTimeoutJob = null
 
         pingMonitor.stop()
+        activeRadioJob?.cancel()
+        activeRadioJob = null
         MonitorState.enterPassiveIdleMode()
 
         if (!isPassiveOnlyStart) {
@@ -1108,6 +1154,8 @@ class ConnectivityMonitorService : Service() {
         mockNetworkPeriodicAnnouncementJob = null
         mockPingPulseJob?.cancel()
         mockPingPulseJob = null
+        activeRadioJob?.cancel()
+        activeRadioJob = null
         rsrpHistogramSampleJob?.cancel()
         rsrpHistogramSampleJob = null
         voiceQueue.clear()

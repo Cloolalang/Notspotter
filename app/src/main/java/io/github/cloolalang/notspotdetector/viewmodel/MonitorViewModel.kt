@@ -302,6 +302,10 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         )
     }
 
+    fun updateAppBrand(brand: io.github.cloolalang.notspotdetector.model.AppBrand) {
+        updateMonitoringSettings(monitoringSettings.value.copy(appBrand = brand))
+    }
+
     fun setInhibit2g(enabled: Boolean) {
         applyInhibit2gToPhone(enabled, persistOnSuccess = true)
     }

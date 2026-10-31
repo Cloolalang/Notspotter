@@ -72,6 +72,9 @@ class MonitoringSettingsRepository(context: Context) {
             keepScreenOnWhileMonitoring = prefs.getBoolean(
                 KEY_KEEP_SCREEN_ON_WHILE_MONITORING,
                 MonitoringSettings.DEFAULT_KEEP_SCREEN_ON_WHILE_MONITORING
+            ),
+            appBrand = io.github.cloolalang.notspotdetector.model.AppBrand.fromStoredName(
+                prefs.getString(KEY_APP_BRAND, null)
             )
         ).normalized()
     }
@@ -93,6 +96,7 @@ class MonitoringSettingsRepository(context: Context) {
             .putBoolean(KEY_SHOW_MANUAL_SELECT_OPERATOR_BUTTON, normalized.showManualSelectOperatorButton)
             .putBoolean(KEY_INHIBIT_2G, normalized.inhibit2g)
             .putBoolean(KEY_KEEP_SCREEN_ON_WHILE_MONITORING, normalized.keepScreenOnWhileMonitoring)
+            .putString(KEY_APP_BRAND, normalized.appBrand.name)
             .apply()
     }
 
@@ -113,5 +117,6 @@ class MonitoringSettingsRepository(context: Context) {
         private const val KEY_SHOW_MANUAL_SELECT_OPERATOR_BUTTON = "show_manual_select_operator_button"
         private const val KEY_INHIBIT_2G = "inhibit_2g"
         private const val KEY_KEEP_SCREEN_ON_WHILE_MONITORING = "keep_screen_on_while_monitoring"
+        private const val KEY_APP_BRAND = "app_brand"
     }
 }
