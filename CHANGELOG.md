@@ -5,6 +5,12 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.141.2] - 2026-11-01
+
+### Fixed
+
+- **Limited service entry voice** — Entering visited 4G limited service (RXSS 12) or home 4G limited service (RXSS 19) speaks the limited-service announcement. It is no longer dropped when a signal-low, timing-advance, or technology-change phrase is still playing.
+
 ## [2.141.1] - 2026-11-01
 
 ### Fixed

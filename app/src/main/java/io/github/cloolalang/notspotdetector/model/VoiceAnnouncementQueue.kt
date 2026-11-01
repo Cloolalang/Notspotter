@@ -130,7 +130,14 @@ class VoiceAnnouncementQueue {
         for (item in pending) {
             val kind = item.announcement.kind
             val cost = estimatedSpokenMs(kind)
-            if (kind == MonitoringAnnouncementKind.SPECIAL_CELL || cost <= remaining) {
+            // Known-cell voice has no tone of its own. Limited-service entry (RXSS 12 / 19
+            // and the other limited camps) is confirmed while another phrase may still be
+            // playing. Signal low, timing advance, and technology change do not yield the
+            // speaker, and the leftover budget would otherwise drop the entry voice.
+            if (kind == MonitoringAnnouncementKind.SPECIAL_CELL ||
+                kind == MonitoringAnnouncementKind.LIMITED_SERVICE_STATE ||
+                cost <= remaining
+            ) {
                 keep.addLast(item)
                 remaining -= cost
             } else if (hasSoundIcon(kind)) {

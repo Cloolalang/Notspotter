@@ -168,6 +168,44 @@ class VoiceAnnouncementQueueTest {
     }
 
     @Test
+    fun playingSignalLowStillQueuesLimitedServiceEntry() {
+        val queue = VoiceAnnouncementQueue()
+        queue.enqueue(listOf(announcement(MonitoringAnnouncementKind.TIER5, "signal low")))
+        val playing = queue.startNext()!!
+
+        val result = queue.enqueue(
+            listOf(announcement(MonitoringAnnouncementKind.LIMITED_SERVICE_STATE, "home limited service"))
+        )
+
+        assertFalse(result.interruptCurrent)
+        assertTrue(queue.isPlaying(playing.id))
+        assertEquals(
+            listOf(MonitoringAnnouncementKind.LIMITED_SERVICE_STATE),
+            queue.pendingKinds()
+        )
+        assertTrue(result.toneOnly.isEmpty())
+    }
+
+    @Test
+    fun playingTimingAdvanceStillQueuesLimitedServiceEntry() {
+        val queue = VoiceAnnouncementQueue()
+        queue.enqueue(listOf(announcement(MonitoringAnnouncementKind.TIMING_ADVANCE, "five hundred metres")))
+        val playing = queue.startNext()!!
+
+        val result = queue.enqueue(
+            listOf(announcement(MonitoringAnnouncementKind.LIMITED_SERVICE_STATE, "visiting limited service"))
+        )
+
+        assertFalse(result.interruptCurrent)
+        assertTrue(queue.isPlaying(playing.id))
+        assertEquals(
+            listOf(MonitoringAnnouncementKind.LIMITED_SERVICE_STATE),
+            queue.pendingKinds()
+        )
+        assertTrue(result.toneOnly.isEmpty())
+    }
+
+    @Test
     fun playingReselectIsInterruptedByDeadzone() {
         val queue = VoiceAnnouncementQueue()
         queue.enqueue(listOf(announcement(MonitoringAnnouncementKind.CELL_IDENTITY, "PCI 10")))
