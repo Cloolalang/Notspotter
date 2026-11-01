@@ -25,4 +25,12 @@ class ZoneTestTest {
     fun jpegFileName_blankNameUsesZone() {
         assertEquals("Zone test - zone.jpg", ZoneTest.jpegFileName("  ", null))
     }
+
+    @Test
+    fun walkJpegFileName_usesTheSameNameAndOperator() {
+        assertEquals(
+            "Zone walk - High street - Vodafone.jpg",
+            ZoneTest.walkJpegFileName("High street", "Vodafone")
+        )
+    }
 }

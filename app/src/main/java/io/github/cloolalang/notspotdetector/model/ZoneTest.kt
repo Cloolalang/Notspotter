@@ -8,21 +8,27 @@ object ZoneTest {
     /** Upper bound so a very long run cannot grow the tape lists without limit. */
     const val RETAIN_MS = 8L * 60L * 60L * 1000L
 
-    fun jpegFileName(name: String, operator: String?): String {
-        val trimmed = name.trim().ifBlank { "zone" }
-        val safeName = trimmed
+    fun jpegFileName(name: String, operator: String?): String =
+        fileName(prefix = "Zone test", name = name, operator = operator)
+
+    fun walkJpegFileName(name: String, operator: String?): String =
+        fileName(prefix = "Zone walk", name = name, operator = operator)
+
+    private fun fileName(prefix: String, name: String, operator: String?): String {
+        val safeName = safePart(name).ifBlank { "zone" }
+        val operatorPart = operator?.let(::safePart)?.takeIf { it.isNotEmpty() }
+        return if (operatorPart == null) {
+            "$prefix - $safeName.jpg"
+        } else {
+            "$prefix - $safeName - $operatorPart.jpg"
+        }
+    }
+
+    private fun safePart(value: String): String {
+        return value
+            .trim()
             .replace(Regex("[\\\\/:*?\"<>|]"), "_")
             .take(MAX_NAME_LENGTH)
-        val operatorPart = operator
-            ?.trim()
-            ?.takeIf { it.isNotEmpty() }
-            ?.replace(Regex("[\\\\/:*?\"<>|]"), "_")
-            ?.take(MAX_NAME_LENGTH)
-        return if (operatorPart == null) {
-            "Zone test - $safeName.jpg"
-        } else {
-            "Zone test - $safeName - $operatorPart.jpg"
-        }
     }
 
     private const val MAX_NAME_LENGTH = 60

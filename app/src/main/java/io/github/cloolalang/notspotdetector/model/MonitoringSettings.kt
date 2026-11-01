@@ -20,7 +20,9 @@ data class MonitoringSettings(
     /** Keep the display awake while monitoring is running (car cradle / field test). */
     val keepScreenOnWhileMonitoring: Boolean = DEFAULT_KEEP_SCREEN_ON_WHILE_MONITORING,
     /** Name drawn in the top title bar. */
-    val appBrand: AppBrand = AppBrand.NOTSPOTTER
+    val appBrand: AppBrand = AppBrand.NOTSPOTTER,
+    /** Floor-plan walk during a zone test. Off until switched on in Development area. */
+    val walkRouteEnabled: Boolean = DEFAULT_WALK_ROUTE_ENABLED
 ) {
     fun normalized(): MonitoringSettings {
         return copy(
@@ -61,6 +63,7 @@ data class MonitoringSettings(
         const val DEFAULT_SHOW_MANUAL_SELECT_OPERATOR_BUTTON = false
         const val DEFAULT_INHIBIT_2G = false
         const val DEFAULT_KEEP_SCREEN_ON_WHILE_MONITORING = true
+        const val DEFAULT_WALK_ROUTE_ENABLED = false
     }
 }
 

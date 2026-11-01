@@ -306,6 +306,10 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         updateMonitoringSettings(monitoringSettings.value.copy(appBrand = brand))
     }
 
+    fun updateWalkRouteEnabled(enabled: Boolean) {
+        updateMonitoringSettings(monitoringSettings.value.copy(walkRouteEnabled = enabled))
+    }
+
     fun setInhibit2g(enabled: Boolean) {
         applyInhibit2gToPhone(enabled, persistOnSuccess = true)
     }

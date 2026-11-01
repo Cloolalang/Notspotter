@@ -5,6 +5,49 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.147.0] - 2026-11-01
+
+### Changed
+
+- **Floor plan walk** — The floor plan on a zone test stays hidden. Unlock with the password, then turn on Floor plan walk in the Development area.
+
+## [2.146.0] - 2026-11-01
+
+### Changed
+
+- **Remove last mark** — The button sits in the top-right corner of the floor plan and stays there while you zoom and move the picture.
+
+## [2.145.0] - 2026-11-01
+
+### Changed
+
+- **Floor plan zoom** — You can zoom the floor plan in much closer, up to 32 times, and the picture keeps more detail when you do.
+
+## [2.144.0] - 2026-11-01
+
+### Changed
+
+- **Floor plan panel** — The floor plan fills the screen, so marking a walk is easier.
+- **Walk route** — Each leg snaps to the nearest horizontal, vertical, or 45-degree line.
+
+## [2.143.0] - 2026-11-01
+
+### Added
+
+- **Floor plan zoom** — Spread two fingers to zoom in on the floor plan, pinch to zoom out, and drag to move it. A tap still drops the mark on the place you touch.
+
+## [2.142.1] - 2026-11-01
+
+### Fixed
+
+- **Floor plan image** — A JPEG chosen from Downloads opens on the zone test. The picker stream could not be rewound, so a valid picture was reported as unreadable.
+
+## [2.142.0] - 2026-11-01
+
+### Added
+
+- **Walk route on a floor plan** — During a zone test, choose a floor plan image from Downloads and tap it to mark where you start, turn, and stop. The route is coloured with the same RSRP bands as the RSRP tape. A mark every 30 seconds lines up on the route and on the KPI tapes. When you stop, name the run and save both JPEGs to Downloads/NotSpotter, or clear the walk marks and the KPI record.
+
 ## [2.141.2] - 2026-11-01
 
 ### Fixed

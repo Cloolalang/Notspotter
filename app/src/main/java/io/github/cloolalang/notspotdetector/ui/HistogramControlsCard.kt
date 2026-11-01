@@ -32,6 +32,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -46,6 +47,7 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -60,6 +62,8 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.cloolalang.notspotdetector.R
+import io.github.cloolalang.notspotdetector.data.FloorPlanLoader
+import io.github.cloolalang.notspotdetector.data.WalkRouteImage
 import io.github.cloolalang.notspotdetector.data.ZoneTestImageSaver
 import io.github.cloolalang.notspotdetector.model.ActiveTestBand
 import io.github.cloolalang.notspotdetector.model.ActiveTestHistory
@@ -109,13 +113,20 @@ import io.github.cloolalang.notspotdetector.model.TechnologyHistory
 import io.github.cloolalang.notspotdetector.model.TechnologySegment
 import io.github.cloolalang.notspotdetector.model.TechnologyTape
 import io.github.cloolalang.notspotdetector.model.TimingAdvance
+import io.github.cloolalang.notspotdetector.model.WalkLegendSwatch
+import io.github.cloolalang.notspotdetector.model.WalkPin
+import io.github.cloolalang.notspotdetector.model.WalkRoute
 import io.github.cloolalang.notspotdetector.model.ZoneTest
 import io.github.cloolalang.notspotdetector.network.CellularSignalReader
 import io.github.cloolalang.notspotdetector.model.coerceToHistogramWindowStep
 import io.github.cloolalang.notspotdetector.ui.theme.BondiBlue
 import io.github.cloolalang.notspotdetector.ui.theme.Sushi
 import android.graphics.Bitmap
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -145,6 +156,7 @@ fun HistogramControlsCard(
     onBinningModeChange: (RsrpHistogramBinningMode) -> Unit,
     onThresholdChange: (Int, Int) -> Unit,
     onClearHistogram: () -> Unit,
+    walkRouteEnabled: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     var histogramExpanded by rememberSaveable { mutableStateOf(false) }
@@ -359,7 +371,8 @@ fun HistogramControlsCard(
         passiveSignalSettings = passiveSignalSettings,
         samples = samples,
         nowMs = nowMs,
-        tapeNowMs = tapeNowMs
+        tapeNowMs = tapeNowMs,
+        walkRouteEnabled = walkRouteEnabled
     )
     KpiHistoryPanel(
         expanded = kpiHistoryExpanded,
@@ -701,7 +714,8 @@ private fun ZoneTestPanel(
     passiveSignalSettings: PassiveSignalSettings,
     samples: List<RsrpSample>,
     nowMs: Long,
-    tapeNowMs: Long
+    tapeNowMs: Long,
+    walkRouteEnabled: Boolean
 ) {
     var running by remember { mutableStateOf(false) }
     var startMs by remember { mutableStateOf<Long?>(null) }
@@ -729,9 +743,38 @@ private fun ZoneTestPanel(
     val liveOperator = OperatorTitleStyle.resolveLabel(stats)
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    var floorPlan by remember { mutableStateOf<Bitmap?>(null) }
+    var pins by remember { mutableStateOf<List<WalkPin>>(emptyList()) }
     val graphicsLayer = rememberGraphicsLayer()
     val savedTemplate = stringResource(R.string.zone_test_saved)
+    val savedWithRouteTemplate = stringResource(R.string.zone_test_saved_with_route)
+    val routeFailedTemplate = stringResource(R.string.zone_test_route_failed)
     val failedText = stringResource(R.string.zone_test_save_failed)
+    val floorPlanFailed = rememberUpdatedState(stringResource(R.string.zone_test_floor_plan_failed))
+    val routeLegend = listOf(
+        WalkLegendSwatch(WalkRoute.rsrpRouteColor(RsrpBin.ABOVE_95), stringResource(R.string.rsrp_bin_above_95)),
+        WalkLegendSwatch(WalkRoute.rsrpRouteColor(RsrpBin.ABOVE_105), stringResource(R.string.rsrp_bin_above_105)),
+        WalkLegendSwatch(WalkRoute.rsrpRouteColor(RsrpBin.ABOVE_115), stringResource(R.string.rsrp_bin_above_115)),
+        WalkLegendSwatch(WalkRoute.rsrpRouteColor(RsrpBin.BELOW_115), stringResource(R.string.rsrp_bin_below_115)),
+        WalkLegendSwatch(WalkRoute.rsrpRouteColor(RsrpBin.NO_SIGNAL), stringResource(R.string.zone_test_no_signal))
+    )
+    val walkCaptionFallback = stringResource(R.string.zone_test_walk_caption)
+    val pickFloorPlan = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        FloorPlanLoader.keepPermission(context, uri)
+        scope.launch {
+            val bitmap = withContext(Dispatchers.IO) {
+                FloorPlanLoader.decode(context, uri)
+            }
+            if (bitmap == null) {
+                statusMessage = floorPlanFailed.value
+            } else {
+                floorPlan = bitmap
+                pins = emptyList()
+                statusMessage = null
+            }
+        }
+    }
 
     fun freshTapes(atMs: Long) {
         carrierTape = PrimaryCarrierHistory.record(
@@ -836,6 +879,16 @@ private fun ZoneTestPanel(
     val zoneStart = startMs
     val chartNowMs = if (running) tapeNowMs else endMs ?: tapeNowMs
     val chartTitle = stringResource(R.string.kpi_history_title)
+    val zoneTickTimes = if (zoneStart != null && walkRouteEnabled) {
+        WalkRoute.tickTimes(zoneStart, chartNowMs)
+    } else {
+        emptyList()
+    }
+    val markTimeMs = when {
+        zoneStart == null -> null
+        running -> tapeNowMs
+        else -> endMs
+    }
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -853,6 +906,7 @@ private fun ZoneTestPanel(
                     when {
                         running -> R.string.zone_test_running
                         !isMonitoring && startMs == null -> R.string.zone_test_need_monitoring
+                        walkRouteEnabled -> R.string.zone_test_hint_walk
                         else -> R.string.zone_test_hint
                     }
                 ),
@@ -878,6 +932,7 @@ private fun ZoneTestPanel(
                         zoneName = ""
                         statusMessage = null
                         operatorLabel = liveOperator
+                        pins = emptyList()
                         freshTapes(atMs)
                         running = true
                     },
@@ -885,6 +940,132 @@ private fun ZoneTestPanel(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(text = stringResource(R.string.zone_test_start))
+                }
+            }
+            if (walkRouteEnabled) {
+            WalkRouteMap(
+                modifier = Modifier.expandPastPadding(20.dp),
+                floorPlan = floorPlan,
+                pins = pins,
+                rsrpSegments = rsrpBinTape.entries,
+                zoneStartMs = zoneStart,
+                markTimeMs = markTimeMs,
+                liveBin = if (running) rsrpBinTape.entries.lastOrNull()?.bin else null,
+                onChooseFloorPlan = { pickFloorPlan.launch(arrayOf("image/*")) },
+                onMark = { pins = pins + it },
+                onUndo = { if (pins.isNotEmpty()) pins = pins.dropLast(1) }
+            )
+            }
+            if (!running && startMs != null) {
+                OutlinedTextField(
+                    value = zoneName,
+                    onValueChange = { zoneName = it },
+                    label = { Text(stringResource(R.string.zone_test_name_label)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (walkRouteEnabled && pins.isNotEmpty()) {
+                    Text(
+                        text = stringResource(R.string.zone_test_save_note),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Button(
+                    onClick = {
+                        scope.launch {
+                            val image = graphicsLayer.toImageBitmap()
+                            val raw = image.asAndroidBitmap()
+                            val bitmap = if (raw.config == Bitmap.Config.HARDWARE) {
+                                raw.copy(Bitmap.Config.ARGB_8888, false)
+                            } else {
+                                raw
+                            }
+                            val zonePath = ZoneTestImageSaver.save(
+                                context = context,
+                                bitmap = bitmap,
+                                name = zoneName,
+                                operator = operatorLabel
+                            )
+                            val plan = floorPlan
+                            val started = zoneStart
+                            val markedPins = pins.toList()
+                            var walkPath: String? = null
+                            if (walkRouteEnabled && plan != null && started != null && markedPins.isNotEmpty()) {
+                                val caption = listOfNotNull(
+                                    zoneName.trim().takeIf { it.isNotEmpty() },
+                                    operatorLabel
+                                ).joinToString(" · ").ifBlank { walkCaptionFallback }
+                                val routeBitmap = WalkRouteImage.render(
+                                    floorPlan = plan,
+                                    pins = markedPins,
+                                    segments = rsrpBinTape.entries,
+                                    zoneStartMs = started,
+                                    zoneEndMs = chartNowMs,
+                                    caption = caption,
+                                    legend = routeLegend
+                                )
+                                if (routeBitmap != null) {
+                                    walkPath = ZoneTestImageSaver.saveJpeg(
+                                        context = context,
+                                        bitmap = routeBitmap,
+                                        fileName = ZoneTest.walkJpegFileName(zoneName, operatorLabel)
+                                    )
+                                    routeBitmap.recycle()
+                                }
+                            }
+                            statusMessage = when {
+                                zonePath != null && walkPath != null ->
+                                    savedWithRouteTemplate.format(zonePath, walkPath)
+                                zonePath != null && walkRouteEnabled && markedPins.isNotEmpty() ->
+                                    routeFailedTemplate.format(zonePath)
+                                zonePath != null -> savedTemplate.format(zonePath)
+                                walkPath != null -> savedTemplate.format(walkPath)
+                                else -> failedText
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = stringResource(
+                            if (walkRouteEnabled && pins.isNotEmpty()) {
+                                R.string.zone_test_save_with_route
+                            } else {
+                                R.string.zone_test_save
+                            }
+                        )
+                    )
+                }
+                OutlinedButton(
+                    onClick = {
+                        running = false
+                        startMs = null
+                        endMs = null
+                        zoneName = ""
+                        operatorLabel = null
+                        statusMessage = null
+                        pins = emptyList()
+                        carrierTape = PrimaryCarrierTape()
+                        technologyTape = TechnologyTape()
+                        rsrpBinTape = RsrpBinTape()
+                        rsrqBinTape = RsrqBinTape()
+                        distanceTape = DistanceTape()
+                        intracellDominanceTape = IntracellDominanceTape()
+                        activeTestTape = ActiveTestTape()
+                        aggregatedBandwidthTape = AggregatedBandwidthTape()
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = stringResource(
+                            if (walkRouteEnabled && pins.isNotEmpty()) {
+                                R.string.zone_test_clear_walk
+                            } else {
+                                R.string.zone_test_clear
+                            }
+                        )
+                    )
                 }
             }
             if (zoneStart != null) {
@@ -929,97 +1110,57 @@ private fun ZoneTestPanel(
                         ),
                         entries = carrierTape.entries,
                         nowMs = chartNowMs,
-                        windowStartMs = zoneStart
+                        windowStartMs = zoneStart,
+                        timeTickMs = zoneTickTimes
                     )
                     TechnologyHistoryBar(
                         entries = technologyTape.entries,
                         changesPerMinute = stats.technologyChangesPerMinute,
                         nowMs = chartNowMs,
-                        windowStartMs = zoneStart
+                        windowStartMs = zoneStart,
+                        timeTickMs = zoneTickTimes
                     )
                     RsrpBinHistoryBar(
                         entries = rsrpBinTape.entries,
                         nowMs = chartNowMs,
-                        windowStartMs = zoneStart
+                        windowStartMs = zoneStart,
+                        timeTickMs = zoneTickTimes
                     )
                     RsrqBinHistoryBar(
                         entries = rsrqBinTape.entries,
                         nowMs = chartNowMs,
-                        windowStartMs = zoneStart
+                        windowStartMs = zoneStart,
+                        timeTickMs = zoneTickTimes
                     )
                     IntracellDominanceHistoryBar(
                         entries = intracellDominanceTape.entries,
                         nowMs = chartNowMs,
-                        windowStartMs = zoneStart
+                        windowStartMs = zoneStart,
+                        timeTickMs = zoneTickTimes
                     )
                     DistanceHistoryBar(
                         entries = distanceTape.entries,
                         nowMs = chartNowMs,
-                        windowStartMs = zoneStart
+                        windowStartMs = zoneStart,
+                        timeTickMs = zoneTickTimes
                     )
                     ActiveTestHistoryBar(
                         entries = activeTestTape.entries,
                         nowMs = chartNowMs,
-                        windowStartMs = zoneStart
+                        windowStartMs = zoneStart,
+                        timeTickMs = zoneTickTimes
                     )
                     AggregatedBandwidthHistoryBar(
                         entries = aggregatedBandwidthTape.entries,
                         nowMs = chartNowMs,
-                        windowStartMs = zoneStart
+                        windowStartMs = zoneStart,
+                        timeTickMs = zoneTickTimes
                     )
-                }
-            }
-            if (!running && startMs != null) {
-                OutlinedTextField(
-                    value = zoneName,
-                    onValueChange = { zoneName = it },
-                    label = { Text(stringResource(R.string.zone_test_name_label)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Button(
-                    onClick = {
-                        scope.launch {
-                            val image = graphicsLayer.toImageBitmap()
-                            val raw = image.asAndroidBitmap()
-                            val bitmap = if (raw.config == Bitmap.Config.HARDWARE) {
-                                raw.copy(Bitmap.Config.ARGB_8888, false)
-                            } else {
-                                raw
-                            }
-                            val path = ZoneTestImageSaver.save(
-                                context = context,
-                                bitmap = bitmap,
-                                name = zoneName,
-                                operator = operatorLabel
-                            )
-                            statusMessage = if (path == null) failedText else savedTemplate.format(path)
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(text = stringResource(R.string.zone_test_save))
-                }
-                OutlinedButton(
-                    onClick = {
-                        running = false
-                        startMs = null
-                        endMs = null
-                        zoneName = ""
-                        operatorLabel = null
-                        statusMessage = null
-                        carrierTape = PrimaryCarrierTape()
-                        technologyTape = TechnologyTape()
-                        rsrpBinTape = RsrpBinTape()
-                        rsrqBinTape = RsrqBinTape()
-                        distanceTape = DistanceTape()
-                        intracellDominanceTape = IntracellDominanceTape()
-                        activeTestTape = ActiveTestTape()
-                        aggregatedBandwidthTape = AggregatedBandwidthTape()
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(text = stringResource(R.string.zone_test_clear))
+                    ZoneTickLabelRow(
+                        tickTimesMs = zoneTickTimes,
+                        windowStartMs = zoneStart,
+                        nowMs = chartNowMs
+                    )
                 }
             }
             if (statusMessage != null) {
@@ -1311,6 +1452,7 @@ private fun PrimaryCarrierHistoryBar(
     entries: List<PrimaryCarrierTapeEntry>,
     nowMs: Long,
     windowStartMs: Long,
+    timeTickMs: List<Long> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     val current = entries.lastOrNull()
@@ -1419,6 +1561,7 @@ private fun PrimaryCarrierHistoryBar(
                     )
                 }
             }
+            drawZoneTimeTicks(timeTickMs, windowStartMs, nowMs)
         }
         TapeTimeScale(windowMs = (nowMs - windowStartMs).coerceAtLeast(0L))
     }
@@ -1474,6 +1617,7 @@ private fun TechnologyHistoryBar(
     changesPerMinute: Int,
     nowMs: Long,
     windowStartMs: Long,
+    timeTickMs: List<Long> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     val current = entries.lastOrNull()
@@ -1561,6 +1705,7 @@ private fun TechnologyHistoryBar(
                     )
                 }
             }
+            drawZoneTimeTicks(timeTickMs, windowStartMs, nowMs)
         }
         TapeTimeScale(windowMs = (nowMs - windowStartMs).coerceAtLeast(0L))
     }
@@ -1571,6 +1716,7 @@ private fun RsrpBinHistoryBar(
     entries: List<RsrpBinSegment>,
     nowMs: Long,
     windowStartMs: Long,
+    timeTickMs: List<Long> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     val current = entries.lastOrNull()
@@ -1658,6 +1804,7 @@ private fun RsrpBinHistoryBar(
                     )
                 }
             }
+            drawZoneTimeTicks(timeTickMs, windowStartMs, nowMs)
         }
         TapeTimeScale(windowMs = (nowMs - windowStartMs).coerceAtLeast(0L))
     }
@@ -1689,6 +1836,7 @@ private fun RsrqBinHistoryBar(
     entries: List<RsrqBinSegment>,
     nowMs: Long,
     windowStartMs: Long,
+    timeTickMs: List<Long> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     val current = entries.lastOrNull()
@@ -1776,6 +1924,7 @@ private fun RsrqBinHistoryBar(
                     )
                 }
             }
+            drawZoneTimeTicks(timeTickMs, windowStartMs, nowMs)
         }
         TapeTimeScale(windowMs = (nowMs - windowStartMs).coerceAtLeast(0L))
     }
@@ -1807,6 +1956,7 @@ private fun IntracellDominanceHistoryBar(
     entries: List<IntracellDominanceSegment>,
     nowMs: Long,
     windowStartMs: Long,
+    timeTickMs: List<Long> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     val current = entries.lastOrNull()
@@ -1894,6 +2044,7 @@ private fun IntracellDominanceHistoryBar(
                     )
                 }
             }
+            drawZoneTimeTicks(timeTickMs, windowStartMs, nowMs)
         }
         TapeTimeScale(windowMs = (nowMs - windowStartMs).coerceAtLeast(0L))
     }
@@ -1922,6 +2073,7 @@ private fun DistanceHistoryBar(
     entries: List<DistanceSegment>,
     nowMs: Long,
     windowStartMs: Long,
+    timeTickMs: List<Long> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     val current = entries.lastOrNull()
@@ -2009,6 +2161,7 @@ private fun DistanceHistoryBar(
                     )
                 }
             }
+            drawZoneTimeTicks(timeTickMs, windowStartMs, nowMs)
         }
         TapeTimeScale(windowMs = (nowMs - windowStartMs).coerceAtLeast(0L))
     }
@@ -2034,6 +2187,7 @@ private fun ActiveTestHistoryBar(
     entries: List<ActiveTestSegment>,
     nowMs: Long,
     windowStartMs: Long,
+    timeTickMs: List<Long> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     val current = entries.lastOrNull()
@@ -2121,6 +2275,7 @@ private fun ActiveTestHistoryBar(
                     )
                 }
             }
+            drawZoneTimeTicks(timeTickMs, windowStartMs, nowMs)
         }
         TapeTimeScale(windowMs = (nowMs - windowStartMs).coerceAtLeast(0L))
     }
@@ -2143,6 +2298,7 @@ private fun AggregatedBandwidthHistoryBar(
     entries: List<AggregatedBandwidthSegment>,
     nowMs: Long,
     windowStartMs: Long,
+    timeTickMs: List<Long> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     val current = entries.lastOrNull()
@@ -2230,6 +2386,7 @@ private fun AggregatedBandwidthHistoryBar(
                     )
                 }
             }
+            drawZoneTimeTicks(timeTickMs, windowStartMs, nowMs)
         }
         TapeTimeScale(windowMs = (nowMs - windowStartMs).coerceAtLeast(0L))
     }
@@ -2275,6 +2432,68 @@ private fun technologyTapeColor(technology: String): Color {
         else -> return Color(0xFF546E7A)
     }
     return Color.hsv(hue, 0.72f, 0.55f)
+}
+
+private fun DrawScope.drawZoneTimeTicks(
+    tickTimesMs: List<Long>,
+    windowStartMs: Long,
+    nowMs: Long
+) {
+    if (tickTimesMs.isEmpty()) return
+    val spanMs = nowMs - windowStartMs
+    if (spanMs <= 0L) return
+    val span = spanMs.toFloat()
+    for (tickMs in tickTimesMs) {
+        val fraction = ((tickMs - windowStartMs).toFloat() / span).coerceIn(0f, 1f)
+        val x = fraction * size.width
+        drawLine(
+            color = Color.White,
+            start = Offset(x, 0f),
+            end = Offset(x, size.height),
+            strokeWidth = 4f
+        )
+        drawLine(
+            color = Color.Black.copy(alpha = 0.85f),
+            start = Offset(x, 0f),
+            end = Offset(x, size.height),
+            strokeWidth = 2f
+        )
+    }
+}
+
+@Composable
+private fun ZoneTickLabelRow(
+    tickTimesMs: List<Long>,
+    windowStartMs: Long,
+    nowMs: Long
+) {
+    if (tickTimesMs.isEmpty()) return
+    val spanMs = (nowMs - windowStartMs).coerceAtLeast(1L)
+    val labelStepMs = WalkRoute.labelStepMs(spanMs)
+    val textMeasurer = rememberTextMeasurer()
+    val style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp)
+    val color = MaterialTheme.colorScheme.onSurfaceVariant
+    Canvas(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(14.dp)
+    ) {
+        var lastRight = -100f
+        for (tickMs in tickTimesMs) {
+            val elapsed = tickMs - windowStartMs
+            if (elapsed % labelStepMs != 0L) continue
+            val fraction = (elapsed.toFloat() / spanMs.toFloat()).coerceIn(0f, 1f)
+            val layout = textMeasurer.measure(
+                text = WalkRoute.elapsedLabel(elapsed),
+                style = style.merge(TextStyle(color = color))
+            )
+            val x = (fraction * size.width - layout.size.width / 2f)
+                .coerceIn(0f, (size.width - layout.size.width).coerceAtLeast(0f))
+            if (x < lastRight + 4f) continue
+            drawText(textLayoutResult = layout, topLeft = Offset(x, 0f))
+            lastRight = x + layout.size.width
+        }
+    }
 }
 
 @Composable

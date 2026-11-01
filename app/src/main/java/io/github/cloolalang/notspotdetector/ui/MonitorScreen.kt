@@ -175,6 +175,7 @@ fun MonitorScreen(
     settingsUnlocked: Boolean = false,
     onSettingsUnlockedChange: (Boolean) -> Unit = {},
     onAppBrandChange: (AppBrand) -> Unit = {},
+    onWalkRouteEnabledChange: (Boolean) -> Unit = {},
     onCellChangeBellVolumeChange: (Float) -> Unit,
     onCellChangeVoiceEnabledChange: (Boolean) -> Unit,
     onCellChangeVoiceVolumeChange: (Float) -> Unit,
@@ -269,7 +270,8 @@ fun MonitorScreen(
             onTapeWindowChange = onTapeWindowChange,
             onBinningModeChange = onRsrpHistogramBinningModeChange,
             onThresholdChange = onRsrpHistogramThresholdChange,
-            onClearHistogram = onClearRsrpHistogram
+            onClearHistogram = onClearRsrpHistogram,
+            walkRouteEnabled = monitoringSettings.walkRouteEnabled
         )
 
         if (isRunning) {
@@ -519,6 +521,11 @@ fun MonitorScreen(
         }
 
         TopLevelSectionCard(title = stringResource(R.string.top_level_development_area)) {
+            WalkRouteDevelopmentSwitch(
+                enabled = monitoringSettings.walkRouteEnabled,
+                onEnabledChange = onWalkRouteEnabledChange
+            )
+
             MockNetworkStateCard(
                 mockSettings = passiveMockSettings,
                 fiveGFeaturesEnabled = monitoringSettings.fiveGFeaturesEnabled,
@@ -543,6 +550,42 @@ fun MonitorScreen(
 
         Spacer(modifier = Modifier.size(8.dp))
     }
+    }
+}
+
+@Composable
+private fun WalkRouteDevelopmentSwitch(
+    enabled: Boolean,
+    onEnabledChange: (Boolean) -> Unit
+) {
+    val controlsEnabled = settingsControlsEnabled()
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.walk_route_setting),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Sushi,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = stringResource(R.string.walk_route_setting_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Switch(
+                checked = enabled,
+                onCheckedChange = onEnabledChange,
+                enabled = controlsEnabled
+            )
+        }
     }
 }
 

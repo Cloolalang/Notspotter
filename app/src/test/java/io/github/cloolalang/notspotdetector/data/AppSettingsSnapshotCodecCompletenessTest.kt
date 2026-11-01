@@ -226,7 +226,8 @@ class AppSettingsSnapshotCodecCompletenessTest {
                 showManualSelectOperatorButton = true,
                 inhibit2g = true,
                 keepScreenOnWhileMonitoring = false,
-                appBrand = io.github.cloolalang.notspotdetector.model.AppBrand.CELLNEX
+                appBrand = io.github.cloolalang.notspotdetector.model.AppBrand.CELLNEX,
+                walkRouteEnabled = true
             ),
             passiveSignalSettings = PassiveSignalSettings(
                 noSignalRsrpDbm = -132,
@@ -427,7 +428,8 @@ class AppSettingsSnapshotCodecCompletenessTest {
             "showManualSelectOperatorButton",
             "inhibit2g",
             "keepScreenOnWhileMonitoring",
-            "appBrand"
+            "appBrand",
+            "walkRouteEnabled"
         )
 
         private val PASSIVE_MOCK_KEYS = setOf(

@@ -151,6 +151,7 @@ fun MonitorApp(
             settingsUnlocked = settingsUnlocked,
             onSettingsUnlockedChange = { settingsUnlocked = it },
             onAppBrandChange = viewModel::updateAppBrand,
+            onWalkRouteEnabledChange = viewModel::updateWalkRouteEnabled,
             onCellChangeBellVolumeChange = viewModel::updateCellChangeBellVolume,
             onCellChangeVoiceEnabledChange = viewModel::updateCellChangeVoiceEnabled,
             onCellChangeVoiceVolumeChange = viewModel::updateCellChangeVoiceVolume,

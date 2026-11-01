@@ -21,7 +21,14 @@ object ZoneTestImageSaver {
         name: String,
         operator: String?
     ): String? {
-        val fileName = ZoneTest.jpegFileName(name, operator)
+        return saveJpeg(context, bitmap, ZoneTest.jpegFileName(name, operator))
+    }
+
+    fun saveJpeg(
+        context: Context,
+        bitmap: Bitmap,
+        fileName: String
+    ): String? {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             saveWithMediaStore(context, bitmap, fileName)
         } else {
