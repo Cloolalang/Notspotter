@@ -2,6 +2,15 @@ package io.github.cloolalang.notspotdetector.network
 
 import io.github.cloolalang.notspotdetector.model.PingSettings
 
+/** A ping test in which every probe failed and none returned an RTT. */
+internal data class UnreachablePingCycle(
+    val measuredSent: Int,
+    val measuredFailed: Int
+) {
+    val packetLossPercent: Float
+        get() = if (measuredSent == 0) 0f else (measuredFailed.toFloat() / measuredSent) * 100f
+}
+
 /**
  * One ping cycle. A connect that succeeds on the RRC warm-up is discarded so radio wake-up
  * time does not inflate RTT. A warm-up that times out is a real miss: it counts toward packet
@@ -60,6 +69,15 @@ internal class PingCycleAccumulator(
             val measured = pingsPerTest.coerceAtLeast(0)
             val warmup = if (skipWarmup) 0 else PingSettings.RRC_WARMUP_PINGS
             return measured + warmup
+        }
+
+        /**
+         * One test that cannot be sent because there is no cellular network.
+         * Every configured probe fails, so the result is 100% packet loss and no RTT.
+         */
+        fun unreachableCycle(pingsPerTest: Int): UnreachablePingCycle {
+            val sent = pingsPerTest.coerceAtLeast(1)
+            return UnreachablePingCycle(measuredSent = sent, measuredFailed = sent)
         }
     }
 }

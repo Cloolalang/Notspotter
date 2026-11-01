@@ -91,7 +91,7 @@ class CellularPingMonitor(
                     activeNetwork = null
                     pingJob?.cancel()
                     pingJob = null
-                    emitStats(onStatsUpdated, cellularAvailable = false)
+                    emitUnreachableStats(onStatsUpdated)
                     scheduleNetworkRetry(scope, onStatsUpdated)
                 }
             }
@@ -101,7 +101,7 @@ class CellularPingMonitor(
                 pingJob?.cancel()
                 pingJob = null
                 networkCallback = null
-                emitStats(onStatsUpdated, cellularAvailable = false)
+                emitUnreachableStats(onStatsUpdated)
                 scheduleNetworkRetry(scope, onStatsUpdated)
             }
         }
@@ -147,19 +147,7 @@ class CellularPingMonitor(
                 delay(intervalMs)
                 if (activeNetwork != null || pingJob?.isActive == true) continue
 
-                val monitoring = monitoringSettingsProvider()
-                val radio = CellularSignalReader.read(
-                    context,
-                    monitoring.monitor2gFallback,
-                    monitoring.subscriptionId
-                )
-                emitStats(
-                    onStatsUpdated = onStatsUpdated,
-                    cellularAvailable = false,
-                    radio = radio,
-                    monitor2gFallback = monitoring.monitor2gFallback,
-                    subscriptionId = monitoring.subscriptionId
-                )
+                emitUnreachableStats(onStatsUpdated)
             }
         }
     }
@@ -308,20 +296,61 @@ class CellularPingMonitor(
         return (window.sumOf { it.measuredFailed }.toFloat() / sent) * 100f
     }
 
+    /**
+     * No cellular network, so this test interval cannot send a ping. Drop the last successful
+     * RTT and publish a fully failed cycle instead of repeating that stale result.
+     */
+    private fun emitUnreachableStats(onStatsUpdated: (ConnectivityStats) -> Unit) {
+        recordUnreachableCycle()
+        val monitoring = monitoringSettingsProvider()
+        val radio = CellularSignalReader.read(
+            context,
+            monitoring.monitor2gFallback,
+            monitoring.subscriptionId
+        )
+        emitStats(
+            onStatsUpdated = onStatsUpdated,
+            cellularAvailable = false,
+            latestRtt = null,
+            totalLoss = true,
+            radio = radio,
+            monitor2gFallback = monitoring.monitor2gFallback,
+            subscriptionId = monitoring.subscriptionId
+        )
+    }
+
+    private fun recordUnreachableCycle() {
+        rttSamples.clear()
+        val cycle = PingCycleAccumulator.unreachableCycle(settingsProvider().pingsPerTest)
+        pingCycleStats.clear()
+        pingCycleStats.addLast(
+            PingCycleStats(
+                measuredSent = cycle.measuredSent,
+                measuredFailed = cycle.measuredFailed
+            )
+        )
+        updateRollingPingTotals()
+    }
+
     private fun emitStats(
         onStatsUpdated: (ConnectivityStats) -> Unit,
         cellularAvailable: Boolean,
         latestRtt: Long? = rttSamples.lastOrNull(),
+        totalLoss: Boolean = false,
         radio: io.github.cloolalang.notspotdetector.model.CellularRadioMetrics? = null,
         monitor2gFallback: Boolean = monitoringSettingsProvider().monitor2gFallback,
         subscriptionId: Int = monitoringSettingsProvider().subscriptionId
     ) {
         val metrics = radio ?: CellularSignalReader.read(context, monitor2gFallback, subscriptionId)
-        val skipPingMetrics = metrics.isOn2g || metrics.isLimitedService
+        val skipPingMetrics = !totalLoss && (metrics.isOn2g || metrics.isLimitedService)
         val base = ConnectivityStats(
-            rttMs = if (skipPingMetrics) null else latestRtt,
-            jitterMs = if (skipPingMetrics) 0 else computeJitter(),
-            packetLossPercent = if (skipPingMetrics) 0f else computePacketLoss(),
+            rttMs = if (skipPingMetrics || totalLoss) null else latestRtt,
+            jitterMs = if (skipPingMetrics || totalLoss) 0 else computeJitter(),
+            packetLossPercent = when {
+                skipPingMetrics -> 0f
+                totalLoss -> 100f
+                else -> computePacketLoss()
+            },
             pingsSent = if (skipPingMetrics) 0 else pingsSent,
             pingsFailed = if (skipPingMetrics) 0 else pingsFailed,
             cellularAvailable = cellularAvailable,

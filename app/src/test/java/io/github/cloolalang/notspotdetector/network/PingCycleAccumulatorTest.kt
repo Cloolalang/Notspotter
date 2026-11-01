@@ -21,6 +21,15 @@ class PingCycleAccumulatorTest {
     }
 
     @Test
+    fun unreachableCycleIsTotalLossWithNoRtt() {
+        val cycle = PingCycleAccumulator.unreachableCycle(pingsPerTest = 4)
+
+        assertEquals(4, cycle.measuredSent)
+        assertEquals(4, cycle.measuredFailed)
+        assertEquals(100f, cycle.packetLossPercent)
+    }
+
+    @Test
     fun warmupTimeoutCountsAsLossAndStopsTheCycle() {
         val cycle = PingCycleAccumulator(skipWarmup = false)
         assertTrue(cycle.onProbe(null))

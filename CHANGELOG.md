@@ -5,6 +5,12 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.141.1] - 2026-11-01
+
+### Fixed
+
+- **Ping test in airplane mode** — With no cellular network, each test interval is a failed test: 100% packet loss and no round-trip time. The last successful ping is no longer repeated.
+
 ## [2.141.0] - 2026-10-31
 
 ### Added
