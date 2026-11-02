@@ -9,4 +9,7 @@
     <files-path
         name="radio_debug"
         path="radio-debug/" />
+    <cache-path
+        name="app_updates"
+        path="updates/" />
 </paths>

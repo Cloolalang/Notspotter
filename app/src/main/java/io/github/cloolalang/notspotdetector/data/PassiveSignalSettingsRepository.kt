@@ -118,15 +118,15 @@ class PassiveSignalSettingsRepository(context: Context) {
             ),
             mildTierSoundEnabled = prefs.getBoolean(
                 KEY_MILD_TIER_SOUND,
-                PassiveSignalSettings.DEFAULT_TIER_SOUND_ENABLED
+                PassiveSignalSettings.DEFAULT_MILD_TIER_SOUND_ENABLED
             ),
             goodTierSoundEnabled = prefs.getBoolean(
                 KEY_GOOD_TIER_SOUND,
-                PassiveSignalSettings.DEFAULT_TIER_SOUND_ENABLED
+                PassiveSignalSettings.DEFAULT_GOOD_TIER_SOUND_ENABLED
             ),
             fairTierSoundEnabled = prefs.getBoolean(
                 KEY_FAIR_TIER_SOUND,
-                PassiveSignalSettings.DEFAULT_TIER_SOUND_ENABLED
+                PassiveSignalSettings.DEFAULT_FAIR_TIER_SOUND_ENABLED
             ),
             poorTierSoundEnabled = prefs.getBoolean(
                 KEY_POOR_TIER_SOUND,
@@ -262,13 +262,13 @@ class PassiveSignalSettingsRepository(context: Context) {
                 KEY_LEVEL_RANGE_D_FILTER_ENABLED,
                 KEY_LEVEL_RANGE_D_FILTER_SECONDS,
                 KEY_LEVEL_RANGE_D_FILTER_BALANCE,
-                RxssStateFilterSettings.INACTIVE
+                RxssStateFilterSettings.DEFAULT_LEVEL_RANGE_D
             ),
             lowSignalFilter = loadFilter(
                 KEY_LOW_SIGNAL_FILTER_ENABLED,
                 KEY_LOW_SIGNAL_FILTER_SECONDS,
                 KEY_LOW_SIGNAL_FILTER_BALANCE,
-                RxssStateFilterSettings.INACTIVE
+                RxssStateFilterSettings.DEFAULT_LOW_SIGNAL
             ),
             noSignalFilter = loadFilter(
                 KEY_NO_SIGNAL_FILTER_ENABLED,
@@ -286,7 +286,7 @@ class PassiveSignalSettingsRepository(context: Context) {
                 KEY_RSRQ_FILTER_ENABLED,
                 KEY_RSRQ_FILTER_SECONDS,
                 KEY_RSRQ_FILTER_BALANCE,
-                RxssStateFilterSettings.INACTIVE
+                RxssStateFilterSettings.DEFAULT_RSRQ
             )
         ).normalized()
     }

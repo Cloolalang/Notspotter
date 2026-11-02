@@ -10,12 +10,13 @@ class RollingTriggerFilterTest {
     private val defaultNoSignal = RxssStateFilterSettings.DEFAULT_NO_SIGNAL
 
     @Test
-    fun defaultNoSignalFilter_requiresTwoPollsToEnter() {
+    fun defaultNoSignalFilter_requiresThreePollsToEnter() {
         val filter = RollingTriggerFilter()
 
         val firstEnterPoll = filter.update(true, defaultNoSignal)
         assertFalse(firstEnterPoll.confirmedActive)
         assertFalse(firstEnterPoll.transitioned)
+        assertFalse(filter.update(true, defaultNoSignal).confirmedActive)
 
         val result = filter.update(true, defaultNoSignal)
         assertTrue(result.confirmedActive)
@@ -23,14 +24,16 @@ class RollingTriggerFilterTest {
     }
 
     @Test
-    fun defaultNoSignalFilter_requiresTwoPollsToExit() {
+    fun defaultNoSignalFilter_requiresThreePollsToExit() {
         val filter = RollingTriggerFilter()
+        filter.update(true, defaultNoSignal)
         filter.update(true, defaultNoSignal)
         filter.update(true, defaultNoSignal)
 
         val firstExitPoll = filter.update(false, defaultNoSignal)
         assertTrue(firstExitPoll.confirmedActive)
         assertFalse(firstExitPoll.transitioned)
+        assertTrue(filter.update(false, defaultNoSignal).confirmedActive)
 
         val result = filter.update(false, defaultNoSignal)
         assertFalse(result.confirmedActive)

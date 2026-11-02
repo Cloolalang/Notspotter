@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.sp
 import io.github.cloolalang.notspotdetector.network.CellularSignalReader
 import io.github.cloolalang.notspotdetector.R
 import io.github.cloolalang.notspotdetector.model.AppBrand
+import io.github.cloolalang.notspotdetector.model.AppUpdateControls
 import io.github.cloolalang.notspotdetector.model.AggregatedBandwidthHistory
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
 import io.github.cloolalang.notspotdetector.model.CarrierBandwidth
@@ -229,6 +230,7 @@ fun MonitorScreen(
     onExportSettingsProfileToDownloads: (String) -> ProfileExportOutcome,
     onRequestCellIdentityPermission: () -> Unit,
     appVersion: String,
+    appUpdate: AppUpdateControls = AppUpdateControls(),
     carrierConfigSnapshot: CarrierConfigSnapshot = CarrierConfigSnapshot(),
     onRefreshCarrierConfig: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -247,7 +249,8 @@ fun MonitorScreen(
             appBrand = monitoringSettings.appBrand,
             showManualSelectOperator = monitoringSettings.showManualSelectOperatorButton,
             onChooseOperator = onOpenNetworkOperatorPicker,
-            versionLabel = stringResource(R.string.app_version, appVersion)
+            versionLabel = stringResource(R.string.app_version, appVersion),
+            appUpdate = appUpdate
         )
 
         MonitoringControlButtons(

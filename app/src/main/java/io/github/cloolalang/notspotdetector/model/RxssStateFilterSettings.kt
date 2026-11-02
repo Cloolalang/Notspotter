@@ -45,8 +45,29 @@ data class RxssStateFilterSettings(
 
         val INACTIVE: RxssStateFilterSettings = RxssStateFilterSettings()
 
-        /** Preserves the former two-poll no-signal debounce (~1 s at 1 Hz, equal enter/leave). */
+        /** Preserves a short no-signal debounce (2 s at 1 Hz, equal enter/leave). */
         val DEFAULT_NO_SIGNAL: RxssStateFilterSettings = RxssStateFilterSettings(
+            enabled = true,
+            windowSeconds = 2,
+            balancePercent = DEFAULT_BALANCE_PERCENT
+        )
+
+        /** RXSS 5 — one extra reading before Level Range D is adopted. */
+        val DEFAULT_LEVEL_RANGE_D: RxssStateFilterSettings = RxssStateFilterSettings(
+            enabled = true,
+            windowSeconds = 1,
+            balancePercent = DEFAULT_BALANCE_PERCENT
+        )
+
+        /** RXSS 6 / 8 — one extra reading before signal-low is adopted. */
+        val DEFAULT_LOW_SIGNAL: RxssStateFilterSettings = RxssStateFilterSettings(
+            enabled = true,
+            windowSeconds = 1,
+            balancePercent = DEFAULT_BALANCE_PERCENT
+        )
+
+        /** RXSS 14 — one extra reading before poor RSRQ is adopted. */
+        val DEFAULT_RSRQ: RxssStateFilterSettings = RxssStateFilterSettings(
             enabled = true,
             windowSeconds = 1,
             balancePercent = DEFAULT_BALANCE_PERCENT

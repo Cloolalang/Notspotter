@@ -86,7 +86,7 @@ object RsrpHistogram {
     const val MIN_RSRP_DBM = -135
     const val MAX_RSRP_DBM = -70
     const val BIN_SIZE_DB = 5
-    const val DEFAULT_WINDOW_MS = 300_000L
+    const val DEFAULT_WINDOW_MS = 30_000L
     /** Histogram occupancy sample rate while monitoring (one last-known RSRP per tick). */
     const val SAMPLE_INTERVAL_MS = 1_000L
     const val BIN_COUNT = (MAX_RSRP_DBM - MIN_RSRP_DBM) / BIN_SIZE_DB + 1

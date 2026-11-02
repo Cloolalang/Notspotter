@@ -5,6 +5,42 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.153.0] - 2026-11-02
+
+### Changed
+
+- **Factory defaults** — A new install and Reset to defaults now start from the 31 October settings profile. That includes the Cellnex title, a 30-second histogram window, a 5-second connection test with no active-test time limit, faster voice, and the saved alert tones and thresholds. Settings already stored on a phone stay as they are until reset.
+
+## [2.152.0] - 2026-11-02
+
+### Changed
+
+- **Version match** — This build matches the 2.152.0 GitHub release already installed with Check GitHub, so an install from Android Studio replaces that version.
+
+## [2.151.0] - 2026-11-02
+
+### Added
+
+- **GitHub update** — The app checks the latest GitHub release when it opens. Check GitHub is under the version. When a newer release includes an install file, Download and install fetches it and the phone asks before replacing this version.
+
+## [2.150.0] - 2026-11-02
+
+### Added
+
+- **Zone test sample window** — A Whole test switch next to the zone test button opens the RSRP and RSRQ sample window for the entire run. Off, those tapes keep using the histogram sample window.
+
+## [2.149.0] - 2026-11-02
+
+### Fixed
+
+- **Technology change voice** — A handover or reselect that also changes technology now speaks the technology change as well as the cell-reselect voice. The technology change is spoken first.
+
+## [2.148.0] - 2026-11-02
+
+### Changed
+
+- **Sample window** — The histogram sample window now starts at 10 seconds, in 10-second steps. The same window is the 95% sample for the RSRP and RSRQ tapes, labelled “95% of sample window”. The other KPI history tapes are unchanged.
+
 ## [2.147.0] - 2026-11-01
 
 ### Changed

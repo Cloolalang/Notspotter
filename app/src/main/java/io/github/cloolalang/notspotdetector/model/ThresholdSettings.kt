@@ -30,8 +30,8 @@ data class ThresholdSettings(
     }
 
     companion object {
-        const val DEFAULT_GOOD_RTT_MS = 40L
-        const val DEFAULT_POOR_RTT_MS = 80L
+        const val DEFAULT_GOOD_RTT_MS = 39L
+        const val DEFAULT_POOR_RTT_MS = 63L
         const val DEFAULT_POOR_JITTER_MS = 60L
         const val DEFAULT_POOR_PACKET_LOSS_PERCENT = 5f
         const val DEFAULT_GOOD_CONNECTION_CLICKS_PER_PING = 1

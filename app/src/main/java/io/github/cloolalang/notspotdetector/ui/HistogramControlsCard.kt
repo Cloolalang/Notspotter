@@ -24,8 +24,10 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -61,6 +63,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.cloolalang.notspotdetector.MonitorState
 import io.github.cloolalang.notspotdetector.R
 import io.github.cloolalang.notspotdetector.data.FloorPlanLoader
 import io.github.cloolalang.notspotdetector.data.WalkRouteImage
@@ -172,15 +175,18 @@ fun HistogramControlsCard(
     var aggregatedBandwidthTape by remember { mutableStateOf(AggregatedBandwidthTape()) }
     val currentCarrier = PrimaryCarrierHistory.visitFromStats(stats)
     val currentTechnology = TechnologyHistory.technologyFromStats(stats)
+    val sampleWindowMs = windowMs.coerceToHistogramWindowStep()
     val currentRsrpBin = RsrpBinHistory.classify(
         samples = samples,
         nowMs = nowMs,
-        noSignal = TechnologyHistory.isNoSignalPeriod(stats)
+        noSignal = TechnologyHistory.isNoSignalPeriod(stats),
+        windowMs = sampleWindowMs
     )
     val currentRsrqBin = RsrqBinHistory.classify(
         samples = samples,
         nowMs = nowMs,
-        noSignal = TechnologyHistory.isNoSignalPeriod(stats)
+        noSignal = TechnologyHistory.isNoSignalPeriod(stats),
+        windowMs = sampleWindowMs
     )
     val currentDistance = DistanceHistory.current(
         samples = samples,
@@ -284,7 +290,7 @@ fun HistogramControlsCard(
     val elapsedMs = RsrpHistogram.elapsedSinceFirstSampleMs(
         samples = samples,
         nowMs = nowMs,
-        windowMs = windowMs.coerceToHistogramWindowStep()
+        windowMs = sampleWindowMs
     )
 
     Column(
@@ -319,7 +325,7 @@ fun HistogramControlsCard(
             if (histogramExpanded) {
                 RsrpHistogramDisplay(
                     samples = samples,
-                    windowMs = windowMs.coerceToHistogramWindowStep(),
+                    windowMs = sampleWindowMs,
                     binningMode = binningMode,
                     thresholdsDbm = thresholdsDbm,
                     nowMs = nowMs,
@@ -347,7 +353,7 @@ fun HistogramControlsCard(
                 }
 
                 HistogramSettingsPanel(
-                    windowMs = windowMs.coerceToHistogramWindowStep(),
+                    windowMs = sampleWindowMs,
                     tapeWindowMs = tapeWindowMs.coerceToTapeWindowStep(),
                     binningMode = binningMode,
                     thresholdsDbm = thresholdsDbm,
@@ -372,6 +378,7 @@ fun HistogramControlsCard(
         samples = samples,
         nowMs = nowMs,
         tapeNowMs = tapeNowMs,
+        sampleWindowMs = sampleWindowMs,
         walkRouteEnabled = walkRouteEnabled
     )
     KpiHistoryPanel(
@@ -715,11 +722,14 @@ private fun ZoneTestPanel(
     samples: List<RsrpSample>,
     nowMs: Long,
     tapeNowMs: Long,
+    sampleWindowMs: Long,
     walkRouteEnabled: Boolean
 ) {
     var running by remember { mutableStateOf(false) }
     var startMs by remember { mutableStateOf<Long?>(null) }
     var endMs by remember { mutableStateOf<Long?>(null) }
+    var openSampleWindow by rememberSaveable { mutableStateOf(false) }
+    var sampleWindowStartMs by remember { mutableStateOf<Long?>(null) }
     var zoneName by remember { mutableStateOf("") }
     var operatorLabel by remember { mutableStateOf<String?>(null) }
     var statusMessage by remember { mutableStateOf<String?>(null) }
@@ -734,8 +744,26 @@ private fun ZoneTestPanel(
     val noSignal = TechnologyHistory.isNoSignalPeriod(stats)
     val currentCarrier = PrimaryCarrierHistory.visitFromStats(stats)
     val currentTechnology = TechnologyHistory.technologyFromStats(stats)
-    val currentRsrpBin = RsrpBinHistory.classify(samples, nowMs, noSignal)
-    val currentRsrqBin = RsrqBinHistory.classify(samples, nowMs, noSignal)
+    val zoneSampleWindowMs = ZoneTest.sampleWindowMs(
+        openForWholeTest = openSampleWindow && running,
+        wallStartMs = sampleWindowStartMs,
+        nowMs = nowMs,
+        sliderWindowMs = sampleWindowMs
+    )
+    val zoneSampleRule = if (openSampleWindow && sampleWindowStartMs != null) {
+        stringResource(R.string.zone_test_sample_window_rule)
+    } else {
+        null
+    }
+    val currentRsrpBin = RsrpBinHistory.classify(samples, nowMs, noSignal, zoneSampleWindowMs)
+    val currentRsrqBin = RsrqBinHistory.classify(samples, nowMs, noSignal, zoneSampleWindowMs)
+    LaunchedEffect(openSampleWindow, running, sampleWindowStartMs) {
+        val retainFrom = if (openSampleWindow && running) sampleWindowStartMs else null
+        MonitorState.setZoneTestSampleRetainFrom(retainFrom)
+    }
+    DisposableEffect(Unit) {
+        onDispose { MonitorState.setZoneTestSampleRetainFrom(null) }
+    }
     val currentDistance = DistanceHistory.current(samples, nowMs, noSignal)
     val currentIntracellDominance = PrimaryIntracellDominanceHistory.current(stats, passiveSignalSettings)
     val currentActiveTest = ActiveTestHistory.current(stats)
@@ -913,33 +941,51 @@ private fun ZoneTestPanel(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            if (running) {
-                Button(
-                    onClick = {
-                        running = false
-                        endMs = tapeNowMs
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(text = stringResource(R.string.zone_test_stop))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (running) {
+                    Button(
+                        onClick = {
+                            running = false
+                            endMs = tapeNowMs
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(text = stringResource(R.string.zone_test_stop))
+                    }
+                } else {
+                    Button(
+                        onClick = {
+                            val atMs = tapeNowMs
+                            startMs = atMs
+                            sampleWindowStartMs = nowMs
+                            endMs = null
+                            zoneName = ""
+                            statusMessage = null
+                            operatorLabel = liveOperator
+                            pins = emptyList()
+                            freshTapes(atMs)
+                            running = true
+                        },
+                        enabled = isMonitoring,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(text = stringResource(R.string.zone_test_start))
+                    }
                 }
-            } else {
-                Button(
-                    onClick = {
-                        val atMs = tapeNowMs
-                        startMs = atMs
-                        endMs = null
-                        zoneName = ""
-                        statusMessage = null
-                        operatorLabel = liveOperator
-                        pins = emptyList()
-                        freshTapes(atMs)
-                        running = true
-                    },
-                    enabled = isMonitoring,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(text = stringResource(R.string.zone_test_start))
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = stringResource(R.string.zone_test_open_sample_window),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Switch(
+                        checked = openSampleWindow,
+                        onCheckedChange = { openSampleWindow = it }
+                    )
                 }
             }
             if (walkRouteEnabled) {
@@ -1041,6 +1087,7 @@ private fun ZoneTestPanel(
                     onClick = {
                         running = false
                         startMs = null
+                        sampleWindowStartMs = null
                         endMs = null
                         zoneName = ""
                         operatorLabel = null
@@ -1124,12 +1171,14 @@ private fun ZoneTestPanel(
                         entries = rsrpBinTape.entries,
                         nowMs = chartNowMs,
                         windowStartMs = zoneStart,
-                        timeTickMs = zoneTickTimes
+                        timeTickMs = zoneTickTimes,
+                        ruleLabel = zoneSampleRule
                     )
                     RsrqBinHistoryBar(
                         entries = rsrqBinTape.entries,
                         nowMs = chartNowMs,
                         windowStartMs = zoneStart,
+                        ruleLabel = zoneSampleRule,
                         timeTickMs = zoneTickTimes
                     )
                     IntracellDominanceHistoryBar(
@@ -1717,6 +1766,7 @@ private fun RsrpBinHistoryBar(
     nowMs: Long,
     windowStartMs: Long,
     timeTickMs: List<Long> = emptyList(),
+    ruleLabel: String? = null,
     modifier: Modifier = Modifier
 ) {
     val current = entries.lastOrNull()
@@ -1743,7 +1793,7 @@ private fun RsrpBinHistoryBar(
                     color = Sushi
                 )
                 Text(
-                    text = stringResource(R.string.rsrp_bin_history_rule),
+                    text = ruleLabel ?: stringResource(R.string.rsrp_bin_history_rule),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1837,6 +1887,7 @@ private fun RsrqBinHistoryBar(
     nowMs: Long,
     windowStartMs: Long,
     timeTickMs: List<Long> = emptyList(),
+    ruleLabel: String? = null,
     modifier: Modifier = Modifier
 ) {
     val current = entries.lastOrNull()
@@ -1863,7 +1914,7 @@ private fun RsrqBinHistoryBar(
                     color = Sushi
                 )
                 Text(
-                    text = stringResource(R.string.rsrp_bin_history_rule),
+                    text = ruleLabel ?: stringResource(R.string.rsrp_bin_history_rule),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

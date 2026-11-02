@@ -13,7 +13,7 @@ class SignalPulseScheduleTest {
     fun rsrpBandChange_usesDistinctScheduleKeys() {
         val strong = lteStats(rsrpDbm = -70)
         val mid = lteStats(rsrpDbm = -90)
-        val weak = lteStats(rsrpDbm = -128)
+        val weak = lteStats(rsrpDbm = -127)
 
         val strongKey = strong.resolveSignalPulseScheduleKey(settings)
         val midKey = mid.resolveSignalPulseScheduleKey(settings)
@@ -29,8 +29,8 @@ class SignalPulseScheduleTest {
 
     @Test
     fun lowSignalFilterHold_keepsRxss5PulseKeyWhileRawIsRxss6() {
-        val pending = lteStats(rsrpDbm = -128).copy(lowSignalActive = false)
-        val confirmed = lteStats(rsrpDbm = -128).copy(lowSignalActive = true)
+        val pending = lteStats(rsrpDbm = -127).copy(lowSignalActive = false)
+        val confirmed = lteStats(rsrpDbm = -127).copy(lowSignalActive = true)
 
         assertEquals(Rxss.LEVEL_RANGE_D, pending.resolveSignalPulseScheduleKey(settings).rxssNumber)
         assertEquals(Rxss.SIGNAL_LOW, confirmed.resolveSignalPulseScheduleKey(settings).rxssNumber)

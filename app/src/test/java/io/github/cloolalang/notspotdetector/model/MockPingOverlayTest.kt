@@ -40,7 +40,7 @@ class MockPingOverlayTest {
 
     @Test
     fun tickAdvancesThePingTimestamp() {
-        val mock = PassiveMockSettings(pingMockEnabled = true, pingRttMs = 20)
+        val mock = PassiveMockSettings(pingMockEnabled = true, pingRttMs = 20, packetLossPercent = 0)
         val previous = monitoring.copy(mockPingActive = true)
         val overlaid = monitoring.withMockPingApplied(mock, previous, tick = true)
 

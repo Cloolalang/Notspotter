@@ -24,7 +24,7 @@ import org.junit.Test
 
 class MonitorStateCellReselectTest {
 
-    private val passiveSettings = PassiveSignalSettings()
+    private val passiveSettings = monitorTestPassiveSettings()
     private val monitor2gFallback = MonitoringSettings(monitor2gFallback = true)
 
     @Before

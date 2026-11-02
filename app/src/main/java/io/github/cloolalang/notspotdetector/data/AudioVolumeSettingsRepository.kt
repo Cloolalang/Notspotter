@@ -121,7 +121,10 @@ class AudioVolumeSettingsRepository(context: Context) {
                 KEY_PING_CLICK_FREQUENCY,
                 AudioVolumeSettings.DEFAULT_PING_CLICK_FREQUENCY_HZ
             ),
-            lowSignalClickVolume = prefs.getFloat(KEY_LOW_SIGNAL_CLICK, AudioVolumeSettings.DEFAULT_VOLUME),
+            lowSignalClickVolume = prefs.getFloat(
+                KEY_LOW_SIGNAL_CLICK,
+                AudioVolumeSettings.DEFAULT_LOW_SIGNAL_CLICK_VOLUME
+            ),
             signalPulseFrequencyHz = signalPulseFrequencyHz,
             noSignalTierPulseFrequencyHz = noSignalTierPulseFrequencyHz,
             limitedServiceTierPulseFrequencyHz = limitedServiceTierPulseFrequencyHz,
@@ -140,7 +143,7 @@ class AudioVolumeSettingsRepository(context: Context) {
             levelRangeBcdClickVolume = levelRangeBcdClickVolume,
             cellChangeBellVolume = prefs.getFloat(
                 KEY_CELL_CHANGE_BELL,
-                AudioVolumeSettings.DEFAULT_VOLUME
+                AudioVolumeSettings.DEFAULT_CELL_CHANGE_BELL_VOLUME
             ),
             cellChangeVoiceEnabled = prefs.getBoolean(
                 KEY_CELL_CHANGE_VOICE_ENABLED,
@@ -267,7 +270,7 @@ class AudioVolumeSettingsRepository(context: Context) {
             ),
             timingAdvanceVoiceEnabled = prefs.getBoolean(
                 KEY_TIMING_ADVANCE_VOICE_ENABLED,
-                AudioVolumeSettings.DEFAULT_VOICE_ANNOUNCEMENT_ENABLED
+                AudioVolumeSettings.DEFAULT_TIMING_ADVANCE_VOICE_ENABLED
             ),
             timingAdvancePeriodicVoiceEnabled = prefs.getBoolean(
                 KEY_TIMING_ADVANCE_PERIODIC_VOICE_ENABLED,
@@ -342,7 +345,7 @@ class AudioVolumeSettingsRepository(context: Context) {
             ).copy(
                 speakHomeLimitedService = prefs.getBoolean(
                     KEY_LIMITED_SERVICE_SPEAK_HOME_LIMITED,
-                    VoicePhraseOptions.DEFAULT_SPEAK_HOME_LIMITED_SERVICE
+                    AudioVolumeSettings.DEFAULT_LIMITED_SERVICE_PHRASES.speakHomeLimitedService
                 ),
                 speakVisitingLimitedService = prefs.getBoolean(
                     KEY_LIMITED_SERVICE_SPEAK_VISITING_LIMITED,

@@ -7,7 +7,7 @@ enum class AppBrand {
 
     companion object {
         fun fromStoredName(name: String?): AppBrand {
-            return entries.firstOrNull { it.name == name } ?: NOTSPOTTER
+            return entries.firstOrNull { it.name == name } ?: CELLNEX
         }
     }
 }

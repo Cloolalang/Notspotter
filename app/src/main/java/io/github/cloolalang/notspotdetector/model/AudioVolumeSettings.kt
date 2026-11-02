@@ -25,7 +25,7 @@ data class AudioVolumeSettings(
     val pingClickDurationMs: Int = DEFAULT_PING_CLICK_DURATION_MS,
     /** Pitch of each ping-test click. Independent of RXSS pulse frequency. */
     val pingClickFrequencyHz: Int = DEFAULT_PING_CLICK_FREQUENCY_HZ,
-    val lowSignalClickVolume: Float = DEFAULT_VOLUME,
+    val lowSignalClickVolume: Float = DEFAULT_LOW_SIGNAL_CLICK_VOLUME,
     /** RXSS 6 (signal low / critical) signal pulse frequency. */
     val signalPulseFrequencyHz: Int = DEFAULT_SIGNAL_PULSE_FREQUENCY_HZ,
     /** RXSS 10/0/11/15 no-signal camp signal pulse frequency — independent of [signalPulseFrequencyHz]. */
@@ -56,7 +56,7 @@ data class AudioVolumeSettings(
     val levelRangeBcdPulseDurationMs: Int = DEFAULT_LEVEL_RANGE_BCD_PULSE_DURATION_MS,
     /** Level Ranges A–D (RXSS 2–5) click volume — independent of [lowSignalClickVolume]. */
     val levelRangeBcdClickVolume: Float = DEFAULT_VOLUME,
-    val cellChangeBellVolume: Float = DEFAULT_VOLUME,
+    val cellChangeBellVolume: Float = DEFAULT_CELL_CHANGE_BELL_VOLUME,
     val cellChangeVoiceEnabled: Boolean = DEFAULT_CELL_CHANGE_VOICE_ENABLED,
     val cellChangeVoiceVolume: Float = DEFAULT_VOLUME,
     /**
@@ -90,7 +90,7 @@ data class AudioVolumeSettings(
     val tier5AnnouncerVolume: Float = DEFAULT_TIER5_ANNOUNCER_VOLUME,
     val voiceAnnouncerChoice: VoiceAnnouncerChoice = DEFAULT_VOICE_ANNOUNCER_CHOICE,
     val voiceAnnouncerEngineId: String? = null,
-    /** TTS speech rate for every VA. 1.0 is the engine default; the app default is slightly faster. */
+    /** TTS speech rate for every VA. 1.0 is the engine default. */
     val voiceSpeechRate: Float = DEFAULT_VOICE_SPEECH_RATE,
     val noSignalToneVolume: Float = DEFAULT_VOLUME,
     val noSignalVibrationEnabled: Boolean = DEFAULT_NO_SIGNAL_VIBRATION_ENABLED,
@@ -101,7 +101,7 @@ data class AudioVolumeSettings(
     val limitedServiceVoiceEnabled: Boolean = DEFAULT_VOICE_ANNOUNCEMENT_ENABLED,
     val limitedServicePeriodicVoiceEnabled: Boolean = DEFAULT_PERIODIC_VOICE_ENABLED,
     val limitedServiceVoiceVolume: Float = DEFAULT_LIMITED_SERVICE_VOICE_VOLUME,
-    val timingAdvanceVoiceEnabled: Boolean = DEFAULT_VOICE_ANNOUNCEMENT_ENABLED,
+    val timingAdvanceVoiceEnabled: Boolean = DEFAULT_TIMING_ADVANCE_VOICE_ENABLED,
     val timingAdvancePeriodicVoiceEnabled: Boolean = DEFAULT_PERIODIC_VOICE_ENABLED,
     val timingAdvanceVoiceVolume: Float = DEFAULT_VOLUME,
     /**
@@ -393,12 +393,14 @@ data class AudioVolumeSettings(
 
     companion object {
         const val DEFAULT_VOLUME = 0.5f
-        const val DEFAULT_PING_CLICK_VOLUME = 0.45f
+        const val DEFAULT_PING_CLICK_VOLUME = 0.5f
+        const val DEFAULT_LOW_SIGNAL_CLICK_VOLUME = 0.3f
+        const val DEFAULT_CELL_CHANGE_BELL_VOLUME = 0.25f
         const val DEFAULT_PING_CLICK_DURATION_MS = 20
         const val MIN_PING_CLICK_DURATION_MS = 10
         const val MAX_PING_CLICK_DURATION_MS = 200
         const val PING_CLICK_DURATION_STEP_MS = 10
-        const val DEFAULT_PING_CLICK_FREQUENCY_HZ = 3_200
+        const val DEFAULT_PING_CLICK_FREQUENCY_HZ = 1_900
         const val DEFAULT_TIER5_ANNOUNCER_VOLUME = 0.45f
         const val DEFAULT_NO_SIGNAL_VOICE_VOLUME = 0.45f
         const val DEFAULT_LIMITED_SERVICE_TONE_VOLUME = 0.45f
@@ -417,11 +419,12 @@ data class AudioVolumeSettings(
         const val DEFAULT_TECHNOLOGY_CHANGE_SOUND_ENABLED = true
         const val DEFAULT_VOICE_ANNOUNCEMENT_ENABLED = true
         const val DEFAULT_PERIODIC_VOICE_ENABLED = true
+        const val DEFAULT_TIMING_ADVANCE_VOICE_ENABLED = false
         const val DEFAULT_NO_SIGNAL_VIBRATION_ENABLED = true
         const val DEFAULT_SPEAK_OPERATOR_NAME_ENABLED = false
         const val DEFAULT_SPEAK_TECHNOLOGY_ENABLED = false
         val DEFAULT_VOICE_ANNOUNCER_CHOICE = VoiceAnnouncerChoice.SYSTEM_DEFAULT
-        const val DEFAULT_VOICE_SPEECH_RATE = 1.2f
+        const val DEFAULT_VOICE_SPEECH_RATE = 3.1f
         const val MIN_VOICE_SPEECH_RATE = 0.6f
         const val MAX_VOICE_SPEECH_RATE = 5.0f
         const val VOICE_SPEECH_RATE_STEP = 0.1f
@@ -439,13 +442,13 @@ data class AudioVolumeSettings(
         )
         val DEFAULT_TECH_CHANGE_TO_2G_PHRASES = VoicePhraseOptions(
             speakOperatorName = false,
-            speakTechnology = true,
+            speakTechnology = false,
             speakBand = false
         )
         val DEFAULT_TECH_CHANGE_TO_4G_PHRASES = VoicePhraseOptions(
             speakOperatorName = false,
-            speakTechnology = true,
-            speakBand = true
+            speakTechnology = false,
+            speakBand = false
         )
         val DEFAULT_TECH_CHANGE_TO_5G_ENDC_PHRASES = VoicePhraseOptions(
             speakOperatorName = false,
@@ -465,7 +468,9 @@ data class AudioVolumeSettings(
         val DEFAULT_LIMITED_SERVICE_PHRASES = VoicePhraseOptions(
             speakOperatorName = false,
             speakTechnology = false,
-            speakBand = false
+            speakBand = false,
+            speakHomeLimitedService = false,
+            speakVisitingLimitedService = true
         )
         val DEFAULT_TIMING_ADVANCE_PHRASES = VoicePhraseOptions(
             speakOperatorName = false,
@@ -473,19 +478,19 @@ data class AudioVolumeSettings(
             speakBand = false
         )
 
-        const val DEFAULT_SIGNAL_PULSE_DURATION_MS = 70
+        const val DEFAULT_SIGNAL_PULSE_DURATION_MS = 20
         const val DEFAULT_LEVEL_RANGE_BCD_PULSE_DURATION_MS = 60
         const val MIN_SIGNAL_PULSE_DURATION_MS = 10
         const val MAX_SIGNAL_PULSE_DURATION_MS = 5_000
         const val SIGNAL_PULSE_DURATION_STEP_MS = 10
 
-        const val DEFAULT_SIGNAL_PULSE_FREQUENCY_HZ = 720
+        const val DEFAULT_SIGNAL_PULSE_FREQUENCY_HZ = 800
         const val DEFAULT_NO_SIGNAL_TIER_PULSE_FREQUENCY_HZ = 910
         const val DEFAULT_LIMITED_SERVICE_TIER_PULSE_FREQUENCY_HZ = 880
         const val DEFAULT_LEVEL_RANGE_BCD_PULSE_FREQUENCY_HZ = 890
         const val DEFAULT_LEVEL_RANGE_C_PULSE_FREQUENCY_HZ = DEFAULT_LEVEL_RANGE_BCD_PULSE_FREQUENCY_HZ
         const val DEFAULT_LEVEL_RANGE_D_PULSE_FREQUENCY_HZ = DEFAULT_LEVEL_RANGE_BCD_PULSE_FREQUENCY_HZ
-        const val DEFAULT_VERY_STRONG_TIER_PULSE_FREQUENCY_HZ = 4_140
+        const val DEFAULT_VERY_STRONG_TIER_PULSE_FREQUENCY_HZ = 2_200
         const val DEFAULT_G2_STRONG_TIER_PULSE_FREQUENCY_HZ = 740
         const val DEFAULT_G2_WEAK_TIER_PULSE_FREQUENCY_HZ = 740
         const val MIN_SIGNAL_PULSE_FREQUENCY_HZ = 400

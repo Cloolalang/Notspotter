@@ -30,7 +30,8 @@
         "rsrpHistogramThreshold1Dbm": -95,
         "rsrpHistogramThreshold2Dbm": -105,
         "rsrpHistogramThreshold3Dbm": -115,
-        "fiveGFeaturesEnabled": true
+        "fiveGFeaturesEnabled": true,
+        "appBrand": "NOTSPOTTER"
       },
       "passiveSignal": {
         "noSignalRsrpDbm": -130,
@@ -91,18 +92,27 @@
         "limitedAlt2gTierPulseDurationMs": 140,
         "wifiCallingTierClickIntervalMs": 600,
         "wifiCallingTierSoundEnabled": true,
-        "wifiCallingTierPulseDurationMs": 250
+        "wifiCallingTierPulseDurationMs": 250,
+        "levelRangeCFilter": { "enabled": false, "windowSeconds": 0, "balancePercent": 50 },
+        "levelRangeDFilter": { "enabled": false, "windowSeconds": 0, "balancePercent": 50 },
+        "lowSignalFilter": { "enabled": false, "windowSeconds": 0, "balancePercent": 50 },
+        "noSignalFilter": { "enabled": true, "windowSeconds": 1, "balancePercent": 50 },
+        "deadzoneFilter": { "enabled": false, "windowSeconds": 0, "balancePercent": 50 },
+        "rsrqFilter": { "enabled": false, "windowSeconds": 0, "balancePercent": 50 }
       },
       "passiveMock": {
         "enabled": false,
         "scenario": "HOME_2G",
         "rsrpDbm": -91,
-        "rsrqDb": -15
+        "rsrqDb": -15,
+        "pingRttMs": 40,
+        "packetLossPercent": 0
       },
       "audio": {
         "masterVoiceAnnouncementsEnabled": true,
         "pingClickVolume": 0.44999998807907104,
         "lowSignalClickVolume": 0.5,
+        "pingClickFrequencyHz": 3200,
         "signalPulseFrequencyHz": 720,
         "noSignalTierPulseFrequencyHz": 910,
         "limitedServiceTierPulseFrequencyHz": 880,
@@ -119,6 +129,7 @@
         "cellChangeVoiceVolume": 0.5,
         "cellChangeSpeakBandEnabled": true,
         "cellChangeBandNamingStyle": "mhz_nickname",
+        "cellReselectAlertScope": "lte_only",
         "technologyChangeTo2gToneVolume": 0.5,
         "technologyChangeTo2gVoiceEnabled": true,
         "technologyChangeTo2gVoiceVolume": 0.5,
@@ -131,6 +142,8 @@
         "tier5AnnouncerEnabled": true,
         "tier5AnnouncerVolume": 0.44999998807907104,
         "voiceAnnouncerChoice": "system",
+        "voiceSpeechRate": 1.2,
+        "timingAdvanceVoiceEnabled": true,
         "noSignalToneVolume": 0.5,
         "noSignalVibrationEnabled": true,
         "noSignalVoiceEnabled": true,
@@ -160,7 +173,9 @@
         "noSignalSpeakBand": true,
         "limitedServiceSpeakOperatorName": false,
         "limitedServiceSpeakTechnology": false,
-        "limitedServiceSpeakBand": false
+        "limitedServiceSpeakBand": false,
+        "limitedServiceSpeakHomeLimitedService": true,
+        "limitedServiceSpeakVisitingLimitedService": true
       }
     }
   }

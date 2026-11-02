@@ -14,6 +14,21 @@ object ZoneTest {
     fun walkJpegFileName(name: String, operator: String?): String =
         fileName(prefix = "Zone walk", name = name, operator = operator)
 
+    /**
+     * Sample window for the zone-test RSRP and RSRQ tapes.
+     * When [openForWholeTest] is on and the run has a start time, the window is the time
+     * since that start. Otherwise the histogram sample window is used.
+     */
+    fun sampleWindowMs(
+        openForWholeTest: Boolean,
+        wallStartMs: Long?,
+        nowMs: Long,
+        sliderWindowMs: Long
+    ): Long {
+        if (!openForWholeTest || wallStartMs == null) return sliderWindowMs
+        return (nowMs - wallStartMs).coerceAtLeast(0L)
+    }
+
     private fun fileName(prefix: String, name: String, operator: String?): String {
         val safeName = safePart(name).ifBlank { "zone" }
         val operatorPart = operator?.let(::safePart)?.takeIf { it.isNotEmpty() }

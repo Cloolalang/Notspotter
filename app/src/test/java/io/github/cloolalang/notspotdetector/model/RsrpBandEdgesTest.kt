@@ -122,9 +122,9 @@ class RsrpBandEdgesTest {
     }
 
     @Test
-    fun defaultRxss6RunsFromMinus130ToMinus123() {
+    fun defaultRxss6RunsFromMinus128ToMinus123() {
         assertEquals(-123, settings.poorRsrpMinDbm)
-        assertEquals(-130, settings.noSignalRsrpDbm)
+        assertEquals(-128, settings.noSignalRsrpDbm)
     }
 
     @Test
@@ -155,10 +155,10 @@ class RsrpBandEdgesTest {
         assertEquals(SignalStrengthTier.POOR, settings.resolveSignalStrengthTier(-115))
         assertEquals(SignalStrengthTier.POOR, settings.resolveSignalStrengthTier(-122))
         assertEquals(SignalStrengthTier.CRITICAL, settings.resolveSignalStrengthTier(-123))
-        assertEquals(SignalStrengthTier.CRITICAL, settings.resolveSignalStrengthTier(-129))
-        assertNull(settings.resolveSignalStrengthTier(-130))
-        assertTrue(settings.isRsrpTooWeakForService(-130))
-        assertFalse(settings.isRsrpTooWeakForService(-129))
+        assertEquals(SignalStrengthTier.CRITICAL, settings.resolveSignalStrengthTier(-127))
+        assertNull(settings.resolveSignalStrengthTier(-128))
+        assertTrue(settings.isRsrpTooWeakForService(-128))
+        assertFalse(settings.isRsrpTooWeakForService(-127))
         assertTrue(settings.isVeryStrongRsrp(-74))
         assertFalse(settings.isVeryStrongRsrp(-75))
     }

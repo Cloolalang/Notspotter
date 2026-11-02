@@ -19,7 +19,7 @@ import org.junit.Test
 
 class MonitorStateTechnologyAnnouncementTest {
 
-    private val passiveSettings = PassiveSignalSettings()
+    private val passiveSettings = monitorTestPassiveSettings()
     private val monitor2gFallback = MonitoringSettings(monitor2gFallback = true)
 
     @Before
@@ -28,7 +28,14 @@ class MonitorStateTechnologyAnnouncementTest {
         MonitorState.setMonitoringSettings(monitor2gFallback)
         MonitorState.setPassiveSignalSettings(passiveSettings)
         MonitorState.setAudioVolumes(
-            AudioVolumeSettings(cellChangeSpeakBandEnabled = false)
+            AudioVolumeSettings(
+                cellChangeSpeakBandEnabled = false,
+                technologyChangeTo2gPhrases = io.github.cloolalang.notspotdetector.model.VoicePhraseOptions(
+                    speakOperatorName = false,
+                    speakTechnology = true,
+                    speakBand = false
+                )
+            )
         )
         MonitorState.beginPassiveOnlySession()
         MonitorState.setRunning(true)

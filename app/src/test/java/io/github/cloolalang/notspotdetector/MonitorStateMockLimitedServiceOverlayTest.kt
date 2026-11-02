@@ -34,7 +34,10 @@ class MonitorStateMockLimitedServiceOverlayTest {
 
     private val passiveSettings = PassiveSignalSettings(
         veryStrongRsrpMinDbm = -75,
-        poorRsrpMinDbm = -125
+        poorRsrpMinDbm = -125,
+        levelRangeDFilter = io.github.cloolalang.notspotdetector.model.RxssStateFilterSettings.INACTIVE,
+        lowSignalFilter = io.github.cloolalang.notspotdetector.model.RxssStateFilterSettings.INACTIVE,
+        rsrqFilter = io.github.cloolalang.notspotdetector.model.RxssStateFilterSettings.INACTIVE
     ).normalized()
 
     @Before
@@ -78,9 +81,9 @@ class MonitorStateMockLimitedServiceOverlayTest {
         assertFalse(stats.noSignalActive)
         assertTrue(stats.shouldPlaySignalStrengthInterval(passiveSettings))
 
-        pushMockRsrp(MockNetworkScenario.ALT_OPERATOR_4G, -128)
+        pushMockRsrp(MockNetworkScenario.ALT_OPERATOR_4G, -127)
         stats = MonitorState.stats.value
-        assertEquals(-128, stats.rsrpDbm)
+        assertEquals(-127, stats.rsrpDbm)
         assertEquals(Rxss.SIGNAL_LOW, stats.resolveLimitedServiceSignalOverlayRxss(passiveSettings))
         assertTrue(stats.shouldPlayTier5StylePeriodicVoice(passiveSettings))
         assertEquals(
@@ -162,7 +165,7 @@ class MonitorStateMockLimitedServiceOverlayTest {
         val events = transitionMockRsrp(
             scenario = MockNetworkScenario.ALT_OPERATOR_4G,
             fromRsrp = -135,
-            toRsrp = -128
+            toRsrp = -127
         )
 
         assertNull(events.noSignalStateAnnouncement)
@@ -220,6 +223,7 @@ class MonitorStateMockLimitedServiceOverlayTest {
         )
         MonitorState.updateStats(homeNoSignal)
         MonitorState.updateStats(homeNoSignal)
+        MonitorState.updateStats(homeNoSignal)
         assertTrue(MonitorState.stats.value.noSignalActive)
 
         pushMockRsrp(MockNetworkScenario.ALT_OPERATOR_4G, -70)
@@ -234,11 +238,11 @@ class MonitorStateMockLimitedServiceOverlayTest {
             PassiveMockSettings(
                 enabled = true,
                 scenario = MockNetworkScenario.ALT_OPERATOR_4G,
-                rsrpDbm = -128
+                rsrpDbm = -127
             )
         )
         val stats = MonitorState.stats.value
-        assertEquals(-128, stats.rsrpDbm)
+        assertEquals(-127, stats.rsrpDbm)
         assertEquals(Rxss.SIGNAL_LOW, stats.resolveLimitedServiceSignalOverlayRxss(passiveSettings))
     }
 
@@ -267,6 +271,7 @@ class MonitorStateMockLimitedServiceOverlayTest {
             passiveIdleMode = false,
             passiveOnlySession = true
         )
+        MonitorState.updateStats(noSignalStats)
         MonitorState.updateStats(noSignalStats)
         MonitorState.updateStats(noSignalStats)
 

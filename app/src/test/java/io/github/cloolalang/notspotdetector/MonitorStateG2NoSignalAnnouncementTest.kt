@@ -14,7 +14,7 @@ import org.junit.Test
 
 class MonitorStateG2NoSignalAnnouncementTest {
 
-    private val passiveSettings = PassiveSignalSettings()
+    private val passiveSettings = monitorTestPassiveSettings()
     private val monitor2gFallback = MonitoringSettings(monitor2gFallback = true)
 
     @Before
@@ -22,6 +22,15 @@ class MonitorStateG2NoSignalAnnouncementTest {
         MonitorState.setRunning(false)
         MonitorState.setMonitoringSettings(monitor2gFallback)
         MonitorState.setPassiveSignalSettings(passiveSettings)
+        MonitorState.setAudioVolumes(
+            io.github.cloolalang.notspotdetector.model.AudioVolumeSettings(
+                technologyChangeTo2gPhrases = io.github.cloolalang.notspotdetector.model.VoicePhraseOptions(
+                    speakOperatorName = false,
+                    speakTechnology = true,
+                    speakBand = false
+                )
+            )
+        )
         MonitorState.beginPassiveOnlySession()
         MonitorState.setRunning(true)
     }
@@ -105,22 +114,14 @@ class MonitorStateG2NoSignalAnnouncementTest {
             scenario = MockNetworkScenario.HOME_4G,
             rsrpDbm = PassiveSignalSettings.MIN_RSRP_DBM
         )
-        MonitorState.updateStats(
-            mock.toConnectivityStats(
-                monitor2gFallback = true,
-                passiveSettings = passiveSettings,
-                passiveIdleMode = false,
-                passiveOnlySession = true
-            )
+        val home4gNoSignal = mock.toConnectivityStats(
+            monitor2gFallback = true,
+            passiveSettings = passiveSettings,
+            passiveIdleMode = false,
+            passiveOnlySession = true
         )
-        MonitorState.updateStats(
-            mock.toConnectivityStats(
-                monitor2gFallback = true,
-                passiveSettings = passiveSettings,
-                passiveIdleMode = false,
-                passiveOnlySession = true
-            )
-        )
+        MonitorState.updateStats(home4gNoSignal)
+        MonitorState.updateStats(home4gNoSignal)
 
         val home2gNoSignal = mock.copy(scenario = MockNetworkScenario.HOME_2G).toConnectivityStats(
             monitor2gFallback = true,

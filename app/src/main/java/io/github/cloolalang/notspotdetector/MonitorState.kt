@@ -13,6 +13,7 @@ import io.github.cloolalang.notspotdetector.model.displayedTimingAdvance
 import io.github.cloolalang.notspotdetector.model.hidingFiveGIfDisabled
 import io.github.cloolalang.notspotdetector.model.TimingAdvanceAnnouncement
 import io.github.cloolalang.notspotdetector.model.TechnologyChangeTarget
+import io.github.cloolalang.notspotdetector.model.ZoneTest
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.MonitoringUpdateEvents
 import io.github.cloolalang.notspotdetector.model.PassiveMockSettings
@@ -1821,10 +1822,28 @@ object MonitorState {
     const val RTT_HISTORY_WINDOW_MS = 60_000L
     const val RSRP_HISTORY_RETENTION_MS = MonitoringSettings.MAX_RSRP_HISTOGRAM_WINDOW_MS
 
+    /**
+     * While a zone test keeps its sample window open, RSRP samples are kept back to this
+     * wall-clock start so the 95% rule can see the whole run. Null uses the normal retention.
+     */
+    @Volatile
+    private var zoneTestSampleRetainFromMs: Long? = null
+
+    fun setZoneTestSampleRetainFrom(wallStartMs: Long?) {
+        zoneTestSampleRetainFromMs = wallStartMs
+    }
+
     private fun rsrpHistoryRetentionMs(): Long {
+        val zoneFromMs = zoneTestSampleRetainFromMs
+        val zoneRetainMs = if (zoneFromMs == null) {
+            0L
+        } else {
+            (System.currentTimeMillis() - zoneFromMs).coerceIn(0L, ZoneTest.RETAIN_MS)
+        }
         return maxOf(
             RSRP_HISTORY_RETENTION_MS,
-            _monitoringSettings.value.rsrpHistogramWindowMs
+            _monitoringSettings.value.rsrpHistogramWindowMs,
+            zoneRetainMs
         )
     }
 }

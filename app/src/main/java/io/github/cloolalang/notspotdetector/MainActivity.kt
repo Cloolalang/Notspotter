@@ -20,6 +20,7 @@ import io.github.cloolalang.notspotdetector.model.ProfileImportResult
 import io.github.cloolalang.notspotdetector.model.SpecialCellsImportResult
 import io.github.cloolalang.notspotdetector.ui.MonitorApp
 import io.github.cloolalang.notspotdetector.ui.theme.NotspotDetectorTheme
+import io.github.cloolalang.notspotdetector.util.AppUpdateInstaller
 import io.github.cloolalang.notspotdetector.util.BackgroundHelper
 import io.github.cloolalang.notspotdetector.viewmodel.MonitorViewModel
 
@@ -100,6 +101,9 @@ class MainActivity : ComponentActivity() {
                     },
                     onShareSettingsProfile = ::shareSettingsProfile,
                     onShareRadioDebugLog = ::shareRadioDebugLog,
+                    onInstallAppUpdate = { file ->
+                        AppUpdateInstaller.install(this@MainActivity, file)
+                    },
                     onImportSpecialCells = { onResult ->
                         pendingSpecialCellsImportCallback = onResult
                         importSpecialCellsLauncher.launch(

@@ -2,12 +2,14 @@ package io.github.cloolalang.notspotdetector.model
 
 /**
  * Rolling RSRQ bin for the tape under the RSRP bin tape.
- * A bin is the quality that at least 95% of samples from the last 30 seconds reach.
+ * A bin is the quality that at least 95% of samples in the sample window reach.
+ * The window is the histogram sample window.
  * Better than −15 dB is green, −17 dB through −15 dB is yellow, and worse than −17 dB is red.
  * No signal is its own grey segment. A window that has samples but no RSRQ (2G) is grey too,
  * so the last LTE colour does not stay on screen.
  */
 object RsrqBinHistory {
+    /** Used when a caller does not pass the histogram sample window. */
     const val WINDOW_MS = 30_000L
     const val MIN_PERCENT = 95
     /** Green when RSRQ is strictly better than this (greater than −15 dB). */
@@ -17,17 +19,19 @@ object RsrqBinHistory {
 
     /**
      * Bin for [nowMs]. [noSignal] wins, so the grey segment starts with the other tapes.
-     * Null when the window has no samples yet, or no band covers 95% of the RSRQ readings.
+     * [windowMs] is the histogram sample window. Null when that window has no samples yet,
+     * or no band covers 95% of the RSRQ readings.
      * Samples with no RSRQ are left out of the percentage. When every sample in the window
      * lacks RSRQ, the bin is [RsrqBin.NO_RSRQ] instead of holding the previous colour.
      */
     fun classify(
         samples: List<RsrpSample>,
         nowMs: Long,
-        noSignal: Boolean
+        noSignal: Boolean,
+        windowMs: Long = WINDOW_MS
     ): RsrqBin? {
         if (noSignal) return RsrqBin.NO_SIGNAL
-        val cutoff = nowMs - WINDOW_MS
+        val cutoff = nowMs - windowMs.coerceAtLeast(0L)
         var inWindow = 0
         var total = 0
         var aboveGreen = 0

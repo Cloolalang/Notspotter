@@ -126,16 +126,56 @@ class VoiceAnnouncementQueueTest {
     }
 
     @Test
-    fun technologyChangeUsesBudgetAndReselectBecomesBell() {
+    fun technologyChangeKeepsReselectVoice() {
         val queue = VoiceAnnouncementQueue()
         queue.enqueue(listOf(announcement(MonitoringAnnouncementKind.CELL_IDENTITY, "PCI 10")))
         val result = queue.enqueue(listOf(announcement(MonitoringAnnouncementKind.TECHNOLOGY_CHANGE, "4 G")))
 
-        assertEquals(listOf(MonitoringAnnouncementKind.TECHNOLOGY_CHANGE), queue.pendingKinds())
         assertEquals(
-            listOf(MonitoringAnnouncementKind.CELL_IDENTITY),
-            result.toneOnly.map { it.kind }
+            listOf(
+                MonitoringAnnouncementKind.TECHNOLOGY_CHANGE,
+                MonitoringAnnouncementKind.CELL_IDENTITY
+            ),
+            queue.pendingKinds()
         )
+        assertTrue(result.toneOnly.isEmpty())
+    }
+
+    @Test
+    fun samePollHandoverSpeaksTechnologyChangeThenReselect() {
+        val queue = VoiceAnnouncementQueue()
+        val result = queue.enqueue(
+            listOf(
+                announcement(MonitoringAnnouncementKind.TECHNOLOGY_CHANGE, "4 G"),
+                announcement(MonitoringAnnouncementKind.CELL_IDENTITY, "cell reselect")
+            )
+        )
+
+        assertEquals(
+            listOf(
+                MonitoringAnnouncementKind.TECHNOLOGY_CHANGE,
+                MonitoringAnnouncementKind.CELL_IDENTITY
+            ),
+            queue.pendingKinds()
+        )
+        assertTrue(result.toneOnly.isEmpty())
+    }
+
+    @Test
+    fun playingReselectStillSpeaksTechnologyChange() {
+        val queue = VoiceAnnouncementQueue()
+        queue.enqueue(listOf(announcement(MonitoringAnnouncementKind.CELL_IDENTITY, "cell reselect")))
+        val playing = queue.startNext()!!
+
+        val result = queue.enqueue(listOf(announcement(MonitoringAnnouncementKind.TECHNOLOGY_CHANGE, "4 G")))
+
+        assertFalse(result.interruptCurrent)
+        assertTrue(queue.isPlaying(playing.id))
+        assertEquals(
+            listOf(MonitoringAnnouncementKind.TECHNOLOGY_CHANGE),
+            queue.pendingKinds()
+        )
+        assertTrue(result.toneOnly.isEmpty())
     }
 
     @Test

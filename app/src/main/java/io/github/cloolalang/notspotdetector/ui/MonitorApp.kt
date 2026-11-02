@@ -9,16 +9,27 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.cloolalang.notspotdetector.BuildConfig
+import io.github.cloolalang.notspotdetector.data.GithubAppUpdate
+import io.github.cloolalang.notspotdetector.model.AppUpdateControls
+import io.github.cloolalang.notspotdetector.model.AppUpdateStatus
 import io.github.cloolalang.notspotdetector.model.ProfileImportResult
 import io.github.cloolalang.notspotdetector.model.SpecialCellsImportResult
+import io.github.cloolalang.notspotdetector.util.AppUpdateInstallResult
+import io.github.cloolalang.notspotdetector.util.AppUpdateInstaller
 import io.github.cloolalang.notspotdetector.viewmodel.MonitorViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 
 @Composable
 fun MonitorApp(
@@ -29,6 +40,7 @@ fun MonitorApp(
     onShareSettingsProfile: (String) -> Unit,
     onShareRadioDebugLog: () -> Unit,
     onImportSpecialCells: (onResult: (SpecialCellsImportResult) -> Unit) -> Unit,
+    onInstallAppUpdate: (File) -> AppUpdateInstallResult,
     modifier: Modifier = Modifier
 ) {
     val stats by viewModel.stats.collectAsStateWithLifecycle()
@@ -72,6 +84,62 @@ fun MonitorApp(
         viewModel.reloadSettingsProfiles()
         viewModel.refreshCellularSignal()
         viewModel.refreshCarrierConfigSnapshot()
+    }
+
+    val context = LocalContext.current
+    val updateScope = rememberCoroutineScope()
+    var updateStatus by remember { mutableStateOf<AppUpdateStatus>(AppUpdateStatus.Idle) }
+    var downloadedUpdate by remember { mutableStateOf<File?>(null) }
+    var downloadedVersion by remember { mutableStateOf<String?>(null) }
+
+    fun checkForUpdate(fromUser: Boolean) {
+        val current = updateStatus
+        if (current is AppUpdateStatus.Checking || current is AppUpdateStatus.Downloading) return
+        updateScope.launch {
+            if (fromUser) updateStatus = AppUpdateStatus.Checking
+            val result = withContext(Dispatchers.IO) {
+                GithubAppUpdate.check(BuildConfig.VERSION_NAME)
+            }
+            updateStatus = when (result) {
+                AppUpdateStatus.UpToDate,
+                is AppUpdateStatus.Failed -> if (fromUser) result else AppUpdateStatus.Idle
+                else -> result
+            }
+        }
+    }
+
+    fun installDownloaded() {
+        val file = downloadedUpdate ?: return
+        val versionName = downloadedVersion ?: BuildConfig.VERSION_NAME
+        updateStatus = when (onInstallAppUpdate(file)) {
+            AppUpdateInstallResult.NeedPermission -> AppUpdateStatus.NeedPermission
+            AppUpdateInstallResult.Failed ->
+                AppUpdateStatus.Failed(AppUpdateStatus.Reason.Network)
+            AppUpdateInstallResult.Started -> AppUpdateStatus.Ready(versionName)
+        }
+    }
+
+    fun downloadAndInstall() {
+        val available = updateStatus as? AppUpdateStatus.Available ?: return
+        updateScope.launch {
+            updateStatus = AppUpdateStatus.Downloading
+            val destination = AppUpdateInstaller.updateFile(context.cacheDir)
+            val saved = withContext(Dispatchers.IO) {
+                GithubAppUpdate.download(available.apkUrl, destination)
+            }
+            if (!saved) {
+                updateStatus = AppUpdateStatus.Failed(AppUpdateStatus.Reason.Network)
+                return@launch
+            }
+            downloadedUpdate = destination
+            downloadedVersion = available.versionName
+            updateStatus = AppUpdateStatus.Ready(available.versionName)
+            installDownloaded()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        checkForUpdate(fromUser = false)
     }
 
     KeepScreenOn(enabled = isRunning && monitoringSettings.keepScreenOnWhileMonitoring)
@@ -223,6 +291,12 @@ fun MonitorApp(
             carrierConfigSnapshot = carrierConfigSnapshot,
             onRefreshCarrierConfig = viewModel::refreshCarrierConfigSnapshot,
             appVersion = BuildConfig.VERSION_NAME,
+            appUpdate = AppUpdateControls(
+                status = updateStatus,
+                onCheck = { checkForUpdate(fromUser = true) },
+                onDownloadAndInstall = ::downloadAndInstall,
+                onInstall = ::installDownloaded
+            ),
             modifier = Modifier.padding(innerPadding)
         )
     }

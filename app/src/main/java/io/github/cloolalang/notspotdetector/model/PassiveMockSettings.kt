@@ -540,16 +540,16 @@ data class PassiveMockSettings(
         const val DEFAULT_ENABLED = false
         const val DEFAULT_VOICE_ONLY_NO_DATA = false
         const val DEFAULT_PING_MOCK_ENABLED = false
-        const val DEFAULT_PING_RTT_MS = 40
+        const val DEFAULT_PING_RTT_MS = 50
         const val MIN_PING_RTT_MS = 0
         const val MAX_PING_RTT_MS = 1_500
-        const val DEFAULT_PACKET_LOSS_PERCENT = 0
+        const val DEFAULT_PACKET_LOSS_PERCENT = 13
         const val MIN_PACKET_LOSS_PERCENT = 0
         const val MAX_PACKET_LOSS_PERCENT = 100
         /** Mock RSRP slider floor — below tier-setting minimum so very weak values can be simulated. */
         const val MIN_MOCK_RSRP_DBM = -140
-        const val DEFAULT_RSRP_DBM = -115
-        const val DEFAULT_RSRQ_DB = -18
+        const val DEFAULT_RSRP_DBM = -96
+        const val DEFAULT_RSRQ_DB = -15
         /** Home SIM operator — real UK name for easier voice-announcement testing. */
         const val MOCK_HOME_OPERATOR = "Vodafone"
         /** Camped visited-operator PLMN during limited-service mock scenarios. */

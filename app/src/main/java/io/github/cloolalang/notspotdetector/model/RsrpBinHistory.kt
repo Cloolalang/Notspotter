@@ -2,11 +2,13 @@ package io.github.cloolalang.notspotdetector.model
 
 /**
  * Rolling RSRP bin for the histogram tape under the technology tape.
- * A bin is the level that at least 95% of samples from the last 30 seconds clear.
- * No signal is its own grey segment, the same condition as the other history tapes.
+ * A bin is the level that at least 95% of samples in the sample window clear.
+ * The window is the histogram sample window. No signal is its own grey segment,
+ * the same condition as the other history tapes.
  */
 object RsrpBinHistory {
     const val VISIBLE = 4
+    /** Used when a caller does not pass the histogram sample window. */
     const val WINDOW_MS = 30_000L
     const val MIN_PERCENT = 95
     const val STRONG_DBM = -95
@@ -15,17 +17,19 @@ object RsrpBinHistory {
 
     /**
      * Bin for [nowMs]. [noSignal] wins, so the grey segment starts with the other tapes.
-     * Null when the window has no RSRP readings, or no signal bin yet covers 95% of them.
+     * [windowMs] is the histogram sample window. Null when that window has no RSRP readings,
+     * or no signal bin yet covers 95% of them.
      * Samples with no RSRP (a stale scan, or a poll before the first fresh scan) are left
      * out, so they cannot hold the tape blank until they age out of the window.
      */
     fun classify(
         samples: List<RsrpSample>,
         nowMs: Long,
-        noSignal: Boolean
+        noSignal: Boolean,
+        windowMs: Long = WINDOW_MS
     ): RsrpBin? {
         if (noSignal) return RsrpBin.NO_SIGNAL
-        val cutoff = nowMs - WINDOW_MS
+        val cutoff = nowMs - windowMs.coerceAtLeast(0L)
         var total = 0
         var aboveStrong = 0
         var aboveMid = 0

@@ -59,9 +59,9 @@ data class PassiveSignalSettings(
     val mildTierClickIntervalMs: Int = DEFAULT_MILD_TIER_CLICK_INTERVAL_MS,
     val veryStrongTierClickIntervalMs: Int = DEFAULT_VERY_STRONG_TIER_CLICK_INTERVAL_MS,
     val veryStrongTierSoundEnabled: Boolean = DEFAULT_TIER_SOUND_ENABLED,
-    val mildTierSoundEnabled: Boolean = DEFAULT_TIER_SOUND_ENABLED,
-    val goodTierSoundEnabled: Boolean = DEFAULT_TIER_SOUND_ENABLED,
-    val fairTierSoundEnabled: Boolean = DEFAULT_TIER_SOUND_ENABLED,
+    val mildTierSoundEnabled: Boolean = DEFAULT_MILD_TIER_SOUND_ENABLED,
+    val goodTierSoundEnabled: Boolean = DEFAULT_GOOD_TIER_SOUND_ENABLED,
+    val fairTierSoundEnabled: Boolean = DEFAULT_FAIR_TIER_SOUND_ENABLED,
     val poorTierSoundEnabled: Boolean = DEFAULT_TIER_SOUND_ENABLED,
     val criticalTierSoundEnabled: Boolean = DEFAULT_TIER_SOUND_ENABLED,
     /** 2G fallback tier 7 — click interval, pulse length, and sound toggle. */
@@ -108,15 +108,15 @@ data class PassiveSignalSettings(
     /** RXSS 4 — rolling confirmation before Level Range C (fair RSRP) is adopted. */
     val levelRangeCFilter: RxssStateFilterSettings = RxssStateFilterSettings.INACTIVE,
     /** RXSS 5 — rolling confirmation before Level Range D (poor RSRP) is adopted. */
-    val levelRangeDFilter: RxssStateFilterSettings = RxssStateFilterSettings.INACTIVE,
+    val levelRangeDFilter: RxssStateFilterSettings = RxssStateFilterSettings.DEFAULT_LEVEL_RANGE_D,
     /** RXSS 6 / 8 — rolling confirmation before signal-low is adopted. */
-    val lowSignalFilter: RxssStateFilterSettings = RxssStateFilterSettings.INACTIVE,
+    val lowSignalFilter: RxssStateFilterSettings = RxssStateFilterSettings.DEFAULT_LOW_SIGNAL,
     /** RXSS 10 / 15 / 31 — rolling confirmation before no-signal is adopted. */
     val noSignalFilter: RxssStateFilterSettings = RxssStateFilterSettings.DEFAULT_NO_SIGNAL,
     /** RXSS 0 — rolling confirmation before dead zone is adopted. */
     val deadzoneFilter: RxssStateFilterSettings = RxssStateFilterSettings.INACTIVE,
     /** RXSS 14 — rolling confirmation before poor RSRQ is adopted. */
-    val rsrqFilter: RxssStateFilterSettings = RxssStateFilterSettings.INACTIVE
+    val rsrqFilter: RxssStateFilterSettings = RxssStateFilterSettings.DEFAULT_RSRQ
 ) {
     /** RSRQ below this value maps to tier 14 and poor reception. */
     val criticalRsrqDb: Int
@@ -239,22 +239,24 @@ data class PassiveSignalSettings(
         const val DEFAULT_FAIR_RSRP_MIN_DBM = FIXED_RXSS4_MIN_DBM
         const val DEFAULT_GOOD_RSRP_MIN_DBM = FIXED_RXSS3_MIN_DBM
         const val DEFAULT_MILD_RSRP_MIN_DBM = FIXED_RXSS2_MIN_DBM
-        const val DEFAULT_RSRQ_FAIR_MIN_DB = -18
+        const val DEFAULT_RSRQ_FAIR_MIN_DB = -17
         const val DEFAULT_RSRQ_TIER_SOUND_ENABLED = true
         const val DEFAULT_RSRQ_TIER_COUPLED_TO_SIGNAL_TIER = false
-        const val DEFAULT_RSRQ_TIER_WHITE_NOISE_VOLUME = 0.48f
+        const val DEFAULT_RSRQ_TIER_WHITE_NOISE_VOLUME = 0.61136115f
         const val MIN_RSRQ_TIER_WHITE_NOISE_VOLUME = 0.05f
         const val MAX_RSRQ_TIER_WHITE_NOISE_VOLUME = 1f
-        const val DEFAULT_RSRQ_TIER_CLICK_INTERVAL_MS = 925
+        const val DEFAULT_RSRQ_TIER_CLICK_INTERVAL_MS = 1_030
         const val MAX_RSRQ_TIER_CLICK_INTERVAL_MS = 20_000
-        const val DEFAULT_RSRQ_TIER_PULSE_DURATION_MS = 190
+        const val DEFAULT_RSRQ_TIER_PULSE_DURATION_MS = 160
         const val DEFAULT_QUIET_ALERT_RSRQ_DB = -18
-        const val DEFAULT_QUIET_ALERT_RSRP_MAX_DBM = -85
+        const val DEFAULT_QUIET_ALERT_RSRP_MAX_DBM = -68
 
         /** @deprecated Use [DEFAULT_QUIET_ALERT_RSRQ_OFFSET_DB]. */
         const val QUIET_ALERT_RSRQ_OFFSET_DB = 2
 
-        const val DEFAULT_NO_SIGNAL_RSRP_DBM = -130
+        const val DEFAULT_NO_SIGNAL_RSRP_DBM = -128
+        /** Floor written by [migrateRxss6BandEdges] for the old −135 and −126 RXSS 10 values. */
+        const val MIGRATED_LEGACY_NO_SIGNAL_RSRP_DBM = -130
         const val DEFAULT_CRITICAL_RSRQ_DB = DEFAULT_RSRQ_FAIR_MIN_DB
 
         /** @deprecated Removed — RSRQ uses a single fair/critical boundary. */
@@ -276,15 +278,18 @@ data class PassiveSignalSettings(
         const val DEFAULT_GOOD_TIER_PULSE_DURATION_MS = 40
         const val DEFAULT_FAIR_TIER_PULSE_DURATION_MS = 50
         const val DEFAULT_POOR_TIER_PULSE_DURATION_MS = 60
-        const val DEFAULT_CRITICAL_TIER_PULSE_DURATION_MS = 250
-        const val DEFAULT_CRITICAL_TIER_CLICK_INTERVAL_MS = 100
-        const val DEFAULT_POOR_TIER_CLICK_INTERVAL_MS = 840
+        const val DEFAULT_CRITICAL_TIER_PULSE_DURATION_MS = 90
+        const val DEFAULT_CRITICAL_TIER_CLICK_INTERVAL_MS = 1_710
+        const val DEFAULT_POOR_TIER_CLICK_INTERVAL_MS = 1_440
         const val DEFAULT_FAIR_TIER_CLICK_INTERVAL_MS = 10_230
         const val DEFAULT_GOOD_TIER_CLICK_INTERVAL_MS = 15_320
         const val DEFAULT_MILD_TIER_CLICK_INTERVAL_MS = 19_210
         const val DEFAULT_LEVEL_RANGE_ABCD_CLICK_INTERVAL_MS = 880
-        const val DEFAULT_VERY_STRONG_TIER_CLICK_INTERVAL_MS = 2_320
+        const val DEFAULT_VERY_STRONG_TIER_CLICK_INTERVAL_MS = 1_770
         const val DEFAULT_TIER_SOUND_ENABLED = true
+        const val DEFAULT_MILD_TIER_SOUND_ENABLED = false
+        const val DEFAULT_GOOD_TIER_SOUND_ENABLED = false
+        const val DEFAULT_FAIR_TIER_SOUND_ENABLED = false
         const val DEFAULT_SEARCHING_2G_TIER_SOUND_ENABLED = false
 
         /** Strongest allowed RXSS 8 high end — RXSS 7 is anything stronger than [g2WeakMaxDbm]. */
@@ -306,11 +311,11 @@ data class PassiveSignalSettings(
         const val DEFAULT_G2_NO_SIGNAL_TIER_PULSE_DURATION_MS = 250
         const val DEFAULT_DEADZONE_TIER_CLICK_INTERVAL_MS = 1_600
         const val DEFAULT_DEADZONE_TIER_PULSE_DURATION_MS = 1_530
-        const val DEFAULT_NO_SIGNAL_TIER_CLICK_INTERVAL_MS = 12_470
+        const val DEFAULT_NO_SIGNAL_TIER_CLICK_INTERVAL_MS = 540
         const val DEFAULT_SEARCHING_2G_TIER_CLICK_INTERVAL_MS = 600
         const val DEFAULT_LIMITED_SERVICE_TIER_CLICK_INTERVAL_MS = 900
         const val DEFAULT_LIMITED_ALT_2G_TIER_CLICK_INTERVAL_MS = 600
-        const val DEFAULT_NO_SIGNAL_TIER_PULSE_DURATION_MS = 490
+        const val DEFAULT_NO_SIGNAL_TIER_PULSE_DURATION_MS = 310
         const val DEFAULT_SEARCHING_2G_TIER_PULSE_DURATION_MS = 50
         const val DEFAULT_LIMITED_SERVICE_TIER_PULSE_DURATION_MS = 250
         const val DEFAULT_LIMITED_ALT_2G_TIER_PULSE_DURATION_MS = 140
@@ -437,6 +442,7 @@ fun PassiveSignalSettings.isG2RsrpTooWeak(rsrpDbm: Int?): Boolean {
 /**
  * Moves installs that were pinned to the old RXSS 6 cap (−125 dBm) onto the −123 dBm RXSS 5 low end.
  * The previous factory floor (−135) and macro floor (−126) move to −130 so RXSS 6 spans that edge.
+ * New installs use [DEFAULT_NO_SIGNAL_RSRP_DBM] instead.
  * A custom floor other than those two is left alone.
  */
 fun migrateRxss6BandEdges(poorRsrpMinDbm: Int, noSignalRsrpDbm: Int): Pair<Int, Int> {
@@ -446,7 +452,7 @@ fun migrateRxss6BandEdges(poorRsrpMinDbm: Int, noSignalRsrpDbm: Int): Pair<Int, 
     val noSignal = when (noSignalRsrpDbm) {
         PassiveSignalSettings.LEGACY_FACTORY_NO_SIGNAL_DBM,
         PassiveSignalSettings.LEGACY_MACRO_NO_SIGNAL_DBM ->
-            PassiveSignalSettings.DEFAULT_NO_SIGNAL_RSRP_DBM
+            PassiveSignalSettings.MIGRATED_LEGACY_NO_SIGNAL_RSRP_DBM
         else -> noSignalRsrpDbm
     }
     return PassiveSignalSettings.DEFAULT_POOR_RSRP_MIN_DBM to noSignal

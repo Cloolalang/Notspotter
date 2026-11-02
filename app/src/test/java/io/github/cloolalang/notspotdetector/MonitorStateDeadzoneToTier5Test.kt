@@ -15,7 +15,7 @@ import org.junit.Test
 
 class MonitorStateDeadzoneToTier5Test {
 
-    private val passiveSettings = PassiveSignalSettings()
+    private val passiveSettings = monitorTestPassiveSettings()
     private val monitor2gFallback = MonitoringSettings(monitor2gFallback = true)
 
     @Before
@@ -86,12 +86,13 @@ class MonitorStateDeadzoneToTier5Test {
         )
         val firstPoll = MonitorState.updateStats(deadzone)
         val secondPoll = MonitorState.updateStats(deadzone)
+        val thirdPoll = MonitorState.updateStats(deadzone)
 
         assertTrue(MonitorState.stats.value.isCompleteNoService)
         assertTrue(MonitorState.stats.value.noSignalActive)
-        assertNull(secondPoll.noSignalStateAnnouncement)
-        assertFalse(secondPoll.noSignalStateChanged)
-        assertTrue(firstPoll.deadzoneAnnounced || secondPoll.deadzoneAnnounced)
+        assertNull(thirdPoll.noSignalStateAnnouncement)
+        assertFalse(thirdPoll.noSignalStateChanged)
+        assertTrue(firstPoll.deadzoneAnnounced || secondPoll.deadzoneAnnounced || thirdPoll.deadzoneAnnounced)
     }
 
     @Test

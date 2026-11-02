@@ -125,17 +125,38 @@ class VoiceAnnouncementQueue {
     }
 
     private fun applySpeechBudgetLocked(toneOnly: MutableList<MonitoringAnnouncement>) {
+        val playingKind = playing?.announcement?.kind
+        val pendingKinds = pending.map { it.announcement.kind }
+        val kinds = pendingKinds + listOfNotNull(playingKind)
+        val handoverTogether = MonitoringAnnouncementKind.TECHNOLOGY_CHANGE in kinds &&
+            MonitoringAnnouncementKind.CELL_IDENTITY in kinds
+        val higherPriorityThanHandover = pendingKinds.any {
+            it.playbackPriority < MonitoringAnnouncementKind.TECHNOLOGY_CHANGE.playbackPriority
+        } || (playingKind != null &&
+            playingKind.playbackPriority < MonitoringAnnouncementKind.TECHNOLOGY_CHANGE.playbackPriority)
+        val keepHandoverVoicesTogether = handoverTogether && !higherPriorityThanHandover
         var remaining = SPEECH_BUDGET_MS - remainingPlayingMsLocked()
+        if (keepHandoverVoicesTogether &&
+            (playingKind == MonitoringAnnouncementKind.TECHNOLOGY_CHANGE ||
+                playingKind == MonitoringAnnouncementKind.CELL_IDENTITY)
+        ) {
+            remaining += estimatedSpokenMs(playingKind)
+        }
         val keep = ArrayDeque<Item>()
         for (item in pending) {
             val kind = item.announcement.kind
             val cost = estimatedSpokenMs(kind)
             // Known-cell voice has no tone of its own. Limited-service entry (RXSS 12 / 19
             // and the other limited camps) is confirmed while another phrase may still be
-            // playing. Signal low, timing advance, and technology change do not yield the
-            // speaker, and the leftover budget would otherwise drop the entry voice.
+            // playing. A handover that also changes technology keeps both voices: the
+            // technology change and the cell reselect. A higher-priority service alert
+            // still takes the budget and leaves those two as tones.
+            val handoverVoice = keepHandoverVoicesTogether &&
+                (kind == MonitoringAnnouncementKind.TECHNOLOGY_CHANGE ||
+                    kind == MonitoringAnnouncementKind.CELL_IDENTITY)
             if (kind == MonitoringAnnouncementKind.SPECIAL_CELL ||
                 kind == MonitoringAnnouncementKind.LIMITED_SERVICE_STATE ||
+                handoverVoice ||
                 cost <= remaining
             ) {
                 keep.addLast(item)
@@ -192,7 +213,10 @@ class VoiceAnnouncementQueue {
         ): Boolean {
             if (existing == incoming) return true
             if (existing in SERVICE_STATE_KINDS && incoming in SERVICE_STATE_KINDS) return true
+            // A technology change that arrives with a handover must not replace the
+            // cell-reselect voice. Dead zone, no signal, and signal low still do.
             if (existing == MonitoringAnnouncementKind.CELL_IDENTITY &&
+                incoming != MonitoringAnnouncementKind.TECHNOLOGY_CHANGE &&
                 incoming.playbackPriority < existing.playbackPriority
             ) {
                 return true

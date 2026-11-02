@@ -23,7 +23,7 @@ import org.junit.Test
 
 class MonitorStateMockTier6ToTier10Test {
 
-    private val passiveSettings = PassiveSignalSettings()
+    private val passiveSettings = monitorTestPassiveSettings()
     private val monitor2gFallback = MonitoringSettings(monitor2gFallback = true)
 
     @Before
@@ -122,6 +122,7 @@ class MonitorStateMockTier6ToTier10Test {
         assertTrue(pending.shouldPlaySignalStrengthInterval(passiveSettings))
         assertFalse(pending.noSignalActive)
 
+        MonitorState.updateStats(noSignalStats)
         MonitorState.updateStats(noSignalStats)
         assertEquals(
             NO_SIGNAL_TIER_NUMBER,

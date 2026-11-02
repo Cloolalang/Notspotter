@@ -34,6 +34,31 @@ class RsrqBinHistoryTest {
     }
 
     @Test
+    fun classify_usesTheGivenSampleWindow() {
+        val samples = listOf(
+            RsrpSample(timestampMs = 0L, rsrpDbm = -90, rsrqDb = -20),
+            RsrpSample(timestampMs = 25_000L, rsrpDbm = -90, rsrqDb = -10)
+        )
+        assertEquals(
+            RsrqBin.ABOVE_15,
+            RsrqBinHistory.classify(
+                samples,
+                nowMs = 30_000L,
+                noSignal = false,
+                windowMs = 10_000L
+            )
+        )
+        assertNull(
+            RsrqBinHistory.classify(
+                samples,
+                nowMs = 30_000L,
+                noSignal = false,
+                windowMs = 60_000L
+            )
+        )
+    }
+
+    @Test
     fun classify_ignoresSamplesOlderThanThirtySeconds() {
         val recent = List(20) { index ->
             RsrpSample(timestampMs = 31_000L + index * 1_000L, rsrpDbm = -90, rsrqDb = -10)

@@ -20,7 +20,7 @@ data class MonitoringSettings(
     /** Keep the display awake while monitoring is running (car cradle / field test). */
     val keepScreenOnWhileMonitoring: Boolean = DEFAULT_KEEP_SCREEN_ON_WHILE_MONITORING,
     /** Name drawn in the top title bar. */
-    val appBrand: AppBrand = AppBrand.NOTSPOTTER,
+    val appBrand: AppBrand = AppBrand.CELLNEX,
     /** Floor-plan walk during a zone test. Off until switched on in Development area. */
     val walkRouteEnabled: Boolean = DEFAULT_WALK_ROUTE_ENABLED
 ) {
@@ -51,10 +51,10 @@ data class MonitoringSettings(
         const val DEFAULT_PASSIVE_MEASUREMENT_INTERVAL_MS = 1_000L
         const val MIN_PASSIVE_MEASUREMENT_INTERVAL_MS = 1_000L
         const val MAX_PASSIVE_MEASUREMENT_INTERVAL_MS = 10_000L
-        const val DEFAULT_RSRP_HISTOGRAM_WINDOW_MS = 300_000L
-        const val MIN_RSRP_HISTOGRAM_WINDOW_MS = 30_000L
+        const val DEFAULT_RSRP_HISTOGRAM_WINDOW_MS = 30_000L
+        const val MIN_RSRP_HISTOGRAM_WINDOW_MS = 10_000L
         const val MAX_RSRP_HISTOGRAM_WINDOW_MS = 3_600_000L
-        const val RSRP_HISTOGRAM_WINDOW_STEP_MS = 30_000L
+        const val RSRP_HISTOGRAM_WINDOW_STEP_MS = 10_000L
         const val DEFAULT_TAPE_WINDOW_MS = 600_000L
         const val MIN_TAPE_WINDOW_MS = 60_000L
         const val MAX_TAPE_WINDOW_MS = 7_200_000L

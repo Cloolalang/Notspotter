@@ -9,7 +9,7 @@ class VoiceAnnouncementTest {
     @Test
     fun immediatePlaybackOrder_matchesConfirmedPriorities() {
         val priorities = VoiceAnnouncement.immediatePlaybackOrder.map { VoiceAnnouncement.priorityFor(it) }
-        assertEquals(listOf(1, 2, 4, 5, 6, 8, 8, 9, 10), priorities)
+        assertEquals(listOf(1, 2, 4, 5, 6, 8, 8, 9, 10, 11), priorities)
     }
 
     @Test

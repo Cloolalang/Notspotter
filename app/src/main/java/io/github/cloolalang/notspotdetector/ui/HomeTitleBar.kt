@@ -5,9 +5,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -20,6 +22,8 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import io.github.cloolalang.notspotdetector.R
 import io.github.cloolalang.notspotdetector.model.AppBrand
+import io.github.cloolalang.notspotdetector.model.AppUpdateControls
+import io.github.cloolalang.notspotdetector.model.AppUpdateStatus
 import io.github.cloolalang.notspotdetector.model.ConnectivityStats
 import io.github.cloolalang.notspotdetector.model.OperatorTitleStyle
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
@@ -34,10 +38,11 @@ private val Vmo2GoodColor = Color(0xFF0066CC)
 fun HomeTitleBar(
     stats: ConnectivityStats,
     passiveSignalSettings: PassiveSignalSettings,
-    appBrand: AppBrand = AppBrand.NOTSPOTTER,
+    appBrand: AppBrand = AppBrand.CELLNEX,
     showManualSelectOperator: Boolean = false,
     onChooseOperator: () -> Unit = {},
     versionLabel: String? = null,
+    appUpdate: AppUpdateControls = AppUpdateControls(),
     modifier: Modifier = Modifier
 ) {
     val operatorLabel = OperatorTitleStyle.resolveLabel(stats)
@@ -65,15 +70,30 @@ fun HomeTitleBar(
                 fontWeight = titleWeight,
                 modifier = Modifier.weight(1f)
             )
-            if (versionLabel != null) {
-                Text(
-                    text = versionLabel,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.Medium
-                )
+            Column(horizontalAlignment = Alignment.End) {
+                if (versionLabel != null) {
+                    Text(
+                        text = versionLabel,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+                val busy = appUpdate.status is AppUpdateStatus.Checking ||
+                    appUpdate.status is AppUpdateStatus.Downloading
+                TextButton(
+                    onClick = appUpdate.onCheck,
+                    enabled = !busy,
+                    contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.app_update_check),
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
             }
         }
+        AppUpdateStatusLine(appUpdate)
         if (operatorLabel != null) {
             Text(
                 text = operatorLabel,
@@ -97,6 +117,50 @@ fun HomeTitleBar(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun AppUpdateStatusLine(appUpdate: AppUpdateControls) {
+    val status = appUpdate.status
+    val message = when (status) {
+        AppUpdateStatus.Idle -> null
+        AppUpdateStatus.Checking -> stringResource(R.string.app_update_checking)
+        AppUpdateStatus.UpToDate -> stringResource(R.string.app_update_up_to_date)
+        is AppUpdateStatus.Available ->
+            stringResource(R.string.app_update_available, status.versionName)
+        AppUpdateStatus.Downloading -> stringResource(R.string.app_update_downloading)
+        is AppUpdateStatus.Ready ->
+            stringResource(R.string.app_update_ready, status.versionName)
+        AppUpdateStatus.NeedPermission -> stringResource(R.string.app_update_need_permission)
+        is AppUpdateStatus.Failed -> stringResource(
+            when (status.reason) {
+                AppUpdateStatus.Reason.NoRelease -> R.string.app_update_no_release
+                AppUpdateStatus.Reason.NoApk -> R.string.app_update_no_apk
+                AppUpdateStatus.Reason.Network -> R.string.app_update_failed
+            }
+        )
+    }
+    if (message != null) {
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+    when (status) {
+        is AppUpdateStatus.Available -> {
+            Button(onClick = appUpdate.onDownloadAndInstall, modifier = Modifier.fillMaxWidth()) {
+                Text(text = stringResource(R.string.app_update_download))
+            }
+        }
+        is AppUpdateStatus.Ready,
+        AppUpdateStatus.NeedPermission -> {
+            Button(onClick = appUpdate.onInstall, modifier = Modifier.fillMaxWidth()) {
+                Text(text = stringResource(R.string.app_update_install))
+            }
+        }
+        else -> Unit
     }
 }
 

@@ -578,11 +578,11 @@ object AppSettingsSnapshotCodec {
             ),
             levelRangeDFilter = decodeRxssStateFilter(
                 json.optJSONObject("levelRangeDFilter"),
-                RxssStateFilterSettings.INACTIVE
+                RxssStateFilterSettings.DEFAULT_LEVEL_RANGE_D
             ),
             lowSignalFilter = decodeRxssStateFilter(
                 json.optJSONObject("lowSignalFilter"),
-                RxssStateFilterSettings.INACTIVE
+                RxssStateFilterSettings.DEFAULT_LOW_SIGNAL
             ),
             noSignalFilter = decodeRxssStateFilter(
                 json.optJSONObject("noSignalFilter"),
@@ -594,7 +594,7 @@ object AppSettingsSnapshotCodec {
             ),
             rsrqFilter = decodeRxssStateFilter(
                 json.optJSONObject("rsrqFilter"),
-                RxssStateFilterSettings.INACTIVE
+                RxssStateFilterSettings.DEFAULT_RSRQ
             )
         )
     }

@@ -27,6 +27,13 @@ class ZoneTestTest {
     }
 
     @Test
+    fun sampleWindow_opensAcrossTheWholeRun() {
+        assertEquals(30_000L, ZoneTest.sampleWindowMs(false, 1_000L, 50_000L, 30_000L))
+        assertEquals(30_000L, ZoneTest.sampleWindowMs(true, null, 50_000L, 30_000L))
+        assertEquals(49_000L, ZoneTest.sampleWindowMs(true, 1_000L, 50_000L, 30_000L))
+    }
+
+    @Test
     fun walkJpegFileName_usesTheSameNameAndOperator() {
         assertEquals(
             "Zone walk - High street - Vodafone.jpg",
