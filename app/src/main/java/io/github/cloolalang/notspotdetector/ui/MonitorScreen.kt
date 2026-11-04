@@ -327,7 +327,8 @@ fun MonitorScreen(
             if (!stats.isPassiveOnlySession) {
                 RttGraphCard(
                     samples = rttHistory,
-                    isActive = isRunning && !stats.isPassiveIdleMode
+                    isActive = isRunning && !stats.isPassiveIdleMode,
+                    windowMs = monitoringSettings.tapeWindowMs
                 )
             }
         }

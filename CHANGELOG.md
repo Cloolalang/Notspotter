@@ -5,6 +5,19 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.156.0] - 2026-11-04
+
+### Changed
+
+- **Zone test** — The panel collapses. Whole test now explains that, when on, the RSRP and RSRQ tapes score every sample from the start of the run, and when off they use the histogram sample window.
+- **Ping chart** — RTT, jitter, and packet loss use the tape time scale, from 1 second up to 2 hours, instead of a fixed last 60 seconds. Samples from the last 2 hours stay available when the scale is widened.
+
+## [2.155.0] - 2026-11-04
+
+### Changed
+
+- **Sample window and tape time scale** — Hours, minutes, and seconds each open a drop-down, so the figure can be picked directly. − 1 s and + 1 s still move the time by one second. Both ranges start at 1 second. The sample window goes up to 1 hour, and the tape time scale up to 2 hours.
+
 ## [2.153.0] - 2026-11-02
 
 ### Changed

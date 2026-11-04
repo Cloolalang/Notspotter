@@ -1819,7 +1819,7 @@ object MonitorState {
         }
     }
 
-    const val RTT_HISTORY_WINDOW_MS = 60_000L
+    const val RTT_HISTORY_WINDOW_MS = MonitoringSettings.MAX_TAPE_WINDOW_MS
     const val RSRP_HISTORY_RETENTION_MS = MonitoringSettings.MAX_RSRP_HISTOGRAM_WINDOW_MS
 
     /**

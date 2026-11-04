@@ -378,11 +378,11 @@
     <string name="metric_signal_dbm_2g">RX Level</string>
     <string name="metric_gsm_arfcn">GSM ARFCN</string>
     <string name="metric_gsm_bsic">BSIC</string>
-    <string name="rtt_graph_title">RTT, jitter, and packet loss (last 60 s)</string>
+    <string name="rtt_graph_title">RTT, jitter, and packet loss (last %1$s)</string>
     <string name="rtt_graph_legend_rtt">RTT</string>
     <string name="rtt_graph_legend_jitter">Jitter</string>
     <string name="rtt_graph_legend_loss">Packet loss</string>
-    <string name="rtt_graph_window">Rolling 60s window</string>
+    <string name="rtt_graph_window">Same time scale as the KPI tapes</string>
     <string name="rtt_graph_axis_hint">Left %1$d–%2$d ms · right 0–100%%</string>
     <string name="rtt_graph_label_ms">%1$d ms</string>
     <string name="rtt_graph_label_percent">%1$d%%</string>
@@ -402,6 +402,7 @@
     <string name="walk_route_setting_hint">Shows a floor plan on the zone test so you can mark where you walk. Unlock with the password, then turn this on.</string>
     <string name="zone_test_start">Start zone test</string>
     <string name="zone_test_open_sample_window">Whole test</string>
+    <string name="zone_test_open_sample_window_hint">On, the RSRP and RSRQ tapes score every sample from the start of this zone test. Off, they use the histogram sample window.</string>
     <string name="zone_test_sample_window_rule">95% of zone test</string>
     <string name="zone_test_stop">Stop zone test</string>
     <string name="zone_test_need_monitoring">Start monitoring or active mode testing first.</string>
@@ -447,6 +448,11 @@
     <string name="tape_window_label">Tape time scale</string>
     <string name="tape_window_hint">The same clock on every tape, and only while monitoring is running. The right edge is the latest monitoring time, and older time rolls off the left.</string>
     <string name="tape_window_hours_minutes">%1$d h %2$d min</string>
+    <string name="tape_window_minutes_seconds">%1$d min %2$d s</string>
+    <string name="tape_window_hours_minutes_seconds">%1$d h %2$d min %3$d s</string>
+    <string name="duration_hours_unit">h</string>
+    <string name="duration_minutes_unit">min</string>
+    <string name="duration_seconds_unit">s</string>
     <string name="rsrp_histogram_bin_label">%1$d dBm</string>
     <string name="rsrp_histogram_sample_count">%1$d samples in window</string>
     <string name="rsrp_histogram_sample_count_active">%1$d samples · %2$d active bins</string>

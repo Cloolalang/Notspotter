@@ -14,10 +14,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -471,12 +474,12 @@ private fun HistogramSettingsPanel(
                         )
                     }
                 }
-                RsrpHistogramWindowSlider(
+                RsrpHistogramWindowControl(
                     windowMs = windowMs,
                     elapsedMs = elapsedMs,
                     onWindowChange = onWindowChange
                 )
-                TapeWindowSlider(
+                TapeWindowControl(
                     windowMs = tapeWindowMs,
                     onWindowChange = onTapeWindowChange
                 )
@@ -725,6 +728,7 @@ private fun ZoneTestPanel(
     sampleWindowMs: Long,
     walkRouteEnabled: Boolean
 ) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
     var running by remember { mutableStateOf(false) }
     var startMs by remember { mutableStateOf<Long?>(null) }
     var endMs by remember { mutableStateOf<Long?>(null) }
@@ -923,12 +927,26 @@ private fun ZoneTestPanel(
             modifier = Modifier.padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                text = stringResource(R.string.zone_test_title),
-                style = MaterialTheme.typography.titleSmall,
-                color = Sushi,
-                fontWeight = FontWeight.Bold
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded },
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.zone_test_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = Sushi,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = if (expanded) "▲" else "▼",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            if (expanded) {
             Text(
                 text = stringResource(
                     when {
@@ -941,52 +959,57 @@ private fun ZoneTestPanel(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            if (running) {
+                Button(
+                    onClick = {
+                        running = false
+                        endMs = tapeNowMs
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(text = stringResource(R.string.zone_test_stop))
+                }
+            } else {
+                Button(
+                    onClick = {
+                        val atMs = tapeNowMs
+                        startMs = atMs
+                        sampleWindowStartMs = nowMs
+                        endMs = null
+                        zoneName = ""
+                        statusMessage = null
+                        operatorLabel = liveOperator
+                        pins = emptyList()
+                        freshTapes(atMs)
+                        running = true
+                    },
+                    enabled = isMonitoring,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(text = stringResource(R.string.zone_test_start))
+                }
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (running) {
-                    Button(
-                        onClick = {
-                            running = false
-                            endMs = tapeNowMs
-                        },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(text = stringResource(R.string.zone_test_stop))
-                    }
-                } else {
-                    Button(
-                        onClick = {
-                            val atMs = tapeNowMs
-                            startMs = atMs
-                            sampleWindowStartMs = nowMs
-                            endMs = null
-                            zoneName = ""
-                            statusMessage = null
-                            operatorLabel = liveOperator
-                            pins = emptyList()
-                            freshTapes(atMs)
-                            running = true
-                        },
-                        enabled = isMonitoring,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(text = stringResource(R.string.zone_test_start))
-                    }
-                }
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = stringResource(R.string.zone_test_open_sample_window),
-                        style = MaterialTheme.typography.labelSmall,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = stringResource(R.string.zone_test_open_sample_window_hint),
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Switch(
-                        checked = openSampleWindow,
-                        onCheckedChange = { openSampleWindow = it }
-                    )
                 }
+                Switch(
+                    checked = openSampleWindow,
+                    onCheckedChange = { openSampleWindow = it }
+                )
             }
             if (walkRouteEnabled) {
             WalkRouteMap(
@@ -1218,6 +1241,7 @@ private fun ZoneTestPanel(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
             }
         }
     }
@@ -2567,60 +2591,40 @@ private fun TapeTimeScale(windowMs: Long) {
 }
 
 @Composable
-private fun TapeWindowSlider(
+private fun TapeWindowControl(
     windowMs: Long,
     onWindowChange: (Long) -> Unit
 ) {
-    val minMs = MonitoringSettings.MIN_TAPE_WINDOW_MS
-    val stepMs = MonitoringSettings.TAPE_WINDOW_STEP_MS
-    val maxMs = MonitoringSettings.MAX_TAPE_WINDOW_MS
-    val stepCount = ((maxMs - minMs) / stepMs).toInt()
-    val sliderValue = ((windowMs - minMs) / stepMs).toFloat().coerceIn(0f, stepCount.toFloat())
-
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = stringResource(R.string.tape_window_label),
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Medium
-            )
-            Text(
-                text = formatTapeWindow(windowMs),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
-        Slider(
-            enabled = settingsControlsEnabled(),
-            value = sliderValue,
-            onValueChange = { value ->
-                onWindowChange(minMs + value.roundToInt() * stepMs)
-            },
-            valueRange = 0f..stepCount.toFloat(),
-            steps = (stepCount - 1).coerceAtLeast(0),
-            modifier = Modifier.fillMaxWidth()
-        )
-        Text(
-            text = stringResource(R.string.tape_window_hint),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
+    DurationFigureControl(
+        label = stringResource(R.string.tape_window_label),
+        windowMs = windowMs,
+        minMs = MonitoringSettings.MIN_TAPE_WINDOW_MS,
+        maxMs = MonitoringSettings.MAX_TAPE_WINDOW_MS,
+        hint = stringResource(R.string.tape_window_hint),
+        formatWindow = { formatTapeWindow(it) },
+        coerce = { it.coerceToTapeWindowStep() },
+        onWindowChange = onWindowChange
+    )
 }
 
 @Composable
-private fun formatTapeWindow(windowMs: Long): String {
-    val totalMinutes = (windowMs / 60_000L).toInt()
-    val hours = totalMinutes / 60
-    val minutes = totalMinutes % 60
+internal fun formatTapeWindow(windowMs: Long): String {
+    val totalSeconds = (windowMs / 1_000L).toInt().coerceAtLeast(0)
+    val hours = totalSeconds / 3_600
+    val minutes = (totalSeconds % 3_600) / 60
+    val seconds = totalSeconds % 60
     return when {
-        hours <= 0 -> stringResource(R.string.rsrp_histogram_tape_minutes, totalMinutes)
-        minutes == 0 -> stringResource(R.string.rsrp_histogram_tape_hours, hours)
-        else -> stringResource(R.string.tape_window_hours_minutes, hours, minutes)
+        hours > 0 && minutes == 0 && seconds == 0 ->
+            stringResource(R.string.rsrp_histogram_tape_hours, hours)
+        hours > 0 && seconds == 0 ->
+            stringResource(R.string.tape_window_hours_minutes, hours, minutes)
+        hours > 0 ->
+            stringResource(R.string.tape_window_hours_minutes_seconds, hours, minutes, seconds)
+        minutes > 0 && seconds == 0 ->
+            stringResource(R.string.rsrp_histogram_tape_minutes, minutes)
+        minutes > 0 ->
+            stringResource(R.string.tape_window_minutes_seconds, minutes, seconds)
+        else -> stringResource(R.string.rsrp_histogram_tape_seconds, seconds)
     }
 }
 
@@ -2794,16 +2798,45 @@ private fun HistogramThresholdSlider(
 }
 
 @Composable
-private fun RsrpHistogramWindowSlider(
+private fun RsrpHistogramWindowControl(
     windowMs: Long,
     elapsedMs: Long?,
     onWindowChange: (Long) -> Unit
 ) {
-    val minMs = MonitoringSettings.MIN_RSRP_HISTOGRAM_WINDOW_MS
-    val stepMs = MonitoringSettings.RSRP_HISTOGRAM_WINDOW_STEP_MS
-    val maxMs = MonitoringSettings.MAX_RSRP_HISTOGRAM_WINDOW_MS
-    val stepCount = ((maxMs - minMs) / stepMs).toInt()
-    val sliderValue = ((windowMs - minMs) / stepMs).toFloat().coerceIn(0f, stepCount.toFloat())
+    val elapsedLabel = formatHistogramElapsedLabel(elapsedMs)
+    val label = if (elapsedLabel != null) {
+        "${stringResource(R.string.rsrp_histogram_window_label)} · $elapsedLabel"
+    } else {
+        stringResource(R.string.rsrp_histogram_window_label)
+    }
+    DurationFigureControl(
+        label = label,
+        windowMs = windowMs,
+        minMs = MonitoringSettings.MIN_RSRP_HISTOGRAM_WINDOW_MS,
+        maxMs = MonitoringSettings.MAX_RSRP_HISTOGRAM_WINDOW_MS,
+        hint = stringResource(R.string.rsrp_histogram_window_hint),
+        formatWindow = { formatHistogramWindow(it) },
+        coerce = { it.coerceToHistogramWindowStep() },
+        onWindowChange = onWindowChange
+    )
+}
+
+@Composable
+private fun DurationFigureControl(
+    label: String,
+    windowMs: Long,
+    minMs: Long,
+    maxMs: Long,
+    hint: String,
+    formatWindow: @Composable (Long) -> String,
+    coerce: (Long) -> Long,
+    onWindowChange: (Long) -> Unit
+) {
+    val enabled = settingsControlsEnabled()
+    val parts = durationParts(windowMs)
+    fun apply(hours: Int, minutes: Int, seconds: Int) {
+        onWindowChange(coerce(durationMs(hours, minutes, seconds)))
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(
@@ -2811,34 +2844,69 @@ private fun RsrpHistogramWindowSlider(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            val elapsedLabel = formatHistogramElapsedLabel(elapsedMs)
             Text(
-                text = if (elapsedLabel != null) {
-                    "${stringResource(R.string.rsrp_histogram_window_label)} · $elapsedLabel"
-                } else {
-                    stringResource(R.string.rsrp_histogram_window_label)
-                },
+                text = label,
                 style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.weight(1f)
             )
             Text(
-                text = formatHistogramWindow(windowMs),
+                text = formatWindow(windowMs),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary
             )
         }
-        Slider(
-            enabled = settingsControlsEnabled(),
-            value = sliderValue,
-            onValueChange = { value ->
-                onWindowChange(minMs + value.roundToInt() * stepMs)
-            },
-            valueRange = 0f..stepCount.toFloat(),
-            steps = (stepCount - 1).coerceAtLeast(0),
-            modifier = Modifier.fillMaxWidth()
-        )
+        val minSeconds = (minMs / 1_000L).toInt()
+        val maxSeconds = (maxMs / 1_000L).toInt()
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            DurationPartMenu(
+                value = parts.hours,
+                unit = stringResource(R.string.duration_hours_unit),
+                options = hourOptions(minSeconds, maxSeconds),
+                enabled = enabled,
+                onSelect = { apply(it, parts.minutes, parts.seconds) },
+                modifier = Modifier.weight(1f)
+            )
+            DurationPartMenu(
+                value = parts.minutes,
+                unit = stringResource(R.string.duration_minutes_unit),
+                options = minuteOptions(parts.hours, minSeconds, maxSeconds),
+                enabled = enabled,
+                onSelect = { apply(parts.hours, it, parts.seconds) },
+                modifier = Modifier.weight(1.15f)
+            )
+            DurationPartMenu(
+                value = parts.seconds,
+                unit = stringResource(R.string.duration_seconds_unit),
+                options = secondOptions(parts.hours, parts.minutes, minSeconds, maxSeconds),
+                enabled = enabled,
+                onSelect = { apply(parts.hours, parts.minutes, it) },
+                modifier = Modifier.weight(1f)
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            DurationStepButton(
+                symbol = "− 1 s",
+                enabled = enabled && windowMs > minMs,
+                onClick = { onWindowChange(coerce(windowMs - 1_000L)) },
+                modifier = Modifier.weight(1f)
+            )
+            DurationStepButton(
+                symbol = "+ 1 s",
+                enabled = enabled && windowMs < maxMs,
+                onClick = { onWindowChange(coerce(windowMs + 1_000L)) },
+                modifier = Modifier.weight(1f)
+            )
+        }
         Text(
-            text = stringResource(R.string.rsrp_histogram_window_hint),
+            text = hint,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -2847,12 +2915,12 @@ private fun RsrpHistogramWindowSlider(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                text = formatHistogramWindow(minMs),
+                text = formatWindow(minMs),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
-                text = formatHistogramWindow(maxMs),
+                text = formatWindow(maxMs),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -2860,12 +2928,122 @@ private fun RsrpHistogramWindowSlider(
     }
 }
 
+@Composable
+private fun DurationPartMenu(
+    value: Int,
+    unit: String,
+    options: List<Int>,
+    enabled: Boolean,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+    LaunchedEffect(enabled) {
+        if (!enabled) expanded = false
+    }
+    Box(modifier = modifier) {
+        OutlinedButton(
+            onClick = { expanded = true },
+            enabled = enabled,
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(text = "$value $unit ▾")
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(text = "$option $unit") },
+                    onClick = {
+                        expanded = false
+                        if (option != value) onSelect(option)
+                    }
+                )
+            }
+        }
+    }
+}
+
+private fun hourOptions(minSeconds: Int, maxSeconds: Int): List<Int> {
+    val maxHour = maxSeconds / 3_600
+    return (0..maxHour).filter { hour ->
+        rangesOverlap(hour * 3_600, hour * 3_600 + 3_599, minSeconds, maxSeconds)
+    }
+}
+
+private fun minuteOptions(hours: Int, minSeconds: Int, maxSeconds: Int): List<Int> {
+    return (0..59).filter { minute ->
+        val start = hours * 3_600 + minute * 60
+        rangesOverlap(start, start + 59, minSeconds, maxSeconds)
+    }
+}
+
+private fun secondOptions(
+    hours: Int,
+    minutes: Int,
+    minSeconds: Int,
+    maxSeconds: Int
+): List<Int> {
+    val base = hours * 3_600 + minutes * 60
+    val start = (minSeconds - base).coerceAtLeast(0)
+    val end = (maxSeconds - base).coerceAtMost(59)
+    if (end < start) return emptyList()
+    return (start..end).toList()
+}
+
+private fun rangesOverlap(start: Int, end: Int, min: Int, max: Int): Boolean {
+    return end >= min && start <= max
+}
+
+@Composable
+private fun DurationStepButton(
+    symbol: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    OutlinedButton(
+        onClick = onClick,
+        enabled = enabled,
+        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+        modifier = modifier
+    ) {
+        Text(text = symbol)
+    }
+}
+
+private data class DurationParts(val hours: Int, val minutes: Int, val seconds: Int)
+
+private fun durationParts(windowMs: Long): DurationParts {
+    val totalSeconds = (windowMs / 1_000L).toInt().coerceAtLeast(0)
+    return DurationParts(
+        hours = totalSeconds / 3_600,
+        minutes = (totalSeconds % 3_600) / 60,
+        seconds = totalSeconds % 60
+    )
+}
+
+private fun durationMs(hours: Int, minutes: Int, seconds: Int): Long {
+    return (hours.coerceAtLeast(0) * 3_600L +
+        minutes.coerceAtLeast(0) * 60L +
+        seconds.coerceAtLeast(0)) * 1_000L
+}
+
 private fun formatHistogramWindow(windowMs: Long): String {
-    val totalSeconds = windowMs / 1_000L
+    val totalSeconds = (windowMs / 1_000L).coerceAtLeast(0L)
+    val hours = totalSeconds / 3_600L
+    val minutes = (totalSeconds % 3_600L) / 60L
+    val seconds = totalSeconds % 60L
     return when {
-        totalSeconds < 60L -> "${totalSeconds} s"
-        totalSeconds % 60L == 0L -> "${totalSeconds / 60L} m"
-        else -> "${totalSeconds / 60L} m ${totalSeconds % 60L} s"
+        hours > 0L && minutes == 0L && seconds == 0L -> "${hours} h"
+        hours > 0L && seconds == 0L -> "${hours} h ${minutes} m"
+        hours > 0L -> "${hours} h ${minutes} m ${seconds} s"
+        minutes > 0L && seconds == 0L -> "${minutes} m"
+        minutes > 0L -> "${minutes} m ${seconds} s"
+        else -> "${seconds} s"
     }
 }
 

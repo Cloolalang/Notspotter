@@ -39,9 +39,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import io.github.cloolalang.notspotdetector.MonitorState
 import io.github.cloolalang.notspotdetector.R
 import io.github.cloolalang.notspotdetector.model.RttSample
+import io.github.cloolalang.notspotdetector.model.coerceToTapeWindowStep
 import io.github.cloolalang.notspotdetector.ui.theme.PacketLossAmber
 import io.github.cloolalang.notspotdetector.ui.theme.StopRose
 import io.github.cloolalang.notspotdetector.ui.theme.Sushi
@@ -59,10 +59,12 @@ private val ChartLossAxisWidth = 40.dp
 fun RttGraphCard(
     samples: List<RttSample>,
     isActive: Boolean,
+    windowMs: Long,
     modifier: Modifier = Modifier
 ) {
     var nowMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var expanded by rememberSaveable { mutableStateOf(false) }
+    val scaleMs = windowMs.coerceToTapeWindowStep().coerceAtLeast(1L)
 
     LaunchedEffect(isActive) {
         while (isActive) {
@@ -71,7 +73,8 @@ fun RttGraphCard(
         }
     }
 
-    val windowStartMs = nowMs - MonitorState.RTT_HISTORY_WINDOW_MS
+    val windowStartMs = nowMs - scaleMs
+    val scaleLabel = formatTapeWindow(scaleMs)
     val visibleSamples = samples.filter { it.timestampMs >= windowStartMs }
     val gridColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
     val rttLineColor = MaterialTheme.colorScheme.primary
@@ -94,7 +97,7 @@ fun RttGraphCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = stringResource(R.string.rtt_graph_title),
+                    text = stringResource(R.string.rtt_graph_title, scaleLabel),
                     style = MaterialTheme.typography.titleSmall,
                     color = Sushi,
                     fontWeight = FontWeight.Bold,
@@ -209,7 +212,7 @@ fun RttGraphCard(
                         }
 
                         fun timeToX(timestampMs: Long): Float {
-                            val progress = (timestampMs - windowStartMs).toFloat() / MonitorState.RTT_HISTORY_WINDOW_MS
+                            val progress = (timestampMs - windowStartMs).toFloat() / scaleMs.toFloat()
                             return chartLeft + progress.coerceIn(0f, 1f) * chartWidth
                         }
 
@@ -289,7 +292,7 @@ fun RttGraphCard(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = stringResource(R.string.rtt_graph_time_start),
+                        text = stringResource(R.string.rsrp_histogram_tape_ago, scaleLabel),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(start = ChartTimeAxisWidth)
