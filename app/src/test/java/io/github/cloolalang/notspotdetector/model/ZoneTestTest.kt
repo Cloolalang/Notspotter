@@ -34,6 +34,14 @@ class ZoneTestTest {
     }
 
     @Test
+    fun sharedNameSuffix_keepsEachOperatorsOwnPrefix() {
+        assertEquals("site1", ZoneTest.sharedNameSuffix("Vodafone_site1", "Vodafone"))
+        assertEquals("EE_site1", ZoneTest.nameWithOperator("EE", "site1"))
+        assertEquals("EE_", ZoneTest.nameWithOperator("EE", ""))
+        assertEquals("roof", ZoneTest.sharedNameSuffix("roof", "Vodafone"))
+    }
+
+    @Test
     fun walkJpegFileName_usesTheSameNameAndOperator() {
         assertEquals(
             "Zone walk - High street - Vodafone.jpg",

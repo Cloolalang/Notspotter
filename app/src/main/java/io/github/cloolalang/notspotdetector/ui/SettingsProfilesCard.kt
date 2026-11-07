@@ -46,7 +46,7 @@ fun SettingsProfilesCard(
     onExportProfileToDownloads: (String) -> ProfileExportOutcome,
     modifier: Modifier = Modifier
 ) {
-    var expanded by rememberSaveable { mutableStateOf(false) }
+    var expanded by panelFold("settings-profiles", defaultExpanded = false)
     var profileName by rememberSaveable { mutableStateOf("") }
     var lastSaveResult by rememberSaveable { mutableStateOf<ProfileSaveResult?>(null) }
     var lastQuickSaveOutcome by remember { mutableStateOf<ProfileQuickSaveOutcome?>(null) }

@@ -13,8 +13,6 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,7 +36,7 @@ fun AudioVolumeSettingsCard(
     onReset: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var expanded by rememberSaveable { mutableStateOf(false) }
+    var expanded by panelFold("audio-volumes", defaultExpanded = false)
 
     Card(modifier = modifier.fillMaxWidth()) {
         Column(

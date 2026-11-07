@@ -41,6 +41,16 @@ object AppSettingsSnapshotCodec {
         return root.toString(2)
     }
 
+    fun encodeSnapshot(settings: AppSettingsSnapshot): String {
+        return encodeSettings(settings.normalized()).toString()
+    }
+
+    fun decodeSnapshot(json: String): AppSettingsSnapshot? {
+        if (json.isBlank()) return null
+        val settings = runCatching { JSONObject(json) }.getOrNull() ?: return null
+        return decodeSettings(settings).normalized()
+    }
+
     fun decodeProfile(json: String): SettingsProfile? {
         if (json.isBlank()) return null
         val root = runCatching { JSONObject(json) }.getOrNull() ?: return null

@@ -5,6 +5,65 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.164.0] - 2026-11-07
+
+### Added
+
+- **Multi-UE zone name** — The text after the operator in the zone-test file name is copied from the master to each connected slave. Each phone keeps its own operator at the start, so a master name of Vodafone_site1 is EE_site1 on a phone whose operator is EE.
+
+## [2.163.0] - 2026-11-07
+
+### Changed
+
+- **Zone test name** — The file name field starts with the operator name and an underscore, ready to finish before the screenshot is saved.
+
+## [2.162.0] - 2026-11-07
+
+### Added
+
+- **Multi-UE zone test** — Start zone test, Stop zone test, and Whole test on the master do the same on each connected slave. Each phone still scores its own signal.
+
+## [2.161.1] - 2026-11-07
+
+### Fixed
+
+- **Multi-UE KPI history** — Clear history on the master also clears the KPI tapes on each connected slave.
+
+## [2.161.0] - 2026-11-07
+
+### Added
+
+- **Multi-UE scrolling** — Scrolling the main screen on the master moves each connected slave to the same place on the page.
+
+## [2.160.0] - 2026-11-07
+
+### Added
+
+- **Multi-UE controls** — Connected slaves follow the master’s active mode testing as well as passive monitoring. Clear graph on the master clears the histogram, the ping chart, and the KPI tapes on each slave. Opening or collapsing a panel on the master does the same on each slave.
+
+### Fixed
+
+- **Screen rotation** — Turning the phone keeps the histogram, the ping chart, and the KPI and zone-test tapes.
+
+## [2.159.0] - 2026-11-07
+
+### Added
+
+- **Slave device** — When this phone is a connected Multi-UE slave, “Slave device” is shown under Check GitHub. If the link to the master drops, that line turns red and reads “slave device - disconnected”.
+
+## [2.158.0] - 2026-11-07
+
+### Added
+
+- **Master controller** — When this phone is the Multi-UE master, “Master controller” is shown under Check GitHub.
+- **Multi-UE settings sync** — The master can send its settings to slaves, and each slave can choose to take them. Both switches have to be on. Alerts, monitoring options, and sounds are copied. The known-cells list and the Multi-UE role stay on each phone.
+
+## [2.157.0] - 2026-11-07
+
+### Added
+
+- **Multi-UE** — One phone is the master and up to four others are slaves. They pair over Bluetooth. Start monitoring and Stop on the master do the same on each connected slave. Active mode testing stays on the master. Set the role on each phone. Unlock settings to change it.
+
 ## [2.156.0] - 2026-11-04
 
 ### Changed

@@ -12,8 +12,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -29,11 +27,12 @@ import io.github.cloolalang.notspotdetector.ui.theme.BondiBlue
  */
 @Composable
 fun TopLevelSectionCard(
+    id: String,
     title: String,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
-    var expanded by rememberSaveable { mutableStateOf(false) }
+    var expanded by panelFold(id, defaultExpanded = false)
 
     Card(
         modifier = modifier.fillMaxWidth(),

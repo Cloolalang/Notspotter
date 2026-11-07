@@ -23,9 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -63,7 +61,7 @@ fun RttGraphCard(
     modifier: Modifier = Modifier
 ) {
     var nowMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    var expanded by rememberSaveable { mutableStateOf(false) }
+    var expanded by panelFold("ping-chart", defaultExpanded = false)
     val scaleMs = windowMs.coerceToTapeWindowStep().coerceAtLeast(1L)
 
     LaunchedEffect(isActive) {

@@ -8,7 +8,8 @@ package io.github.cloolalang.notspotdetector.model
  * and [RadioDebugSettings].
  *
  * Not captured: monitoring session state, live [ConnectivityStats], permissions,
- * or the known-cells CSV (detection/voice toggles live in [AudioVolumeSettings]).
+ * the Multi-UE role and master address, or the known-cells CSV
+ * (detection/voice toggles live in [AudioVolumeSettings]).
  * See [SETTINGS_PROFILES.md] and [AppSettingsSnapshotCodec].
  */
 data class AppSettingsSnapshot(

@@ -30,9 +30,9 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -64,9 +64,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.cloolalang.notspotdetector.MonitorState
+import io.github.cloolalang.notspotdetector.model.MultiUeRole
+import io.github.cloolalang.notspotdetector.multiue.MultiUeGraphClear
+import io.github.cloolalang.notspotdetector.multiue.MultiUeState
+import io.github.cloolalang.notspotdetector.multiue.MultiUeZoneSync
 import io.github.cloolalang.notspotdetector.R
 import io.github.cloolalang.notspotdetector.data.FloorPlanLoader
 import io.github.cloolalang.notspotdetector.data.WalkRouteImage
@@ -162,20 +168,22 @@ fun HistogramControlsCard(
     onBinningModeChange: (RsrpHistogramBinningMode) -> Unit,
     onThresholdChange: (Int, Int) -> Unit,
     onClearHistogram: () -> Unit,
+    onClearKpiHistory: () -> Unit = {},
     walkRouteEnabled: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    var histogramExpanded by rememberSaveable { mutableStateOf(false) }
-    var kpiHistoryExpanded by rememberSaveable { mutableStateOf(false) }
+    var histogramExpanded by panelFold("histogram", defaultExpanded = false)
+    var kpiHistoryExpanded by panelFold("kpi-history", defaultExpanded = false)
     var nowMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    var carrierTape by remember { mutableStateOf(PrimaryCarrierTape()) }
-    var technologyTape by remember { mutableStateOf(TechnologyTape()) }
-    var rsrpBinTape by remember { mutableStateOf(RsrpBinTape()) }
-    var rsrqBinTape by remember { mutableStateOf(RsrqBinTape()) }
-    var distanceTape by remember { mutableStateOf(DistanceTape()) }
-    var intracellDominanceTape by remember { mutableStateOf(IntracellDominanceTape()) }
-    var activeTestTape by remember { mutableStateOf(ActiveTestTape()) }
-    var aggregatedBandwidthTape by remember { mutableStateOf(AggregatedBandwidthTape()) }
+    val kpiHistory = viewModel<KpiHistoryViewModel>()
+    var carrierTape by kpiHistory.carrierTape
+    var technologyTape by kpiHistory.technologyTape
+    var rsrpBinTape by kpiHistory.rsrpBinTape
+    var rsrqBinTape by kpiHistory.rsrqBinTape
+    var distanceTape by kpiHistory.distanceTape
+    var intracellDominanceTape by kpiHistory.intracellDominanceTape
+    var activeTestTape by kpiHistory.activeTestTape
+    var aggregatedBandwidthTape by kpiHistory.aggregatedBandwidthTape
     val currentCarrier = PrimaryCarrierHistory.visitFromStats(stats)
     val currentTechnology = TechnologyHistory.technologyFromStats(stats)
     val sampleWindowMs = windowMs.coerceToHistogramWindowStep()
@@ -201,8 +209,8 @@ fun HistogramControlsCard(
     val currentAggregatedBandwidth = AggregatedBandwidthHistory.current(stats)
     // The tape clock holds still while monitoring is stopped, and that pause is left out of the scale.
     val testsRunning = isActive
-    var tapePauseOffsetMs by remember { mutableLongStateOf(0L) }
-    var tapeHeldWallMs by remember { mutableStateOf<Long?>(null) }
+    var tapePauseOffsetMs by kpiHistory.tapePauseOffsetMs
+    var tapeHeldWallMs by kpiHistory.tapeHeldWallMs
     val heldWallMs = tapeHeldWallMs
     if (testsRunning && heldWallMs != null) {
         tapePauseOffsetMs += nowMs - heldWallMs
@@ -239,6 +247,10 @@ fun HistogramControlsCard(
             currentAggregatedBandwidth,
             now
         )
+    }
+    val resetTapesNow = rememberUpdatedState<() -> Unit>({ resetTapes() })
+    LaunchedEffect(Unit) {
+        MultiUeGraphClear.tapes.collect { resetTapesNow.value.invoke() }
     }
     LaunchedEffect(currentCarrier, testsRunning) {
         if (!testsRunning) return@LaunchedEffect
@@ -337,10 +349,7 @@ fun HistogramControlsCard(
                 )
 
                 OutlinedButton(
-                    onClick = {
-                        resetTapes()
-                        onClearHistogram()
-                    },
+                    onClick = onClearHistogram,
                     enabled = samples.isNotEmpty() ||
                         carrierTape.entries.size > 1 ||
                         technologyTape.entries.size > 1 ||
@@ -370,7 +379,7 @@ fun HistogramControlsCard(
         }
     }
     val currentOperator = OperatorTitleStyle.resolveLabel(stats)
-    var tapeOperator by remember { mutableStateOf(currentOperator) }
+    var tapeOperator by kpiHistory.tapeOperator
     if (currentOperator != null && currentOperator != tapeOperator) {
         tapeOperator = currentOperator
     }
@@ -400,7 +409,7 @@ fun HistogramControlsCard(
         activeTestEntries = activeTestTape.entries,
         aggregatedBandwidthEntries = aggregatedBandwidthTape.entries,
         tapeWindowMs = tapeWindowMs.coerceToTapeWindowStep(),
-        onClearHistory = { resetTapes() }
+        onClearHistory = onClearKpiHistory
     )
     }
 }
@@ -417,7 +426,7 @@ private fun HistogramSettingsPanel(
     onBinningModeChange: (RsrpHistogramBinningMode) -> Unit,
     onThresholdChange: (Int, Int) -> Unit
 ) {
-    var expanded by rememberSaveable { mutableStateOf(false) }
+    var expanded by panelFold("histogram-settings", defaultExpanded = false)
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -728,23 +737,24 @@ private fun ZoneTestPanel(
     sampleWindowMs: Long,
     walkRouteEnabled: Boolean
 ) {
-    var expanded by rememberSaveable { mutableStateOf(false) }
-    var running by remember { mutableStateOf(false) }
-    var startMs by remember { mutableStateOf<Long?>(null) }
-    var endMs by remember { mutableStateOf<Long?>(null) }
+    var expanded by panelFold("zone-test", defaultExpanded = false)
+    val zoneTest = viewModel<ZoneTestViewModel>()
+    var running by zoneTest.running
+    var startMs by zoneTest.startMs
+    var endMs by zoneTest.endMs
     var openSampleWindow by rememberSaveable { mutableStateOf(false) }
-    var sampleWindowStartMs by remember { mutableStateOf<Long?>(null) }
-    var zoneName by remember { mutableStateOf("") }
-    var operatorLabel by remember { mutableStateOf<String?>(null) }
-    var statusMessage by remember { mutableStateOf<String?>(null) }
-    var carrierTape by remember { mutableStateOf(PrimaryCarrierTape()) }
-    var technologyTape by remember { mutableStateOf(TechnologyTape()) }
-    var rsrpBinTape by remember { mutableStateOf(RsrpBinTape()) }
-    var rsrqBinTape by remember { mutableStateOf(RsrqBinTape()) }
-    var distanceTape by remember { mutableStateOf(DistanceTape()) }
-    var intracellDominanceTape by remember { mutableStateOf(IntracellDominanceTape()) }
-    var activeTestTape by remember { mutableStateOf(ActiveTestTape()) }
-    var aggregatedBandwidthTape by remember { mutableStateOf(AggregatedBandwidthTape()) }
+    var sampleWindowStartMs by zoneTest.sampleWindowStartMs
+    var zoneName by zoneTest.zoneName
+    var operatorLabel by zoneTest.operatorLabel
+    var statusMessage by zoneTest.statusMessage
+    var carrierTape by zoneTest.carrierTape
+    var technologyTape by zoneTest.technologyTape
+    var rsrpBinTape by zoneTest.rsrpBinTape
+    var rsrqBinTape by zoneTest.rsrqBinTape
+    var distanceTape by zoneTest.distanceTape
+    var intracellDominanceTape by zoneTest.intracellDominanceTape
+    var activeTestTape by zoneTest.activeTestTape
+    var aggregatedBandwidthTape by zoneTest.aggregatedBandwidthTape
     val noSignal = TechnologyHistory.isNoSignalPeriod(stats)
     val currentCarrier = PrimaryCarrierHistory.visitFromStats(stats)
     val currentTechnology = TechnologyHistory.technologyFromStats(stats)
@@ -765,9 +775,6 @@ private fun ZoneTestPanel(
         val retainFrom = if (openSampleWindow && running) sampleWindowStartMs else null
         MonitorState.setZoneTestSampleRetainFrom(retainFrom)
     }
-    DisposableEffect(Unit) {
-        onDispose { MonitorState.setZoneTestSampleRetainFrom(null) }
-    }
     val currentDistance = DistanceHistory.current(samples, nowMs, noSignal)
     val currentIntracellDominance = PrimaryIntracellDominanceHistory.current(stats, passiveSignalSettings)
     val currentActiveTest = ActiveTestHistory.current(stats)
@@ -775,8 +782,8 @@ private fun ZoneTestPanel(
     val liveOperator = OperatorTitleStyle.resolveLabel(stats)
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var floorPlan by remember { mutableStateOf<Bitmap?>(null) }
-    var pins by remember { mutableStateOf<List<WalkPin>>(emptyList()) }
+    var floorPlan by zoneTest.floorPlan
+    var pins by zoneTest.pins
     val graphicsLayer = rememberGraphicsLayer()
     val savedTemplate = stringResource(R.string.zone_test_saved)
     val savedWithRouteTemplate = stringResource(R.string.zone_test_saved_with_route)
@@ -844,6 +851,59 @@ private fun ZoneTestPanel(
         )
     }
 
+    val link by MultiUeState.snapshot.collectAsStateWithLifecycle()
+    val followsMaster = link.followsMaster
+    val remoteZone by MultiUeZoneSync.state.collectAsStateWithLifecycle()
+    val startZoneNow = rememberUpdatedState<() -> Unit>({
+        val atMs = tapeNowMs
+        startMs = atMs
+        sampleWindowStartMs = nowMs
+        endMs = null
+        zoneName = ZoneTest.fileNamePrefix(liveOperator)
+        statusMessage = null
+        operatorLabel = liveOperator
+        pins = emptyList()
+        freshTapes(atMs)
+        running = true
+    })
+    val stopZoneNow = rememberUpdatedState<() -> Unit>({
+        running = false
+        endMs = tapeNowMs
+    })
+    val remoteZoneName by MultiUeZoneSync.nameSuffix.collectAsStateWithLifecycle()
+    if (link.role == MultiUeRole.MASTER) {
+        LaunchedEffect(Unit) {
+            snapshotFlow { running to openSampleWindow }
+                .collect { (zoneRunning, wholeTest) ->
+                    MultiUeZoneSync.set(zoneRunning, wholeTest)
+                }
+        }
+        LaunchedEffect(liveOperator, operatorLabel) {
+            snapshotFlow { zoneName }
+                .collect { name ->
+                    MultiUeZoneSync.setNameSuffix(
+                        ZoneTest.sharedNameSuffix(name, operatorLabel ?: liveOperator)
+                    )
+                }
+        }
+    }
+    if (followsMaster) {
+        LaunchedEffect(remoteZone, isMonitoring) {
+            val command = remoteZone ?: return@LaunchedEffect
+            if (openSampleWindow != command.wholeTest) openSampleWindow = command.wholeTest
+            if (command.running) {
+                if (!running && isMonitoring) startZoneNow.value.invoke()
+            } else if (running) {
+                stopZoneNow.value.invoke()
+            }
+        }
+        LaunchedEffect(remoteZoneName, operatorLabel, liveOperator) {
+            val suffix = remoteZoneName ?: return@LaunchedEffect
+            val next = ZoneTest.nameWithOperator(operatorLabel ?: liveOperator, suffix)
+            if (zoneName != next) zoneName = next
+        }
+    }
+
     LaunchedEffect(isMonitoring) {
         if (!isMonitoring && running) {
             running = false
@@ -853,6 +913,15 @@ private fun ZoneTestPanel(
     LaunchedEffect(liveOperator, running) {
         if (running && liveOperator != null) {
             operatorLabel = liveOperator
+            if (!followsMaster && zoneName.isBlank()) {
+                zoneName = ZoneTest.fileNamePrefix(liveOperator)
+            }
+        }
+    }
+    LaunchedEffect(running, startMs, operatorLabel, liveOperator) {
+        if (!followsMaster && !running && startMs != null && zoneName.isBlank()) {
+            val prefix = ZoneTest.fileNamePrefix(operatorLabel ?: liveOperator)
+            if (prefix.isNotEmpty()) zoneName = prefix
         }
     }
     LaunchedEffect(currentCarrier, running) {
@@ -961,29 +1030,16 @@ private fun ZoneTestPanel(
             )
             if (running) {
                 Button(
-                    onClick = {
-                        running = false
-                        endMs = tapeNowMs
-                    },
+                    onClick = { stopZoneNow.value.invoke() },
+                    enabled = !followsMaster,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(text = stringResource(R.string.zone_test_stop))
                 }
             } else {
                 Button(
-                    onClick = {
-                        val atMs = tapeNowMs
-                        startMs = atMs
-                        sampleWindowStartMs = nowMs
-                        endMs = null
-                        zoneName = ""
-                        statusMessage = null
-                        operatorLabel = liveOperator
-                        pins = emptyList()
-                        freshTapes(atMs)
-                        running = true
-                    },
-                    enabled = isMonitoring,
+                    onClick = { startZoneNow.value.invoke() },
+                    enabled = isMonitoring && !followsMaster,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(text = stringResource(R.string.zone_test_start))
@@ -1008,7 +1064,8 @@ private fun ZoneTestPanel(
                 }
                 Switch(
                     checked = openSampleWindow,
-                    onCheckedChange = { openSampleWindow = it }
+                    onCheckedChange = { openSampleWindow = it },
+                    enabled = !followsMaster
                 )
             }
             if (walkRouteEnabled) {
@@ -1029,6 +1086,7 @@ private fun ZoneTestPanel(
                 OutlinedTextField(
                     value = zoneName,
                     onValueChange = { zoneName = it },
+                    enabled = !followsMaster,
                     label = { Text(stringResource(R.string.zone_test_name_label)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
@@ -1112,8 +1170,10 @@ private fun ZoneTestPanel(
                         startMs = null
                         sampleWindowStartMs = null
                         endMs = null
-                        zoneName = ""
-                        operatorLabel = null
+                        if (!followsMaster) {
+                            zoneName = ""
+                            operatorLabel = null
+                        }
                         statusMessage = null
                         pins = emptyList()
                         carrierTape = PrimaryCarrierTape()

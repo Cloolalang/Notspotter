@@ -13,8 +13,6 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,7 +33,7 @@ fun RadioDebugCard(
     onClear: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var expanded by rememberSaveable { mutableStateOf(false) }
+    var expanded by panelFold("radio-debug", defaultExpanded = false)
     val controlsEnabled = settingsControlsEnabled()
 
     Card(modifier = modifier.fillMaxWidth()) {

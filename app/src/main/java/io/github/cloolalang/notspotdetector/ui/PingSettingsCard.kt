@@ -42,7 +42,7 @@ fun PingSettingsCard(
     onActiveTimeLimitChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var expanded by rememberSaveable { mutableStateOf(false) }
+    var expanded by panelFold("ping-settings", defaultExpanded = false)
     var addressInput by rememberSaveable { mutableStateOf(pingSettings.displayAddress) }
     var addressFocused by rememberSaveable { mutableStateOf(false) }
 

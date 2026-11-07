@@ -11,6 +11,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -23,8 +26,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,6 +52,10 @@ import io.github.cloolalang.notspotdetector.model.CellReselectAlertScope
 import io.github.cloolalang.notspotdetector.model.CellReselectBandNamingStyle
 import io.github.cloolalang.notspotdetector.model.ConnectivityStats
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
+import io.github.cloolalang.notspotdetector.model.MultiUeLinkSnapshot
+import io.github.cloolalang.notspotdetector.model.MultiUeProtocol
+import io.github.cloolalang.notspotdetector.model.MultiUeRole
+import io.github.cloolalang.notspotdetector.multiue.MultiUeScroll
 import io.github.cloolalang.notspotdetector.model.LteEciSplit
 import io.github.cloolalang.notspotdetector.model.LteEcgi
 import io.github.cloolalang.notspotdetector.model.ServiceStateMetricLabel
@@ -145,6 +150,7 @@ fun MonitorScreen(
     onRsrpHistogramBinningModeChange: (RsrpHistogramBinningMode) -> Unit = {},
     onRsrpHistogramThresholdChange: (Int, Int) -> Unit = { _, _ -> },
     onClearRsrpHistogram: () -> Unit = {},
+    onClearKpiHistory: () -> Unit = {},
     onApplyMacroDefaults: () -> Unit,
     onSubscriptionChange: (Int) -> Unit,
     onMobileDataEnabledChange: (Boolean) -> Unit = {},
@@ -233,13 +239,41 @@ fun MonitorScreen(
     appUpdate: AppUpdateControls = AppUpdateControls(),
     carrierConfigSnapshot: CarrierConfigSnapshot = CarrierConfigSnapshot(),
     onRefreshCarrierConfig: () -> Unit = {},
+    multiUe: MultiUeLinkSnapshot = MultiUeLinkSnapshot(),
+    multiUeActions: MultiUeActions = MultiUeActions(),
     modifier: Modifier = Modifier
 ) {
+    val scroll = rememberScrollState()
+    if (multiUe.role == MultiUeRole.MASTER) {
+        LaunchedEffect(scroll) {
+            snapshotFlow {
+                val max = scroll.maxValue
+                if (max <= 0) null
+                else (scroll.value.toLong() * MultiUeProtocol.SCROLL_SCALE / max).toInt()
+            }.collect { fraction ->
+                if (fraction != null) MultiUeScroll.publish(fraction)
+            }
+        }
+    }
+    val remoteScroll by MultiUeScroll.fraction.collectAsStateWithLifecycle()
+    if (multiUe.followsMaster) {
+        LaunchedEffect(remoteScroll, scroll.maxValue) {
+            val fraction = remoteScroll ?: return@LaunchedEffect
+            val max = scroll.maxValue
+            if (max <= 0) return@LaunchedEffect
+            val target = (fraction.toLong() * max / MultiUeProtocol.SCROLL_SCALE)
+                .toInt()
+                .coerceIn(0, max)
+            if (kotlin.math.abs(scroll.value - target) > 2) {
+                scroll.scrollTo(target)
+            }
+        }
+    }
     CompositionLocalProvider(LocalSettingsUnlocked provides settingsUnlocked) {
     Column(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(scroll)
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
@@ -250,14 +284,29 @@ fun MonitorScreen(
             showManualSelectOperator = monitoringSettings.showManualSelectOperatorButton,
             onChooseOperator = onOpenNetworkOperatorPicker,
             versionLabel = stringResource(R.string.app_version, appVersion),
-            appUpdate = appUpdate
+            appUpdate = appUpdate,
+            multiUeRole = multiUe.role,
+            slaveConnected = multiUe.connectedMaster != null
         )
 
         MonitoringControlButtons(
             isRunning = isRunning,
+            enabled = !multiUe.followsMaster,
             onStart = onStart,
             onStartActiveMode = onStartActiveMode,
             onStop = onStop
+        )
+        if (multiUe.followsMaster) {
+            Text(
+                text = stringResource(R.string.multi_ue_following),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        MultiUeCard(
+            snapshot = multiUe,
+            actions = multiUeActions
         )
 
         HistogramControlsCard(
@@ -274,6 +323,7 @@ fun MonitorScreen(
             onBinningModeChange = onRsrpHistogramBinningModeChange,
             onThresholdChange = onRsrpHistogramThresholdChange,
             onClearHistogram = onClearRsrpHistogram,
+            onClearKpiHistory = onClearKpiHistory,
             walkRouteEnabled = monitoringSettings.walkRouteEnabled
         )
 
@@ -333,7 +383,10 @@ fun MonitorScreen(
             }
         }
 
-        TopLevelSectionCard(title = stringResource(R.string.top_level_passive_mode_monitoring)) {
+        TopLevelSectionCard(
+            id = "section-passive",
+            title = stringResource(R.string.top_level_passive_mode_monitoring)
+        ) {
             MasterAudioToggle(
                 title = stringResource(R.string.audio_master_voice_announcements),
                 hint = stringResource(R.string.audio_master_voice_announcements_hint),
@@ -442,7 +495,10 @@ fun MonitorScreen(
             )
         }
 
-        TopLevelSectionCard(title = stringResource(R.string.top_level_active_mode_testing)) {
+        TopLevelSectionCard(
+            id = "section-active",
+            title = stringResource(R.string.top_level_active_mode_testing)
+        ) {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Row(
                     modifier = Modifier
@@ -490,7 +546,10 @@ fun MonitorScreen(
             )
         }
 
-        TopLevelSectionCard(title = stringResource(R.string.top_level_general_app_settings)) {
+        TopLevelSectionCard(
+            id = "section-general",
+            title = stringResource(R.string.top_level_general_app_settings)
+        ) {
             SettingsLockBar(
                 unlocked = settingsUnlocked,
                 onUnlockedChange = onSettingsUnlockedChange
@@ -524,7 +583,10 @@ fun MonitorScreen(
             )
         }
 
-        TopLevelSectionCard(title = stringResource(R.string.top_level_development_area)) {
+        TopLevelSectionCard(
+            id = "section-development",
+            title = stringResource(R.string.top_level_development_area)
+        ) {
             WalkRouteDevelopmentSwitch(
                 enabled = monitoringSettings.walkRouteEnabled,
                 onEnabledChange = onWalkRouteEnabledChange
@@ -683,6 +745,7 @@ private fun MasterAudioToggle(
 @Composable
 private fun MonitoringControlButtons(
     isRunning: Boolean,
+    enabled: Boolean,
     onStart: () -> Unit,
     onStartActiveMode: () -> Unit,
     onStop: () -> Unit
@@ -690,6 +753,7 @@ private fun MonitoringControlButtons(
     if (isRunning) {
         Button(
             onClick = onStop,
+            enabled = enabled,
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(
                 containerColor = StopRose,
@@ -702,6 +766,7 @@ private fun MonitoringControlButtons(
         // "Start monitoring" is passive (signal only). "Start active mode testing" runs pings.
         Button(
             onClick = onStart,
+            enabled = enabled,
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(
                 containerColor = BondiBlue,
@@ -712,6 +777,7 @@ private fun MonitoringControlButtons(
         }
         OutlinedButton(
             onClick = onStartActiveMode,
+            enabled = enabled,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(text = stringResource(R.string.start_active_mode_testing))
@@ -731,7 +797,7 @@ private fun MetricsCard(
     onRequestCellIdentityPermission: () -> Unit
 ) {
     val mockActive = stats.isPassiveOnlySession && passiveMockSettings.enabled
-    var expanded by rememberSaveable { mutableStateOf(true) }
+    var expanded by panelFold("metrics", defaultExpanded = true)
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -925,7 +991,7 @@ private fun CollapsibleMetricsHeader(
 @Composable
 private fun ActiveModeMetricsCard(stats: ConnectivityStats) {
     val hasPingResult = !stats.isPassiveOnlySession && stats.pingsSent > 0
-    var expanded by rememberSaveable { mutableStateOf(true) }
+    var expanded by panelFold("active-metrics", defaultExpanded = true)
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(20.dp),

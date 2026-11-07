@@ -8,6 +8,7 @@ import io.github.cloolalang.notspotdetector.MonitorState
 import io.github.cloolalang.notspotdetector.data.AudioVolumeSettingsRepository
 import io.github.cloolalang.notspotdetector.data.MacroDefaultSettings
 import io.github.cloolalang.notspotdetector.data.MonitoringSettingsRepository
+import io.github.cloolalang.notspotdetector.data.MultiUeRoleRepository
 import io.github.cloolalang.notspotdetector.data.PassiveMockSettingsRepository
 import io.github.cloolalang.notspotdetector.data.PassiveSignalSettingsRepository
 import io.github.cloolalang.notspotdetector.data.PingSettingsRepository
@@ -20,6 +21,8 @@ import io.github.cloolalang.notspotdetector.model.AppSettingsSnapshot
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
 import io.github.cloolalang.notspotdetector.model.CarrierConfigSnapshot
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
+import io.github.cloolalang.notspotdetector.model.MultiUeLinkPhase
+import io.github.cloolalang.notspotdetector.model.MultiUeRole
 import io.github.cloolalang.notspotdetector.model.PassiveMockSettings
 import io.github.cloolalang.notspotdetector.model.PeriodicVoiceRepeat
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
@@ -61,6 +64,12 @@ import io.github.cloolalang.notspotdetector.network.SimSubscriptionHelper
 import io.github.cloolalang.notspotdetector.audio.CellVoiceAnnouncer
 import io.github.cloolalang.notspotdetector.audio.AlertVibrator
 import io.github.cloolalang.notspotdetector.audio.GeigerCounterPlayer
+import io.github.cloolalang.notspotdetector.multiue.MultiUeGraphClear
+import io.github.cloolalang.notspotdetector.multiue.MultiUeLinkService
+import io.github.cloolalang.notspotdetector.multiue.MultiUePermissions
+import io.github.cloolalang.notspotdetector.multiue.MultiUeRadios
+import io.github.cloolalang.notspotdetector.multiue.MultiUeSettingsSync
+import io.github.cloolalang.notspotdetector.multiue.MultiUeState
 import io.github.cloolalang.notspotdetector.service.ConnectivityMonitorService
 import io.github.cloolalang.notspotdetector.util.BackgroundHelper
 import kotlinx.coroutines.Dispatchers
@@ -83,6 +92,7 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
     private val specialCellsRepository = SpecialCellsRepository(application)
     private val radioDebugSettingsRepository = RadioDebugSettingsRepository(application)
     private val radioDebugLogger = RadioDebugLogger(application)
+    private val multiUeRoleRepository = MultiUeRoleRepository(application)
     private val alertSoundPreview = GeigerCounterPlayer()
     private val cellVoiceAnnouncer = CellVoiceAnnouncer(application)
 
@@ -133,12 +143,29 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         if (MonitorState.monitoringSettings.value.inhibit2g) {
             applyInhibit2gToPhone(true, persistOnSuccess = false)
         }
+        seedMultiUe()
+        syncMultiUeService()
+        viewModelScope.launch {
+            MultiUeSettingsSync.incoming.collect { incoming ->
+                if (multiUeRoleRepository.loadRole() != MultiUeRole.SLAVE) return@collect
+                if (!multiUeRoleRepository.loadSlaveSyncSettings()) return@collect
+                val normalized = incoming.normalized()
+                if (normalized == captureCurrentSettingsSnapshot()) return@collect
+                applyLoadedSettings(normalized)
+            }
+        }
     }
 
     val stats = MonitorState.stats.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
         MonitorState.stats.value
+    )
+
+    val multiUe = MultiUeState.snapshot.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        MultiUeState.snapshot.value
     )
 
     val isRunning = MonitorState.isRunning.stateIn(
@@ -229,6 +256,108 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         ConnectivityMonitorService.stop(getApplication())
     }
 
+    fun updateMultiUeRole(role: MultiUeRole) {
+        multiUeRoleRepository.saveRole(role)
+        MultiUeState.update {
+            it.copy(
+                role = role,
+                connectedSlaves = emptyList(),
+                connectedMaster = null,
+                nearby = emptyList(),
+                discovering = false,
+                phase = MultiUeLinkPhase.IDLE
+            )
+        }
+        syncMultiUeService()
+    }
+
+    fun connectMultiUeMaster(address: String) {
+        multiUeRoleRepository.saveMasterAddress(address)
+        MultiUeState.update { it.copy(savedMasterAddress = address) }
+        if (MultiUePermissions.granted(getApplication())) {
+            MultiUeLinkService.connect(getApplication(), address)
+        }
+    }
+
+    fun lookForMultiUeMaster() {
+        if (MultiUePermissions.granted(getApplication())) {
+            MultiUeLinkService.discover(getApplication())
+        }
+    }
+
+    fun disconnectMultiUeMaster() {
+        if (MultiUePermissions.granted(getApplication())) {
+            MultiUeLinkService.disconnect(getApplication())
+        }
+    }
+
+    fun updateMultiUeMasterSync(enabled: Boolean) {
+        multiUeRoleRepository.saveMasterSyncSettings(enabled)
+        MultiUeState.update { it.copy(masterSyncSettings = enabled) }
+        if (enabled && MultiUePermissions.granted(getApplication())) {
+            MultiUeLinkService.pushSettings(getApplication())
+        }
+    }
+
+    fun updateMultiUeSlaveSync(enabled: Boolean) {
+        multiUeRoleRepository.saveSlaveSyncSettings(enabled)
+        MultiUeState.update { it.copy(slaveSyncSettings = enabled) }
+        if (MultiUePermissions.granted(getApplication()) &&
+            multiUeRoleRepository.loadRole() == MultiUeRole.SLAVE
+        ) {
+            MultiUeLinkService.notifySlaveSync(getApplication(), enabled)
+        }
+    }
+
+    fun refreshMultiUeLink() {
+        val context = getApplication<Application>()
+        val info = MultiUeRadios.read(context)
+        MultiUeState.update {
+            it.copy(
+                role = multiUeRoleRepository.loadRole(),
+                savedMasterAddress = multiUeRoleRepository.loadMasterAddress(),
+                bluetoothAvailable = info.available,
+                bluetoothEnabled = if (MultiUePermissions.granted(context)) {
+                    info.enabled
+                } else {
+                    it.bluetoothEnabled
+                },
+                localName = info.localName.ifBlank { it.localName },
+                permissionGranted = MultiUePermissions.granted(context),
+                masterSyncSettings = multiUeRoleRepository.loadMasterSyncSettings(),
+                slaveSyncSettings = multiUeRoleRepository.loadSlaveSyncSettings()
+            )
+        }
+        syncMultiUeService()
+    }
+
+    private fun seedMultiUe() {
+        val context = getApplication<Application>()
+        val info = MultiUeRadios.read(context)
+        MultiUeState.update {
+            it.copy(
+                role = multiUeRoleRepository.loadRole(),
+                savedMasterAddress = multiUeRoleRepository.loadMasterAddress(),
+                bluetoothAvailable = info.available,
+                bluetoothEnabled = info.enabled,
+                localName = info.localName,
+                permissionGranted = MultiUePermissions.granted(context),
+                masterSyncSettings = multiUeRoleRepository.loadMasterSyncSettings(),
+                slaveSyncSettings = multiUeRoleRepository.loadSlaveSyncSettings()
+            )
+        }
+    }
+
+    private fun syncMultiUeService() {
+        val context = getApplication<Application>()
+        val role = multiUeRoleRepository.loadRole()
+        if (role == MultiUeRole.OFF || !MultiUePermissions.granted(context)) {
+            MultiUeLinkService.stop(context)
+        } else {
+            MultiUeLinkService.start(context)
+        }
+    }
+
     fun updatePingAddress(input: String) {
         val (host, port) = PingSettings.parseAddress(input)
         updatePingSettings(pingSettings.value.copy(host = host, port = port))
@@ -263,8 +392,20 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         refreshCellularSignal()
     }
 
-    fun clearRsrpHistogram() {
+    fun clearGraphs() {
         MonitorState.clearRsrpHistogram()
+        MonitorState.clearRttHistory()
+        MultiUeGraphClear.resetTapes()
+        if (multiUeRoleRepository.loadRole() == MultiUeRole.MASTER) {
+            MultiUeLinkService.broadcastClear(getApplication())
+        }
+    }
+
+    fun clearKpiHistory() {
+        MultiUeGraphClear.resetTapes()
+        if (multiUeRoleRepository.loadRole() == MultiUeRole.MASTER) {
+            MultiUeLinkService.broadcastClearHistory(getApplication())
+        }
     }
 
     fun updateRsrpHistogramWindowMs(value: Long) {
@@ -494,6 +635,7 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
     fun updateRadioDebugEnabled(enabled: Boolean) {
         radioDebugSettingsRepository.saveEnabled(enabled)
         radioDebugLogger.setEnabled(enabled)
+        MultiUeSettingsSync.poke()
     }
 
     fun radioDebugFileForShare(): File? = radioDebugLogger.fileForShare()

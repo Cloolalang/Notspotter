@@ -14,8 +14,6 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,7 +34,7 @@ fun MockNetworkStateCard(
     fiveGFeaturesEnabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
-    var expanded by rememberSaveable { mutableStateOf(false) }
+    var expanded by panelFold("mock-network", defaultExpanded = false)
 
     Card(modifier = modifier.fillMaxWidth()) {
         Column(

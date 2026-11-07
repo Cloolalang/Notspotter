@@ -22,6 +22,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import io.github.cloolalang.notspotdetector.R
 import io.github.cloolalang.notspotdetector.model.AppBrand
+import io.github.cloolalang.notspotdetector.model.MultiUeRole
 import io.github.cloolalang.notspotdetector.model.AppUpdateControls
 import io.github.cloolalang.notspotdetector.model.AppUpdateStatus
 import io.github.cloolalang.notspotdetector.model.ConnectivityStats
@@ -43,6 +44,8 @@ fun HomeTitleBar(
     onChooseOperator: () -> Unit = {},
     versionLabel: String? = null,
     appUpdate: AppUpdateControls = AppUpdateControls(),
+    multiUeRole: MultiUeRole = MultiUeRole.OFF,
+    slaveConnected: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val operatorLabel = OperatorTitleStyle.resolveLabel(stats)
@@ -90,6 +93,36 @@ fun HomeTitleBar(
                         text = stringResource(R.string.app_update_check),
                         style = MaterialTheme.typography.labelMedium
                     )
+                }
+                when (multiUeRole) {
+                    MultiUeRole.MASTER -> {
+                        Text(
+                            text = stringResource(R.string.multi_ue_master_controller),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Sushi,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                    MultiUeRole.SLAVE -> {
+                        val connected = slaveConnected
+                        Text(
+                            text = stringResource(
+                                if (connected) {
+                                    R.string.multi_ue_slave_device
+                                } else {
+                                    R.string.multi_ue_slave_device_disconnected
+                                }
+                            ),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (connected) {
+                                Sushi
+                            } else {
+                                MaterialTheme.colorScheme.error
+                            },
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                    MultiUeRole.OFF -> Unit
                 }
             }
         }

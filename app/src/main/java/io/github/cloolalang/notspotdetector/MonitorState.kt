@@ -562,6 +562,13 @@ object MonitorState {
         }
     }
 
+    /** Empties the ping chart without stopping monitoring. */
+    fun clearRttHistory() {
+        synchronized(monitorLock) {
+            _rttHistory.value = emptyList()
+        }
+    }
+
     fun pruneRsrpHistory(nowMs: Long = System.currentTimeMillis()) {
         val cutoff = nowMs - rsrpHistoryRetentionMs()
         _rsrpHistory.value = _rsrpHistory.value.filter { it.timestampMs >= cutoff }

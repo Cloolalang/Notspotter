@@ -16,8 +16,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -125,7 +123,7 @@ fun PassiveSignalSettingsCard(
     onPeriodicVoiceRepeatChange: (PeriodicVoiceRepeat, Boolean) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
-    var expanded by rememberSaveable { mutableStateOf(false) }
+    var expanded by panelFold("passive-signal", defaultExpanded = false)
 
     Card(modifier = modifier.fillMaxWidth()) {
         Column(
@@ -1603,7 +1601,7 @@ private fun LevelRangeBcdSharedSoundControls(
         settings.levelRangeAbcdMinClickIntervalMs(),
         sharedFloorPulseDurationMs
     )
-    var expanded by rememberSaveable { mutableStateOf(false) }
+    var expanded by panelFold("rxss-bcd-shared", defaultExpanded = false)
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -2674,7 +2672,7 @@ private fun TierSettingSection(
     accentColor: Color,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    var expanded by rememberSaveable { mutableStateOf(false) }
+    var expanded by panelFold("rxss-$tierNumber", defaultExpanded = false)
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(

@@ -8,6 +8,7 @@ import io.github.cloolalang.notspotdetector.R
 
 object NotificationChannels {
     const val MONITOR_CHANNEL_ID = "connectivity_monitor"
+    const val MULTI_UE_CHANNEL_ID = "multi_ue_link"
 
     fun create(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
@@ -21,7 +22,17 @@ object NotificationChannels {
             setShowBadge(false)
         }
 
+        val multiUe = NotificationChannel(
+            MULTI_UE_CHANNEL_ID,
+            context.getString(R.string.notification_channel_multi_ue),
+            NotificationManager.IMPORTANCE_LOW
+        ).apply {
+            description = context.getString(R.string.notification_channel_multi_ue_description)
+            setShowBadge(false)
+        }
+
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(channel)
+        manager.createNotificationChannel(multiUe)
     }
 }

@@ -53,7 +53,7 @@ fun SpecialCellsCard(
     actions: SpecialCellsActions,
     modifier: Modifier = Modifier
 ) {
-    var expanded by rememberSaveable { mutableStateOf(false) }
+    var expanded by panelFold("special-cells", defaultExpanded = false)
     var lastImportResult by rememberSaveable { mutableStateOf<SpecialCellsImportResult?>(null) }
 
     Card(modifier = modifier.fillMaxWidth()) {

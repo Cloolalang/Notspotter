@@ -17,6 +17,18 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation"
+        tools:targetApi="s" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
@@ -24,6 +36,10 @@
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
+
+    <uses-feature
+        android:name="android.hardware.bluetooth"
+        android:required="false" />
 
     <application
         android:allowBackup="true"
@@ -51,6 +67,12 @@
             android:name=".service.ConnectivityMonitorService"
             android:exported="false"
             android:foregroundServiceType="dataSync"
+            android:stopWithTask="false" />
+
+        <service
+            android:name=".multiue.MultiUeLinkService"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice"
             android:stopWithTask="false" />
 
         <provider

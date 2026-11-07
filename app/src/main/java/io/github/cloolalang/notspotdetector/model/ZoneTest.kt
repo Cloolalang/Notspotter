@@ -11,6 +11,29 @@ object ZoneTest {
     fun jpegFileName(name: String, operator: String?): String =
         fileName(prefix = "Zone test", name = name, operator = operator)
 
+    /** Operator name plus an underscore, used at the start of the saved file name. */
+    fun fileNamePrefix(operator: String?): String {
+        val name = operator?.trim()?.takeIf { it.isNotEmpty() } ?: return ""
+        return "${name}_"
+    }
+
+    /**
+     * The part of [zoneName] after this phone's operator prefix.
+     * That part is what a master shares. Each phone keeps its own operator.
+     */
+    fun sharedNameSuffix(zoneName: String, operator: String?): String {
+        val prefix = fileNamePrefix(operator)
+        return if (prefix.isNotEmpty() && zoneName.startsWith(prefix)) {
+            zoneName.removePrefix(prefix)
+        } else {
+            zoneName
+        }
+    }
+
+    fun nameWithOperator(operator: String?, sharedSuffix: String): String {
+        return fileNamePrefix(operator) + sharedSuffix
+    }
+
     fun walkJpegFileName(name: String, operator: String?): String =
         fileName(prefix = "Zone walk", name = name, operator = operator)
 

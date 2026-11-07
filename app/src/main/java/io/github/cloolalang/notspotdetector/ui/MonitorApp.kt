@@ -45,6 +45,7 @@ fun MonitorApp(
 ) {
     val stats by viewModel.stats.collectAsStateWithLifecycle()
     val isRunning by viewModel.isRunning.collectAsStateWithLifecycle()
+    val multiUe by viewModel.multiUe.collectAsStateWithLifecycle()
     val pingSettings by viewModel.pingSettings.collectAsStateWithLifecycle()
     val monitoringSettings by viewModel.monitoringSettings.collectAsStateWithLifecycle()
     val passiveSignalSettings by viewModel.passiveSignalSettings.collectAsStateWithLifecycle()
@@ -84,6 +85,7 @@ fun MonitorApp(
         viewModel.reloadSettingsProfiles()
         viewModel.refreshCellularSignal()
         viewModel.refreshCarrierConfigSnapshot()
+        viewModel.refreshMultiUeLink()
     }
 
     val context = LocalContext.current
@@ -187,7 +189,8 @@ fun MonitorApp(
             onTapeWindowChange = viewModel::updateTapeWindowMs,
             onRsrpHistogramBinningModeChange = viewModel::updateRsrpHistogramBinningMode,
             onRsrpHistogramThresholdChange = viewModel::updateRsrpHistogramThresholdDbm,
-            onClearRsrpHistogram = viewModel::clearRsrpHistogram,
+            onClearRsrpHistogram = viewModel::clearGraphs,
+            onClearKpiHistory = viewModel::clearKpiHistory,
             onApplyMacroDefaults = viewModel::applyMacroDefaults,
             onSubscriptionChange = viewModel::updateSelectedSubscription,
             onMobileDataEnabledChange = viewModel::setMobileDataEnabled,
@@ -290,6 +293,16 @@ fun MonitorApp(
             onRequestCellIdentityPermission = onRequestCellIdentityPermission,
             carrierConfigSnapshot = carrierConfigSnapshot,
             onRefreshCarrierConfig = viewModel::refreshCarrierConfigSnapshot,
+            multiUe = multiUe,
+            multiUeActions = MultiUeActions(
+                onRoleChange = viewModel::updateMultiUeRole,
+                onConnect = viewModel::connectMultiUeMaster,
+                onLookForMaster = viewModel::lookForMultiUeMaster,
+                onDisconnect = viewModel::disconnectMultiUeMaster,
+                onRefresh = viewModel::refreshMultiUeLink,
+                onMasterSyncSettingsChange = viewModel::updateMultiUeMasterSync,
+                onSlaveSyncSettingsChange = viewModel::updateMultiUeSlaveSync
+            ),
             appVersion = BuildConfig.VERSION_NAME,
             appUpdate = AppUpdateControls(
                 status = updateStatus,
