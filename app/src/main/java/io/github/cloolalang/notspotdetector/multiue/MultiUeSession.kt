@@ -45,6 +45,10 @@ class MultiUeSession(
         fun onClearHistory()
         fun onZone(running: Boolean, wholeTest: Boolean)
         fun onZoneName(suffix: String)
+        fun onPlan(jpegBase64: String?)
+        fun onPinAdd(x: Float, y: Float)
+        fun onPinUndo()
+        fun onPinClear()
         fun onPanels(open: Map<String, Boolean>)
         fun onScroll(fraction: Int)
         fun onSlaveSync(address: String, on: Boolean)
@@ -54,6 +58,8 @@ class MultiUeSession(
         fun scrollLine(): String?
         fun zoneLine(): String?
         fun zoneNameLine(): String?
+        fun planLine(): String?
+        fun pinLines(): List<String>
     }
 
     private val links = mutableListOf<SlaveLink>()
@@ -271,6 +277,10 @@ class MultiUeSession(
             listener.scrollLine()?.let { writeLine(socket, it) }
             listener.zoneLine()?.let { writeLine(socket, it) }
             listener.zoneNameLine()?.let { writeLine(socket, it) }
+            listener.planLine()?.let { plan ->
+                writeLine(socket, plan)
+                listener.pinLines().forEach { writeLine(socket, it) }
+            }
         } catch (_: IOException) {
             dropLink(socket)
             return
@@ -306,6 +316,10 @@ class MultiUeSession(
                     MultiUeMessage.ClearHistory -> listener.onClearHistory()
                     is MultiUeMessage.Zone -> listener.onZone(message.running, message.wholeTest)
                     is MultiUeMessage.ZoneName -> listener.onZoneName(message.suffix)
+                    is MultiUeMessage.Plan -> listener.onPlan(message.jpegBase64)
+                    is MultiUeMessage.PinAdd -> listener.onPinAdd(message.x, message.y)
+                    MultiUeMessage.PinUndo -> listener.onPinUndo()
+                    MultiUeMessage.PinClear -> listener.onPinClear()
                     is MultiUeMessage.Panels -> listener.onPanels(message.open)
                     is MultiUeMessage.Scroll -> listener.onScroll(message.fraction)
                     is MultiUeMessage.Settings -> listener.onSettings(message.payload)

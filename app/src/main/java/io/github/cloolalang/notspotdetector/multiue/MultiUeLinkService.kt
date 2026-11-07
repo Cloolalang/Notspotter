@@ -68,6 +68,8 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
     private var scrollWatch: Job? = null
     private var zoneWatch: Job? = null
     private var zoneNameWatch: Job? = null
+    private var planWatch: Job? = null
+    private var pinWatch: Job? = null
     private var settingsWatch: Job? = null
     private val syncingSlaves = mutableSetOf<String>()
     private var reconnectJob: Job? = null
@@ -155,6 +157,8 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
         scrollWatch?.cancel()
         zoneWatch?.cancel()
         zoneNameWatch?.cancel()
+        planWatch?.cancel()
+        pinWatch?.cancel()
         settingsWatch?.cancel()
         pendingBondAddress = null
         runCatching { MultiUeRadios.adapter(this)?.cancelDiscovery() }
@@ -311,6 +315,32 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
         MultiUeZoneSync.setNameSuffix(suffix)
     }
 
+    override fun onPlan(jpegBase64: String?) {
+        if (destroyed || repository.loadRole() != MultiUeRole.SLAVE) return
+        if (jpegBase64.isNullOrEmpty()) {
+            MultiUeFloorPlan.clearPlan()
+            return
+        }
+        val bytes = runCatching { Base64.decode(jpegBase64, Base64.NO_WRAP) }.getOrNull() ?: return
+        if (bytes.isEmpty()) return
+        MultiUeFloorPlan.setJpeg(bytes)
+    }
+
+    override fun onPinAdd(x: Float, y: Float) {
+        if (destroyed || repository.loadRole() != MultiUeRole.SLAVE) return
+        MultiUeFloorPlan.addPin(x, y)
+    }
+
+    override fun onPinUndo() {
+        if (destroyed || repository.loadRole() != MultiUeRole.SLAVE) return
+        MultiUeFloorPlan.undoPin()
+    }
+
+    override fun onPinClear() {
+        if (destroyed || repository.loadRole() != MultiUeRole.SLAVE) return
+        MultiUeFloorPlan.clearPins()
+    }
+
     override fun onPanels(open: Map<String, Boolean>) {
         if (destroyed || repository.loadRole() != MultiUeRole.SLAVE) return
         PanelFold.replace(open)
@@ -337,6 +367,17 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
     override fun zoneNameLine(): String? {
         val suffix = MultiUeZoneSync.nameSuffix.value ?: return null
         return MultiUeProtocol.zoneName(suffix)
+    }
+
+    override fun planLine(): String? {
+        val jpeg = MultiUeFloorPlan.jpeg.value ?: return null
+        if (jpeg.isEmpty()) return MultiUeProtocol.planClear()
+        return MultiUeProtocol.plan(Base64.encodeToString(jpeg, Base64.NO_WRAP))
+    }
+
+    override fun pinLines(): List<String> {
+        val pins = MultiUeFloorPlan.pins.value
+        return listOf(MultiUeProtocol.pinClear()) + pins.map { MultiUeProtocol.pin(it.x, it.y) }
     }
 
     private fun ensureSession() {
@@ -393,6 +434,8 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
                 watchScroll()
                 watchZone()
                 watchZoneName()
+                watchPlan()
+                watchPins()
                 watchSettings()
                 resumeRadio(info.enabled)
             }
@@ -430,6 +473,10 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
         zoneWatch = null
         zoneNameWatch?.cancel()
         zoneNameWatch = null
+        planWatch?.cancel()
+        planWatch = null
+        pinWatch?.cancel()
+        pinWatch = null
         settingsWatch?.cancel()
         settingsWatch = null
         synchronized(syncingSlaves) { syncingSlaves.clear() }
@@ -488,6 +535,35 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
                         session.broadcast(MultiUeProtocol.zoneName(suffix))
                     }
                 }
+        }
+    }
+
+    private fun watchPlan() {
+        planWatch?.cancel()
+        planWatch = scope.launch {
+            MultiUeFloorPlan.jpeg
+                .filterNotNull()
+                .distinctUntilChanged { left, right -> left.contentEquals(right) }
+                .collect { bytes ->
+                    if (repository.loadRole() != MultiUeRole.MASTER) return@collect
+                    val line = if (bytes.isEmpty()) {
+                        MultiUeProtocol.planClear()
+                    } else {
+                        MultiUeProtocol.plan(Base64.encodeToString(bytes, Base64.NO_WRAP))
+                    }
+                    session.broadcast(line)
+                }
+        }
+    }
+
+    private fun watchPins() {
+        pinWatch?.cancel()
+        pinWatch = scope.launch {
+            MultiUeFloorPlan.pinLines.collect { line ->
+                if (repository.loadRole() == MultiUeRole.MASTER) {
+                    session.broadcast(line)
+                }
+            }
         }
     }
 

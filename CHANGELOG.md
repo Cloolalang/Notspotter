@@ -5,6 +5,18 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.166.0] - 2026-11-07
+
+### Added
+
+- **Multi-UE floor plan** — The floor plan loaded on the master appears on each connected slave. Marks dropped on the master land in the same place on the slaves, coloured with each phone's own RSRP.
+
+## [2.165.0] - 2026-11-07
+
+### Changed
+
+- **Multi-UE stays local** — The role, pairing, connection, and the Multi-UE panel stay on each phone. The master does not copy them to slaves.
+
 ## [2.164.0] - 2026-11-07
 
 ### Added

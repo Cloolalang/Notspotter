@@ -72,9 +72,11 @@ import io.github.cloolalang.notspotdetector.MonitorState
 import io.github.cloolalang.notspotdetector.model.MultiUeRole
 import io.github.cloolalang.notspotdetector.multiue.MultiUeGraphClear
 import io.github.cloolalang.notspotdetector.multiue.MultiUeState
+import io.github.cloolalang.notspotdetector.multiue.MultiUeFloorPlan
 import io.github.cloolalang.notspotdetector.multiue.MultiUeZoneSync
 import io.github.cloolalang.notspotdetector.R
 import io.github.cloolalang.notspotdetector.data.FloorPlanLoader
+import io.github.cloolalang.notspotdetector.data.FloorPlanTransfer
 import io.github.cloolalang.notspotdetector.data.WalkRouteImage
 import io.github.cloolalang.notspotdetector.data.ZoneTestImageSaver
 import io.github.cloolalang.notspotdetector.model.ActiveTestBand
@@ -726,6 +728,11 @@ private fun KpiHistoryPanel(
     }
 }
 
+private fun slavePinTime(now: Long, pins: List<WalkPin>): Long {
+    val last = pins.lastOrNull()?.placedAtMs ?: return now
+    return if (now > last) now else last + 1L
+}
+
 @Composable
 private fun ZoneTestPanel(
     isMonitoring: Boolean,
@@ -886,6 +893,27 @@ private fun ZoneTestPanel(
                     )
                 }
         }
+        var planSent by remember { mutableStateOf(false) }
+        LaunchedEffect(floorPlan) {
+            val bitmap = floorPlan
+            if (bitmap == null) {
+                if (planSent) MultiUeFloorPlan.clearPlan()
+                planSent = false
+                return@LaunchedEffect
+            }
+            val jpeg = withContext(Dispatchers.IO) { FloorPlanTransfer.jpeg(bitmap) }
+            if (jpeg.isEmpty()) return@LaunchedEffect
+            MultiUeFloorPlan.setJpeg(jpeg)
+            planSent = true
+        }
+        LaunchedEffect(Unit) {
+            var previous = emptyList<Pair<Float, Float>>()
+            snapshotFlow { pins.map { it.xFraction to it.yFraction } }
+                .collect { next ->
+                    MultiUeFloorPlan.publishPins(previous, next)
+                    previous = next
+                }
+        }
     }
     if (followsMaster) {
         LaunchedEffect(remoteZone, isMonitoring) {
@@ -901,6 +929,49 @@ private fun ZoneTestPanel(
             val suffix = remoteZoneName ?: return@LaunchedEffect
             val next = ZoneTest.nameWithOperator(operatorLabel ?: liveOperator, suffix)
             if (zoneName != next) zoneName = next
+        }
+        val remotePlan by MultiUeFloorPlan.jpeg.collectAsStateWithLifecycle()
+        val pinClock = rememberUpdatedState(if (running) tapeNowMs else endMs ?: tapeNowMs)
+        LaunchedEffect(remotePlan) {
+            val bytes = remotePlan ?: return@LaunchedEffect
+            if (bytes.isEmpty()) {
+                floorPlan = null
+                return@LaunchedEffect
+            }
+            val bitmap = withContext(Dispatchers.IO) { FloorPlanTransfer.decode(bytes) } ?: return@LaunchedEffect
+            floorPlan = bitmap
+            if (!expanded) expanded = true
+        }
+        LaunchedEffect(Unit) {
+            var previous = emptyList<MultiUeFloorPlan.PinPoint>()
+            MultiUeFloorPlan.pins.collect { remote ->
+                val local = pins
+                pins = when {
+                    remote.isEmpty() -> emptyList()
+                    remote.size == previous.size + 1 && remote.dropLast(1) == previous -> {
+                        val point = remote.last()
+                        local + WalkPin(slavePinTime(pinClock.value, local), point.x, point.y)
+                    }
+                    remote.size + 1 == previous.size && previous.dropLast(1) == remote ->
+                        local.dropLast(1)
+                    else -> {
+                        val now = pinClock.value
+                        remote.mapIndexed { index, point ->
+                            val existing = local.getOrNull(index)
+                            if (
+                                existing != null &&
+                                existing.xFraction == point.x &&
+                                existing.yFraction == point.y
+                            ) {
+                                existing
+                            } else {
+                                WalkPin(now + index, point.x, point.y)
+                            }
+                        }
+                    }
+                }
+                previous = remote
+            }
         }
     }
 
@@ -1068,7 +1139,7 @@ private fun ZoneTestPanel(
                     enabled = !followsMaster
                 )
             }
-            if (walkRouteEnabled) {
+            if (walkRouteEnabled || (followsMaster && floorPlan != null)) {
             WalkRouteMap(
                 modifier = Modifier.expandPastPadding(20.dp),
                 floorPlan = floorPlan,
@@ -1077,6 +1148,7 @@ private fun ZoneTestPanel(
                 zoneStartMs = zoneStart,
                 markTimeMs = markTimeMs,
                 liveBin = if (running) rsrpBinTape.entries.lastOrNull()?.bin else null,
+                marksFromMaster = followsMaster,
                 onChooseFloorPlan = { pickFloorPlan.launch(arrayOf("image/*")) },
                 onMark = { pins = pins + it },
                 onUndo = { if (pins.isNotEmpty()) pins = pins.dropLast(1) }
@@ -1173,9 +1245,9 @@ private fun ZoneTestPanel(
                         if (!followsMaster) {
                             zoneName = ""
                             operatorLabel = null
+                            pins = emptyList()
                         }
                         statusMessage = null
-                        pins = emptyList()
                         carrierTape = PrimaryCarrierTape()
                         technologyTape = TechnologyTape()
                         rsrpBinTape = RsrpBinTape()

@@ -71,6 +71,7 @@ fun WalkRouteMap(
     zoneStartMs: Long?,
     markTimeMs: Long?,
     liveBin: RsrpBin?,
+    marksFromMaster: Boolean = false,
     onChooseFloorPlan: () -> Unit,
     onMark: (WalkPin) -> Unit,
     onUndo: () -> Unit,
@@ -80,15 +81,23 @@ fun WalkRouteMap(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        OutlinedButton(
-            onClick = onChooseFloorPlan,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(text = stringResource(R.string.zone_test_floor_plan))
+        if (!marksFromMaster) {
+            OutlinedButton(
+                onClick = onChooseFloorPlan,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(text = stringResource(R.string.zone_test_floor_plan))
+            }
         }
         if (floorPlan == null) {
             Text(
-                text = stringResource(R.string.zone_test_floor_plan_hint),
+                text = stringResource(
+                    if (marksFromMaster) {
+                        R.string.zone_test_floor_plan_from_master
+                    } else {
+                        R.string.zone_test_floor_plan_hint
+                    }
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -116,7 +125,7 @@ fun WalkRouteMap(
                 modifier = Modifier
                     .fillMaxSize()
                     .semantics { contentDescription = planDescription }
-                    .pointerInput(bitmap.width, bitmap.height) {
+                    .pointerInput(bitmap.width, bitmap.height, marksFromMaster) {
                         val slop = viewConfiguration.touchSlop
                         val viewW = { size.width.toFloat() }
                         val viewH = { size.height.toFloat() }
@@ -172,7 +181,7 @@ fun WalkRouteMap(
                                 }
                                 fingersDown = event.changes.any { it.pressed }
                             }
-                            if (!twoFinger && !dragged) {
+                            if (!marksFromMaster && !twoFinger && !dragged) {
                                 val atMs = markTime.value
                                 if (canMark.value && atMs != null) {
                                     val point = WalkRoute.fractionInView(
@@ -298,7 +307,7 @@ fun WalkRouteMap(
                     }
                 }
             }
-            if (pins.isNotEmpty()) {
+            if (pins.isNotEmpty() && !marksFromMaster) {
                 Button(
                     onClick = onUndo,
                     modifier = Modifier
@@ -327,10 +336,10 @@ fun WalkRouteMap(
         }
         Text(
             text = stringResource(
-                if (zoneStartMs == null) {
-                    R.string.zone_test_floor_plan_before_start
-                } else {
-                    R.string.zone_test_floor_plan_tap
+                when {
+                    marksFromMaster -> R.string.zone_test_floor_plan_from_master
+                    zoneStartMs == null -> R.string.zone_test_floor_plan_before_start
+                    else -> R.string.zone_test_floor_plan_tap
                 }
             ),
             style = MaterialTheme.typography.bodySmall,

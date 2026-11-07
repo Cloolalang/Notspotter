@@ -47,6 +47,24 @@ class MultiUeProtocolTest {
         )
         assertEquals(MultiUeMessage.ZoneName(""), MultiUeProtocol.parse(MultiUeProtocol.zoneName("")))
         assertEquals(MultiUeMessage.ZoneName(""), MultiUeProtocol.parse("ZONENAME"))
+        assertEquals(MultiUeMessage.Plan("YQ=="), MultiUeProtocol.parse(MultiUeProtocol.plan("YQ==")))
+        assertEquals(MultiUeMessage.Plan(null), MultiUeProtocol.parse(MultiUeProtocol.planClear()))
+        assertNull(MultiUeProtocol.parse("PLAN not base64"))
+        assertEquals(MultiUeMessage.PinAdd(0.25f, 0.5f), MultiUeProtocol.parse(MultiUeProtocol.pin(0.25f, 0.5f)))
+        assertEquals(MultiUeMessage.PinUndo, MultiUeProtocol.parse(MultiUeProtocol.pinUndo()))
+        assertEquals(MultiUeMessage.PinClear, MultiUeProtocol.parse(MultiUeProtocol.pinClear()))
+        assertEquals(
+            listOf("PIN 0.25000 0.50000"),
+            multiUePinLines(emptyList(), listOf(0.25f to 0.5f))
+        )
+        assertEquals(
+            listOf("PIN 0.10000 0.20000"),
+            multiUePinLines(listOf(0.25f to 0.5f), listOf(0.25f to 0.5f, 0.1f to 0.2f))
+        )
+        assertEquals(
+            listOf("PIN -"),
+            multiUePinLines(listOf(0.25f to 0.5f, 0.1f to 0.2f), listOf(0.25f to 0.5f))
+        )
         assertEquals(MultiUeMessage.Scroll(2_500), MultiUeProtocol.parse(MultiUeProtocol.scroll(2_500)))
         assertEquals(MultiUeMessage.Scroll(0), MultiUeProtocol.parse(MultiUeProtocol.scroll(-1)))
         assertEquals(
@@ -62,6 +80,16 @@ class MultiUeProtocolTest {
             )
         )
         assertEquals(MultiUeMessage.Panels(emptyMap()), MultiUeProtocol.parse(MultiUeProtocol.panels(emptyMap())))
+        assertEquals(
+            MultiUeMessage.Panels(mapOf("histogram" to true)),
+            MultiUeProtocol.parse(
+                MultiUeProtocol.panels(mapOf("multi-ue" to false, "histogram" to true))
+            )
+        )
+        assertEquals(
+            MultiUeMessage.Panels(mapOf("histogram" to true)),
+            MultiUeProtocol.parse("PANELS multi-ue=0,histogram=1")
+        )
         assertEquals(MultiUeMessage.Passive(on = true), MultiUeProtocol.parse("  PASSIVE   1  "))
         assertNull(MultiUeProtocol.parse(""))
         assertNull(MultiUeProtocol.parse("PASSIVE"))

@@ -1,5 +1,6 @@
 package io.github.cloolalang.notspotdetector.model
 
+import java.util.Locale
 import java.util.UUID
 
 enum class MultiUeRole {
@@ -58,6 +59,10 @@ sealed interface MultiUeMessage {
     data class Scroll(val fraction: Int) : MultiUeMessage
     data class Zone(val running: Boolean, val wholeTest: Boolean) : MultiUeMessage
     data class ZoneName(val suffix: String) : MultiUeMessage
+    data class Plan(val jpegBase64: String?) : MultiUeMessage
+    data class PinAdd(val x: Float, val y: Float) : MultiUeMessage
+    data object PinUndo : MultiUeMessage
+    data object PinClear : MultiUeMessage
     data object Full : MultiUeMessage
     data class Sync(val on: Boolean) : MultiUeMessage
     data class Settings(val payload: String) : MultiUeMessage
@@ -66,6 +71,13 @@ sealed interface MultiUeMessage {
 object MultiUeProtocol {
     const val MAX_SLAVES = 4
     const val SCROLL_SCALE = 10_000
+    const val MAX_PLAN_CHARS = 1_500_000
+
+    /**
+     * Panels that stay on each phone. The Multi-UE card holds the role, pairing,
+     * and connection controls, so opening or collapsing it is not copied.
+     */
+    val LOCAL_PANELS = setOf("multi-ue")
     const val SERVICE_NAME = "Notspotter Multi-UE"
     val SERVICE_UUID: UUID = UUID.fromString("6f0e2a44-8b1d-4c3e-9f57-1a2b3c4d5e6f")
 
@@ -92,9 +104,24 @@ object MultiUeProtocol {
         return ZONE_NAME_PREFIX + safe
     }
 
+    fun plan(jpegBase64: String): String = PLAN_PREFIX + jpegBase64
+
+    fun planClear(): String = "PLAN -"
+
+    fun pin(x: Float, y: Float): String = "PIN ${fraction(x)} ${fraction(y)}"
+
+    fun pinUndo(): String = "PIN -"
+
+    fun pinClear(): String = "PIN *"
+
+    fun fraction(value: Float): String {
+        return String.format(Locale.US, "%.5f", value.coerceIn(0f, 1f))
+    }
+
     fun panels(open: Map<String, Boolean>): String {
-        if (open.isEmpty()) return "PANELS -"
-        val body = open.entries
+        val shared = open.filterKeys { it !in LOCAL_PANELS }
+        if (shared.isEmpty()) return "PANELS -"
+        val body = shared.entries
             .sortedBy { it.key }
             .joinToString(",") { (key, value) -> "$key=${if (value) "1" else "0"}" }
         return "PANELS $body"
@@ -120,6 +147,13 @@ object MultiUeProtocol {
         if (trimmed == "ZONENAME" || trimmed.startsWith(ZONE_NAME_PREFIX)) {
             val suffix = if (trimmed == "ZONENAME") "" else trimmed.removePrefix(ZONE_NAME_PREFIX)
             return MultiUeMessage.ZoneName(suffix)
+        }
+        if (trimmed == "PLAN" || trimmed == "PLAN -") return MultiUeMessage.Plan(jpegBase64 = null)
+        if (trimmed.startsWith(PLAN_PREFIX)) {
+            val body = trimmed.removePrefix(PLAN_PREFIX).trim()
+            if (body == "-") return MultiUeMessage.Plan(jpegBase64 = null)
+            if (body.length > MAX_PLAN_CHARS || !PLAN_BODY.matches(body)) return null
+            return MultiUeMessage.Plan(body)
         }
         val parts = trimmed.split(Regex("\\s+")).filter { it.isNotEmpty() }
         return when (parts.firstOrNull()) {
@@ -155,6 +189,19 @@ object MultiUeProtocol {
                 else -> null
             }
             "FULL" -> MultiUeMessage.Full
+            "PIN" -> when (parts.getOrNull(1)) {
+                "-" -> if (parts.size == 2) MultiUeMessage.PinUndo else null
+                "*" -> if (parts.size == 2) MultiUeMessage.PinClear else null
+                else -> {
+                    val x = parts.getOrNull(1)?.toFloatOrNull()
+                    val y = parts.getOrNull(2)?.toFloatOrNull()
+                    if (parts.size == 3 && x != null && y != null && x in 0f..1f && y in 0f..1f) {
+                        MultiUeMessage.PinAdd(x, y)
+                    } else {
+                        null
+                    }
+                }
+            }
             else -> null
         }
     }
@@ -166,6 +213,7 @@ object MultiUeProtocol {
         for (part in body.split(',')) {
             val bits = part.split('=')
             if (bits.size != 2 || !PANEL_KEY.matches(bits[0])) return null
+            if (bits[0] in LOCAL_PANELS) continue
             val value = when (bits[1]) {
                 "1" -> true
                 "0" -> false
@@ -179,7 +227,33 @@ object MultiUeProtocol {
     private const val SETTINGS_PREFIX = "SETTINGS "
     private const val PANELS_PREFIX = "PANELS "
     private const val ZONE_NAME_PREFIX = "ZONENAME "
+    private const val PLAN_PREFIX = "PLAN "
+    private val PLAN_BODY = Regex("[A-Za-z0-9+/=]+")
     private val PANEL_KEY = Regex("[a-z0-9-]+")
+}
+
+/**
+ * Pin messages for a change in the master's walk marks.
+ * Each phone keeps its own time, so only the position is shared.
+ */
+fun multiUePinLines(
+    previous: List<Pair<Float, Float>>,
+    next: List<Pair<Float, Float>>
+): List<String> {
+    return when {
+        next.isEmpty() && previous.isEmpty() -> emptyList()
+        next.isEmpty() -> listOf(MultiUeProtocol.pinClear())
+        previous.size + 1 == next.size && samePins(previous, next.dropLast(1)) ->
+            listOf(MultiUeProtocol.pin(next.last().first, next.last().second))
+        next.size + 1 == previous.size && samePins(next, previous.dropLast(1)) ->
+            listOf(MultiUeProtocol.pinUndo())
+        else -> listOf(MultiUeProtocol.pinClear()) + next.map { MultiUeProtocol.pin(it.first, it.second) }
+    }
+}
+
+private fun samePins(left: List<Pair<Float, Float>>, right: List<Pair<Float, Float>>): Boolean {
+    if (left.size != right.size) return false
+    return left.zip(right).all { (a, b) -> a == b }
 }
 
 /**
