@@ -139,6 +139,12 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
                     session.broadcast(MultiUeProtocol.clearHistory())
                 }
             }
+            ACTION_ZONE_CLEAR -> {
+                ensureSession()
+                if (repository.loadRole() == MultiUeRole.MASTER) {
+                    session.broadcast(MultiUeProtocol.zoneClear())
+                }
+            }
             else -> applyRole(force = intent?.action == ACTION_APPLY_ROLE && sessionReady &&
                 repository.loadRole() != activeRole)
         }
@@ -339,6 +345,11 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
     override fun onPinClear() {
         if (destroyed || repository.loadRole() != MultiUeRole.SLAVE) return
         MultiUeFloorPlan.clearPins()
+    }
+
+    override fun onZoneClear() {
+        if (destroyed || repository.loadRole() != MultiUeRole.SLAVE) return
+        MultiUeZoneSync.clear()
     }
 
     override fun onPanels(open: Map<String, Boolean>) {
@@ -947,6 +958,8 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
             "io.github.cloolalang.notspotdetector.action.MULTI_UE_CLEAR"
         private const val ACTION_CLEAR_HISTORY =
             "io.github.cloolalang.notspotdetector.action.MULTI_UE_CLEAR_HISTORY"
+        private const val ACTION_ZONE_CLEAR =
+            "io.github.cloolalang.notspotdetector.action.MULTI_UE_ZONE_CLEAR"
         private const val EXTRA_ADDRESS =
             "io.github.cloolalang.notspotdetector.extra.MULTI_UE_ADDRESS"
         private const val EXTRA_SYNC =
@@ -975,6 +988,8 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
         fun broadcastClear(context: Context) = launch(context, ACTION_CLEAR)
 
         fun broadcastClearHistory(context: Context) = launch(context, ACTION_CLEAR_HISTORY)
+
+        fun broadcastZoneClear(context: Context) = launch(context, ACTION_ZONE_CLEAR)
 
         fun notifySlaveSync(context: Context, enabled: Boolean) {
             val intent = Intent(context, MultiUeLinkService::class.java)

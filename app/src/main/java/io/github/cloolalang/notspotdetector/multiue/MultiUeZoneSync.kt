@@ -1,7 +1,10 @@
 package io.github.cloolalang.notspotdetector.multiue
 
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
@@ -30,5 +33,12 @@ object MultiUeZoneSync {
     fun setNameSuffix(suffix: String) {
         if (_nameSuffix.value == suffix) return
         _nameSuffix.value = suffix
+    }
+
+    private val _clears = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val clears: SharedFlow<Unit> = _clears.asSharedFlow()
+
+    fun clear() {
+        _clears.tryEmit(Unit)
     }
 }

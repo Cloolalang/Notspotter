@@ -73,6 +73,7 @@ import io.github.cloolalang.notspotdetector.model.MultiUeRole
 import io.github.cloolalang.notspotdetector.multiue.MultiUeGraphClear
 import io.github.cloolalang.notspotdetector.multiue.MultiUeState
 import io.github.cloolalang.notspotdetector.multiue.MultiUeFloorPlan
+import io.github.cloolalang.notspotdetector.multiue.MultiUeLinkService
 import io.github.cloolalang.notspotdetector.multiue.MultiUeZoneSync
 import io.github.cloolalang.notspotdetector.R
 import io.github.cloolalang.notspotdetector.data.FloorPlanLoader
@@ -877,6 +878,26 @@ private fun ZoneTestPanel(
         running = false
         endMs = tapeNowMs
     })
+    val clearZoneCharts = rememberUpdatedState<() -> Unit>({
+        running = false
+        startMs = null
+        sampleWindowStartMs = null
+        endMs = null
+        statusMessage = null
+        pins = emptyList()
+        if (!followsMaster) {
+            zoneName = ""
+            operatorLabel = null
+        }
+        carrierTape = PrimaryCarrierTape()
+        technologyTape = TechnologyTape()
+        rsrpBinTape = RsrpBinTape()
+        rsrqBinTape = RsrqBinTape()
+        distanceTape = DistanceTape()
+        intracellDominanceTape = IntracellDominanceTape()
+        activeTestTape = ActiveTestTape()
+        aggregatedBandwidthTape = AggregatedBandwidthTape()
+    })
     val remoteZoneName by MultiUeZoneSync.nameSuffix.collectAsStateWithLifecycle()
     if (link.role == MultiUeRole.MASTER) {
         LaunchedEffect(Unit) {
@@ -971,6 +992,11 @@ private fun ZoneTestPanel(
                     }
                 }
                 previous = remote
+            }
+        }
+        LaunchedEffect(Unit) {
+            MultiUeZoneSync.clears.collect {
+                clearZoneCharts.value.invoke()
             }
         }
     }
@@ -1238,25 +1264,12 @@ private fun ZoneTestPanel(
                 }
                 OutlinedButton(
                     onClick = {
-                        running = false
-                        startMs = null
-                        sampleWindowStartMs = null
-                        endMs = null
-                        if (!followsMaster) {
-                            zoneName = ""
-                            operatorLabel = null
-                            pins = emptyList()
+                        clearZoneCharts.value.invoke()
+                        if (link.role == MultiUeRole.MASTER) {
+                            MultiUeLinkService.broadcastZoneClear(context)
                         }
-                        statusMessage = null
-                        carrierTape = PrimaryCarrierTape()
-                        technologyTape = TechnologyTape()
-                        rsrpBinTape = RsrpBinTape()
-                        rsrqBinTape = RsrqBinTape()
-                        distanceTape = DistanceTape()
-                        intracellDominanceTape = IntracellDominanceTape()
-                        activeTestTape = ActiveTestTape()
-                        aggregatedBandwidthTape = AggregatedBandwidthTape()
                     },
+                    enabled = !followsMaster,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(

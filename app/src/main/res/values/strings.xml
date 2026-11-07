@@ -29,12 +29,12 @@
     <string name="multi_ue_role_master">Master</string>
     <string name="multi_ue_role_slave">Slave</string>
     <string name="multi_ue_role_locked">Unlock settings to change the role.</string>
-    <string name="multi_ue_master_hint">Start monitoring, active mode testing, and Stop on this phone do the same on the connected slaves. Clear graph, Clear history, Start zone test, Whole test, the zone name after the operator, opening or collapsing a panel, and scrolling do the same. Each phone keeps its own operator at the start of the file name. The floor plan and marks are sent as well. Each slave colours those marks with its own RSRP. Role, pairing, and the connection are not sent.</string>
+    <string name="multi_ue_master_hint">Start monitoring, active mode testing, and Stop on this phone do the same on the connected slaves. Clear graph, Clear history, Start zone test, Whole test, Clear on the zone test, the zone name after the operator, opening or collapsing a panel, and scrolling do the same. Each phone keeps its own operator at the start of the file name. The floor plan and marks are sent as well. Each slave colours those marks with its own RSRP. Role, pairing, and the connection are not sent.</string>
     <string name="multi_ue_sync_settings_master">Sync settings with slaves</string>
     <string name="multi_ue_sync_settings_master_hint">Sends alerts, monitoring options, and sounds to each connected slave that is also syncing. The known-cells list is not sent.</string>
     <string name="multi_ue_sync_settings_slave">Sync settings with master</string>
     <string name="multi_ue_sync_settings_slave_hint">While this is on, and the master is syncing too, this phone uses the master\'s alerts, monitoring options, and sounds. The known-cells list stays on this phone.</string>
-    <string name="multi_ue_slave_hint">While this phone is connected, monitoring, Clear graph, Clear history, the zone test, the zone name after this phone\'s operator, the panels, and scrolling follow the master. The floor plan comes from the master, and the marks use this phone\'s RSRP. Role, pairing, and the connection stay on this phone.</string>
+    <string name="multi_ue_slave_hint">While this phone is connected, monitoring, Clear graph, Clear history, the zone test, Clear on the zone test, the zone name after this phone\'s operator, the panels, and scrolling follow the master. The floor plan comes from the master, and the marks use this phone\'s RSRP. Role, pairing, and the connection stay on this phone.</string>
     <string name="multi_ue_slave_local_hint">Not connected yet. The buttons on this phone still start and stop it locally.</string>
     <string name="multi_ue_this_phone">This phone: %1$s</string>
     <string name="multi_ue_slaves_connected">Slaves connected: %1$d of %2$d</string>
