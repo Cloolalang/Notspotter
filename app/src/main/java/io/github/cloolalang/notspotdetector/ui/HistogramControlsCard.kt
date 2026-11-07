@@ -58,6 +58,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
@@ -1663,6 +1664,77 @@ private fun HorizontalRsrpBar(
     }
 }
 
+/**
+ * The live reading sits on one line beside the title. Letting it wrap changes the
+ * card height each time a test updates that reading, so the panel jumps on a narrow
+ * phone or a large font. The em dash and minus sign also fall back to a taller font
+ * on some phones; turning font padding off keeps that line the same height.
+ */
+@Composable
+private fun TapeSectionHeader(
+    title: String,
+    detail: String?,
+    value: String
+) {
+    val titleStyle = MaterialTheme.typography.labelMedium.copy(
+        platformStyle = PlatformTextStyle(includeFontPadding = false)
+    )
+    val detailStyle = MaterialTheme.typography.labelSmall.copy(
+        platformStyle = PlatformTextStyle(includeFontPadding = false)
+    )
+    val density = LocalDensity.current
+    val titleHeight = titleStyle.lineHeight.let { line ->
+        if (line.isSp) with(density) { line.toDp() } else 16.dp
+    }
+    val detailHeight = detailStyle.lineHeight.let { line ->
+        if (line.isSp) with(density) { line.toDp() } else 16.dp
+    }
+    // Lock the row. A fallback font for "—" or "−" is taller on some phones, and
+    // that extra height was resizing the card on every reading change.
+    val rowHeight = if (detail != null) titleHeight + 2.dp + detailHeight else titleHeight
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(rowHeight),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = title,
+                style = titleStyle,
+                fontWeight = FontWeight.SemiBold,
+                color = Sushi,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (detail != null) {
+                Text(
+                    text = detail,
+                    style = detailStyle,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+        Text(
+            text = value,
+            style = titleStyle,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.widthIn(max = 168.dp)
+        )
+    }
+}
+
 @Composable
 private fun PrimaryCarrierHistoryBar(
     title: String,
@@ -1692,32 +1764,7 @@ private fun PrimaryCarrierHistoryBar(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Sushi
-                )
-                if (detail != null) {
-                    Text(
-                        text = detail,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-            Text(
-                text = valueText,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Medium
-            )
-        }
+        TapeSectionHeader(title = title, detail = detail, value = valueText)
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1847,33 +1894,14 @@ private fun TechnologyHistoryBar(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    text = stringResource(R.string.rsrp_histogram_technology_history_title),
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Sushi
-                )
-                Text(
-                    text = stringResource(
-                        R.string.metric_cell_reselect_rate_value,
-                        changesPerMinute
-                    ),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Text(
-                text = valueText,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Medium
-            )
-        }
+        TapeSectionHeader(
+            title = stringResource(R.string.rsrp_histogram_technology_history_title),
+            detail = stringResource(
+                R.string.metric_cell_reselect_rate_value,
+                changesPerMinute
+            ),
+            value = valueText
+        )
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1949,30 +1977,11 @@ private fun RsrpBinHistoryBar(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    text = stringResource(R.string.rsrp_bin_history_title),
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Sushi
-                )
-                Text(
-                    text = ruleLabel ?: stringResource(R.string.rsrp_bin_history_rule),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Text(
-                text = valueText,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Medium
-            )
-        }
+        TapeSectionHeader(
+            title = stringResource(R.string.rsrp_bin_history_title),
+            detail = ruleLabel ?: stringResource(R.string.rsrp_bin_history_rule),
+            value = valueText
+        )
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
@@ -2070,30 +2079,11 @@ private fun RsrqBinHistoryBar(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    text = stringResource(R.string.rsrq_bin_history_title),
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Sushi
-                )
-                Text(
-                    text = ruleLabel ?: stringResource(R.string.rsrp_bin_history_rule),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Text(
-                text = valueText,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Medium
-            )
-        }
+        TapeSectionHeader(
+            title = stringResource(R.string.rsrq_bin_history_title),
+            detail = ruleLabel ?: stringResource(R.string.rsrp_bin_history_rule),
+            value = valueText
+        )
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
@@ -2190,30 +2180,11 @@ private fun IntracellDominanceHistoryBar(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    text = stringResource(R.string.intracell_dominance_history_title),
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Sushi
-                )
-                Text(
-                    text = stringResource(R.string.intracell_dominance_history_rule),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Text(
-                text = valueText,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Medium
-            )
-        }
+        TapeSectionHeader(
+            title = stringResource(R.string.intracell_dominance_history_title),
+            detail = stringResource(R.string.intracell_dominance_history_rule),
+            value = valueText
+        )
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
@@ -2307,30 +2278,11 @@ private fun DistanceHistoryBar(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    text = stringResource(R.string.distance_history_title),
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Sushi
-                )
-                Text(
-                    text = stringResource(R.string.distance_history_rule),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Text(
-                text = valueText,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Medium
-            )
-        }
+        TapeSectionHeader(
+            title = stringResource(R.string.distance_history_title),
+            detail = stringResource(R.string.distance_history_rule),
+            value = valueText
+        )
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
@@ -2421,30 +2373,11 @@ private fun ActiveTestHistoryBar(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    text = stringResource(R.string.active_test_history_title),
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Sushi
-                )
-                Text(
-                    text = stringResource(R.string.active_test_history_rule),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Text(
-                text = valueText,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Medium
-            )
-        }
+        TapeSectionHeader(
+            title = stringResource(R.string.active_test_history_title),
+            detail = stringResource(R.string.active_test_history_rule),
+            value = valueText
+        )
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
@@ -2532,30 +2465,11 @@ private fun AggregatedBandwidthHistoryBar(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    text = stringResource(R.string.aggregated_bandwidth_history_title),
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Sushi
-                )
-                Text(
-                    text = stringResource(R.string.aggregated_bandwidth_history_rule),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Text(
-                text = valueText,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Medium
-            )
-        }
+        TapeSectionHeader(
+            title = stringResource(R.string.aggregated_bandwidth_history_title),
+            detail = stringResource(R.string.aggregated_bandwidth_history_rule),
+            value = valueText
+        )
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()

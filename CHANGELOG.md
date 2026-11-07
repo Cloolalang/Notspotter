@@ -5,6 +5,12 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.167.1] - 2026-11-07
+
+### Fixed
+
+- **KPI history** — The tape panel stays still while an active or passive test is running. On a narrow phone, or with a large font, the live reading beside each tape was wrapping onto extra lines whenever it changed length, which resized the card and made it jump.
+
 ## [2.167.0] - 2026-11-07
 
 ### Fixed
