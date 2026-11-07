@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DAS branch loss</title>
+  <style>
+    :root {
+      --paper: #e6dfd2;
+      --sheet: #fbf7f0;
+      --ink: #1d1a16;
+      --muted: #4e4942;
+      --line: #241f1a;
+      --copper: #9a4e2c;
+      --teal: #0f5f5a;
+      --green: #1c6b42;
+      --rust: #9d3418;
+      --card: #fffdf9;
+      --stroke: #d4cbbd;
+      --track: #efe6d8;
+      --station: 236px;
+      --trunk-y: 118px;
+    }
+    * { box-sizing: border-box; }
+    html { color-scheme: light; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--paper);
+      color: var(--ink);
+      font: 16px/1.4 "Segoe UI", "Helvetica Neue", system-ui, sans-serif;
+    }
+    .page { max-width: 1580px; margin: 0 auto; padding: 28px 20px 48px; }
+    h1, h2, .ant-power, .spread-fig strong {
+      font-family: Georgia, "Iowan Old Style", Palatino, serif;
+      font-weight: 500;
+    }
+    h1 { margin: 0; font-size: 40px; letter-spacing: -0.03em; line-height: 0.95; }
+    h2 { margin: 0; font-size: 26px; letter-spacing: -0.02em; }
+    .eyebrow, .device-kicker, .role, .band legend, .est {
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .eyebrow { margin: 0 0 6px; font-size: 12px; color: var(--muted); }
+    .lede, .assumption, .caption, .helper, .scale { color: var(--muted); }
+    .lede { margin: 8px 0 0; max-width: 46ch; }
+    .top { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; flex-wrap: wrap; }
+    .header-actions { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
+    .source-stack { display: flex; gap: 8px; flex-wrap: wrap; }
+    .source-card {
+      display: flex; align-items: flex-end; gap: 8px;
+      background: var(--card); border: 1.5px solid var(--ink); border-radius: 12px; padding: 8px 10px;
+    }
+    .source-card .who {
+      display: flex; align-items: center; gap: 6px; padding-bottom: 7px;
+      font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+    }
+    .source-switch {
+      display: inline-flex; align-items: center; gap: 4px; margin-left: 4px;
+      text-transform: none; letter-spacing: 0; font-size: 12px; color: var(--ink); cursor: pointer;
+    }
+    .source-switch input { width: auto; margin: 0; }
+    .source-card.is-off { opacity: 0.5; }
+    .legend li.is-off { opacity: 0.35; }
+    .freq label:has(input:disabled) { opacity: 0.4; cursor: not-allowed; }
+    .source-field { display: flex; flex-direction: column; gap: 4px; color: var(--muted); font-size: 12px; }
+    .source-field input { width: 5.4rem; }
+    .dot { width: 8px; height: 8px; border-radius: 99px; display: inline-block; }
+    .dot-1, .src-1 { background: var(--teal); }
+    .dot-2, .src-2 { background: var(--copper); }
+    .port-line { display: block; font-size: 13px; font-weight: 650; font-variant-numeric: tabular-nums; }
+    .port-line.src-1 { color: var(--teal); background: transparent; }
+    .port-line.src-2 { color: var(--copper); background: transparent; }
+    .band { border: 0; margin: 0; padding: 0; }
+    .band legend { font-size: 12px; color: var(--muted); padding: 0; margin: 0 0 6px; }
+    .freq { display: flex; border: 1.5px solid var(--ink); border-radius: 999px; overflow: hidden; background: var(--card); }
+    .freq label { position: relative; padding: 7px 12px; cursor: pointer; font-variant-numeric: tabular-nums; }
+    .freq label + label { border-left: 1px solid var(--ink); }
+    .freq input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+    .freq label:has(input:checked) { background: var(--ink); color: var(--sheet); }
+    .freq label:has(input:focus-visible) { outline: 2px solid var(--copper); outline-offset: -2px; }
+    button.reset {
+      font: inherit; cursor: pointer; background: transparent; color: var(--ink);
+      border: 1.5px solid var(--ink); border-radius: 999px; padding: 7px 14px;
+    }
+    button.reset:hover { background: var(--ink); color: var(--sheet); }
+    button.reset:focus-visible, input:focus-visible, select:focus-visible {
+      outline: 2px solid var(--copper); outline-offset: 2px;
+    }
+    .assumption { margin: 14px 0; font-size: 14px; }
+    .sheet {
+      background: var(--sheet);
+      border: 1px solid #d5ccbe;
+      border-radius: 18px;
+      overflow-x: auto;
+    }
+    .sheet-head {
+      display: flex; justify-content: space-between; gap: 16px; align-items: end;
+      padding: 14px 16px 4px; min-width: 1460px;
+    }
+    .caption { margin: 0; max-width: 68ch; }
+    .legend { display: flex; gap: 16px; list-style: none; margin: 0; padding: 0; font-size: 13px; }
+    .swatch { display: inline-block; width: 22px; height: 3px; margin-right: 6px; vertical-align: middle; }
+    .swatch.trunk { background: var(--line); }
+    .swatch.coupled { background: var(--teal); }
+    .swatch.leg { background: var(--copper); }
+    .swatch.src-1, .swatch.src-2 { height: 8px; border-radius: 99px; }
+    .schematic {
+      position: relative;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      min-width: 1500px;
+      padding: 4px 12px 16px;
+      --trunk-y: 118px;
+      background-image:
+        linear-gradient(rgba(36, 32, 28, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(36, 32, 28, 0.04) 1px, transparent 1px);
+      background-size: 22px 22px;
+    }
+    .trunk-line {
+      position: absolute; z-index: 0; top: calc(var(--trunk-y) + 4px); left: 100px; right: 200px;
+      height: 3px; background: var(--line);
+    }
+    .col { position: relative; z-index: 1; flex: none; }
+    .col-cu { width: 196px; }
+    .col-link { width: 176px; }
+    .col-coup { width: 188px; }
+    .col-spl { width: 348px; }
+    .device {
+      height: var(--station);
+      display: flex; flex-direction: column;
+      background: var(--card);
+      border: 1.5px solid var(--ink);
+      border-radius: 12px;
+      padding: 10px 12px 12px;
+    }
+    .glyph { display: block; width: 44px; height: 28px; margin-bottom: 4px; }
+    .glyph[hidden] { display: none; }
+    .end-band { margin: 0 0 6px; }
+    .end-band .freq label { padding: 4px 10px; font-size: 13px; }
+    #end-coupler-field[hidden] { display: none; }
+    .col-spl.is-coupler .drop[data-kind="split"] .stem { background: var(--line); }
+    .col-spl.is-coupler .fork::before { background: linear-gradient(90deg, var(--teal) 50%, var(--line) 50%); }
+    .col-spl.is-coupler .fork span:first-child::after { background: var(--teal); }
+    .col-spl.is-coupler .fork span:last-child::after { background: var(--line); }
+    .device-kicker { margin: 0; font-size: 11px; color: var(--muted); }
+    .device-name { margin: 0 0 8px; font-size: 16px; font-weight: 650; }
+    .device .foot { margin-top: auto; }
+    .field { display: flex; flex-direction: column; gap: 2px; margin: 0 0 6px; font-size: 11px; color: var(--muted); }
+    .with-unit { display: flex; align-items: center; gap: 4px; }
+    input[type="number"], select {
+      width: 100%; min-width: 0; font: 14px/1.3 "Segoe UI", system-ui, sans-serif;
+      color: var(--ink); background: #fff; border: 1px solid #cfc6b8; border-radius: 6px; padding: 4px 6px;
+    }
+    input[aria-invalid="true"] { border-color: var(--rust); background: #f8e6e1; }
+    .unit { font-size: 13px; color: var(--ink); }
+    .through, .split-loss { margin: 0; font-size: 14px; font-variant-numeric: tabular-nums; }
+    .est { display: block; font-size: 10px; color: var(--muted); }
+    .h-slot { position: relative; padding-top: calc(var(--trunk-y) + 28px); }
+    .h-slot::before {
+      content: "";
+      position: absolute; left: -8px; top: calc(var(--trunk-y) - 4px);
+      border-style: solid; border-width: 4px 0 4px 6px;
+      border-color: transparent transparent transparent var(--line);
+    }
+    .cable {
+      background: var(--card); border: 1px solid var(--stroke); border-radius: 10px; padding: 8px;
+    }
+    .role { margin: 0 0 4px; font-size: 10px; color: var(--muted); }
+    .cable-meta { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; margin-top: 2px; }
+    .rate { margin: 0; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .seg-loss { margin: 0; color: var(--copper); font-size: 15px; font-weight: 650; font-variant-numeric: tabular-nums; }
+    .stem { width: 3px; margin: -2px auto 0; }
+    .drop[data-kind="coupled"] .stem { height: 38px; background: var(--teal); position: relative; }
+    .drop[data-kind="coupled"] .stem::before {
+      content: ""; position: absolute; top: -3px; left: 50%; width: 8px; height: 8px; margin-left: -4px;
+      border-radius: 50%; background: var(--teal);
+    }
+    .drop[data-kind="split"] .stem { height: 18px; background: var(--copper); }
+    .drop[data-kind="split"] { --ways: 2; }
+    .fork { display: flex; height: 16px; position: relative; }
+    .fork::before {
+      content: "";
+      position: absolute; top: 0; height: 3px;
+      left: calc(100% / var(--ways) / 2);
+      right: calc(100% / var(--ways) / 2);
+      background: var(--copper);
+    }
+    .fork span { flex: 1; position: relative; }
+    .fork span::after {
+      content: "";
+      position: absolute; top: 0; left: 50%;
+      width: 3px; height: 16px; margin-left: -1.5px;
+      background: var(--copper);
+    }
+    .legs { display: grid; grid-template-columns: repeat(var(--ways), minmax(0, 1fr)); gap: 8px; }
+    .antenna {
+      margin-top: 8px; background: var(--card); border: 1.5px solid var(--ink); border-radius: 12px;
+      padding: 8px 8px 10px; text-align: center;
+    }
+    .dipole { display: block; width: 42px; height: 26px; margin: 0 auto 2px; }
+    .ant-name { margin: 0; font-size: 13px; }
+    .ant-power { margin: 2px 0 0; font-size: 26px; line-height: 1; font-variant-numeric: tabular-nums; }
+    .ant-power .unit, .tag { font-family: "Segoe UI", system-ui, sans-serif; }
+    .ant-power .unit { font-size: 13px; color: var(--muted); }
+    .ant-loss { margin: 2px 0 0; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .tag { min-height: 1.2em; margin: 0; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 700; }
+    .level-chart { margin-top: 6px; display: grid; gap: 4px; text-align: left; }
+    .level-row {
+      display: grid; grid-template-columns: 38px minmax(0, 1fr) max-content; gap: 4px; align-items: center;
+      font-size: 11px; font-variant-numeric: tabular-nums;
+    }
+    .level-freq { font-weight: 650; }
+    .level-freq.src-1 { color: var(--teal); background: transparent; }
+    .level-freq.src-2 { color: var(--copper); background: transparent; }
+    .level-track { height: 9px; min-width: 0; background: var(--track); border-radius: 999px; overflow: hidden; }
+    .level-fill { display: block; height: 100%; width: 0; border-radius: inherit; }
+    .level-fill.src-1 { background: var(--teal); }
+    .level-fill.src-2 { background: var(--copper); }
+    .level-dbm { text-align: right; font-weight: 650; white-space: nowrap; }
+    .level-delta { margin: 2px 0 0; font-size: 11px; color: var(--ink); font-variant-numeric: tabular-nums; }
+    .antenna[data-role="weakest"], .bar-row[data-role="weakest"] .tag { color: var(--rust); }
+    .antenna[data-role="strongest"], .bar-row[data-role="strongest"] .tag { color: var(--green); }
+    .antenna[data-role="weakest"] { border-color: var(--rust); }
+    .antenna[data-role="strongest"] { border-color: var(--green); }
+    .antenna[data-role="weakest"] .ant-power { color: var(--rust); }
+    .antenna[data-role="strongest"] .ant-power { color: var(--green); }
+    .results { border-top: 1px solid var(--stroke); padding: 16px 16px 18px; min-width: 720px; }
+    .compare-head { display: flex; justify-content: space-between; align-items: end; gap: 16px; }
+    #summary { margin: 4px 0 0; max-width: 78ch; }
+    .spread-fig { margin: 0; text-align: right; display: grid; gap: 8px; }
+    .spread-fig p { margin: 0; }
+    .spread-fig strong { display: block; font-size: 28px; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
+    .spread-fig span { font-size: 12px; color: var(--muted); letter-spacing: 0.04em; }
+    .bars { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 10px; }
+    .branch-total { margin: 16px 0 0; padding-top: 14px; border-top: 1px solid var(--stroke); }
+    .branch-total h3 { margin: 0; font-size: 22px; letter-spacing: -0.02em; }
+    .branch-total .note { margin: 4px 0 8px; color: var(--muted); font-size: 14px; max-width: 70ch; }
+    .branch-lines { display: grid; gap: 6px; }
+    .branch-line { margin: 0; font-variant-numeric: tabular-nums; color: var(--ink); background: transparent; }
+    .branch-line strong { font-size: 20px; font-weight: 650; }
+    .branch-line.src-1 { background: transparent; }
+    .branch-line.src-2 { background: transparent; }
+    .branch-line.src-1 strong { color: var(--teal); background: transparent; }
+    .branch-line.src-2 strong { color: var(--copper); background: transparent; }
+    .bar-block { display: grid; grid-template-columns: 148px minmax(0, 1fr); gap: 12px; align-items: center; }
+    .bar-block .level-chart { margin-top: 0; }
+    .bar-row { display: grid; grid-template-columns: 108px 1fr 92px 72px 88px; gap: 10px; align-items: center; }
+    .bar-name, .bar-db, .bar-power { font-variant-numeric: tabular-nums; }
+    .bar-power { text-align: right; font-weight: 650; }
+    .bar-db { text-align: right; }
+    .track { height: 16px; background: var(--track); border-radius: 999px; overflow: hidden; }
+    .fill { display: block; height: 100%; width: 0; border-radius: inherit; background: #5c5348; }
+    .bar-row[data-role="weakest"] .fill { background: var(--rust); }
+    .bar-row[data-role="strongest"] .fill { background: var(--green); }
+    .bar-row[data-role="mid"] .fill { background: var(--copper); }
+    .bar-row[data-role="even"] .fill { background: var(--teal); }
+    .scale { margin: 8px 0 0; font-size: 13px; }
+    .optimise-note { margin: -6px 0 14px; min-height: 0; }
+    .optimise-note:empty { display: none; }
+    .helper { margin: 14px 0 0; max-width: 78ch; color: var(--ink); }
+    .helper a { color: var(--teal); }
+    .sr-only {
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
+      clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+    }
+    @media (prefers-reduced-motion: no-preference) {
+      .fill { transition: width 160ms ease-out; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <form id="branch" autocomplete="off" novalidate>
+      <header class="top">
+        <div>
+          <p class="eyebrow">Passive indoor RF · one branch</p>
+          <h1>DAS branch loss</h1>
+          <p class="lede">Two sources can share the branch. Set each power, and any frequency from 400 to 5000 MHz. Turn source 2 off to use one carrier.</p>
+        </div>
+        <div class="header-actions">
+          <fieldset class="band">
+            <legend>Couplers</legend>
+            <div class="freq">
+              <label>1<input type="radio" name="couplers" value="1"></label>
+              <label>2<input type="radio" name="couplers" value="2"></label>
+              <label>3<input type="radio" name="couplers" value="3" checked></label>
+              <label>4<input type="radio" name="couplers" value="4"></label>
+            </div>
+            </fieldset>
+          <fieldset class="band">
+            <legend>Optimise couplers</legend>
+            <div class="freq">
+              <label>All<span class="sr-only"> bands</span><input type="radio" name="optimise" value="all" checked></label>
+              <label>A<span class="sr-only">, source 1</span><input type="radio" name="optimise" value="a"></label>
+              <label>B<span class="sr-only">, source 2</span><input type="radio" name="optimise" value="b" disabled></label>
+            </div>
+          </fieldset>
+          <button type="button" class="reset" id="optimise">Optimise</button>
+          <div class="source-stack">
+            <div class="source-card">
+              <span class="who"><i class="dot dot-1" aria-hidden="true"></i>Source 1</span>
+              <label class="source-field" for="src-1-dbm">Power
+                <span class="with-unit"><input id="src-1-dbm" type="number" step="0.1" value="21" inputmode="decimal" autocomplete="off"><span class="unit">dBm</span></span>
+              </label>
+              <label class="source-field" for="src-1-mhz">Frequency
+                <span class="with-unit"><input id="src-1-mhz" type="number" min="400" max="5000" step="1" value="2100" inputmode="numeric" autocomplete="off"><span class="unit">MHz</span></span>
+              </label>
+            </div>
+            <div class="source-card is-off" id="source-2">
+              <span class="who"><i class="dot dot-2" aria-hidden="true"></i>Source 2
+                <label class="source-switch"><input id="src-2-on" type="checkbox">On</label>
+              </span>
+              <label class="source-field" for="src-2-dbm">Power
+                <span class="with-unit"><input id="src-2-dbm" type="number" step="0.1" value="21" inputmode="decimal" autocomplete="off" disabled><span class="unit">dBm</span></span>
+              </label>
+              <label class="source-field" for="src-2-mhz">Frequency
+                <span class="with-unit"><input id="src-2-mhz" type="number" min="400" max="5000" step="1" value="800" inputmode="numeric" autocomplete="off" disabled><span class="unit">MHz</span></span>
+              </label>
+            </div>
+          </div>
+          <button type="button" class="reset" id="reset">Reset example</button>
+        </div>
+      </header>
+      <p class="assumption">Cable attenuation is a typical published-style table for these 50 Ω classes, rounded to 0.1 dB/100 m — not a manufacturer guarantee. Coupled runs and splitter legs start as Andrew LDF4RK-50A. From 400 to 5000 MHz the rate follows those points on a log-frequency line, and matches the table at 800, 900, 1800, 2100 and 2600. LMR-400 uses the same kind of published curve.</p>
+      <p class="optimise-note" id="optimise-note" aria-live="polite"></p>
+
+      <section class="sheet" aria-label="Downlink branch">
+        <div class="sheet-head">
+          <p class="caption" id="caption">Downlink, left to right. Couplers 1 to 3 each drop to one antenna input. The through path ends in a 2-way splitter for antenna inputs 4 and 5.</p>
+          <ul class="legend">
+            <li><span class="swatch trunk"></span>Through</li>
+            <li><span class="swatch coupled"></span>Coupled</li>
+            <li><span class="swatch leg"></span>Splitter leg</li>
+            <li><span class="swatch src-1"></span>Source 1</li>
+            <li id="legend-src-2" class="is-off"><span class="swatch src-2"></span>Source 2</li>
+          </ul>
+        </div>
+        <div class="schematic">
+          <div class="trunk-line" aria-hidden="true"></div>
+
+          <div class="col col-cu">
+            <article class="device">
+              <svg class="glyph" viewBox="0 0 44 28" aria-hidden="true">
+                <rect x="1.5" y="6" width="16" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"></rect>
+                <path d="M24 10c3 2 3 6 0 8M28 7c4.5 3 4.5 11 0 14M33 4c6 4.2 6 16 0 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path>
+              </svg>
+              <p class="device-kicker">Source</p>
+              <p class="device-name">Coverage unit</p>
+              <div class="foot"><p class="device-kicker">Downlink</p><div id="source-readout"></div></div>
+            </article>
+          </div>
+
+          <div class="col col-link">
+            <div class="h-slot">
+              <div class="cable">
+                <p class="role">Trunk</p>
+                <label class="field" for="len-cu-dc1">Length <span class="sr-only">from the coverage unit to coupler 1</span>
+                  <span class="with-unit"><input id="len-cu-dc1" type="number" min="0" step="0.1" value="1" inputmode="decimal" autocomplete="off" aria-describedby="segloss-cu-dc1"><span class="unit">m</span></span>
+                </label>
+                <label class="field" for="type-cu-dc1">Type <span class="sr-only">from the coverage unit to coupler 1</span>
+                  <select id="type-cu-dc1"><option value="sf12">1/2 in superflex</option><option value="foam12" selected>1/2 in foam</option><option value="ldf4rk">LDF4RK-50A</option><option value="lmr400">LMR-400</option></select>
+                </label>
+                <div class="cable-meta">
+                  <p class="rate"><span data-seg-rate="cu-dc1">11.2</span> dB/100 m</p>
+                  <p class="seg-loss" id="segloss-cu-dc1"><span class="sr-only">Segment loss, coverage unit to coupler 1: </span><span data-seg-loss="cu-dc1">0.6</span></p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col col-coup" data-coupler="1">
+            <article class="device">
+              <svg class="glyph" viewBox="0 0 44 28" aria-hidden="true">
+                <line x1="2" y1="8" x2="42" y2="8" stroke="currentColor" stroke-width="2"></line>
+                <circle cx="22" cy="8" r="2.4" fill="currentColor"></circle>
+                <line x1="22" y1="8" x2="22" y2="26" stroke="#0f5f5a" stroke-width="2"></line>
+              </svg>
+              <p class="device-kicker">Directional</p>
+              <p class="device-name">Coupler 1</p>
+              <label class="field" for="coup-1">Coupling <span class="sr-only">for directional coupler 1</span>
+                <select id="coup-1">
+                  <option value="6">6 dB</option><option value="7">7 dB</option><option value="8">8 dB</option>
+                  <option value="10" selected>10 dB</option><option value="13">13 dB</option><option value="15">15 dB</option><option value="20">20 dB</option>
+                </select>
+              </label>
+              <p class="through foot">Through <strong id="thru-1">0.7</strong> dB <span class="est">estimate</span></p>
+            </article>
+            <div class="drop" data-kind="coupled">
+              <div class="stem" aria-hidden="true"></div>
+              <div class="cable">
+                <p class="role">Coupled</p>
+                <label class="field" for="len-dc1-ant1">Length <span class="sr-only">from coupler 1 coupled port to antenna input 1</span>
+                  <span class="with-unit"><input id="len-dc1-ant1" type="number" min="0" step="0.1" value="30" inputmode="decimal" autocomplete="off" aria-describedby="segloss-dc1-ant1"><span class="unit">m</span></span>
+                </label>
+                <label class="field" for="type-dc1-ant1">Type <span class="sr-only">from coupler 1 coupled port to antenna input 1</span>
+                  <select id="type-dc1-ant1"><option value="sf12">1/2 in superflex</option><option value="foam12">1/2 in foam</option><option value="ldf4rk" selected>LDF4RK-50A</option><option value="lmr400">LMR-400</option></select>
+                </label>
+                <div class="cable-meta">
+                  <p class="rate"><span data-seg-rate="dc1-ant1">11.2</span> dB/100 m</p>
+                  <p class="seg-loss" id="segloss-dc1-ant1"><span class="sr-only">Segment loss, coupler 1 to antenna input 1: </span><span data-seg-loss="dc1-ant1">0.7</span></p>
+                </div>
+              </div>
+              <article class="antenna" data-ant-card="1" data-role="weakest">
+                <svg class="dipole" viewBox="0 0 48 28" aria-hidden="true">
+                  <line x1="24" y1="26" x2="24" y2="14" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+                  <line x1="24" y1="14" x2="8" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+                  <line x1="24" y1="14" x2="40" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+                </svg>
+                <p class="ant-name">Antenna input 1</p>
+                <div class="level-chart" data-level-chart="1"></div>
+              </article>
+            </div>
+          </div>
+
+          <div class="col col-link" data-trunk="1-2">
+            <div class="h-slot">
+              <div class="cable">
+                <p class="role">Trunk</p>
+                <label class="field" for="len-dc1-dc2">Length <span class="sr-only">from coupler 1 through port to coupler 2</span>
+                  <span class="with-unit"><input id="len-dc1-dc2" type="number" min="0" step="0.1" value="1" inputmode="decimal" autocomplete="off" aria-describedby="segloss-dc1-dc2"><span class="unit">m</span></span>
+                </label>
+                <label class="field" for="type-dc1-dc2">Type <span class="sr-only">from coupler 1 through port to coupler 2</span>
+                  <select id="type-dc1-dc2"><option value="sf12">1/2 in superflex</option><option value="foam12" selected>1/2 in foam</option><option value="ldf4rk">LDF4RK-50A</option><option value="lmr400">LMR-400</option></select>
+                </label>
+                <div class="cable-meta">
+                  <p class="rate"><span data-seg-rate="dc1-dc2">11.2</span> dB/100 m</p>
+                  <p class="seg-loss" id="segloss-dc1-dc2"><span class="sr-only">Segment loss, coupler 1 to coupler 2: </span><span data-seg-loss="dc1-dc2">1.7</span></p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col col-coup" data-coupler="2">
+            <article class="device">
+              <svg class="glyph" viewBox="0 0 44 28" aria-hidden="true">
+                <line x1="2" y1="8" x2="42" y2="8" stroke="currentColor" stroke-width="2"></line>
+                <circle cx="22" cy="8" r="2.4" fill="currentColor"></circle>
+                <line x1="22" y1="8" x2="22" y2="26" stroke="#0f5f5a" stroke-width="2"></line>
+              </svg>
+              <p class="device-kicker">Directional</p>
+              <p class="device-name">Coupler 2</p>
+              <label class="field" for="coup-2">Coupling <span class="sr-only">for directional coupler 2</span>
+                <select id="coup-2">
+                  <option value="6">6 dB</option><option value="7" selected>7 dB</option><option value="8">8 dB</option>
+                  <option value="10">10 dB</option><option value="13">13 dB</option><option value="15">15 dB</option><option value="20">20 dB</option>
+                </select>
+              </label>
+              <p class="through foot">Through <strong id="thru-2">1.2</strong> dB <span class="est">estimate</span></p>
+            </article>
+            <div class="drop" data-kind="coupled">
+              <div class="stem" aria-hidden="true"></div>
+              <div class="cable">
+                <p class="role">Coupled</p>
+                <label class="field" for="len-dc2-ant2">Length <span class="sr-only">from coupler 2 coupled port to antenna input 2</span>
+                  <span class="with-unit"><input id="len-dc2-ant2" type="number" min="0" step="0.1" value="30" inputmode="decimal" autocomplete="off" aria-describedby="segloss-dc2-ant2"><span class="unit">m</span></span>
+                </label>
+                <label class="field" for="type-dc2-ant2">Type <span class="sr-only">from coupler 2 coupled port to antenna input 2</span>
+                  <select id="type-dc2-ant2"><option value="sf12">1/2 in superflex</option><option value="foam12">1/2 in foam</option><option value="ldf4rk" selected>LDF4RK-50A</option><option value="lmr400">LMR-400</option></select>
+                </label>
+                <div class="cable-meta">
+                  <p class="rate"><span data-seg-rate="dc2-ant2">11.2</span> dB/100 m</p>
+                  <p class="seg-loss" id="segloss-dc2-ant2"><span class="sr-only">Segment loss, coupler 2 to antenna input 2: </span><span data-seg-loss="dc2-ant2">0.7</span></p>
+                </div>
+              </div>
+              <article class="antenna" data-ant-card="2">
+                <svg class="dipole" viewBox="0 0 48 28" aria-hidden="true">
+                  <line x1="24" y1="26" x2="24" y2="14" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+                  <line x1="24" y1="14" x2="8" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+                  <line x1="24" y1="14" x2="40" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+                </svg>
+                <p class="ant-name">Antenna input 2</p>
+                <div class="level-chart" data-level-chart="2"></div>
+              </article>
+            </div>
+          </div>
+
+          <div class="col col-link" data-trunk="to-spl">
+            <div class="h-slot">
+              <div class="cable">
+                <p class="role">Trunk</p>
+                <label class="field" for="len-dc2-spl">Length <span class="sr-only">from coupler 2 through port to the splitter</span>
+                  <span class="with-unit"><input id="len-dc2-spl" type="number" min="0" step="0.1" value="1" inputmode="decimal" autocomplete="off" aria-describedby="segloss-dc2-spl"><span class="unit">m</span></span>
+                </label>
+                <label class="field" for="type-dc2-spl">Type <span class="sr-only">from coupler 2 through port to the splitter</span>
+                  <select id="type-dc2-spl"><option value="sf12">1/2 in superflex</option><option value="foam12" selected>1/2 in foam</option><option value="ldf4rk">LDF4RK-50A</option><option value="lmr400">LMR-400</option></select>
+                </label>
+                <div class="cable-meta">
+                  <p class="rate"><span data-seg-rate="dc2-spl">11.2</span> dB/100 m</p>
+                  <p class="seg-loss" id="segloss-dc2-spl"><span class="sr-only">Segment loss, coupler 2 to the splitter: </span><span data-seg-loss="dc2-spl">1.3</span></p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col col-spl">
+            <article class="device">
+              <svg class="glyph" id="end-glyph-spl" viewBox="0 0 44 28" aria-hidden="true">
+                <line x1="2" y1="14" x2="16" y2="14" stroke="currentColor" stroke-width="2"></line>
+                <line x1="16" y1="14" x2="40" y2="4" stroke="#9a4e2c" stroke-width="2"></line>
+                <line x1="16" y1="14" x2="40" y2="24" stroke="#9a4e2c" stroke-width="2"></line>
+              </svg>
+              <svg class="glyph" id="end-glyph-coup" viewBox="0 0 44 28" aria-hidden="true" hidden>
+                <line x1="2" y1="8" x2="42" y2="8" stroke="currentColor" stroke-width="2"></line>
+                <circle cx="22" cy="8" r="2.4" fill="currentColor"></circle>
+                <line x1="22" y1="8" x2="22" y2="26" stroke="#0f5f5a" stroke-width="2"></line>
+              </svg>
+              <p class="device-kicker" id="end-kicker">Passive</p>
+              <p class="device-name" id="spl-name">2-way splitter</p>
+              <fieldset class="band end-band">
+                <legend class="sr-only">End of the branch</legend>
+                <div class="freq">
+                  <label>Splitter<input type="radio" name="end" value="splitter" checked></label>
+                  <label>Coupler<input type="radio" name="end" value="coupler"></label>
+                </div>
+              </fieldset>
+              <label class="field" id="end-coupler-field" for="end-coupler" hidden>Coupling <span class="sr-only">of the end coupler</span>
+                <select id="end-coupler">
+                  <option value="5" selected>5 dB</option>
+                  <option value="6">6 dB</option>
+                  <option value="7">7 dB</option>
+                  <option value="8">8 dB</option>
+                  <option value="10">10 dB</option>
+                  <option value="13">13 dB</option>
+                  <option value="15">15 dB</option>
+                  <option value="20">20 dB</option>
+                </select>
+              </label>
+              <p class="split-loss foot"><span id="end-loss-prefix"></span><strong id="spl-loss">3.4</strong> <span id="end-loss-suffix">dB / leg</span> <span class="est">estimate</span></p>
+            </article>
+            <div class="drop" data-kind="split">
+              <div class="stem" aria-hidden="true"></div>
+              <div class="fork" aria-hidden="true"><span></span><span></span></div>
+              <div class="legs">
+                <div class="leg">
+                  <div class="cable">
+                    <p class="role">Leg</p>
+                    <label class="field" for="len-spl-ant3">Length <span class="sr-only">from the splitter to antenna input 3</span>
+                      <span class="with-unit"><input id="len-spl-ant3" type="number" min="0" step="0.1" value="30" inputmode="decimal" autocomplete="off" aria-describedby="segloss-spl-ant3"><span class="unit">m</span></span>
+                    </label>
+                    <label class="field" for="type-spl-ant3">Type <span class="sr-only">from the splitter to antenna input 3</span>
+                      <select id="type-spl-ant3"><option value="sf12">1/2 in superflex</option><option value="foam12">1/2 in foam</option><option value="ldf4rk" selected>LDF4RK-50A</option><option value="lmr400">LMR-400</option></select>
+                    </label>
+                    <div class="cable-meta">
+                      <p class="rate"><span data-seg-rate="spl-ant3">11.2</span> dB/100 m</p>
+                      <p class="seg-loss" id="segloss-spl-ant3"><span class="sr-only">Segment loss, splitter to antenna input 3: </span><span data-seg-loss="spl-ant3">10.2</span></p>
+                    </div>
+                  </div>
+                  <article class="antenna" data-ant-card="3" data-role="strongest">
+                    <svg class="dipole" viewBox="0 0 48 28" aria-hidden="true">
+                      <line x1="24" y1="26" x2="24" y2="14" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+                      <line x1="24" y1="14" x2="8" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+                      <line x1="24" y1="14" x2="40" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+                    </svg>
+                    <p class="ant-name">Antenna input 3</p>
+                    <div class="level-chart" data-level-chart="3"></div>
+                  </article>
+                </div>
+                <div class="leg">
+                  <div class="cable">
+                    <p class="role">Leg</p>
+                    <label class="field" for="len-spl-ant4">Length <span class="sr-only">from the splitter to antenna input 4</span>
+                      <span class="with-unit"><input id="len-spl-ant4" type="number" min="0" step="0.1" value="30" inputmode="decimal" autocomplete="off" aria-describedby="segloss-spl-ant4"><span class="unit">m</span></span>
+                    </label>
+                    <label class="field" for="type-spl-ant4">Type <span class="sr-only">from the splitter to antenna input 4</span>
+                      <select id="type-spl-ant4"><option value="sf12">1/2 in superflex</option><option value="foam12">1/2 in foam</option><option value="ldf4rk" selected>LDF4RK-50A</option><option value="lmr400">LMR-400</option></select>
+                    </label>
+                    <div class="cable-meta">
+                      <p class="rate"><span data-seg-rate="spl-ant4">11.2</span> dB/100 m</p>
+                      <p class="seg-loss" id="segloss-spl-ant4"><span class="sr-only">Segment loss, splitter to antenna input 4: </span><span data-seg-loss="spl-ant4">10.2</span></p>
+                    </div>
+                  </div>
+                  <article class="antenna" data-ant-card="4" data-role="strongest">
+                    <svg class="dipole" viewBox="0 0 48 28" aria-hidden="true">
+                      <line x1="24" y1="26" x2="24" y2="14" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+                      <line x1="24" y1="14" x2="8" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+                      <line x1="24" y1="14" x2="40" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+                    </svg>
+                    <p class="ant-name">Antenna input 4</p>
+                    <div class="level-chart" data-level-chart="4"></div>
+                  </article>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <section class="results" aria-label="Antenna input comparison">
+          <div class="compare-head">
+            <div>
+              <h2>Antenna input power</h2>
+              <p id="summary" aria-live="polite" aria-atomic="true">Antenna input power spread between antennas</p>
+            </div>
+            <div class="spread-fig" id="spread"></div>
+          </div>
+          <ol class="bars"></ol>
+          <p class="scale">Each bar is the power at that antenna input: source power minus passive loss. It is not radiated power. A longer bar is a stronger signal. The scale is 10 dB under the strongest level, and every chart uses that same scale. Cable figures show source 1, then source 2 while it is on.</p>
+          <div class="branch-total" id="branch-total">
+            <h3>Branch output</h3>
+            <p class="note">Output is the linear sum of every antenna input, written in dBm. Branch loss is the source power minus that output.</p>
+            <div class="branch-lines" id="branch-lines"></div>
+          </div>
+        </section>
+      </section>
+    </form>
+    <p class="helper">Optimise sets each coupler to 6, 7, 8, 10, 13, 15 or 20 dB from the coupled cable type and length, so the antenna inputs stay level. A longer or lossier cable gets a tighter coupler. A shorter or lower-loss cable gets a looser one. Splitter legs, or the end coupler’s two cables, count too. The end can be a splitter or a coupler. The coupler starts at 5 dB, coupled port then through port, and optimise can change it. All bands follows the worse frequency. A or B follows one source.</p>
+    <p class="helper">Best-quality straight N connectors were checked and left out of the loss figures. A mated pair is about 0.05 dB, about 0.2 dB at antenna input 1 and 0.5 dB on the splitter legs. <a href="point-of-failure.md">Point-of-failure list</a>: every connection, numbered cable, and passive.</p>
+  </main>
+  <script src="model.js"></script>
+  <script src="ui.js"></script>
+</body>
+</html>
