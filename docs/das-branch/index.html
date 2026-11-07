@@ -95,8 +95,8 @@
       overflow-x: auto;
     }
     .sheet-head {
-      display: flex; justify-content: space-between; gap: 16px; align-items: end;
-      padding: 14px 16px 4px; min-width: 1460px;
+      display: flex; justify-content: space-between; gap: 16px; align-items: end; flex-wrap: wrap;
+      padding: 14px 16px 4px;
     }
     .caption { margin: 0; max-width: 68ch; }
     .legend { display: flex; gap: 16px; list-style: none; margin: 0; padding: 0; font-size: 13px; }
@@ -106,27 +106,56 @@
     .swatch.leg { background: var(--copper); }
     .swatch.src-1, .swatch.src-2 { height: 8px; border-radius: 99px; }
     .schematic {
-      position: relative;
       display: flex;
-      align-items: flex-start;
-      gap: 8px;
-      min-width: 1500px;
-      padding: 4px 12px 16px;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0;
+      min-width: 0;
+      padding: 12px 12px 16px;
       --trunk-y: 118px;
       background-image:
         linear-gradient(rgba(36, 32, 28, 0.04) 1px, transparent 1px),
         linear-gradient(90deg, rgba(36, 32, 28, 0.04) 1px, transparent 1px);
       background-size: 22px 22px;
     }
+    .source-bay {
+      display: flex;
+      align-items: stretch;
+      gap: 8px;
+      position: relative;
+      z-index: 2;
+      margin: 0 0 18px;
+    }
+    .source-bay::after {
+      content: "";
+      position: absolute;
+      left: 22px;
+      bottom: -22px;
+      width: 3px;
+      height: 26px;
+      background: var(--line);
+    }
+    .source-feed { width: 210px; flex: none; }
+    .source-feed .h-slot { padding-top: 0; }
+    .source-feed .h-slot::before { display: none; }
+    .branch-row {
+      position: relative;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      width: 100%;
+      min-width: 0;
+    }
     .trunk-line {
-      position: absolute; z-index: 0; top: calc(var(--trunk-y) + 4px); left: 100px; right: 200px;
+      position: absolute; z-index: 0; top: calc(var(--trunk-y) + 4px); left: 20px; right: 14%;
       height: 3px; background: var(--line);
     }
-    .col { position: relative; z-index: 1; flex: none; }
-    .col-cu { width: 196px; }
-    .col-link { width: 176px; }
-    .col-coup { width: 188px; }
-    .col-spl { width: 348px; }
+    .col { position: relative; z-index: 1; }
+    .col-cu { width: 240px; flex: none; }
+    .col-cu .device { height: auto; }
+    .branch-row > .col-link { flex: 1 1 112px; width: auto; min-width: 112px; }
+    .branch-row > .col-coup { flex: 1.15 1 132px; width: auto; min-width: 132px; }
+    .branch-row > .col-spl { flex: 1.8 1 220px; width: auto; min-width: 220px; }
     .device {
       height: var(--station);
       display: flex; flex-direction: column;
@@ -338,8 +367,7 @@
           </ul>
         </div>
         <div class="schematic">
-          <div class="trunk-line" aria-hidden="true"></div>
-
+          <div class="source-bay">
           <div class="col col-cu">
             <article class="device">
               <svg class="glyph" viewBox="0 0 44 28" aria-hidden="true">
@@ -352,7 +380,7 @@
             </article>
           </div>
 
-          <div class="col col-link">
+          <div class="col col-link source-feed">
             <div class="h-slot">
               <div class="cable">
                 <p class="role">Trunk</p>
@@ -369,7 +397,10 @@
               </div>
             </div>
           </div>
+          </div>
 
+          <div class="branch-row">
+          <div class="trunk-line" aria-hidden="true"></div>
           <div class="col col-coup" data-coupler="1">
             <article class="device">
               <svg class="glyph" viewBox="0 0 44 28" aria-hidden="true">
@@ -583,6 +614,7 @@
                 </div>
               </div>
             </div>
+          </div>
           </div>
         </div>
 

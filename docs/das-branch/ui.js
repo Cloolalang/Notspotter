@@ -217,7 +217,6 @@
 
   function syncCouplers(count, skipRemember) {
     if (!skipRemember) rememberAll();
-    var schematic = document.querySelector(".schematic");
     var toSpl = document.querySelector('[data-trunk="to-spl"]');
     [1, 2].forEach(function (index) {
       var col = document.querySelector('.col-coup[data-coupler="' + index + '"]');
@@ -242,10 +241,10 @@
       );
       trunk.dataset.trunk = (index - 1) + "-" + index;
       trunk.dataset.generated = "1";
-      schematic.insertBefore(trunk, toSpl);
+      toSpl.parentNode.insertBefore(trunk, toSpl);
       var jumperId = "dc" + index + "-ant" + index;
       var jumper = cableMemory[jumperId] || { lengthM: "30", type: "ldf4rk" };
-      schematic.insertBefore(
+      toSpl.parentNode.insertBefore(
         buildCoupler(index, couplerMemory[index] || defaultCoupling(index), jumper.lengthM, jumper.type),
         toSpl
       );
@@ -264,9 +263,6 @@
     assignLeg(legs[1], count + 2);
     syncEnd(count);
     document.querySelector(".col-spl").dataset.couplers = String(count);
-    var width = 1500 + Math.max(0, count - 2) * 380 - (count < 2 ? 370 : 0);
-    schematic.style.minWidth = width + "px";
-    document.querySelector(".sheet-head").style.minWidth = (width - 40) + "px";
   }
 
   function applyState(state) {
