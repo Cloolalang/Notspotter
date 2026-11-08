@@ -28,7 +28,7 @@
  *   Antenna 3 = 2 * through(10) + 10
  *   Antennas 4 and 5 = 3 * through(10) + 3.41
  *
- * Source 1 starts at 2100 MHz. Source 2 starts off at 800 MHz; turn it on and both
+ * Source 1 starts at 2100 MHz, +25 dBm, 8 carriers. Source 2 starts off at 800 MHz; turn it on and both
  * carriers share the passive path. Cable attenuation is the table value at
  * 800, 900, 1800, 2100 and 2600 MHz. From 400 to 5000 MHz it follows a straight
  * line against log(frequency) between those points, extended with the end
@@ -377,9 +377,9 @@
   function defaultState() {
     return {
       freqMHz: 2100,
-      sourceDbm: 21,
+      sourceDbm: 25,
       sources: [
-        { freqMHz: 2100, powerDbm: 21 },
+        { freqMHz: 2100, powerDbm: 25, carriers: 8 },
         { freqMHz: 800, powerDbm: 21, enabled: false }
       ],
       couplerCount: 3,

@@ -273,7 +273,7 @@
           { freqMHz: 800, powerDbm: state.sourceDbm, enabled: false }
         ];
     [0, 1].forEach(function (index) {
-      var source = sources[index] || { freqMHz: index === 0 ? 2100 : 800, powerDbm: 21, enabled: index === 0 };
+      var source = sources[index] || { freqMHz: index === 0 ? 2100 : 800, powerDbm: index === 0 ? 25 : 21, carriers: index === 0 ? 8 : 1, enabled: index === 0 };
       document.getElementById("src-" + (index + 1) + "-dbm").value = String(source.powerDbm);
       document.getElementById("src-" + (index + 1) + "-mhz").value = String(source.freqMHz);
       document.getElementById("src-" + (index + 1) + "-carriers").value = String(api.carrierCount(source.carriers));

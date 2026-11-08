@@ -73,13 +73,15 @@ const drawn = m.computeBranch(m.defaultState());
 assert.equal(drawn.couplerCount, 3);
 assert.equal(drawn.sources.length, 1);
 assert.equal(drawn.sources[0].freqMHz, 2100);
+assert.equal(drawn.sources[0].powerDbm, 25);
+assert.equal(drawn.sources[0].carriers, 8);
 assert.equal(m.defaultState().sources[1].enabled, false);
 assert.equal(m.defaultState().sources[1].freqMHz, 800);
 
 const branch = m.branchOutput(drawn, 0);
 const sumMw = drawn.antennas.reduce((sum, antenna) => sum + 10 ** (antenna.powerDbm / 10), 0);
 assert.ok(Math.abs(branch.outputDbm - 10 * Math.log10(sumMw)) < 1e-9);
-assert.ok(Math.abs(branch.lossDb - (21 - branch.outputDbm)) < 1e-9);
+assert.ok(Math.abs(branch.lossDb - (25 - branch.outputDbm)) < 1e-9);
 assert.ok(branch.lossDb > 0);
 assert.ok(branch.lossDb < Math.min(...drawn.antennas.map((antenna) => antenna.lossDb)));
 assert.equal(m.branchOutput({ sources: [{ valid: false }], antennas: [] }, 0), null);
@@ -94,7 +96,7 @@ assert.equal(m.formatDb(drawn.antennas[1].lossDb), m.formatDb(expect2));
 assert.equal(m.formatDb(drawn.antennas[2].lossDb), m.formatDb(expect3));
 assert.equal(m.formatDb(drawn.antennas[3].lossDb), m.formatDb(expectSplit));
 for (const antenna of drawn.antennas) {
-  assert.ok(Math.abs(antenna.powerDbm - (21 - antenna.lossDb)) < 1e-12);
+  assert.ok(Math.abs(antenna.powerDbm - (25 - antenna.lossDb)) < 1e-12);
 }
 
 const summary = m.describeAntennas(drawn.antennas.map((a) => ({
@@ -103,7 +105,7 @@ const summary = m.describeAntennas(drawn.antennas.map((a) => ({
 })));
 assert.equal(
   summary,
-  "Antenna input 1: +7.6 dBm (13.4 dB, weakest). Antenna input 2: +9.8 dBm (11.2 dB). Antenna input 3: +9.5 dBm (11.5 dB). Antenna input 4: +10.6 dBm (10.4 dB, strongest). Antenna input 5: +10.6 dBm (10.4 dB, strongest). Spread 3.0 dB."
+  "Antenna input 1: +11.6 dBm (13.4 dB, weakest). Antenna input 2: +13.8 dBm (11.2 dB). Antenna input 3: +13.5 dBm (11.5 dB). Antenna input 4: +14.6 dBm (10.4 dB, strongest). Antenna input 5: +14.6 dBm (10.4 dB, strongest). Spread 3.0 dB."
 );
 assert.equal(
   m.describeAntennas([
@@ -152,7 +154,7 @@ raised.sourceDbm = 26;
 raised.sources = raised.sources.map((source) => ({ ...source }));
 raised.sources[0].powerDbm = 26;
 const raisedResult = m.computeBranch(raised);
-assert.ok(Math.abs(raisedResult.antennas[0].powerDbm - (drawn.antennas[0].powerDbm + 5)) < 1e-9);
+assert.ok(Math.abs(raisedResult.antennas[0].powerDbm - (drawn.antennas[0].powerDbm + 1)) < 1e-9);
 assert.ok(Math.abs(raisedResult.antennas[0].lossDb - drawn.antennas[0].lossDb) < 1e-12);
 assert.equal(raisedResult.sources.length, 1);
 
@@ -278,7 +280,7 @@ assert.equal(single.sources[0].freqMHz, 2100);
 assert.equal(single.antennas[0].levels.length, 1);
 assert.equal(single.cables[0].levels.length, 1);
 assert.ok(Math.abs(single.antennas[0].lossDb - drawn.antennas[0].levels[0].lossDb) < 1e-9);
-assert.ok(Math.abs(single.antennas[4].powerDbm - (21 - single.antennas[4].lossDb)) < 1e-9);
+assert.ok(Math.abs(single.antennas[4].powerDbm - (25 - single.antennas[4].lossDb)) < 1e-9);
 assert.equal(m.optimizeCouplers(source2Off, "b"), null);
 assert.deepEqual(m.optimizeCouplers(source2Off, "all").couplerDb, m.optimizeCouplers(source2Off, "a").couplerDb);
 const cannotDisableFirst = m.defaultState();
