@@ -362,6 +362,14 @@ assert.ok(Math.abs(
   divided.antennas[2].levels[0].rsrpDbm -
   (m.roundDb(divided.antennas[2].levels[0].radiatedDbm) - 29.5)
 ) < 1e-9, "15 MHz RSRP");
+assert.equal(m.COVERAGE_REF_DBM, -27);
+assert.equal(m.COVERAGE_REF_M, 20);
+assert.ok(Math.abs(m.coverageRadiusM(-27) - 20) < 1e-9, "20 m at -27 dBm");
+assert.ok(m.coverageRadiusM(-17) > m.coverageRadiusM(-27), "stronger input reaches further");
+assert.ok(Math.abs(
+  drawn.antennas[0].levels[0].coverageRadiusM -
+  m.coverageRadiusM(drawn.antennas[0].levels[0].carrierRsrpDbm)
+) < 1e-9, "antenna coverage follows its RSRP");
 
 console.log("check-math ok");
 console.log(drawn.antennas.map((a) => m.formatDb(a.lossDb)).join(" "));

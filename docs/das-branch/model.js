@@ -222,6 +222,23 @@
     return roundDb(radiatedDbm) - rsrp15OffsetDb();
   }
 
+  /** −27 dBm at the antenna reaches −115 dBm at 20 m inside a building at 2100 MHz. */
+  var COVERAGE_REF_DBM = -27;
+  var COVERAGE_REF_M = 20;
+  var COVERAGE_EDGE_DBM = -115;
+  var COVERAGE_FREQ_MHZ = 2100;
+
+  function coverageSlopeDbPerDecade() {
+    var fspl1m = 20 * Math.log10(COVERAGE_FREQ_MHZ) - 27.55;
+    var budget = COVERAGE_REF_DBM - COVERAGE_EDGE_DBM;
+    return (budget - fspl1m) / Math.log10(COVERAGE_REF_M);
+  }
+
+  function coverageRadiusM(levelDbm) {
+    if (!Number.isFinite(levelDbm)) return NaN;
+    return COVERAGE_REF_M * Math.pow(10, (levelDbm - COVERAGE_REF_DBM) / coverageSlopeDbPerDecade());
+  }
+
   function sourcesFor(state) {
     var raw = state.sources && state.sources.length
       ? state.sources
@@ -452,6 +469,7 @@
         var lossDb = row ? row.antennaLoss[i] : NaN;
         var powerDbm = row && Number.isFinite(source.powerDbm) ? source.powerDbm - lossDb : NaN;
         var perCarrierDbm = perCarrierPowerDbm(powerDbm, source.carriers);
+        var carrierRsrpDbm = rsrp15Dbm(perCarrierDbm);
         return {
           source: source.index,
           freqMHz: source.freqMHz,
@@ -460,8 +478,10 @@
           lossDb: lossDb,
           powerDbm: powerDbm,
           perCarrierDbm: perCarrierDbm,
+          carrierRsrpDbm: carrierRsrpDbm,
           radiatedDbm: radiatedPowerDbm(perCarrierDbm),
-          rsrpDbm: rsrp15Dbm(radiatedPowerDbm(perCarrierDbm))
+          rsrpDbm: rsrp15Dbm(radiatedPowerDbm(perCarrierDbm)),
+          coverageRadiusM: coverageRadiusM(carrierRsrpDbm)
         };
       });
       var primaryLevel = levels[primary] || levels[0];
@@ -645,6 +665,10 @@
     LTE_15_RB: LTE_15_RB,
     rsrp15OffsetDb: rsrp15OffsetDb,
     rsrp15Dbm: rsrp15Dbm,
+    COVERAGE_REF_DBM: COVERAGE_REF_DBM,
+    COVERAGE_REF_M: COVERAGE_REF_M,
+    COVERAGE_EDGE_DBM: COVERAGE_EDGE_DBM,
+    coverageRadiusM: coverageRadiusM,
     formatPowerDbm: formatPowerDbm,
     formatDeltaDb: formatDeltaDb,
     branchOutput: branchOutput,

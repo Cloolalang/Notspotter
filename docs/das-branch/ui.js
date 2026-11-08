@@ -453,6 +453,12 @@
         : "";
       line.textContent = prefix + "Per carrier power = " + value;
       box.appendChild(line);
+      var rsrp = document.createElement("p");
+      rsrp.className = "carrier-power src-" + level.source;
+      var carrierRsrp = api.rsrp15Dbm(level.perCarrierDbm);
+      var rsrpValue = Number.isFinite(carrierRsrp) ? api.formatPowerDbm(carrierRsrp) : "— dBm";
+      rsrp.textContent = prefix + "Per carrier 15 MHz RSRP = " + rsrpValue;
+      box.appendChild(rsrp);
     });
   }
 
@@ -492,7 +498,7 @@
     box.replaceChildren();
     var title = document.createElement("p");
     title.className = "rsrp-title";
-    title.textContent = "Estimated carrier RSRP at 15 MHz BW";
+    title.textContent = "Estimated radiated per carrier RSRP at 1.5m below antenna";
     box.appendChild(title);
     antenna.levels.forEach(function (level) {
       var line = document.createElement("p");
@@ -502,6 +508,39 @@
         ? api.formatFreq(level.freqMHz) + " MHz. "
         : "";
       line.textContent = prefix + "RSRP = " + value;
+      box.appendChild(line);
+    });
+  }
+
+  function formatRadiusM(metres) {
+    if (!Number.isFinite(metres)) return "—";
+    if (metres >= 10) return String(Math.round(metres)) + " m";
+    return (Math.round(metres * 10) / 10).toFixed(1) + " m";
+  }
+
+  function fillCoverageBox(card, antenna) {
+    var radiated = card.nextElementSibling;
+    if (!radiated || !radiated.classList.contains("radiated-box")) return;
+    var estimated = radiated.nextElementSibling;
+    if (!estimated || !estimated.classList.contains("rsrp-box")) return;
+    var box = estimated.nextElementSibling;
+    if (!box || !box.classList.contains("coverage-box")) {
+      box = document.createElement("aside");
+      box.className = "coverage-box";
+      estimated.insertAdjacentElement("afterend", box);
+    }
+    box.replaceChildren();
+    var title = document.createElement("p");
+    title.className = "coverage-title";
+    title.textContent = "Estimated in-building coverage radius";
+    box.appendChild(title);
+    antenna.levels.forEach(function (level) {
+      var line = document.createElement("p");
+      line.className = "carrier-power src-" + level.source;
+      var prefix = antenna.levels.length > 1 && Number.isFinite(level.freqMHz)
+        ? api.formatFreq(level.freqMHz) + " MHz. "
+        : "";
+      line.textContent = prefix + formatRadiusM(level.coverageRadiusM) + " to −115 dBm";
       box.appendChild(line);
     });
   }
@@ -611,6 +650,7 @@
       fillCarrierBox(card, antenna);
       fillRadiatedBox(card, antenna);
       fillRsrpBox(card, antenna);
+      fillCoverageBox(card, antenna);
     });
 
     renderBars(result, scale);
