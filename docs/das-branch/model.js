@@ -185,6 +185,21 @@
     return (Math.round(freqMHz * 10) / 10).toFixed(1);
   }
 
+  var CARRIER_MAX = 12;
+
+  function carrierCount(value) {
+    var count = Math.round(Number(value));
+    if (!Number.isFinite(count) || count < 1) return 1;
+    if (count > CARRIER_MAX) return CARRIER_MAX;
+    return count;
+  }
+
+  /** Equal split of a composite dBm level across that many carriers. */
+  function perCarrierPowerDbm(powerDbm, carriers) {
+    if (!Number.isFinite(powerDbm)) return NaN;
+    return powerDbm - 10 * Math.log10(carrierCount(carriers));
+  }
+
   function sourcesFor(state) {
     var raw = state.sources && state.sources.length
       ? state.sources
@@ -194,7 +209,14 @@
       var power = Number(source.powerDbm);
       var enabled = index === 0 || source.enabled !== false;
       var valid = enabled && Number.isFinite(freq) && freq >= FREQ_MIN_MHZ && freq <= FREQ_MAX_MHZ && Number.isFinite(power);
-      return { index: index + 1, freqMHz: freq, powerDbm: power, enabled: enabled, valid: valid };
+      return {
+        index: index + 1,
+        freqMHz: freq,
+        powerDbm: power,
+        carriers: carrierCount(source.carriers),
+        enabled: enabled,
+        valid: valid
+      };
     }).filter(function (source) {
       return source.enabled;
     });
@@ -406,12 +428,15 @@
       var levels = sources.map(function (source, index) {
         var row = solved[index];
         var lossDb = row ? row.antennaLoss[i] : NaN;
+        var powerDbm = row && Number.isFinite(source.powerDbm) ? source.powerDbm - lossDb : NaN;
         return {
           source: source.index,
           freqMHz: source.freqMHz,
           sourceDbm: source.powerDbm,
+          carriers: source.carriers,
           lossDb: lossDb,
-          powerDbm: row && Number.isFinite(source.powerDbm) ? source.powerDbm - lossDb : NaN
+          powerDbm: powerDbm,
+          perCarrierDbm: perCarrierPowerDbm(powerDbm, source.carriers)
         };
       });
       var primaryLevel = levels[primary] || levels[0];
@@ -587,6 +612,9 @@
     roundDb: roundDb,
     formatDb: formatDb,
     formatSignedDb: formatSignedDb,
+    CARRIER_MAX: CARRIER_MAX,
+    carrierCount: carrierCount,
+    perCarrierPowerDbm: perCarrierPowerDbm,
     formatPowerDbm: formatPowerDbm,
     formatDeltaDb: formatDeltaDb,
     branchOutput: branchOutput,

@@ -28,6 +28,10 @@ assert.equal(m.formatSignedDb(16), "+16.0");
 assert.equal(m.formatSignedDb(-4.26), "-4.3");
 assert.equal(m.formatSignedDb(0), "+0.0");
 assert.equal(m.formatSignedDb(-0.04), "+0.0");
+assert.equal(m.carrierCount(undefined), 1);
+assert.equal(m.carrierCount(4.4), 4);
+assert.ok(Math.abs(m.perCarrierPowerDbm(21, 1) - 21) < 1e-12);
+assert.ok(Math.abs(m.perCarrierPowerDbm(21, 2) - (21 - 10 * Math.log10(2))) < 1e-12);
 assert.equal(m.formatPowerDbm(16), "+16.0 dBm");
 assert.equal(m.formatPowerDbm(-4.3), "-4.3 dBm");
 assert.equal(m.formatDeltaDb(4.2), "+4.2 dB");
@@ -336,6 +340,15 @@ const afterEnd = m.computeBranch({
 assert.ok(spreadOf(afterEnd, 0) <= spreadOf(beforeEnd, 0) + 1e-9);
 const splitterTune = m.optimizeCouplers(m.defaultState(), "a");
 assert.equal(splitterTune.endCouplerDb, 5);
+const fourCarriers = m.defaultState();
+fourCarriers.sources = fourCarriers.sources.map((source) => ({ ...source }));
+fourCarriers.sources[0].carriers = 4;
+const divided = m.computeBranch(fourCarriers);
+assert.equal(divided.sources[0].carriers, 4);
+assert.ok(Math.abs(
+  divided.antennas[2].levels[0].perCarrierDbm -
+  (divided.antennas[2].levels[0].powerDbm - 10 * Math.log10(4))
+) < 1e-9, "per carrier split");
 
 console.log("check-math ok");
 console.log(drawn.antennas.map((a) => m.formatDb(a.lossDb)).join(" "));

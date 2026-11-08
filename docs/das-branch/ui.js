@@ -276,6 +276,7 @@
       var source = sources[index] || { freqMHz: index === 0 ? 2100 : 800, powerDbm: 21, enabled: index === 0 };
       document.getElementById("src-" + (index + 1) + "-dbm").value = String(source.powerDbm);
       document.getElementById("src-" + (index + 1) + "-mhz").value = String(source.freqMHz);
+      document.getElementById("src-" + (index + 1) + "-carriers").value = String(api.carrierCount(source.carriers));
     });
     document.getElementById("src-2-on").checked = !sources[1] || sources[1].enabled !== false;
     var count = state.couplerCount || 2;
@@ -319,6 +320,7 @@
     document.getElementById("source-2").classList.toggle("is-off", !on);
     document.getElementById("src-2-dbm").disabled = !on;
     document.getElementById("src-2-mhz").disabled = !on;
+    document.getElementById("src-2-carriers").disabled = !on;
     document.getElementById("legend-src-2").classList.toggle("is-off", !on);
     var bandB = form.querySelector('input[name="optimise"][value="b"]');
     bandB.disabled = !on;
@@ -332,6 +334,7 @@
     return [1, 2].map(function (index) {
       var powerEl = document.getElementById("src-" + index + "-dbm");
       var freqEl = document.getElementById("src-" + index + "-mhz");
+      var carrierEl = document.getElementById("src-" + index + "-carriers");
       var power = powerEl.valueAsNumber;
       var freq = freqEl.valueAsNumber;
       var enabled = index === 1 || source2On;
@@ -339,7 +342,7 @@
       var freqOk = !enabled || (Number.isFinite(freq) && freq >= api.FREQ_MIN_MHZ && freq <= api.FREQ_MAX_MHZ);
       powerEl.setAttribute("aria-invalid", powerOk ? "false" : "true");
       freqEl.setAttribute("aria-invalid", freqOk ? "false" : "true");
-      return { freqMHz: freq, powerDbm: power, enabled: enabled };
+      return { freqMHz: freq, powerDbm: power, carriers: api.carrierCount(carrierEl.value), enabled: enabled };
     });
   }
 
@@ -427,6 +430,30 @@
       chart.appendChild(line);
     }
     chart.setAttribute("aria-label", labelPrefix + bits.join(". "));
+  }
+
+  function fillCarrierBox(card, antenna) {
+    var box = card.querySelector(".carrier-box");
+    if (!box) {
+      box = document.createElement("aside");
+      box.className = "carrier-box";
+      card.appendChild(box);
+    }
+    box.replaceChildren();
+    var note = document.createElement("p");
+    note.className = "carrier-note";
+    note.textContent = "For DAS/Repeater the total power is divided by the number of carriers.";
+    box.appendChild(note);
+    antenna.levels.forEach(function (level) {
+      var line = document.createElement("p");
+      line.className = "carrier-power src-" + level.source;
+      var value = Number.isFinite(level.perCarrierDbm) ? api.formatPowerDbm(level.perCarrierDbm) : "— dBm";
+      var prefix = antenna.levels.length > 1 && Number.isFinite(level.freqMHz)
+        ? api.formatFreq(level.freqMHz) + " MHz. "
+        : "";
+      line.textContent = prefix + "Per carrier power = " + value;
+      box.appendChild(line);
+    });
   }
 
   function renderBars(result, scale) {
@@ -531,6 +558,7 @@
         card.appendChild(chart);
       }
       fillLevelChart(chart, antenna.levels, scale, "Antenna input " + antenna.index + ". ");
+      fillCarrierBox(card, antenna);
     });
 
     renderBars(result, scale);
