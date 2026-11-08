@@ -200,6 +200,28 @@
     return powerDbm - 10 * Math.log10(carrierCount(carriers));
   }
 
+  /** Fixed allowance from per-carrier power to an estimate 1.5 m below the antenna. */
+  var RADIATED_OFFSET_DB = 50;
+
+  function radiatedPowerDbm(perCarrierDbm) {
+    if (!Number.isFinite(perCarrierDbm)) return NaN;
+    return perCarrierDbm - RADIATED_OFFSET_DB;
+  }
+
+  /** LTE 15 MHz transmission bandwidth is 75 resource blocks, 12 resource elements each. */
+  var LTE_15_RB = 75;
+  var RE_PER_RB = 12;
+
+  /** RSRP from a flat carrier: total power spread evenly across every resource element. */
+  function rsrp15OffsetDb() {
+    return roundDb(10 * Math.log10(LTE_15_RB * RE_PER_RB));
+  }
+
+  function rsrp15Dbm(radiatedDbm) {
+    if (!Number.isFinite(radiatedDbm)) return NaN;
+    return roundDb(radiatedDbm) - rsrp15OffsetDb();
+  }
+
   function sourcesFor(state) {
     var raw = state.sources && state.sources.length
       ? state.sources
@@ -429,6 +451,7 @@
         var row = solved[index];
         var lossDb = row ? row.antennaLoss[i] : NaN;
         var powerDbm = row && Number.isFinite(source.powerDbm) ? source.powerDbm - lossDb : NaN;
+        var perCarrierDbm = perCarrierPowerDbm(powerDbm, source.carriers);
         return {
           source: source.index,
           freqMHz: source.freqMHz,
@@ -436,7 +459,9 @@
           carriers: source.carriers,
           lossDb: lossDb,
           powerDbm: powerDbm,
-          perCarrierDbm: perCarrierPowerDbm(powerDbm, source.carriers)
+          perCarrierDbm: perCarrierDbm,
+          radiatedDbm: radiatedPowerDbm(perCarrierDbm),
+          rsrpDbm: rsrp15Dbm(radiatedPowerDbm(perCarrierDbm))
         };
       });
       var primaryLevel = levels[primary] || levels[0];
@@ -615,6 +640,11 @@
     CARRIER_MAX: CARRIER_MAX,
     carrierCount: carrierCount,
     perCarrierPowerDbm: perCarrierPowerDbm,
+    RADIATED_OFFSET_DB: RADIATED_OFFSET_DB,
+    radiatedPowerDbm: radiatedPowerDbm,
+    LTE_15_RB: LTE_15_RB,
+    rsrp15OffsetDb: rsrp15OffsetDb,
+    rsrp15Dbm: rsrp15Dbm,
     formatPowerDbm: formatPowerDbm,
     formatDeltaDb: formatDeltaDb,
     branchOutput: branchOutput,

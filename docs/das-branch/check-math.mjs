@@ -349,6 +349,17 @@ assert.ok(Math.abs(
   divided.antennas[2].levels[0].perCarrierDbm -
   (divided.antennas[2].levels[0].powerDbm - 10 * Math.log10(4))
 ) < 1e-9, "per carrier split");
+assert.equal(m.RADIATED_OFFSET_DB, 50);
+assert.ok(Math.abs(
+  divided.antennas[2].levels[0].radiatedDbm -
+  (divided.antennas[2].levels[0].perCarrierDbm - 50)
+) < 1e-9, "radiated estimate");
+assert.equal(m.LTE_15_RB, 75);
+assert.equal(m.rsrp15OffsetDb(), 29.5);
+assert.ok(Math.abs(
+  divided.antennas[2].levels[0].rsrpDbm -
+  (m.roundDb(divided.antennas[2].levels[0].radiatedDbm) - 29.5)
+) < 1e-9, "15 MHz RSRP");
 
 console.log("check-math ok");
 console.log(drawn.antennas.map((a) => m.formatDb(a.lossDb)).join(" "));

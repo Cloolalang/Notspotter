@@ -456,6 +456,56 @@
     });
   }
 
+  function fillRadiatedBox(card, antenna) {
+    var box = card.nextElementSibling;
+    if (!box || !box.classList.contains("radiated-box")) {
+      box = document.createElement("aside");
+      box.className = "radiated-box";
+      card.insertAdjacentElement("afterend", box);
+    }
+    box.replaceChildren();
+    var title = document.createElement("p");
+    title.className = "radiated-title";
+    title.textContent = "Estimated radiated power at 1.5m below antenna";
+    box.appendChild(title);
+    antenna.levels.forEach(function (level) {
+      var line = document.createElement("p");
+      line.className = "carrier-power src-" + level.source;
+      var value = Number.isFinite(level.radiatedDbm) ? api.formatPowerDbm(level.radiatedDbm) : "— dBm";
+      var prefix = antenna.levels.length > 1 && Number.isFinite(level.freqMHz)
+        ? api.formatFreq(level.freqMHz) + " MHz. "
+        : "";
+      line.textContent = prefix + "Per carrier power = " + value;
+      box.appendChild(line);
+    });
+  }
+
+  function fillRsrpBox(card, antenna) {
+    var radiated = card.nextElementSibling;
+    if (!radiated || !radiated.classList.contains("radiated-box")) return;
+    var box = radiated.nextElementSibling;
+    if (!box || !box.classList.contains("rsrp-box")) {
+      box = document.createElement("aside");
+      box.className = "rsrp-box";
+      radiated.insertAdjacentElement("afterend", box);
+    }
+    box.replaceChildren();
+    var title = document.createElement("p");
+    title.className = "rsrp-title";
+    title.textContent = "Estimated carrier RSRP at 15 MHz BW";
+    box.appendChild(title);
+    antenna.levels.forEach(function (level) {
+      var line = document.createElement("p");
+      line.className = "carrier-power src-" + level.source;
+      var value = Number.isFinite(level.rsrpDbm) ? api.formatPowerDbm(level.rsrpDbm) : "— dBm";
+      var prefix = antenna.levels.length > 1 && Number.isFinite(level.freqMHz)
+        ? api.formatFreq(level.freqMHz) + " MHz. "
+        : "";
+      line.textContent = prefix + "RSRP = " + value;
+      box.appendChild(line);
+    });
+  }
+
   function renderBars(result, scale) {
     var list = document.querySelector(".bars");
     list.replaceChildren();
@@ -559,6 +609,8 @@
       }
       fillLevelChart(chart, antenna.levels, scale, "Antenna input " + antenna.index + ". ");
       fillCarrierBox(card, antenna);
+      fillRadiatedBox(card, antenna);
+      fillRsrpBox(card, antenna);
     });
 
     renderBars(result, scale);
