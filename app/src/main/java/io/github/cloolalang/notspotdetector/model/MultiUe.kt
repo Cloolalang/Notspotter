@@ -64,6 +64,7 @@ sealed interface MultiUeMessage {
     data object PinUndo : MultiUeMessage
     data object PinClear : MultiUeMessage
     data object ZoneClear : MultiUeMessage
+    data object ZoneSave : MultiUeMessage
     data object Full : MultiUeMessage
     data class Sync(val on: Boolean) : MultiUeMessage
     data class Settings(val payload: String) : MultiUeMessage
@@ -116,6 +117,8 @@ object MultiUeProtocol {
     fun pinClear(): String = "PIN *"
 
     fun zoneClear(): String = "ZONECLEAR"
+
+    fun zoneSave(): String = "ZONESAVE"
 
     fun fraction(value: Float): String {
         return String.format(Locale.US, "%.5f", value.coerceIn(0f, 1f))
@@ -193,6 +196,7 @@ object MultiUeProtocol {
             }
             "FULL" -> MultiUeMessage.Full
             "ZONECLEAR" -> MultiUeMessage.ZoneClear
+            "ZONESAVE" -> MultiUeMessage.ZoneSave
             "PIN" -> when (parts.getOrNull(1)) {
                 "-" -> if (parts.size == 2) MultiUeMessage.PinUndo else null
                 "*" -> if (parts.size == 2) MultiUeMessage.PinClear else null

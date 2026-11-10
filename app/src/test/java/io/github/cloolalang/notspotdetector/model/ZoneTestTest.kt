@@ -42,9 +42,19 @@ class ZoneTestTest {
     }
 
     @Test
-    fun walkJpegFileName_usesTheSameNameAndOperator() {
+    fun walkFileName_startsWithOperatorThenRsrp() {
+        assertEquals("VodafoneRSRP_", ZoneTest.fileNamePrefix("Vodafone", ZoneTest.WALK_KPI))
         assertEquals(
-            "Zone walk - High street - Vodafone.jpg",
+            "site1",
+            ZoneTest.sharedNameSuffix("VodafoneRSRP_site1", "Vodafone", ZoneTest.WALK_KPI)
+        )
+        assertEquals("EERSRP_site1", ZoneTest.nameWithOperator("EE", "site1", ZoneTest.WALK_KPI))
+        assertEquals(
+            "VodafoneRSRP_High street.jpg",
+            ZoneTest.walkJpegFileName("VodafoneRSRP_High street", "Vodafone")
+        )
+        assertEquals(
+            "VodafoneRSRP_High street.jpg",
             ZoneTest.walkJpegFileName("High street", "Vodafone")
         )
     }

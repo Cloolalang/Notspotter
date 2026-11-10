@@ -39,6 +39,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -807,6 +808,7 @@ private fun ZoneTestPanel(
         WalkLegendSwatch(WalkRoute.rsrpRouteColor(RsrpBin.NO_SIGNAL), stringResource(R.string.zone_test_no_signal))
     )
     val walkCaptionFallback = stringResource(R.string.zone_test_walk_caption)
+    val routeLegendTitle = stringResource(R.string.zone_test_route_legend_title)
     val pickFloorPlan = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         FloorPlanLoader.keepPermission(context, uri)
@@ -863,12 +865,13 @@ private fun ZoneTestPanel(
     val link by MultiUeState.snapshot.collectAsStateWithLifecycle()
     val followsMaster = link.followsMaster
     val remoteZone by MultiUeZoneSync.state.collectAsStateWithLifecycle()
+    fun walkKpi(): String? = if (walkRouteEnabled) ZoneTest.WALK_KPI else null
     val startZoneNow = rememberUpdatedState<() -> Unit>({
         val atMs = tapeNowMs
         startMs = atMs
         sampleWindowStartMs = nowMs
         endMs = null
-        zoneName = ZoneTest.fileNamePrefix(liveOperator)
+        zoneName = ZoneTest.fileNamePrefix(liveOperator, walkKpi())
         statusMessage = null
         operatorLabel = liveOperator
         pins = emptyList()
@@ -899,6 +902,71 @@ private fun ZoneTestPanel(
         activeTestTape = ActiveTestTape()
         aggregatedBandwidthTape = AggregatedBandwidthTape()
     })
+    val saveZoneJpeg = rememberUpdatedState<() -> Unit>({
+        val started = startMs
+        if (started == null) {
+            statusMessage = failedText
+            return@rememberUpdatedState
+        }
+        val markedEnd = if (running) tapeNowMs else endMs ?: tapeNowMs
+        scope.launch {
+            val bitmap = runCatching {
+                val image = graphicsLayer.toImageBitmap()
+                val raw = image.asAndroidBitmap()
+                if (raw.config == Bitmap.Config.HARDWARE) {
+                    raw.copy(Bitmap.Config.ARGB_8888, false)
+                } else {
+                    raw
+                }
+            }.getOrNull()
+            if (bitmap == null) {
+                statusMessage = failedText
+                return@launch
+            }
+            val zonePath = ZoneTestImageSaver.save(
+                context = context,
+                bitmap = bitmap,
+                name = zoneName,
+                operator = operatorLabel
+            )
+            val plan = floorPlan
+            val markedPins = pins.toList()
+            var walkPath: String? = null
+            if (walkRouteEnabled && plan != null && markedPins.isNotEmpty()) {
+                val caption = listOfNotNull(
+                    zoneName.trim().takeIf { it.isNotEmpty() },
+                    operatorLabel
+                ).joinToString(" · ").ifBlank { walkCaptionFallback }
+                val routeBitmap = WalkRouteImage.render(
+                    floorPlan = plan,
+                    pins = markedPins,
+                    segments = rsrpBinTape.entries,
+                    zoneStartMs = started,
+                    zoneEndMs = markedEnd,
+                    caption = caption,
+                    legendTitle = routeLegendTitle,
+                    legend = routeLegend
+                )
+                if (routeBitmap != null) {
+                    walkPath = ZoneTestImageSaver.saveJpeg(
+                        context = context,
+                        bitmap = routeBitmap,
+                        fileName = ZoneTest.walkJpegFileName(zoneName, operatorLabel)
+                    )
+                    routeBitmap.recycle()
+                }
+            }
+            statusMessage = when {
+                zonePath != null && walkPath != null ->
+                    savedWithRouteTemplate.format(zonePath, walkPath)
+                zonePath != null && walkRouteEnabled && markedPins.isNotEmpty() ->
+                    routeFailedTemplate.format(zonePath)
+                zonePath != null -> savedTemplate.format(zonePath)
+                walkPath != null -> savedTemplate.format(walkPath)
+                else -> failedText
+            }
+        }
+    })
     val remoteZoneName by MultiUeZoneSync.nameSuffix.collectAsStateWithLifecycle()
     if (link.role == MultiUeRole.MASTER) {
         LaunchedEffect(Unit) {
@@ -907,11 +975,11 @@ private fun ZoneTestPanel(
                     MultiUeZoneSync.set(zoneRunning, wholeTest)
                 }
         }
-        LaunchedEffect(liveOperator, operatorLabel) {
+        LaunchedEffect(liveOperator, operatorLabel, walkRouteEnabled) {
             snapshotFlow { zoneName }
                 .collect { name ->
                     MultiUeZoneSync.setNameSuffix(
-                        ZoneTest.sharedNameSuffix(name, operatorLabel ?: liveOperator)
+                        ZoneTest.sharedNameSuffix(name, operatorLabel ?: liveOperator, walkKpi())
                     )
                 }
         }
@@ -947,9 +1015,9 @@ private fun ZoneTestPanel(
                 stopZoneNow.value.invoke()
             }
         }
-        LaunchedEffect(remoteZoneName, operatorLabel, liveOperator) {
+        LaunchedEffect(remoteZoneName, operatorLabel, liveOperator, walkRouteEnabled) {
             val suffix = remoteZoneName ?: return@LaunchedEffect
-            val next = ZoneTest.nameWithOperator(operatorLabel ?: liveOperator, suffix)
+            val next = ZoneTest.nameWithOperator(operatorLabel ?: liveOperator, suffix, walkKpi())
             if (zoneName != next) zoneName = next
         }
         val remotePlan by MultiUeFloorPlan.jpeg.collectAsStateWithLifecycle()
@@ -1000,6 +1068,14 @@ private fun ZoneTestPanel(
                 clearZoneCharts.value.invoke()
             }
         }
+        LaunchedEffect(Unit) {
+            MultiUeZoneSync.saves.collect {
+                if (!expanded) expanded = true
+                withFrameNanos { }
+                withFrameNanos { }
+                saveZoneJpeg.value.invoke()
+            }
+        }
     }
 
     LaunchedEffect(isMonitoring) {
@@ -1008,17 +1084,17 @@ private fun ZoneTestPanel(
             endMs = tapeNowMs
         }
     }
-    LaunchedEffect(liveOperator, running) {
+    LaunchedEffect(liveOperator, running, walkRouteEnabled) {
         if (running && liveOperator != null) {
             operatorLabel = liveOperator
             if (!followsMaster && zoneName.isBlank()) {
-                zoneName = ZoneTest.fileNamePrefix(liveOperator)
+                zoneName = ZoneTest.fileNamePrefix(liveOperator, walkKpi())
             }
         }
     }
-    LaunchedEffect(running, startMs, operatorLabel, liveOperator) {
+    LaunchedEffect(running, startMs, operatorLabel, liveOperator, walkRouteEnabled) {
         if (!followsMaster && !running && startMs != null && zoneName.isBlank()) {
-            val prefix = ZoneTest.fileNamePrefix(operatorLabel ?: liveOperator)
+            val prefix = ZoneTest.fileNamePrefix(operatorLabel ?: liveOperator, walkKpi())
             if (prefix.isNotEmpty()) zoneName = prefix
         }
     }
@@ -1199,56 +1275,9 @@ private fun ZoneTestPanel(
                 }
                 Button(
                     onClick = {
-                        scope.launch {
-                            val image = graphicsLayer.toImageBitmap()
-                            val raw = image.asAndroidBitmap()
-                            val bitmap = if (raw.config == Bitmap.Config.HARDWARE) {
-                                raw.copy(Bitmap.Config.ARGB_8888, false)
-                            } else {
-                                raw
-                            }
-                            val zonePath = ZoneTestImageSaver.save(
-                                context = context,
-                                bitmap = bitmap,
-                                name = zoneName,
-                                operator = operatorLabel
-                            )
-                            val plan = floorPlan
-                            val started = zoneStart
-                            val markedPins = pins.toList()
-                            var walkPath: String? = null
-                            if (walkRouteEnabled && plan != null && started != null && markedPins.isNotEmpty()) {
-                                val caption = listOfNotNull(
-                                    zoneName.trim().takeIf { it.isNotEmpty() },
-                                    operatorLabel
-                                ).joinToString(" · ").ifBlank { walkCaptionFallback }
-                                val routeBitmap = WalkRouteImage.render(
-                                    floorPlan = plan,
-                                    pins = markedPins,
-                                    segments = rsrpBinTape.entries,
-                                    zoneStartMs = started,
-                                    zoneEndMs = chartNowMs,
-                                    caption = caption,
-                                    legend = routeLegend
-                                )
-                                if (routeBitmap != null) {
-                                    walkPath = ZoneTestImageSaver.saveJpeg(
-                                        context = context,
-                                        bitmap = routeBitmap,
-                                        fileName = ZoneTest.walkJpegFileName(zoneName, operatorLabel)
-                                    )
-                                    routeBitmap.recycle()
-                                }
-                            }
-                            statusMessage = when {
-                                zonePath != null && walkPath != null ->
-                                    savedWithRouteTemplate.format(zonePath, walkPath)
-                                zonePath != null && walkRouteEnabled && markedPins.isNotEmpty() ->
-                                    routeFailedTemplate.format(zonePath)
-                                zonePath != null -> savedTemplate.format(zonePath)
-                                walkPath != null -> savedTemplate.format(walkPath)
-                                else -> failedText
-                            }
+                        saveZoneJpeg.value.invoke()
+                        if (link.role == MultiUeRole.MASTER) {
+                            MultiUeLinkService.broadcastZoneSave(context)
                         }
                     },
                     modifier = Modifier.fillMaxWidth()

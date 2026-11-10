@@ -61,7 +61,6 @@
     <string name="multi_ue_listen_failed">The Bluetooth link failed. Turn Bluetooth off and on, then try again.</string>
     <string name="multi_ue_retrying">Not connected. Trying the master again.</string>
     <string name="multi_ue_master_full">The master already has 4 slaves.</string>
-    <string name="multi_ue_following">Monitoring follows the master.</string>
     <string name="multi_ue_unknown_phone">Unknown phone (%1$s)</string>
     <string name="notification_channel_multi_ue">Multi-UE link</string>
     <string name="notification_channel_multi_ue_description">Keeps the master and slave phones connected.</string>
@@ -448,6 +447,7 @@
     <string name="zone_test_title">Zone test</string>
     <string name="zone_test_hint">Starts a KPI history that keeps every change from the moment you start until you stop. The bars squeeze the whole run onto one scale. Stop to name and save a JPEG in Downloads, or clear it.</string>
     <string name="zone_test_hint_walk">Starts a KPI history that keeps every change from the moment you start until you stop. The bars squeeze the whole run onto one scale. Choose a floor plan from Downloads and tap it to mark the walk. Stop to name the run and save the JPEGs, or clear the walk marks and the KPI record.</string>
+    <string name="zone_test_route_legend_title">RSRP - within thresholds</string>
     <string name="walk_route_setting">Floor plan walk</string>
     <string name="walk_route_setting_hint">Shows a floor plan on the zone test so you can mark where you walk. Unlock with the password, then turn this on.</string>
     <string name="zone_test_start">Start zone test</string>

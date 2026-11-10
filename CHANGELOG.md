@@ -5,6 +5,36 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.172.0] - 2026-11-10
+
+### Added
+
+- **Multi-UE zone test** — Save JPEG on the master also saves on each connected slave. Each phone writes its own zone-test chart, and its own walk-route JPEG when it has a floor plan and pins.
+
+## [2.171.0] - 2026-11-07
+
+### Changed
+
+- **Walk map file name** — The saved trail is named with the operator, then RSRP, then the place you type, such as VodafoneRSRP_lobby.jpg. The name field starts as OperatorRSRP_ so you add the place. A connected slave keeps its own operator in that same place.
+
+## [2.170.0] - 2026-11-07
+
+### Added
+
+- **Walk map** — The colour key on the saved floor-plan trail is titled "RSRP - within thresholds".
+
+## [2.169.0] - 2026-11-07
+
+### Changed
+
+- **Cellular metrics and ping results** — Cellular metrics and the active-mode ping panel start collapsed when a test is running. Tap the title to open either one.
+
+## [2.168.0] - 2026-11-07
+
+### Changed
+
+- **Multi-UE slave** — The note under the start and stop buttons, "Monitoring follows the master.", is no longer shown.
+
 ## [2.167.1] - 2026-11-07
 
 ### Fixed

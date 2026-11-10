@@ -8,8 +8,8 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * Zone-test run and Whole test switch. The master publishes both.
- * A connected slave applies them to its own zone test.
+ * Zone-test run, Whole test switch, clear, and save. The master publishes them.
+ * A connected slave applies them to its own zone test, including writing its own JPEG.
  */
 object MultiUeZoneSync {
     data class Snapshot(
@@ -40,5 +40,12 @@ object MultiUeZoneSync {
 
     fun clear() {
         _clears.tryEmit(Unit)
+    }
+
+    private val _saves = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val saves: SharedFlow<Unit> = _saves.asSharedFlow()
+
+    fun save() {
+        _saves.tryEmit(Unit)
     }
 }

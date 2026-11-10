@@ -5,6 +5,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
+import android.graphics.Typeface
 import io.github.cloolalang.notspotdetector.model.ImagePoint
 import io.github.cloolalang.notspotdetector.model.RsrpBinSegment
 import io.github.cloolalang.notspotdetector.model.WalkLegendSwatch
@@ -22,6 +23,7 @@ object WalkRouteImage {
         zoneStartMs: Long,
         zoneEndMs: Long,
         caption: String,
+        legendTitle: String,
         legend: List<WalkLegendSwatch>
     ): Bitmap? {
         val width = floorPlan.width
@@ -29,12 +31,12 @@ object WalkRouteImage {
         if (width <= 0 || height <= 0) return null
         val stroke = (min(width, height) * 0.012f).coerceIn(6f, 28f)
         val textSize = (stroke * 2.4f).coerceIn(18f, 42f)
-        val legendHeight = (textSize * 3.4f).toInt().coerceAtLeast(1)
-        val output = Bitmap.createBitmap(width, height + legendHeight, Bitmap.Config.ARGB_8888)
+        val strip = legendLayout(textSize)
+        val output = Bitmap.createBitmap(width, height + strip.height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(output)
         canvas.drawBitmap(floorPlan, 0f, 0f, null)
         drawRoute(canvas, width, height, pins, segments, zoneStartMs, zoneEndMs, stroke, textSize)
-        drawLegend(canvas, width, height, legendHeight, caption, legend, textSize)
+        drawLegend(canvas, width, height, strip, caption, legendTitle, legend)
         return output
     }
 
@@ -110,34 +112,67 @@ object WalkRouteImage {
         canvas: Canvas,
         width: Int,
         planHeight: Int,
-        legendHeight: Int,
+        strip: LegendStrip,
         caption: String,
-        legend: List<WalkLegendSwatch>,
-        textSize: Float
+        legendTitle: String,
+        legend: List<WalkLegendSwatch>
     ) {
         val top = planHeight.toFloat()
         val background = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
-        canvas.drawRect(0f, top, width.toFloat(), top + legendHeight, background)
+        canvas.drawRect(0f, top, width.toFloat(), top + strip.height, background)
         val text = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.BLACK
-            this.textSize = textSize * 0.85f
+            textSize = strip.textSize
             textAlign = Paint.Align.LEFT
         }
-        val padding = textSize * 0.4f
-        canvas.drawText(caption, padding, top + textSize, text)
-        var x = padding
-        val swatch = textSize * 0.7f
-        val baseline = top + legendHeight - padding
+        canvas.drawText(caption, strip.padding, top + strip.captionBaseline, text)
+        val title = Paint(text).apply { typeface = Typeface.DEFAULT_BOLD }
+        canvas.drawText(legendTitle, strip.padding, top + strip.titleBaseline, title)
+        var x = strip.padding
         val swatchPaint = Paint(Paint.ANTI_ALIAS_FLAG)
         for (entry in legend) {
             val labelWidth = text.measureText(entry.label)
-            if (x + swatch + labelWidth + padding > width) break
+            if (x + strip.swatch + labelWidth + strip.padding > width) break
             swatchPaint.color = entry.color.toInt()
-            canvas.drawRect(x, baseline - swatch, x + swatch, baseline, swatchPaint)
-            canvas.drawText(entry.label, x + swatch + padding * 0.4f, baseline, text)
-            x += swatch + labelWidth + padding * 2f
+            canvas.drawRect(x, top + strip.swatchTop, x + strip.swatch, top + strip.swatchBottom, swatchPaint)
+            canvas.drawText(entry.label, x + strip.swatch + strip.padding * 0.4f, top + strip.swatchBottom, text)
+            x += strip.swatch + labelWidth + strip.padding * 2f
         }
     }
+
+    private fun legendLayout(routeTextSize: Float): LegendStrip {
+        val textSize = routeTextSize * 0.85f
+        val padding = routeTextSize * 0.4f
+        val metrics = Paint().apply { this.textSize = textSize }.fontMetrics
+        val line = metrics.descent - metrics.ascent
+        val swatch = routeTextSize * 0.7f
+        val captionBaseline = padding - metrics.ascent
+        val titleBaseline = captionBaseline + line + padding * 0.2f
+        val swatchTop = titleBaseline + metrics.descent + padding * 0.45f
+        val swatchBottom = swatchTop + swatch
+        val height = (swatchBottom + padding).toInt().coerceAtLeast(1)
+        return LegendStrip(
+            height = height,
+            captionBaseline = captionBaseline,
+            titleBaseline = titleBaseline,
+            swatchTop = swatchTop,
+            swatchBottom = swatchBottom,
+            swatch = swatch,
+            textSize = textSize,
+            padding = padding
+        )
+    }
+
+    private data class LegendStrip(
+        val height: Int,
+        val captionBaseline: Float,
+        val titleBaseline: Float,
+        val swatchTop: Float,
+        val swatchBottom: Float,
+        val swatch: Float,
+        val textSize: Float,
+        val padding: Float
+    )
 
     private fun drawLabel(canvas: Canvas, text: String, x: Float, y: Float, textSize: Float) {
         val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply {

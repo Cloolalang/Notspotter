@@ -296,13 +296,6 @@ fun MonitorScreen(
             onStartActiveMode = onStartActiveMode,
             onStop = onStop
         )
-        if (multiUe.followsMaster) {
-            Text(
-                text = stringResource(R.string.multi_ue_following),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
 
         MultiUeCard(
             snapshot = multiUe,
@@ -797,7 +790,7 @@ private fun MetricsCard(
     onRequestCellIdentityPermission: () -> Unit
 ) {
     val mockActive = stats.isPassiveOnlySession && passiveMockSettings.enabled
-    var expanded by panelFold("metrics", defaultExpanded = true)
+    var expanded by panelFold("metrics", defaultExpanded = false)
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -991,7 +984,7 @@ private fun CollapsibleMetricsHeader(
 @Composable
 private fun ActiveModeMetricsCard(stats: ConnectivityStats) {
     val hasPingResult = !stats.isPassiveOnlySession && stats.pingsSent > 0
-    var expanded by panelFold("active-metrics", defaultExpanded = true)
+    var expanded by panelFold("active-metrics", defaultExpanded = false)
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(20.dp),
