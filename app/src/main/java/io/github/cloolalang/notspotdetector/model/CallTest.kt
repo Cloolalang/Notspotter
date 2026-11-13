@@ -5,9 +5,7 @@ data class CallTestSettings(
     val callDurationSec: Int = DEFAULT_DURATION_SEC,
     val delayBetweenCallsSec: Int = DEFAULT_DELAY_SEC,
     /** When true, a call test that is still running stops after [MASTER_TIMEOUT_MS]. */
-    val masterTimeoutEnabled: Boolean = DEFAULT_MASTER_TIMEOUT_ENABLED,
-    /** When true, a running call test silences the call and mutes the microphone. */
-    val muteCallAudio: Boolean = DEFAULT_MUTE_CALL_AUDIO
+    val masterTimeoutEnabled: Boolean = DEFAULT_MASTER_TIMEOUT_ENABLED
 ) {
     fun normalized(): CallTestSettings {
         return copy(
@@ -23,7 +21,6 @@ data class CallTestSettings(
         const val DEFAULT_DURATION_SEC = 15
         const val DEFAULT_DELAY_SEC = 10
         const val DEFAULT_MASTER_TIMEOUT_ENABLED = true
-        const val DEFAULT_MUTE_CALL_AUDIO = false
         const val MASTER_TIMEOUT_MINUTES = 30
         const val MASTER_TIMEOUT_MS = MASTER_TIMEOUT_MINUTES * 60 * 1000L
         const val MAX_NUMBER_CHARS = 40

@@ -206,7 +206,6 @@ fun MonitorScreen(
     onCallDurationChange: (Int) -> Unit = {},
     onCallDelayChange: (Int) -> Unit = {},
     onCallMasterTimeoutChange: (Boolean) -> Unit = {},
-    onCallMuteAudioChange: (Boolean) -> Unit = {},
     onStartCallTest: () -> Unit = {},
     onStopCallTest: () -> Unit = {},
     onWalkRouteEnabledChange: (Boolean) -> Unit = {},
@@ -570,8 +569,7 @@ fun MonitorScreen(
                 onNumberChange = onCallNumberChange,
                 onDurationChange = onCallDurationChange,
                 onDelayChange = onCallDelayChange,
-                onMasterTimeoutChange = onCallMasterTimeoutChange,
-                onMuteCallAudioChange = onCallMuteAudioChange
+                onMasterTimeoutChange = onCallMasterTimeoutChange
             )
 
             AudioVolumeSettingsCard(
@@ -871,6 +869,8 @@ private fun MonitoringControlButtons(
 
 private const val CLEAR_ALL_CHARTS_PRESSES = 4
 private const val CLEAR_ALL_CHARTS_WINDOW_MS = 2_000L
+private const val START_CALL_TEST_PRESSES = 4
+private const val START_CALL_TEST_WINDOW_MS = 2_000L
 
 @Composable
 private fun ClearAllChartsButton(
@@ -930,8 +930,43 @@ private fun CallTestControlButton(
     onStart: () -> Unit,
     onStop: () -> Unit
 ) {
+    var presses by remember { mutableIntStateOf(0) }
+    var windowStartMs by remember { mutableLongStateOf(0L) }
+
+    LaunchedEffect(windowStartMs) {
+        if (windowStartMs == 0L) return@LaunchedEffect
+        delay(START_CALL_TEST_WINDOW_MS)
+        presses = 0
+        windowStartMs = 0L
+    }
+
+    LaunchedEffect(running) {
+        if (running) {
+            presses = 0
+            windowStartMs = 0L
+        }
+    }
+
     Button(
-        onClick = if (running) onStop else onStart,
+        onClick = {
+            if (running) {
+                onStop()
+                return@Button
+            }
+            val now = android.os.SystemClock.elapsedRealtime()
+            val inWindow = presses > 0 && now - windowStartMs <= START_CALL_TEST_WINDOW_MS
+            if (inWindow) {
+                presses += 1
+            } else {
+                windowStartMs = now
+                presses = 1
+            }
+            if (presses >= START_CALL_TEST_PRESSES) {
+                presses = 0
+                windowStartMs = 0L
+                onStart()
+            }
+        },
         enabled = !locked && (running || startEnabled),
         modifier = Modifier.fillMaxWidth(),
         colors = ButtonDefaults.buttonColors(
@@ -942,9 +977,11 @@ private fun CallTestControlButton(
         )
     ) {
         Text(
-            text = stringResource(
-                if (running) R.string.stop_call_test else R.string.start_call_test
-            )
+            text = when {
+                running -> stringResource(R.string.stop_call_test)
+                presses == 0 -> stringResource(R.string.start_call_test)
+                else -> stringResource(R.string.start_call_test_count, presses)
+            }
         )
     }
 }

@@ -399,11 +399,6 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
         MultiUeCallSync.setMasterTimeout(on)
     }
 
-    override fun onCallMute(on: Boolean) {
-        if (destroyed || repository.loadRole() != MultiUeRole.SLAVE) return
-        MultiUeCallSync.setMuteCallAudio(on)
-    }
-
     override fun onCallRun(running: Boolean) {
         if (destroyed || repository.loadRole() != MultiUeRole.SLAVE) return
         MultiUeCallSync.setRunning(running)
@@ -459,11 +454,6 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
     override fun callLimitLine(): String? {
         val config = MultiUeCallSync.config.value ?: return null
         return MultiUeProtocol.callLimit(config.masterTimeoutEnabled)
-    }
-
-    override fun callMuteLine(): String? {
-        val config = MultiUeCallSync.config.value ?: return null
-        return MultiUeProtocol.callMute(config.muteCallAudio)
     }
 
     override fun callRunLine(): String? {
@@ -700,7 +690,6 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
                 .collect { config ->
                     if (repository.loadRole() == MultiUeRole.MASTER) {
                         session.broadcast(MultiUeProtocol.callLimit(config.masterTimeoutEnabled))
-                        session.broadcast(MultiUeProtocol.callMute(config.muteCallAudio))
                         session.broadcast(
                             MultiUeProtocol.callConfig(
                                 config.phoneNumber,

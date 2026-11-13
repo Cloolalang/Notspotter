@@ -73,7 +73,6 @@ sealed interface MultiUeMessage {
     ) : MultiUeMessage
     data class CallRun(val running: Boolean) : MultiUeMessage
     data class CallLimit(val on: Boolean) : MultiUeMessage
-    data class CallMute(val on: Boolean) : MultiUeMessage
     data class Profile(val apply: Boolean, val payload: String) : MultiUeMessage
     data object Full : MultiUeMessage
     data class Sync(val on: Boolean) : MultiUeMessage
@@ -142,8 +141,6 @@ object MultiUeProtocol {
     fun callRun(running: Boolean): String = if (running) "CALL 1" else "CALL 0"
 
     fun callLimit(on: Boolean): String = if (on) "CALLLIMIT 1" else "CALLLIMIT 0"
-
-    fun callMute(on: Boolean): String = if (on) "CALLMUTE 1" else "CALLMUTE 0"
 
     fun profilePut(payload: String): String = PROFILE_PUT_PREFIX + payload
 
@@ -241,11 +238,6 @@ object MultiUeProtocol {
             "CALLLIMIT" -> when (parts.getOrNull(1)) {
                 "1" -> if (parts.size == 2) MultiUeMessage.CallLimit(on = true) else null
                 "0" -> if (parts.size == 2) MultiUeMessage.CallLimit(on = false) else null
-                else -> null
-            }
-            "CALLMUTE" -> when (parts.getOrNull(1)) {
-                "1" -> if (parts.size == 2) MultiUeMessage.CallMute(on = true) else null
-                "0" -> if (parts.size == 2) MultiUeMessage.CallMute(on = false) else null
                 else -> null
             }
             "ZONEHIST" -> when (parts.getOrNull(1)) {

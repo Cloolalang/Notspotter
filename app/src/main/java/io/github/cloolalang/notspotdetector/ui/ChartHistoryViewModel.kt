@@ -41,6 +41,8 @@ class KpiHistoryViewModel : ViewModel() {
  */
 class ZoneTestViewModel : ViewModel() {
     val running = mutableStateOf(false)
+    /** When true, the level histogram and the zone RSRP/RSRQ tapes use the whole run. */
+    val wholeTest = mutableStateOf(false)
     val startMs = mutableStateOf<Long?>(null)
     val endMs = mutableStateOf<Long?>(null)
     val sampleWindowStartMs = mutableStateOf<Long?>(null)

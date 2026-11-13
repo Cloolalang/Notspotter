@@ -5,6 +5,17 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.178.0] - 2026-11-13
+
+### Changed
+
+- **Start call test** — The button starts after four presses within two seconds. Each press shows the count, such as Start call test (2/4). The count resets if the fourth press is late. Stop call test is still one tap.
+- **Whole test** — With Whole test on, the level histogram counts every sample from the start of the zone test, the same as the RSRP and RSRQ tapes. It stays on that span until the zone test is cleared. Off, the histogram uses its sample window again.
+
+### Removed
+
+- **Mute call audio** — The switch is gone from call testing, including multi-UE. Android would not silence the call, so the control did not do what it said.
+
 ## [2.177.1] - 2026-11-13
 
 ### Fixed

@@ -64,7 +64,7 @@ object ZoneTest {
     }
 
     /**
-     * Sample window for the zone-test RSRP and RSRQ tapes.
+     * Sample window for a whole-test run.
      * When [openForWholeTest] is on and the run has a start time, the window is the time
      * since that start. Otherwise the histogram sample window is used.
      */

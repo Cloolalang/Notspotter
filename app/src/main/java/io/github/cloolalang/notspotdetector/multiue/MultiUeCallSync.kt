@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * Call-test number, duration, delay, master timeout, mute, and whether the test is running.
+ * Call-test number, duration, delay, master timeout, and whether the test is running.
  * The master publishes them. A connected slave applies them on its own phone.
  */
 object MultiUeCallSync {
@@ -14,8 +14,7 @@ object MultiUeCallSync {
         val phoneNumber: String,
         val callDurationSec: Int,
         val delayBetweenCallsSec: Int,
-        val masterTimeoutEnabled: Boolean,
-        val muteCallAudio: Boolean
+        val masterTimeoutEnabled: Boolean
     )
 
     private val _config = MutableStateFlow<Config?>(null)
@@ -25,37 +24,30 @@ object MultiUeCallSync {
     val running: StateFlow<Boolean?> = _running.asStateFlow()
 
     /**
-     * A timeout or mute line can arrive before the number line. Held here until
+     * A timeout line can arrive before the number line. Held here until
      * the number line is applied, so that line does not invent an empty number.
      */
     private var pendingMasterTimeout: Boolean? = null
-    private var pendingMuteCallAudio: Boolean? = null
 
-    /** Master publish. The settings already include the timeout and mute. */
+    /** Master publish. The settings already include the timeout. */
     fun setConfig(settings: CallTestSettings) {
         pendingMasterTimeout = null
-        pendingMuteCallAudio = null
         publish(settings.normalized())
     }
 
-    /** Slave received the number, duration, and delay. Keeps a timeout or mute that arrived first. */
+    /** Slave received the number, duration, and delay. Keeps a timeout that arrived first. */
     fun setSlaveConfig(phoneNumber: String, callDurationSec: Int, delayBetweenCallsSec: Int) {
         val current = _config.value
         val timeout = pendingMasterTimeout
             ?: current?.masterTimeoutEnabled
             ?: CallTestSettings.DEFAULT_MASTER_TIMEOUT_ENABLED
-        val mute = pendingMuteCallAudio
-            ?: current?.muteCallAudio
-            ?: CallTestSettings.DEFAULT_MUTE_CALL_AUDIO
         pendingMasterTimeout = null
-        pendingMuteCallAudio = null
         publish(
             CallTestSettings(
                 phoneNumber = phoneNumber,
                 callDurationSec = callDurationSec,
                 delayBetweenCallsSec = delayBetweenCallsSec,
-                masterTimeoutEnabled = timeout,
-                muteCallAudio = mute
+                masterTimeoutEnabled = timeout
             ).normalized()
         )
     }
@@ -71,24 +63,12 @@ object MultiUeCallSync {
         _config.value = current.copy(masterTimeoutEnabled = enabled)
     }
 
-    fun setMuteCallAudio(enabled: Boolean) {
-        val current = _config.value
-        if (current == null) {
-            pendingMuteCallAudio = enabled
-            return
-        }
-        pendingMuteCallAudio = null
-        if (current.muteCallAudio == enabled) return
-        _config.value = current.copy(muteCallAudio = enabled)
-    }
-
     private fun publish(normalized: CallTestSettings) {
         val next = Config(
             phoneNumber = normalized.phoneNumber,
             callDurationSec = normalized.callDurationSec,
             delayBetweenCallsSec = normalized.delayBetweenCallsSec,
-            masterTimeoutEnabled = normalized.masterTimeoutEnabled,
-            muteCallAudio = normalized.muteCallAudio
+            masterTimeoutEnabled = normalized.masterTimeoutEnabled
         )
         if (_config.value == next) return
         _config.value = next

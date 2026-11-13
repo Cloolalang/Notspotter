@@ -25,7 +25,6 @@ import io.github.cloolalang.notspotdetector.data.SpecialCellsRepository
 import io.github.cloolalang.notspotdetector.data.ThresholdSettingsRepository
 import io.github.cloolalang.notspotdetector.model.AppSettingsSnapshot
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
-import io.github.cloolalang.notspotdetector.network.CallTestAudio
 import io.github.cloolalang.notspotdetector.model.CallTestSettings
 import io.github.cloolalang.notspotdetector.model.CallTestStatus
 import io.github.cloolalang.notspotdetector.model.CarrierConfigSnapshot
@@ -146,7 +145,6 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
     private var callTestTimeoutJob: Job? = null
 
     init {
-        CallTestAudio.releaseAbandoned(application)
         MonitorState.setThresholds(thresholdRepository.load())
         MonitorState.setPingSettings(pingSettingsRepository.load())
         MonitorState.setMonitoringSettings(monitoringSettingsRepository.load())
@@ -196,24 +194,17 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
             MultiUeCallSync.config.filterNotNull().collect { config ->
                 if (multiUeRoleRepository.loadRole() != MultiUeRole.SLAVE) return@collect
                 val previousTimeout = _callTestSettings.value.masterTimeoutEnabled
-                val previousMute = _callTestSettings.value.muteCallAudio
                 val next = _callTestSettings.value.copy(
                     phoneNumber = config.phoneNumber,
                     callDurationSec = config.callDurationSec,
                     delayBetweenCallsSec = config.delayBetweenCallsSec,
-                    masterTimeoutEnabled = config.masterTimeoutEnabled,
-                    muteCallAudio = config.muteCallAudio
+                    masterTimeoutEnabled = config.masterTimeoutEnabled
                 ).normalized()
                 if (next == _callTestSettings.value) return@collect
                 _callTestSettings.value = next
                 callTestSettingsRepository.save(next)
-                if (callTestJob?.isActive == true) {
-                    if (previousTimeout != next.masterTimeoutEnabled) {
-                        armCallTestMasterTimeout()
-                    }
-                    if (previousMute != next.muteCallAudio) {
-                        applyCallMute()
-                    }
+                if (callTestJob?.isActive == true && previousTimeout != next.masterTimeoutEnabled) {
+                    armCallTestMasterTimeout()
                 }
             }
         }
@@ -1447,13 +1438,6 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun updateCallMuteAudio(enabled: Boolean) {
-        saveCallTestSettings(_callTestSettings.value.copy(muteCallAudio = enabled))
-        if (callTestJob?.isActive == true) {
-            applyCallMute()
-        }
-    }
-
     fun isDefaultDialer(): Boolean = CallTestDialer.isDefault(getApplication())
 
     fun startCallTest() {
@@ -1494,7 +1478,6 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
             }
         }
         armCallTestMasterTimeout()
-        applyCallMute()
     }
 
     fun stopCallTest() {
@@ -1502,7 +1485,6 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         callTestTimeoutJob = null
         callTestJob?.cancel()
         callTestJob = null
-        CallTestAudio.setRequested(getApplication(), false)
         publishCallRunToSlaves(false)
         val status = _callTestStatus.value
         if (status.needsDialer || status.needsCallPermission) {
@@ -1526,18 +1508,6 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
             MultiUeCallSync.config.value?.let { return it.masterTimeoutEnabled }
         }
         return _callTestSettings.value.masterTimeoutEnabled
-    }
-
-    private fun applyCallMute() {
-        CallTestAudio.setRequested(getApplication(), currentMuteCallAudio())
-    }
-
-    private fun currentMuteCallAudio(): Boolean {
-        if (callTestJob?.isActive != true) return false
-        if (multiUeRoleRepository.loadRole() == MultiUeRole.SLAVE) {
-            MultiUeCallSync.config.value?.let { return it.muteCallAudio }
-        }
-        return _callTestSettings.value.muteCallAudio
     }
 
     private fun saveCallTestSettings(settings: CallTestSettings) {

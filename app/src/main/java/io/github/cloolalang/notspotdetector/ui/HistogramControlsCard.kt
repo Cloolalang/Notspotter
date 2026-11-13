@@ -201,6 +201,14 @@ fun HistogramControlsCard(
     val currentCarrier = PrimaryCarrierHistory.visitFromStats(stats)
     val currentTechnology = TechnologyHistory.technologyFromStats(stats)
     val sampleWindowMs = windowMs.coerceToHistogramWindowStep()
+    val zoneTest = viewModel<ZoneTestViewModel>()
+    val zoneWholeTest by zoneTest.wholeTest
+    val zoneSampleStartMs = zoneTest.sampleWindowStartMs.value
+    val histogramWindowMs = if (zoneWholeTest && zoneSampleStartMs != null) {
+        (nowMs - zoneSampleStartMs).coerceIn(0L, ZoneTest.RETAIN_MS)
+    } else {
+        sampleWindowMs
+    }
     val currentRsrpBin = RsrpBinHistory.classify(
         samples = samples,
         nowMs = nowMs,
@@ -326,6 +334,11 @@ fun HistogramControlsCard(
     val elapsedMs = RsrpHistogram.elapsedSinceFirstSampleMs(
         samples = samples,
         nowMs = nowMs,
+        windowMs = histogramWindowMs
+    )
+    val sliderElapsedMs = RsrpHistogram.elapsedSinceFirstSampleMs(
+        samples = samples,
+        nowMs = nowMs,
         windowMs = sampleWindowMs
     )
     val currentOperator = OperatorTitleStyle.resolveLabel(stats)
@@ -386,7 +399,7 @@ fun HistogramControlsCard(
                 ) {
                 RsrpHistogramDisplay(
                     samples = samples,
-                    windowMs = sampleWindowMs,
+                    windowMs = histogramWindowMs,
                     binningMode = binningMode,
                     thresholdsDbm = thresholdsDbm,
                     nowMs = nowMs,
@@ -417,7 +430,7 @@ fun HistogramControlsCard(
                     tapeWindowMs = tapeWindowMs.coerceToTapeWindowStep(),
                     binningMode = binningMode,
                     thresholdsDbm = thresholdsDbm,
-                    elapsedMs = elapsedMs,
+                    elapsedMs = sliderElapsedMs,
                     onWindowChange = onWindowChange,
                     onTapeWindowChange = onTapeWindowChange,
                     onBinningModeChange = onBinningModeChange,
@@ -814,7 +827,7 @@ private fun ZoneTestPanel(
     var running by zoneTest.running
     var startMs by zoneTest.startMs
     var endMs by zoneTest.endMs
-    var openSampleWindow by rememberSaveable { mutableStateOf(false) }
+    var openSampleWindow by zoneTest.wholeTest
     var saveHistogram by rememberSaveable { mutableStateOf(false) }
     var sampleWindowStartMs by zoneTest.sampleWindowStartMs
     var zoneName by zoneTest.zoneName
@@ -845,8 +858,8 @@ private fun ZoneTestPanel(
     }
     val currentRsrpBin = RsrpBinHistory.classify(samples, nowMs, noSignal, zoneSampleWindowMs)
     val currentRsrqBin = RsrqBinHistory.classify(samples, nowMs, noSignal, zoneSampleWindowMs)
-    LaunchedEffect(openSampleWindow, running, sampleWindowStartMs) {
-        val retainFrom = if (openSampleWindow && running) sampleWindowStartMs else null
+    LaunchedEffect(openSampleWindow, sampleWindowStartMs) {
+        val retainFrom = if (openSampleWindow) sampleWindowStartMs else null
         MonitorState.setZoneTestSampleRetainFrom(retainFrom)
     }
     val currentDistance = DistanceHistory.current(samples, nowMs, noSignal)

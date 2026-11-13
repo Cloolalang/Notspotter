@@ -39,7 +39,6 @@ fun CallTestCard(
     onDurationChange: (Int) -> Unit,
     onDelayChange: (Int) -> Unit,
     onMasterTimeoutChange: (Boolean) -> Unit,
-    onMuteCallAudioChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var expanded by panelFold("call-test", defaultExpanded = true)
@@ -138,19 +137,6 @@ fun CallTestCard(
                     controlsEnabled = controlsEnabled,
                     onEnabledChange = onMasterTimeoutChange
                 )
-                CallTestSwitchRow(
-                    label = stringResource(R.string.call_test_mute_audio_label),
-                    hint = stringResource(
-                        if (settings.muteCallAudio) {
-                            R.string.call_test_mute_audio_hint_on
-                        } else {
-                            R.string.call_test_mute_audio_hint_off
-                        }
-                    ),
-                    checked = settings.muteCallAudio,
-                    controlsEnabled = controlsEnabled,
-                    onCheckedChange = onMuteCallAudioChange
-                )
                 if (!controlsEnabled) {
                     Text(
                         text = stringResource(R.string.call_test_follows_master),
@@ -181,39 +167,6 @@ fun CallTestCard(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun CallTestSwitchRow(
-    label: String,
-    hint: String,
-    checked: Boolean,
-    controlsEnabled: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.weight(1f)
-            )
-            Switch(
-                checked = checked,
-                onCheckedChange = onCheckedChange,
-                enabled = controlsEnabled
-            )
-        }
-        Text(
-            text = hint,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
     }
 }
 

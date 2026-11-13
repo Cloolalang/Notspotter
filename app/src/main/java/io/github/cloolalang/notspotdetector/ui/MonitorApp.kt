@@ -255,7 +255,6 @@ fun MonitorApp(
             onCallDurationChange = viewModel::updateCallDurationSec,
             onCallDelayChange = viewModel::updateCallDelaySec,
             onCallMasterTimeoutChange = viewModel::updateCallMasterTimeout,
-            onCallMuteAudioChange = viewModel::updateCallMuteAudio,
             onWalkRouteEnabledChange = viewModel::updateWalkRouteEnabled,
             onCellChangeBellVolumeChange = viewModel::updateCellChangeBellVolume,
             onCellChangeVoiceEnabledChange = viewModel::updateCellChangeVoiceEnabled,
