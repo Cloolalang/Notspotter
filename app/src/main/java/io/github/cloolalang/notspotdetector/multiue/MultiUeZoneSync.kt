@@ -42,6 +42,14 @@ object MultiUeZoneSync {
         _clears.tryEmit(Unit)
     }
 
+    private val _saveHistogram = MutableStateFlow<Boolean?>(null)
+    val saveHistogram: StateFlow<Boolean?> = _saveHistogram.asStateFlow()
+
+    fun setSaveHistogram(on: Boolean) {
+        if (_saveHistogram.value == on) return
+        _saveHistogram.value = on
+    }
+
     private val _saves = MutableSharedFlow<Boolean>(extraBufferCapacity = 1)
     val saves: SharedFlow<Boolean> = _saves.asSharedFlow()
 

@@ -68,6 +68,23 @@ class MultiUeProtocolTest {
         )
         assertNull(MultiUeProtocol.parse("ZONESAVE 2"))
         assertEquals(
+            MultiUeMessage.ZoneHistogram(on = true),
+            MultiUeProtocol.parse(MultiUeProtocol.zoneHistogram(true))
+        )
+        assertEquals(
+            MultiUeMessage.ZoneHistogram(on = false),
+            MultiUeProtocol.parse(MultiUeProtocol.zoneHistogram(false))
+        )
+        assertEquals(
+            MultiUeMessage.Profile(apply = false, payload = "YQ=="),
+            MultiUeProtocol.parse(MultiUeProtocol.profilePut("YQ=="))
+        )
+        assertEquals(
+            MultiUeMessage.Profile(apply = true, payload = "YQ=="),
+            MultiUeProtocol.parse(MultiUeProtocol.profileLoad("YQ=="))
+        )
+        assertNull(MultiUeProtocol.parse("PROFILEPUT not-base64"))
+        assertEquals(
             listOf("PIN 0.25000 0.50000"),
             multiUePinLines(emptyList(), listOf(0.25f to 0.5f))
         )

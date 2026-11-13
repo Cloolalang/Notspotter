@@ -53,6 +53,30 @@ class SettingsProfilesRepository(context: Context) {
 
     fun profileFile(id: String): File = File(profilesDir, "$id$PROFILE_FILE_EXTENSION")
 
+    fun upsertByName(name: String, settings: AppSettingsSnapshot): Boolean {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return false
+        val existing = loadProfiles().firstOrNull { profile ->
+            profile.name.trim().equals(trimmed, ignoreCase = true)
+        }
+        val profile = if (existing != null) {
+            existing.copy(
+                name = trimmed,
+                savedAtMs = System.currentTimeMillis(),
+                settings = settings.normalized()
+            )
+        } else {
+            if (loadProfiles().size >= MAX_PROFILES) return false
+            SettingsProfile(
+                id = UUID.randomUUID().toString(),
+                name = trimmed,
+                savedAtMs = System.currentTimeMillis(),
+                settings = settings.normalized()
+            )
+        }
+        return writeProfileFile(profile)
+    }
+
     fun saveProfile(name: String, settings: AppSettingsSnapshot): SettingsProfile? {
         val trimmedName = name.trim()
         val profile = SettingsProfile(

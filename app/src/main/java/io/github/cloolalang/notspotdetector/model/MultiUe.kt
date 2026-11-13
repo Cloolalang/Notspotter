@@ -65,6 +65,8 @@ sealed interface MultiUeMessage {
     data object PinClear : MultiUeMessage
     data object ZoneClear : MultiUeMessage
     data class ZoneSave(val includeHistogram: Boolean) : MultiUeMessage
+    data class ZoneHistogram(val on: Boolean) : MultiUeMessage
+    data class Profile(val apply: Boolean, val payload: String) : MultiUeMessage
     data object Full : MultiUeMessage
     data class Sync(val on: Boolean) : MultiUeMessage
     data class Settings(val payload: String) : MultiUeMessage
@@ -74,6 +76,7 @@ object MultiUeProtocol {
     const val MAX_SLAVES = 4
     const val SCROLL_SCALE = 10_000
     const val MAX_PLAN_CHARS = 1_500_000
+    const val MAX_PROFILE_CHARS = 500_000
 
     /**
      * Panels that stay on each phone. The Multi-UE card holds the role, pairing,
@@ -121,6 +124,12 @@ object MultiUeProtocol {
     fun zoneSave(includeHistogram: Boolean = false): String =
         if (includeHistogram) "ZONESAVE 1" else "ZONESAVE"
 
+    fun zoneHistogram(on: Boolean): String = if (on) "ZONEHIST 1" else "ZONEHIST 0"
+
+    fun profilePut(payload: String): String = PROFILE_PUT_PREFIX + payload
+
+    fun profileLoad(payload: String): String = PROFILE_LOAD_PREFIX + payload
+
     fun fraction(value: Float): String {
         return String.format(Locale.US, "%.5f", value.coerceIn(0f, 1f))
     }
@@ -144,6 +153,13 @@ object MultiUeProtocol {
 
     fun parse(line: String): MultiUeMessage? {
         val trimmed = line.trim()
+        if (trimmed.startsWith(PROFILE_PUT_PREFIX) || trimmed.startsWith(PROFILE_LOAD_PREFIX)) {
+            val apply = trimmed.startsWith(PROFILE_LOAD_PREFIX)
+            val prefix = if (apply) PROFILE_LOAD_PREFIX else PROFILE_PUT_PREFIX
+            val body = trimmed.removePrefix(prefix).trim()
+            if (body.isEmpty() || body.length > MAX_PROFILE_CHARS || !PLAN_BODY.matches(body)) return null
+            return MultiUeMessage.Profile(apply = apply, payload = body)
+        }
         if (trimmed.startsWith(SETTINGS_PREFIX)) {
             val payload = trimmed.removePrefix(SETTINGS_PREFIX).trim()
             return payload.takeIf { it.isNotEmpty() }?.let(MultiUeMessage::Settings)
@@ -197,6 +213,11 @@ object MultiUeProtocol {
             }
             "FULL" -> MultiUeMessage.Full
             "ZONECLEAR" -> MultiUeMessage.ZoneClear
+            "ZONEHIST" -> when (parts.getOrNull(1)) {
+                "1" -> if (parts.size == 2) MultiUeMessage.ZoneHistogram(on = true) else null
+                "0" -> if (parts.size == 2) MultiUeMessage.ZoneHistogram(on = false) else null
+                else -> null
+            }
             "ZONESAVE" -> when {
                 parts.size == 1 -> MultiUeMessage.ZoneSave(includeHistogram = false)
                 parts.size == 2 && parts[1] == "1" -> MultiUeMessage.ZoneSave(includeHistogram = true)
@@ -242,6 +263,8 @@ object MultiUeProtocol {
     private const val PANELS_PREFIX = "PANELS "
     private const val ZONE_NAME_PREFIX = "ZONENAME "
     private const val PLAN_PREFIX = "PLAN "
+    private const val PROFILE_PUT_PREFIX = "PROFILEPUT "
+    private const val PROFILE_LOAD_PREFIX = "PROFILELOAD "
     private val PLAN_BODY = Regex("[A-Za-z0-9+/=]+")
     private val PANEL_KEY = Regex("[a-z0-9-]+")
 }

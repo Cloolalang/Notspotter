@@ -5,6 +5,13 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.174.0] - 2026-11-13
+
+### Changed
+
+- **Multi-UE histogram save** — Also save level histogram follows the master. Turning it on or off there does the same on each connected slave, and Save JPEG uses that choice.
+- **Multi-UE settings profiles** — Save and Load on the master store and open the same named profile on each connected slave. A save keeps the slave's current settings in use. A load applies the profile there.
+
 ## [2.173.0] - 2026-11-13
 
 ### Added

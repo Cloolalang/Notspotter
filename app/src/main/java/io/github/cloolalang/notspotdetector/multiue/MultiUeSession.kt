@@ -51,6 +51,8 @@ class MultiUeSession(
         fun onPinClear()
         fun onZoneClear()
         fun onZoneSave(includeHistogram: Boolean)
+        fun onZoneHistogram(on: Boolean)
+        fun onProfile(apply: Boolean, payload: String)
         fun onPanels(open: Map<String, Boolean>)
         fun onScroll(fraction: Int)
         fun onSlaveSync(address: String, on: Boolean)
@@ -60,6 +62,7 @@ class MultiUeSession(
         fun scrollLine(): String?
         fun zoneLine(): String?
         fun zoneNameLine(): String?
+        fun zoneHistogramLine(): String?
         fun planLine(): String?
         fun pinLines(): List<String>
     }
@@ -279,6 +282,7 @@ class MultiUeSession(
             listener.scrollLine()?.let { writeLine(socket, it) }
             listener.zoneLine()?.let { writeLine(socket, it) }
             listener.zoneNameLine()?.let { writeLine(socket, it) }
+            listener.zoneHistogramLine()?.let { writeLine(socket, it) }
             listener.planLine()?.let { plan ->
                 writeLine(socket, plan)
                 listener.pinLines().forEach { writeLine(socket, it) }
@@ -324,6 +328,8 @@ class MultiUeSession(
                     MultiUeMessage.PinClear -> listener.onPinClear()
                     MultiUeMessage.ZoneClear -> listener.onZoneClear()
                     is MultiUeMessage.ZoneSave -> listener.onZoneSave(message.includeHistogram)
+                    is MultiUeMessage.ZoneHistogram -> listener.onZoneHistogram(message.on)
+                    is MultiUeMessage.Profile -> listener.onProfile(message.apply, message.payload)
                     is MultiUeMessage.Panels -> listener.onPanels(message.open)
                     is MultiUeMessage.Scroll -> listener.onScroll(message.fraction)
                     is MultiUeMessage.Settings -> listener.onSettings(message.payload)

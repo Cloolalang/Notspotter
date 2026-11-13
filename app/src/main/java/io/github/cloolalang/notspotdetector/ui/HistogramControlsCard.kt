@@ -1024,6 +1024,10 @@ private fun ZoneTestPanel(
     val remoteZoneName by MultiUeZoneSync.nameSuffix.collectAsStateWithLifecycle()
     if (link.role == MultiUeRole.MASTER) {
         LaunchedEffect(Unit) {
+            snapshotFlow { saveHistogram }
+                .collect { MultiUeZoneSync.setSaveHistogram(it) }
+        }
+        LaunchedEffect(Unit) {
             snapshotFlow { running to openSampleWindow }
                 .collect { (zoneRunning, wholeTest) ->
                     MultiUeZoneSync.set(zoneRunning, wholeTest)
@@ -1060,6 +1064,11 @@ private fun ZoneTestPanel(
         }
     }
     if (followsMaster) {
+        val remoteHistogram by MultiUeZoneSync.saveHistogram.collectAsStateWithLifecycle()
+        LaunchedEffect(remoteHistogram) {
+            val on = remoteHistogram ?: return@LaunchedEffect
+            if (saveHistogram != on) saveHistogram = on
+        }
         LaunchedEffect(remoteZone, isMonitoring) {
             val command = remoteZone ?: return@LaunchedEffect
             if (openSampleWindow != command.wholeTest) openSampleWindow = command.wholeTest
@@ -1119,6 +1128,7 @@ private fun ZoneTestPanel(
         }
         LaunchedEffect(Unit) {
             MultiUeZoneSync.saves.collect { includeHistogram ->
+                saveHistogram = includeHistogram
                 if (!expanded) expanded = true
                 withFrameNanos { }
                 withFrameNanos { }
@@ -1341,7 +1351,8 @@ private fun ZoneTestPanel(
                     }
                     Switch(
                         checked = saveHistogram,
-                        onCheckedChange = { saveHistogram = it }
+                        onCheckedChange = { saveHistogram = it },
+                        enabled = !followsMaster
                     )
                 }
                 Button(

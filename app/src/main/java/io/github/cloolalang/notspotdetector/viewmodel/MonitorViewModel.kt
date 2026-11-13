@@ -2,6 +2,7 @@ package io.github.cloolalang.notspotdetector.viewmodel
 
 import android.app.Application
 import android.net.Uri
+import android.util.Base64
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.cloolalang.notspotdetector.MonitorState
@@ -14,6 +15,7 @@ import io.github.cloolalang.notspotdetector.data.PassiveSignalSettingsRepository
 import io.github.cloolalang.notspotdetector.data.PingSettingsRepository
 import io.github.cloolalang.notspotdetector.data.RadioDebugLogger
 import io.github.cloolalang.notspotdetector.data.RadioDebugSettingsRepository
+import io.github.cloolalang.notspotdetector.data.AppSettingsSnapshotCodec
 import io.github.cloolalang.notspotdetector.data.SettingsProfilesRepository
 import io.github.cloolalang.notspotdetector.data.SpecialCellsRepository
 import io.github.cloolalang.notspotdetector.data.ThresholdSettingsRepository
@@ -32,6 +34,7 @@ import io.github.cloolalang.notspotdetector.model.ProfileImportResult
 import io.github.cloolalang.notspotdetector.model.ProfileQuickSaveOutcome
 import io.github.cloolalang.notspotdetector.model.ProfileSaveResult
 import io.github.cloolalang.notspotdetector.model.SettingsCompatibility
+import io.github.cloolalang.notspotdetector.model.SettingsProfile
 import io.github.cloolalang.notspotdetector.model.SettingsProfileNames
 import io.github.cloolalang.notspotdetector.model.CellReselectAlertScope
 import io.github.cloolalang.notspotdetector.model.CellReselectBandNamingStyle
@@ -67,6 +70,7 @@ import io.github.cloolalang.notspotdetector.audio.GeigerCounterPlayer
 import io.github.cloolalang.notspotdetector.multiue.MultiUeGraphClear
 import io.github.cloolalang.notspotdetector.multiue.MultiUeLinkService
 import io.github.cloolalang.notspotdetector.multiue.MultiUePermissions
+import io.github.cloolalang.notspotdetector.multiue.MultiUeProfileSync
 import io.github.cloolalang.notspotdetector.multiue.MultiUeRadios
 import io.github.cloolalang.notspotdetector.multiue.MultiUeSettingsSync
 import io.github.cloolalang.notspotdetector.multiue.MultiUeState
@@ -153,6 +157,11 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
                 val normalized = incoming.normalized()
                 if (normalized == captureCurrentSettingsSnapshot()) return@collect
                 applyLoadedSettings(normalized)
+            }
+        }
+        viewModelScope.launch {
+            MultiUeProfileSync.incoming.collect { event ->
+                applyRemoteProfile(event.apply, event.payload)
             }
         }
     }
@@ -1086,10 +1095,10 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         }
         val snapshot = captureCurrentSettingsSnapshot()
         if (snapshot.isDefault()) return ProfileSaveResult.MatchesDefaults
-        if (settingsProfilesRepository.saveProfile(trimmed, snapshot) == null) {
-            return ProfileSaveResult.Failed
-        }
+        val saved = settingsProfilesRepository.saveProfile(trimmed, snapshot)
+            ?: return ProfileSaveResult.Failed
         refreshSettingsProfiles()
+        publishProfileToSlaves(saved, apply = false)
         return ProfileSaveResult.Saved
     }
 
@@ -1108,6 +1117,7 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         val saved = settingsProfilesRepository.saveProfile(name, snapshot)
             ?: return ProfileQuickSaveOutcome(ProfileSaveResult.Failed)
         refreshSettingsProfiles()
+        publishProfileToSlaves(saved, apply = false)
         return ProfileQuickSaveOutcome(
             saveResult = ProfileSaveResult.Saved,
             profileName = saved.name,
@@ -1118,6 +1128,27 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
     fun loadSettingsProfile(id: String) {
         val profile = settingsProfilesRepository.findById(id) ?: return
         applyLoadedSettings(profile.settings)
+        publishProfileToSlaves(profile, apply = true)
+    }
+
+    private fun publishProfileToSlaves(profile: SettingsProfile, apply: Boolean) {
+        if (multiUeRoleRepository.loadRole() != MultiUeRole.MASTER) return
+        val payload = Base64.encodeToString(
+            AppSettingsSnapshotCodec.encodeProfile(profile).toByteArray(Charsets.UTF_8),
+            Base64.NO_WRAP
+        )
+        MultiUeLinkService.broadcastProfile(getApplication(), apply, payload)
+    }
+
+    private fun applyRemoteProfile(apply: Boolean, payload: String) {
+        if (multiUeRoleRepository.loadRole() != MultiUeRole.SLAVE) return
+        val json = runCatching {
+            String(Base64.decode(payload, Base64.NO_WRAP), Charsets.UTF_8)
+        }.getOrNull() ?: return
+        val profile = AppSettingsSnapshotCodec.decodeProfile(json) ?: return
+        settingsProfilesRepository.upsertByName(profile.name, profile.settings)
+        refreshSettingsProfiles()
+        if (apply) applyLoadedSettings(profile.settings)
     }
 
     private fun applyLoadedSettings(snapshot: AppSettingsSnapshot) {

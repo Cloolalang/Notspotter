@@ -68,6 +68,7 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
     private var scrollWatch: Job? = null
     private var zoneWatch: Job? = null
     private var zoneNameWatch: Job? = null
+    private var zoneHistogramWatch: Job? = null
     private var planWatch: Job? = null
     private var pinWatch: Job? = null
     private var settingsWatch: Job? = null
@@ -145,6 +146,20 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
                     session.broadcast(MultiUeProtocol.zoneClear())
                 }
             }
+            ACTION_PROFILE -> {
+                ensureSession()
+                if (repository.loadRole() == MultiUeRole.MASTER) {
+                    val payload = intent.getStringExtra(EXTRA_PROFILE_PAYLOAD).orEmpty()
+                    if (payload.isNotEmpty()) {
+                        val line = if (intent.getBooleanExtra(EXTRA_PROFILE_APPLY, false)) {
+                            MultiUeProtocol.profileLoad(payload)
+                        } else {
+                            MultiUeProtocol.profilePut(payload)
+                        }
+                        session.broadcast(line)
+                    }
+                }
+            }
             ACTION_ZONE_SAVE -> {
                 ensureSession()
                 if (repository.loadRole() == MultiUeRole.MASTER) {
@@ -170,6 +185,7 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
         scrollWatch?.cancel()
         zoneWatch?.cancel()
         zoneNameWatch?.cancel()
+        zoneHistogramWatch?.cancel()
         planWatch?.cancel()
         pinWatch?.cancel()
         settingsWatch?.cancel()
@@ -364,6 +380,16 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
         MultiUeZoneSync.save(includeHistogram)
     }
 
+    override fun onZoneHistogram(on: Boolean) {
+        if (destroyed || repository.loadRole() != MultiUeRole.SLAVE) return
+        MultiUeZoneSync.setSaveHistogram(on)
+    }
+
+    override fun onProfile(apply: Boolean, payload: String) {
+        if (destroyed || repository.loadRole() != MultiUeRole.SLAVE) return
+        MultiUeProfileSync.offer(apply, payload)
+    }
+
     override fun onPanels(open: Map<String, Boolean>) {
         if (destroyed || repository.loadRole() != MultiUeRole.SLAVE) return
         PanelFold.replace(open)
@@ -390,6 +416,11 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
     override fun zoneNameLine(): String? {
         val suffix = MultiUeZoneSync.nameSuffix.value ?: return null
         return MultiUeProtocol.zoneName(suffix)
+    }
+
+    override fun zoneHistogramLine(): String? {
+        val on = MultiUeZoneSync.saveHistogram.value ?: return null
+        return MultiUeProtocol.zoneHistogram(on)
     }
 
     override fun planLine(): String? {
@@ -457,6 +488,7 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
                 watchScroll()
                 watchZone()
                 watchZoneName()
+                watchZoneHistogram()
                 watchPlan()
                 watchPins()
                 watchSettings()
@@ -496,6 +528,8 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
         zoneWatch = null
         zoneNameWatch?.cancel()
         zoneNameWatch = null
+        zoneHistogramWatch?.cancel()
+        zoneHistogramWatch = null
         planWatch?.cancel()
         planWatch = null
         pinWatch?.cancel()
@@ -587,6 +621,20 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
                     session.broadcast(line)
                 }
             }
+        }
+    }
+
+    private fun watchZoneHistogram() {
+        zoneHistogramWatch?.cancel()
+        zoneHistogramWatch = scope.launch {
+            MultiUeZoneSync.saveHistogram
+                .filterNotNull()
+                .distinctUntilChanged()
+                .collect { on ->
+                    if (repository.loadRole() == MultiUeRole.MASTER) {
+                        session.broadcast(MultiUeProtocol.zoneHistogram(on))
+                    }
+                }
         }
     }
 
@@ -974,6 +1022,12 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
             "io.github.cloolalang.notspotdetector.action.MULTI_UE_ZONE_CLEAR"
         private const val ACTION_ZONE_SAVE =
             "io.github.cloolalang.notspotdetector.action.MULTI_UE_ZONE_SAVE"
+        private const val ACTION_PROFILE =
+            "io.github.cloolalang.notspotdetector.action.MULTI_UE_PROFILE"
+        private const val EXTRA_PROFILE_APPLY =
+            "io.github.cloolalang.notspotdetector.extra.MULTI_UE_PROFILE_APPLY"
+        private const val EXTRA_PROFILE_PAYLOAD =
+            "io.github.cloolalang.notspotdetector.extra.MULTI_UE_PROFILE_PAYLOAD"
         private const val EXTRA_ZONE_SAVE_HISTOGRAM =
             "io.github.cloolalang.notspotdetector.extra.MULTI_UE_ZONE_SAVE_HISTOGRAM"
         private const val EXTRA_ADDRESS =
@@ -1006,6 +1060,14 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
         fun broadcastClearHistory(context: Context) = launch(context, ACTION_CLEAR_HISTORY)
 
         fun broadcastZoneClear(context: Context) = launch(context, ACTION_ZONE_CLEAR)
+
+        fun broadcastProfile(context: Context, apply: Boolean, payload: String) {
+            val intent = Intent(context, MultiUeLinkService::class.java)
+                .setAction(ACTION_PROFILE)
+                .putExtra(EXTRA_PROFILE_APPLY, apply)
+                .putExtra(EXTRA_PROFILE_PAYLOAD, payload)
+            ContextCompat.startForegroundService(context, intent)
+        }
 
         fun broadcastZoneSave(context: Context, includeHistogram: Boolean = false) {
             val intent = Intent(context, MultiUeLinkService::class.java)
