@@ -41,6 +41,8 @@ fun MonitorApp(
     onShareRadioDebugLog: () -> Unit,
     onImportSpecialCells: (onResult: (SpecialCellsImportResult) -> Unit) -> Unit,
     onInstallAppUpdate: (File) -> AppUpdateInstallResult,
+    onRequestCallPermission: () -> Unit,
+    onRequestDialerRole: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val stats by viewModel.stats.collectAsStateWithLifecycle()
@@ -64,6 +66,8 @@ fun MonitorApp(
     val carrierConfigSnapshot by viewModel.carrierConfigSnapshot.collectAsStateWithLifecycle()
     val inhibit2gBusy by viewModel.inhibit2gBusy.collectAsStateWithLifecycle()
     val inhibit2gFailed by viewModel.inhibit2gFailed.collectAsStateWithLifecycle()
+    val callTestSettings by viewModel.callTestSettings.collectAsStateWithLifecycle()
+    val callTestStatus by viewModel.callTestStatus.collectAsStateWithLifecycle()
 
     var phoneStatePermissionGranted by remember {
         mutableStateOf(viewModel.phoneStatePermissionGranted)
@@ -146,6 +150,18 @@ fun MonitorApp(
 
     KeepScreenOn(enabled = isRunning && monitoringSettings.keepScreenOnWhileMonitoring)
 
+    LaunchedEffect(
+        callTestStatus.needsCallPermission,
+        callTestStatus.needsDialer,
+        multiUe.followsMaster
+    ) {
+        if (!multiUe.followsMaster) return@LaunchedEffect
+        when {
+            callTestStatus.needsCallPermission -> onRequestCallPermission()
+            callTestStatus.needsDialer -> onRequestDialerRole()
+        }
+    }
+
     fun ensureBackgroundMonitoringEnabled() {
         if (!viewModel.isBatteryOptimizationDisabled) {
             onRequestBatteryExemption()
@@ -178,6 +194,15 @@ fun MonitorApp(
                 viewModel.startMonitoring()
             },
             onStop = viewModel::stopMonitoring,
+            onStartCallTest = {
+                ensureBackgroundMonitoringEnabled()
+                when {
+                    !viewModel.hasCallTestPermissions() -> onRequestCallPermission()
+                    !viewModel.isDefaultDialer() -> onRequestDialerRole()
+                    else -> viewModel.startCallTest()
+                }
+            },
+            onStopCallTest = viewModel::stopCallTest,
             onPingAddressChange = viewModel::updatePingAddress,
             onPingsPerTestChange = viewModel::updatePingsPerTest,
             onTestIntervalChange = viewModel::updateTestIntervalMs,
@@ -224,6 +249,11 @@ fun MonitorApp(
             onAppBrandChange = viewModel::updateAppBrand,
             onCustomAppTitleChange = viewModel::updateCustomAppTitle,
             onClearAllCharts = viewModel::clearAllCharts,
+            callTestSettings = callTestSettings,
+            callTestStatus = callTestStatus,
+            onCallNumberChange = viewModel::updateCallNumber,
+            onCallDurationChange = viewModel::updateCallDurationSec,
+            onCallDelayChange = viewModel::updateCallDelaySec,
             onWalkRouteEnabledChange = viewModel::updateWalkRouteEnabled,
             onCellChangeBellVolumeChange = viewModel::updateCellChangeBellVolume,
             onCellChangeVoiceEnabledChange = viewModel::updateCellChangeVoiceEnabled,

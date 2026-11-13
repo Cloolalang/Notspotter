@@ -76,6 +76,22 @@ class MultiUeProtocolTest {
             MultiUeProtocol.parse(MultiUeProtocol.zoneHistogram(false))
         )
         assertEquals(
+            MultiUeMessage.CallConfig(
+                phoneNumber = "+353 87 123",
+                callDurationSec = 15,
+                delayBetweenCallsSec = 10
+            ),
+            MultiUeProtocol.parse(MultiUeProtocol.callConfig("+353 87 123", 15, 10))
+        )
+        assertEquals(
+            MultiUeMessage.CallConfig(phoneNumber = "", callDurationSec = 5, delayBetweenCallsSec = 120),
+            MultiUeProtocol.parse("CALLCFG 5 120")
+        )
+        assertNull(MultiUeProtocol.parse("CALLCFG 4 10 123"))
+        assertEquals(MultiUeMessage.CallRun(running = true), MultiUeProtocol.parse(MultiUeProtocol.callRun(true)))
+        assertEquals(MultiUeMessage.CallRun(running = false), MultiUeProtocol.parse("CALL 0"))
+        assertNull(MultiUeProtocol.parse("CALL 2"))
+        assertEquals(
             MultiUeMessage.Profile(apply = false, payload = "YQ=="),
             MultiUeProtocol.parse(MultiUeProtocol.profilePut("YQ=="))
         )

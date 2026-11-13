@@ -106,9 +106,20 @@ import io.github.cloolalang.notspotdetector.model.RSRQ_POOR_TIER_NUMBER
 import io.github.cloolalang.notspotdetector.model.isRsrqPoor
 import io.github.cloolalang.notspotdetector.model.resolveLimitedServiceSignalOverlayRxss
 import io.github.cloolalang.notspotdetector.model.resolveSignalMeasurementTier
+import io.github.cloolalang.notspotdetector.model.CallTestSettings
+import io.github.cloolalang.notspotdetector.model.CallTestScore
+import io.github.cloolalang.notspotdetector.model.CallTestStatus
+import io.github.cloolalang.notspotdetector.ui.theme.ActiveModeGreen
 import io.github.cloolalang.notspotdetector.ui.theme.BondiBlue
+import io.github.cloolalang.notspotdetector.ui.theme.CallTestIndigo
+import io.github.cloolalang.notspotdetector.ui.theme.CallTestStop
+import io.github.cloolalang.notspotdetector.ui.theme.OnActiveModeGreen
 import io.github.cloolalang.notspotdetector.ui.theme.OnBondiBlue
+import io.github.cloolalang.notspotdetector.ui.theme.OnCallTestIndigo
+import io.github.cloolalang.notspotdetector.ui.theme.OnCallTestStop
+import io.github.cloolalang.notspotdetector.ui.theme.OnScarpaFlow
 import io.github.cloolalang.notspotdetector.ui.theme.OnStopRose
+import io.github.cloolalang.notspotdetector.ui.theme.ScarpaFlow
 import io.github.cloolalang.notspotdetector.ui.theme.StopRose
 import io.github.cloolalang.notspotdetector.ui.theme.Sushi
 
@@ -185,6 +196,13 @@ fun MonitorScreen(
     onAppBrandChange: (AppBrand) -> Unit = {},
     onCustomAppTitleChange: (String) -> Unit = {},
     onClearAllCharts: () -> Unit = {},
+    callTestSettings: CallTestSettings = CallTestSettings(),
+    callTestStatus: CallTestStatus = CallTestStatus(),
+    onCallNumberChange: (String) -> Unit = {},
+    onCallDurationChange: (Int) -> Unit = {},
+    onCallDelayChange: (Int) -> Unit = {},
+    onStartCallTest: () -> Unit = {},
+    onStopCallTest: () -> Unit = {},
     onWalkRouteEnabledChange: (Boolean) -> Unit = {},
     onCellChangeBellVolumeChange: (Float) -> Unit,
     onCellChangeVoiceEnabledChange: (Boolean) -> Unit,
@@ -299,8 +317,18 @@ fun MonitorScreen(
             onStart = onStart,
             onStartActiveMode = onStartActiveMode,
             onStop = onStop,
-            onClearAllCharts = onClearAllCharts
+            onClearAllCharts = onClearAllCharts,
+            callTestRunning = callTestStatus.running,
+            callTestStartEnabled = CallTestScore.dialableNumber(callTestSettings.phoneNumber) != null,
+            callTestLocked = multiUe.followsMaster &&
+                !callTestStatus.needsDialer &&
+                !callTestStatus.needsCallPermission &&
+                !callTestStatus.blocked,
+            onStartCallTest = onStartCallTest,
+            onStopCallTest = onStopCallTest
         )
+
+        CallTestMiniBar()
 
         HistogramControlsCard(
             samples = rsrpHistory,
@@ -317,6 +345,7 @@ fun MonitorScreen(
             onThresholdChange = onRsrpHistogramThresholdChange,
             onClearHistogram = onClearRsrpHistogram,
             onClearKpiHistory = onClearKpiHistory,
+            callTestStatus = callTestStatus,
             walkRouteEnabled = monitoringSettings.walkRouteEnabled
         )
 
@@ -526,6 +555,15 @@ fun MonitorScreen(
                 onPingsPerTestChange = onPingsPerTestChange,
                 onTestIntervalChange = onTestIntervalChange,
                 onActiveTimeLimitChange = onActiveTimeLimitChange
+            )
+
+            CallTestCard(
+                settings = callTestSettings,
+                status = callTestStatus,
+                controlsEnabled = !multiUe.followsMaster,
+                onNumberChange = onCallNumberChange,
+                onDurationChange = onCallDurationChange,
+                onDelayChange = onCallDelayChange
             )
 
             AudioVolumeSettingsCard(
@@ -761,7 +799,12 @@ private fun MonitoringControlButtons(
     onStart: () -> Unit,
     onStartActiveMode: () -> Unit,
     onStop: () -> Unit,
-    onClearAllCharts: () -> Unit
+    onClearAllCharts: () -> Unit,
+    callTestRunning: Boolean,
+    callTestStartEnabled: Boolean,
+    callTestLocked: Boolean,
+    onStartCallTest: () -> Unit,
+    onStopCallTest: () -> Unit
 ) {
     if (isRunning) {
         Button(
@@ -770,7 +813,9 @@ private fun MonitoringControlButtons(
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(
                 containerColor = StopRose,
-                contentColor = OnStopRose
+                contentColor = OnStopRose,
+                disabledContainerColor = StopRose.copy(alpha = 0.38f),
+                disabledContentColor = OnStopRose.copy(alpha = 0.7f)
             )
         ) {
             Text(text = stringResource(R.string.stop_monitoring))
@@ -783,25 +828,75 @@ private fun MonitoringControlButtons(
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(
                 containerColor = BondiBlue,
-                contentColor = OnBondiBlue
+                contentColor = OnBondiBlue,
+                disabledContainerColor = BondiBlue.copy(alpha = 0.38f),
+                disabledContentColor = OnBondiBlue.copy(alpha = 0.7f)
             )
         ) {
             Text(text = stringResource(R.string.start_monitoring))
         }
-        OutlinedButton(
+        Button(
             onClick = onStartActiveMode,
             enabled = enabled,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = ActiveModeGreen,
+                contentColor = OnActiveModeGreen,
+                disabledContainerColor = ActiveModeGreen.copy(alpha = 0.38f),
+                disabledContentColor = OnActiveModeGreen.copy(alpha = 0.7f)
+            )
         ) {
             Text(text = stringResource(R.string.start_active_mode_testing))
         }
-        OutlinedButton(
+    }
+    CallTestControlButton(
+        running = callTestRunning,
+        startEnabled = callTestStartEnabled,
+        locked = callTestLocked,
+        onStart = onStartCallTest,
+        onStop = onStopCallTest
+    )
+    if (!isRunning) {
+        Button(
             onClick = onClearAllCharts,
             enabled = enabled,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = ScarpaFlow,
+                contentColor = OnScarpaFlow,
+                disabledContainerColor = ScarpaFlow.copy(alpha = 0.38f),
+                disabledContentColor = OnScarpaFlow.copy(alpha = 0.7f)
+            )
         ) {
             Text(text = stringResource(R.string.clear_all_charts))
         }
+    }
+}
+
+@Composable
+private fun CallTestControlButton(
+    running: Boolean,
+    startEnabled: Boolean,
+    locked: Boolean,
+    onStart: () -> Unit,
+    onStop: () -> Unit
+) {
+    Button(
+        onClick = if (running) onStop else onStart,
+        enabled = !locked && (running || startEnabled),
+        modifier = Modifier.fillMaxWidth(),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (running) CallTestStop else CallTestIndigo,
+            contentColor = if (running) OnCallTestStop else OnCallTestIndigo,
+            disabledContainerColor = CallTestIndigo.copy(alpha = 0.38f),
+            disabledContentColor = OnCallTestIndigo.copy(alpha = 0.7f)
+        )
+    ) {
+        Text(
+            text = stringResource(
+                if (running) R.string.stop_call_test else R.string.start_call_test
+            )
+        )
     }
 }
 

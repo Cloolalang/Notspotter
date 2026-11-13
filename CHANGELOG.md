@@ -5,6 +5,12 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.175.0] - 2026-11-13
+
+### Added
+
+- **Call test** — Active mode testing has a Call test panel for a telephone number, how long each call should stay up, and the delay before the next one. Start call test and Stop call test sit under the active-mode button. The test hangs up when the duration ends, which needs NotSpotter as the phone app the first time Android asks. Passive signal monitoring starts with the test when it is not already running. The KPI tapes gain a Calls row that shows dialling, up, success, and failure. During a test the call stays as a small bar on the main screen, so the charts stay visible. In multi-UE mode the master's number, duration, delay, and start/stop do the same on each connected slave, and each phone places its own calls. The top buttons each have their own color.
+
 ## [2.174.0] - 2026-11-13
 
 ### Changed

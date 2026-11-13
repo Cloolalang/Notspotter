@@ -83,6 +83,11 @@ import io.github.cloolalang.notspotdetector.data.FloorPlanLoader
 import io.github.cloolalang.notspotdetector.data.FloorPlanTransfer
 import io.github.cloolalang.notspotdetector.data.WalkRouteImage
 import io.github.cloolalang.notspotdetector.data.ZoneTestImageSaver
+import io.github.cloolalang.notspotdetector.model.CallResultBand
+import io.github.cloolalang.notspotdetector.model.CallResultHistory
+import io.github.cloolalang.notspotdetector.model.CallResultSegment
+import io.github.cloolalang.notspotdetector.model.CallResultTape
+import io.github.cloolalang.notspotdetector.model.CallTestStatus
 import io.github.cloolalang.notspotdetector.model.ActiveTestBand
 import io.github.cloolalang.notspotdetector.model.ActiveTestHistory
 import io.github.cloolalang.notspotdetector.model.ActiveTestSegment
@@ -175,6 +180,7 @@ fun HistogramControlsCard(
     onThresholdChange: (Int, Int) -> Unit,
     onClearHistogram: () -> Unit,
     onClearKpiHistory: () -> Unit = {},
+    callTestStatus: CallTestStatus = CallTestStatus(),
     walkRouteEnabled: Boolean = false,
     modifier: Modifier = Modifier
 ) {
@@ -190,6 +196,7 @@ fun HistogramControlsCard(
     var distanceTape by kpiHistory.distanceTape
     var intracellDominanceTape by kpiHistory.intracellDominanceTape
     var activeTestTape by kpiHistory.activeTestTape
+    var callResultTape by kpiHistory.callResultTape
     var aggregatedBandwidthTape by kpiHistory.aggregatedBandwidthTape
     val currentCarrier = PrimaryCarrierHistory.visitFromStats(stats)
     val currentTechnology = TechnologyHistory.technologyFromStats(stats)
@@ -213,6 +220,7 @@ fun HistogramControlsCard(
     )
     val currentIntracellDominance = PrimaryIntracellDominanceHistory.current(stats, passiveSignalSettings)
     val currentActiveTest = ActiveTestHistory.current(stats)
+    val currentCallResult = CallResultHistory.current(callTestStatus)
     val currentAggregatedBandwidth = AggregatedBandwidthHistory.current(stats)
     // The tape clock holds still while monitoring is stopped, and that pause is left out of the scale.
     val testsRunning = isActive
@@ -235,6 +243,7 @@ fun HistogramControlsCard(
             distanceTape = DistanceTape()
             intracellDominanceTape = IntracellDominanceTape()
             activeTestTape = ActiveTestTape()
+            callResultTape = CallResultTape()
             aggregatedBandwidthTape = AggregatedBandwidthTape()
             return
         }
@@ -249,6 +258,7 @@ fun HistogramControlsCard(
             now
         )
         activeTestTape = ActiveTestHistory.record(ActiveTestTape(), currentActiveTest, now)
+        callResultTape = CallResultHistory.record(CallResultTape(), currentCallResult, now)
         aggregatedBandwidthTape = AggregatedBandwidthHistory.record(
             AggregatedBandwidthTape(),
             currentAggregatedBandwidth,
@@ -290,6 +300,10 @@ fun HistogramControlsCard(
     LaunchedEffect(currentActiveTest, testsRunning) {
         if (!testsRunning) return@LaunchedEffect
         activeTestTape = ActiveTestHistory.record(activeTestTape, currentActiveTest, tapeNowMs)
+    }
+    LaunchedEffect(currentCallResult, testsRunning) {
+        if (!testsRunning) return@LaunchedEffect
+        callResultTape = CallResultHistory.record(callResultTape, currentCallResult, tapeNowMs)
     }
     LaunchedEffect(currentAggregatedBandwidth, testsRunning) {
         if (!testsRunning) return@LaunchedEffect
@@ -376,6 +390,7 @@ fun HistogramControlsCard(
                         distanceTape.entries.size > 1 ||
                         intracellDominanceTape.entries.size > 1 ||
                         activeTestTape.entries.size > 1 ||
+                        callResultTape.entries.size > 1 ||
                         aggregatedBandwidthTape.entries.size > 1,
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -411,7 +426,8 @@ fun HistogramControlsCard(
         sampleWindowMs = sampleWindowMs,
         walkRouteEnabled = walkRouteEnabled,
         histogramLayer = histogramLayer,
-        onExpandHistogram = { histogramExpanded = true }
+        onExpandHistogram = { histogramExpanded = true },
+        callTestStatus = callTestStatus
     )
     KpiHistoryPanel(
         expanded = kpiHistoryExpanded,
@@ -427,6 +443,7 @@ fun HistogramControlsCard(
         distanceEntries = distanceTape.entries,
         intracellDominanceEntries = intracellDominanceTape.entries,
         activeTestEntries = activeTestTape.entries,
+        callResultEntries = callResultTape.entries,
         aggregatedBandwidthEntries = aggregatedBandwidthTape.entries,
         tapeWindowMs = tapeWindowMs.coerceToTapeWindowStep(),
         onClearHistory = onClearKpiHistory
@@ -642,6 +659,7 @@ private fun KpiHistoryPanel(
     distanceEntries: List<DistanceSegment>,
     intracellDominanceEntries: List<IntracellDominanceSegment>,
     activeTestEntries: List<ActiveTestSegment>,
+    callResultEntries: List<CallResultSegment>,
     aggregatedBandwidthEntries: List<AggregatedBandwidthSegment>,
     tapeWindowMs: Long,
     onClearHistory: () -> Unit
@@ -722,6 +740,11 @@ private fun KpiHistoryPanel(
                     nowMs = nowMs,
                     windowStartMs = tapeWindowStartMs
                 )
+                CallResultHistoryBar(
+                    entries = callResultEntries,
+                    nowMs = nowMs,
+                    windowStartMs = tapeWindowStartMs
+                )
                 AggregatedBandwidthHistoryBar(
                     entries = aggregatedBandwidthEntries,
                     nowMs = nowMs,
@@ -736,6 +759,7 @@ private fun KpiHistoryPanel(
                         intracellDominanceEntries.isNotEmpty() ||
                         distanceEntries.isNotEmpty() ||
                         activeTestEntries.isNotEmpty() ||
+                        callResultEntries.isNotEmpty() ||
                         aggregatedBandwidthEntries.isNotEmpty(),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -772,7 +796,8 @@ private fun ZoneTestPanel(
     sampleWindowMs: Long,
     walkRouteEnabled: Boolean,
     histogramLayer: GraphicsLayer,
-    onExpandHistogram: () -> Unit
+    onExpandHistogram: () -> Unit,
+    callTestStatus: CallTestStatus
 ) {
     var expanded by panelFold("zone-test", defaultExpanded = false)
     val zoneTest = viewModel<ZoneTestViewModel>()
@@ -792,6 +817,7 @@ private fun ZoneTestPanel(
     var distanceTape by zoneTest.distanceTape
     var intracellDominanceTape by zoneTest.intracellDominanceTape
     var activeTestTape by zoneTest.activeTestTape
+    var callResultTape by zoneTest.callResultTape
     var aggregatedBandwidthTape by zoneTest.aggregatedBandwidthTape
     val noSignal = TechnologyHistory.isNoSignalPeriod(stats)
     val currentCarrier = PrimaryCarrierHistory.visitFromStats(stats)
@@ -816,6 +842,7 @@ private fun ZoneTestPanel(
     val currentDistance = DistanceHistory.current(samples, nowMs, noSignal)
     val currentIntracellDominance = PrimaryIntracellDominanceHistory.current(stats, passiveSignalSettings)
     val currentActiveTest = ActiveTestHistory.current(stats)
+    val currentCallResult = CallResultHistory.current(callTestStatus)
     val currentAggregatedBandwidth = AggregatedBandwidthHistory.current(stats)
     val liveOperator = OperatorTitleStyle.resolveLabel(stats)
     val context = LocalContext.current
@@ -884,6 +911,12 @@ private fun ZoneTestPanel(
             atMs,
             ZoneTest.RETAIN_MS
         )
+        callResultTape = CallResultHistory.record(
+            CallResultTape(),
+            currentCallResult,
+            atMs,
+            ZoneTest.RETAIN_MS
+        )
         aggregatedBandwidthTape = AggregatedBandwidthHistory.record(
             AggregatedBandwidthTape(),
             currentAggregatedBandwidth,
@@ -930,6 +963,7 @@ private fun ZoneTestPanel(
         distanceTape = DistanceTape()
         intracellDominanceTape = IntracellDominanceTape()
         activeTestTape = ActiveTestTape()
+        callResultTape = CallResultTape()
         aggregatedBandwidthTape = AggregatedBandwidthTape()
     })
     val saveZoneJpeg = rememberUpdatedState<(Boolean) -> Unit>({ includeHistogram ->
@@ -1196,6 +1230,15 @@ private fun ZoneTestPanel(
         activeTestTape = ActiveTestHistory.record(
             activeTestTape,
             currentActiveTest,
+            tapeNowMs,
+            ZoneTest.RETAIN_MS
+        )
+    }
+    LaunchedEffect(currentCallResult, running) {
+        if (!running) return@LaunchedEffect
+        callResultTape = CallResultHistory.record(
+            callResultTape,
+            currentCallResult,
             tapeNowMs,
             ZoneTest.RETAIN_MS
         )
@@ -1475,6 +1518,12 @@ private fun ZoneTestPanel(
                     )
                     ActiveTestHistoryBar(
                         entries = activeTestTape.entries,
+                        nowMs = chartNowMs,
+                        windowStartMs = zoneStart,
+                        timeTickMs = zoneTickTimes
+                    )
+                    CallResultHistoryBar(
+                        entries = callResultTape.entries,
                         nowMs = chartNowMs,
                         windowStartMs = zoneStart,
                         timeTickMs = zoneTickTimes
@@ -2462,6 +2511,106 @@ private fun distanceTapeColor(metres: Int?): Color {
         metres < 1_000 -> MeanRsrpGreen
         metres < 3_000 -> MeanRsrpYellow
         else -> MeanRsrpRed
+    }
+}
+
+@Composable
+private fun CallResultHistoryBar(
+    entries: List<CallResultSegment>,
+    nowMs: Long,
+    windowStartMs: Long,
+    timeTickMs: List<Long> = emptyList(),
+    modifier: Modifier = Modifier
+) {
+    val current = entries.lastOrNull()
+    val valueText = current?.let { callResultLabel(it.band) }
+        ?: stringResource(R.string.signal_unavailable)
+    val segmentLabels = entries.map { callResultLabel(it.band) }
+    val trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+    val textMeasurer = rememberTextMeasurer()
+    val labelStyle = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp)
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        TapeSectionHeader(
+            title = stringResource(R.string.call_result_history_title),
+            detail = stringResource(R.string.call_result_history_rule),
+            value = valueText
+        )
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(24.dp)
+                .clip(RoundedCornerShape(9.dp))
+                .background(trackColor)
+        ) {
+            if (entries.isEmpty()) return@Canvas
+            val canvasScope = this
+            val bounds = tapeSegmentBounds(
+                startsMs = entries.map { it.startedAtMs },
+                windowStartMs = windowStartMs,
+                nowMs = nowMs,
+                tapeWidth = size.width
+            )
+            entries.forEachIndexed { index, segment ->
+                val (left, segmentWidth) = bounds[index]
+                if (segmentWidth <= 0f) return@forEachIndexed
+                val color = callResultTapeColor(segment.band)
+                val label = segmentLabels[index]
+                canvasScope.clipRect(
+                    left = left,
+                    top = 0f,
+                    right = left + segmentWidth,
+                    bottom = size.height
+                ) {
+                    drawRect(
+                        color = color,
+                        topLeft = Offset(left, 0f),
+                        size = Size(segmentWidth, size.height)
+                    )
+                    val layout = textMeasurer.measure(
+                        text = label,
+                        style = labelStyle.merge(TextStyle(color = carrierTapeLabelColor(color))),
+                        overflow = TextOverflow.Ellipsis,
+                        softWrap = false,
+                        maxLines = 1,
+                        constraints = Constraints(
+                            maxWidth = segmentWidth.roundToInt().coerceAtLeast(0)
+                        )
+                    )
+                    drawText(
+                        textLayoutResult = layout,
+                        topLeft = Offset(
+                            x = left + (segmentWidth - layout.size.width) / 2f,
+                            y = (size.height - layout.size.height) / 2f
+                        )
+                    )
+                }
+            }
+            drawZoneTimeTicks(timeTickMs, windowStartMs, nowMs)
+        }
+        TapeTimeScale(windowMs = (nowMs - windowStartMs).coerceAtLeast(0L))
+    }
+}
+
+@Composable
+private fun callResultLabel(band: CallResultBand): String {
+    val res = when (band) {
+        CallResultBand.DIALING -> R.string.call_result_dialing
+        CallResultBand.UP -> R.string.call_result_up
+        CallResultBand.SUCCESS -> R.string.call_result_success
+        CallResultBand.FAIL -> R.string.call_result_fail
+    }
+    return stringResource(res)
+}
+
+private fun callResultTapeColor(band: CallResultBand): Color {
+    return when (band) {
+        CallResultBand.DIALING -> MeanRsrpYellow
+        CallResultBand.UP -> MeanRsrpLightBlue
+        CallResultBand.SUCCESS -> MeanRsrpGreen
+        CallResultBand.FAIL -> MeanRsrpRed
     }
 }
 

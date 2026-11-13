@@ -1,10 +1,12 @@
 package io.github.cloolalang.notspotdetector
 
+import android.app.role.RoleManager
 import android.content.Intent
 import android.media.AudioManager
+import android.os.Build
+import android.telecom.TelecomManager
 import android.Manifest
 import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -42,6 +44,18 @@ class MainActivity : ComponentActivity() {
     private val locationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { viewModel.refreshCellularSignal() }
+
+    private val callPermissionsLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) {
+        if (viewModel.hasCallTestPermissions()) {
+            requestDialerRoleThenStart()
+        }
+    }
+
+    private val dialerRoleLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { viewModel.startCallTest() }
 
     private val importProfileLauncher = registerForActivityResult(
         ActivityResultContracts.OpenDocument()
@@ -104,6 +118,8 @@ class MainActivity : ComponentActivity() {
                     onInstallAppUpdate = { file ->
                         AppUpdateInstaller.install(this@MainActivity, file)
                     },
+                    onRequestCallPermission = ::requestCallPermission,
+                    onRequestDialerRole = ::requestDialerRoleThenStart,
                     onImportSpecialCells = { onResult ->
                         pendingSpecialCellsImportCallback = onResult
                         importSpecialCellsLauncher.launch(
@@ -194,6 +210,50 @@ class MainActivity : ComponentActivity() {
         }
         if (permissions.isNotEmpty()) {
             signalPermissionsLauncher.launch(permissions.toTypedArray())
+        }
+    }
+
+    private fun requestDialerRoleThenStart() {
+        if (viewModel.isDefaultDialer()) {
+            viewModel.startCallTest()
+            return
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val roleManager = getSystemService(RoleManager::class.java)
+            if (roleManager == null || !roleManager.isRoleAvailable(RoleManager.ROLE_DIALER)) {
+                viewModel.startCallTest()
+                return
+            }
+            dialerRoleLauncher.launch(roleManager.createRequestRoleIntent(RoleManager.ROLE_DIALER))
+            return
+        }
+        @Suppress("DEPRECATION")
+        val changeDialer = Intent(TelecomManager.ACTION_CHANGE_DEFAULT_DIALER)
+            .putExtra(TelecomManager.EXTRA_CHANGE_DEFAULT_DIALER_PACKAGE_NAME, packageName)
+        dialerRoleLauncher.launch(changeDialer)
+    }
+
+    private fun requestCallPermission() {
+        val missing = buildList {
+            if (ContextCompat.checkSelfPermission(
+                    this@MainActivity,
+                    Manifest.permission.CALL_PHONE
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                add(Manifest.permission.CALL_PHONE)
+            }
+            if (ContextCompat.checkSelfPermission(
+                    this@MainActivity,
+                    Manifest.permission.READ_PHONE_STATE
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                add(Manifest.permission.READ_PHONE_STATE)
+            }
+        }
+        if (missing.isEmpty()) {
+            viewModel.startCallTest()
+        } else {
+            callPermissionsLauncher.launch(missing.toTypedArray())
         }
     }
 

@@ -41,5 +41,17 @@ val OnSushiContainerDark = Color(0xFFE3EFD3)
 val StopRose = Color(0xFFB45C68)
 val OnStopRose = Color(0xFFFFFFFF)
 
+/** Active-mode start. Green, separate from the cyan monitoring button. */
+val ActiveModeGreen = Color(0xFF3E6B32)
+val OnActiveModeGreen = Color(0xFFFFFFFF)
+
+/** Call-test start. Indigo, separate from monitoring, active mode, and stop. */
+val CallTestIndigo = Color(0xFF3D4A9A)
+val OnCallTestIndigo = Color(0xFFFFFFFF)
+
+/** Call-test stop, so a running call test is not the same color as its start button. */
+val CallTestStop = Color(0xFF6B3A78)
+val OnCallTestStop = Color(0xFFFFFFFF)
+
 /** Packet-loss trace. Amber stays distinct from cyan RTT and rose jitter in both themes. */
 val PacketLossAmber = Color(0xFFE0A23A)

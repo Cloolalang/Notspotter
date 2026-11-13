@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import io.github.cloolalang.notspotdetector.MonitorState
 import io.github.cloolalang.notspotdetector.model.ActiveTestTape
+import io.github.cloolalang.notspotdetector.model.CallResultTape
 import io.github.cloolalang.notspotdetector.model.AggregatedBandwidthTape
 import io.github.cloolalang.notspotdetector.model.DistanceTape
 import io.github.cloolalang.notspotdetector.model.IntracellDominanceTape
@@ -27,6 +28,7 @@ class KpiHistoryViewModel : ViewModel() {
     val distanceTape = mutableStateOf(DistanceTape())
     val intracellDominanceTape = mutableStateOf(IntracellDominanceTape())
     val activeTestTape = mutableStateOf(ActiveTestTape())
+    val callResultTape = mutableStateOf(CallResultTape())
     val aggregatedBandwidthTape = mutableStateOf(AggregatedBandwidthTape())
     val tapePauseOffsetMs = mutableLongStateOf(0L)
     val tapeHeldWallMs = mutableStateOf<Long?>(null)
@@ -52,6 +54,7 @@ class ZoneTestViewModel : ViewModel() {
     val distanceTape = mutableStateOf(DistanceTape())
     val intracellDominanceTape = mutableStateOf(IntracellDominanceTape())
     val activeTestTape = mutableStateOf(ActiveTestTape())
+    val callResultTape = mutableStateOf(CallResultTape())
     val aggregatedBandwidthTape = mutableStateOf(AggregatedBandwidthTape())
     val floorPlan = mutableStateOf<Bitmap?>(null)
     val pins = mutableStateOf<List<WalkPin>>(emptyList())

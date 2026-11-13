@@ -1,12 +1,16 @@
 package io.github.cloolalang.notspotdetector.viewmodel
 
+import android.Manifest
 import android.app.Application
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.util.Base64
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.cloolalang.notspotdetector.MonitorState
 import io.github.cloolalang.notspotdetector.data.AudioVolumeSettingsRepository
+import io.github.cloolalang.notspotdetector.data.CallTestSettingsRepository
 import io.github.cloolalang.notspotdetector.data.MacroDefaultSettings
 import io.github.cloolalang.notspotdetector.data.MonitoringSettingsRepository
 import io.github.cloolalang.notspotdetector.data.MultiUeRoleRepository
@@ -21,6 +25,8 @@ import io.github.cloolalang.notspotdetector.data.SpecialCellsRepository
 import io.github.cloolalang.notspotdetector.data.ThresholdSettingsRepository
 import io.github.cloolalang.notspotdetector.model.AppSettingsSnapshot
 import io.github.cloolalang.notspotdetector.model.AudioVolumeSettings
+import io.github.cloolalang.notspotdetector.model.CallTestSettings
+import io.github.cloolalang.notspotdetector.model.CallTestStatus
 import io.github.cloolalang.notspotdetector.model.CarrierConfigSnapshot
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.MultiUeLinkPhase
@@ -58,6 +64,8 @@ import io.github.cloolalang.notspotdetector.model.SignalStateAnnouncement
 import io.github.cloolalang.notspotdetector.model.TimingAdvanceAnnouncement
 import io.github.cloolalang.notspotdetector.R
 import java.io.File
+import io.github.cloolalang.notspotdetector.network.CallTestDialer
+import io.github.cloolalang.notspotdetector.network.CallTestRunner
 import io.github.cloolalang.notspotdetector.network.CarrierConfigReader
 import io.github.cloolalang.notspotdetector.network.CellularSignalReader
 import io.github.cloolalang.notspotdetector.network.MobileDataControl
@@ -67,6 +75,7 @@ import io.github.cloolalang.notspotdetector.network.SimSubscriptionHelper
 import io.github.cloolalang.notspotdetector.audio.CellVoiceAnnouncer
 import io.github.cloolalang.notspotdetector.audio.AlertVibrator
 import io.github.cloolalang.notspotdetector.audio.GeigerCounterPlayer
+import io.github.cloolalang.notspotdetector.multiue.MultiUeCallSync
 import io.github.cloolalang.notspotdetector.multiue.MultiUeGraphClear
 import io.github.cloolalang.notspotdetector.multiue.MultiUeLinkService
 import io.github.cloolalang.notspotdetector.multiue.MultiUePermissions
@@ -75,9 +84,13 @@ import io.github.cloolalang.notspotdetector.multiue.MultiUeRadios
 import io.github.cloolalang.notspotdetector.multiue.MultiUeSettingsSync
 import io.github.cloolalang.notspotdetector.multiue.MultiUeState
 import io.github.cloolalang.notspotdetector.multiue.MultiUeZoneSync
+import io.github.cloolalang.notspotdetector.service.CallTestService
 import io.github.cloolalang.notspotdetector.service.ConnectivityMonitorService
 import io.github.cloolalang.notspotdetector.util.BackgroundHelper
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -89,6 +102,8 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
 
     private val thresholdRepository = ThresholdSettingsRepository(application)
     private val pingSettingsRepository = PingSettingsRepository(application)
+    private val callTestSettingsRepository = CallTestSettingsRepository(application)
+    private val callTestRunner = CallTestRunner(application)
     private val monitoringSettingsRepository = MonitoringSettingsRepository(application)
     private val audioVolumeRepository = AudioVolumeSettingsRepository(application)
     private val passiveSignalSettingsRepository = PassiveSignalSettingsRepository(application)
@@ -118,6 +133,14 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
 
     private val _inhibit2gFailed = MutableStateFlow(false)
     val inhibit2gFailed: StateFlow<Boolean> = _inhibit2gFailed.asStateFlow()
+
+    private val _callTestSettings = MutableStateFlow(callTestSettingsRepository.load())
+    val callTestSettings: StateFlow<CallTestSettings> = _callTestSettings.asStateFlow()
+
+    private val _callTestStatus = MutableStateFlow(CallTestStatus())
+    val callTestStatus: StateFlow<CallTestStatus> = _callTestStatus.asStateFlow()
+
+    private var callTestJob: Job? = null
 
     init {
         MonitorState.setThresholds(thresholdRepository.load())
@@ -162,6 +185,31 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             MultiUeProfileSync.incoming.collect { event ->
                 applyRemoteProfile(event.apply, event.payload)
+            }
+        }
+        publishCallTestToSlaves()
+        viewModelScope.launch {
+            MultiUeCallSync.config.filterNotNull().collect { config ->
+                if (multiUeRoleRepository.loadRole() != MultiUeRole.SLAVE) return@collect
+                val next = _callTestSettings.value.copy(
+                    phoneNumber = config.phoneNumber,
+                    callDurationSec = config.callDurationSec,
+                    delayBetweenCallsSec = config.delayBetweenCallsSec
+                ).normalized()
+                if (next == _callTestSettings.value) return@collect
+                _callTestSettings.value = next
+                callTestSettingsRepository.save(next)
+            }
+        }
+        viewModelScope.launch {
+            MultiUeCallSync.running.filterNotNull().distinctUntilChanged().collect { running ->
+                if (multiUeRoleRepository.loadRole() != MultiUeRole.SLAVE) return@collect
+                if (running) {
+                    startCallTest()
+                } else {
+                    stopCallTest()
+                    _callTestStatus.value = _callTestStatus.value.copy(needsDialer = false)
+                }
             }
         }
     }
@@ -279,6 +327,7 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
             )
         }
         syncMultiUeService()
+        publishCallTestToSlaves()
     }
 
     fun connectMultiUeMaster(address: String) {
@@ -1355,7 +1404,101 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         refreshSettingsProfiles()
     }
 
+    fun hasCallTestPermissions(): Boolean {
+        val app = getApplication<Application>()
+        return ContextCompat.checkSelfPermission(app, Manifest.permission.CALL_PHONE) ==
+            PackageManager.PERMISSION_GRANTED &&
+            ContextCompat.checkSelfPermission(app, Manifest.permission.READ_PHONE_STATE) ==
+            PackageManager.PERMISSION_GRANTED
+    }
+
+    fun updateCallNumber(number: String) {
+        saveCallTestSettings(_callTestSettings.value.copy(phoneNumber = number))
+    }
+
+    fun updateCallDurationSec(seconds: Int) {
+        saveCallTestSettings(_callTestSettings.value.copy(callDurationSec = seconds))
+    }
+
+    fun updateCallDelaySec(seconds: Int) {
+        saveCallTestSettings(_callTestSettings.value.copy(delayBetweenCallsSec = seconds))
+    }
+
+    fun isDefaultDialer(): Boolean = CallTestDialer.isDefault(getApplication())
+
+    fun startCallTest() {
+        if (multiUeRoleRepository.loadRole() == MultiUeRole.SLAVE &&
+            MultiUeCallSync.running.value == false
+        ) {
+            return
+        }
+        if (!hasCallTestPermissions()) {
+            _callTestStatus.value = _callTestStatus.value.copy(needsCallPermission = true)
+            return
+        }
+        if (_callTestStatus.value.needsCallPermission) {
+            _callTestStatus.value = _callTestStatus.value.copy(needsCallPermission = false)
+        }
+        if (!isDefaultDialer()) {
+            _callTestStatus.value = _callTestStatus.value.copy(needsDialer = true, running = false)
+            return
+        }
+        if (callTestJob?.isActive == true) return
+        if (!MonitorState.isRunning.value) {
+            startPassiveOnlyMonitoring()
+        }
+        val app = getApplication<Application>()
+        runCatching { CallTestService.start(app) }
+        publishCallRunToSlaves(true)
+        callTestJob = viewModelScope.launch {
+            try {
+                callTestRunner.run(
+                    settings = { _callTestSettings.value },
+                    onStatus = { status ->
+                        _callTestStatus.value = status
+                        publishCallRunToSlaves(status.running)
+                    }
+                )
+            } finally {
+                runCatching { CallTestService.stop(app) }
+            }
+        }
+    }
+
+    fun stopCallTest() {
+        callTestJob?.cancel()
+        callTestJob = null
+        publishCallRunToSlaves(false)
+        val status = _callTestStatus.value
+        if (status.needsDialer || status.needsCallPermission) {
+            _callTestStatus.value = status.copy(needsDialer = false, needsCallPermission = false)
+        }
+    }
+
+    private fun saveCallTestSettings(settings: CallTestSettings) {
+        val normalized = settings.normalized()
+        _callTestSettings.value = normalized
+        callTestSettingsRepository.save(normalized)
+        publishCallConfigToSlaves()
+    }
+
+    private fun publishCallTestToSlaves() {
+        publishCallConfigToSlaves()
+        publishCallRunToSlaves(_callTestStatus.value.running)
+    }
+
+    private fun publishCallConfigToSlaves() {
+        if (multiUeRoleRepository.loadRole() != MultiUeRole.MASTER) return
+        MultiUeCallSync.setConfig(_callTestSettings.value)
+    }
+
+    private fun publishCallRunToSlaves(running: Boolean) {
+        if (multiUeRoleRepository.loadRole() != MultiUeRole.MASTER) return
+        MultiUeCallSync.setRunning(running)
+    }
+
     override fun onCleared() {
+        stopCallTest()
         cellVoiceAnnouncer.shutdown()
         super.onCleared()
     }

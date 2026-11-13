@@ -52,6 +52,8 @@ class MultiUeSession(
         fun onZoneClear()
         fun onZoneSave(includeHistogram: Boolean)
         fun onZoneHistogram(on: Boolean)
+        fun onCallConfig(phoneNumber: String, callDurationSec: Int, delayBetweenCallsSec: Int)
+        fun onCallRun(running: Boolean)
         fun onProfile(apply: Boolean, payload: String)
         fun onPanels(open: Map<String, Boolean>)
         fun onScroll(fraction: Int)
@@ -63,6 +65,8 @@ class MultiUeSession(
         fun zoneLine(): String?
         fun zoneNameLine(): String?
         fun zoneHistogramLine(): String?
+        fun callConfigLine(): String?
+        fun callRunLine(): String?
         fun planLine(): String?
         fun pinLines(): List<String>
     }
@@ -283,6 +287,8 @@ class MultiUeSession(
             listener.zoneLine()?.let { writeLine(socket, it) }
             listener.zoneNameLine()?.let { writeLine(socket, it) }
             listener.zoneHistogramLine()?.let { writeLine(socket, it) }
+            listener.callConfigLine()?.let { writeLine(socket, it) }
+            listener.callRunLine()?.let { writeLine(socket, it) }
             listener.planLine()?.let { plan ->
                 writeLine(socket, plan)
                 listener.pinLines().forEach { writeLine(socket, it) }
@@ -329,6 +335,12 @@ class MultiUeSession(
                     MultiUeMessage.ZoneClear -> listener.onZoneClear()
                     is MultiUeMessage.ZoneSave -> listener.onZoneSave(message.includeHistogram)
                     is MultiUeMessage.ZoneHistogram -> listener.onZoneHistogram(message.on)
+                    is MultiUeMessage.CallConfig -> listener.onCallConfig(
+                        message.phoneNumber,
+                        message.callDurationSec,
+                        message.delayBetweenCallsSec
+                    )
+                    is MultiUeMessage.CallRun -> listener.onCallRun(message.running)
                     is MultiUeMessage.Profile -> listener.onProfile(message.apply, message.payload)
                     is MultiUeMessage.Panels -> listener.onPanels(message.open)
                     is MultiUeMessage.Scroll -> listener.onScroll(message.fraction)

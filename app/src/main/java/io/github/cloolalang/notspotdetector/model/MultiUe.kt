@@ -66,6 +66,12 @@ sealed interface MultiUeMessage {
     data object ZoneClear : MultiUeMessage
     data class ZoneSave(val includeHistogram: Boolean) : MultiUeMessage
     data class ZoneHistogram(val on: Boolean) : MultiUeMessage
+    data class CallConfig(
+        val phoneNumber: String,
+        val callDurationSec: Int,
+        val delayBetweenCallsSec: Int
+    ) : MultiUeMessage
+    data class CallRun(val running: Boolean) : MultiUeMessage
     data class Profile(val apply: Boolean, val payload: String) : MultiUeMessage
     data object Full : MultiUeMessage
     data class Sync(val on: Boolean) : MultiUeMessage
@@ -125,6 +131,13 @@ object MultiUeProtocol {
         if (includeHistogram) "ZONESAVE 1" else "ZONESAVE"
 
     fun zoneHistogram(on: Boolean): String = if (on) "ZONEHIST 1" else "ZONEHIST 0"
+
+    fun callConfig(phoneNumber: String, durationSec: Int, delaySec: Int): String {
+        val number = phoneNumber.replace("\r", " ").replace("\n", " ")
+        return "CALLCFG $durationSec $delaySec $number".trimEnd()
+    }
+
+    fun callRun(running: Boolean): String = if (running) "CALL 1" else "CALL 0"
 
     fun profilePut(payload: String): String = PROFILE_PUT_PREFIX + payload
 
@@ -213,6 +226,12 @@ object MultiUeProtocol {
             }
             "FULL" -> MultiUeMessage.Full
             "ZONECLEAR" -> MultiUeMessage.ZoneClear
+            "CALLCFG" -> parseCallConfig(parts)
+            "CALL" -> when (parts.getOrNull(1)) {
+                "1" -> if (parts.size == 2) MultiUeMessage.CallRun(running = true) else null
+                "0" -> if (parts.size == 2) MultiUeMessage.CallRun(running = false) else null
+                else -> null
+            }
             "ZONEHIST" -> when (parts.getOrNull(1)) {
                 "1" -> if (parts.size == 2) MultiUeMessage.ZoneHistogram(on = true) else null
                 "0" -> if (parts.size == 2) MultiUeMessage.ZoneHistogram(on = false) else null
@@ -239,6 +258,20 @@ object MultiUeProtocol {
             }
             else -> null
         }
+    }
+
+    private fun parseCallConfig(parts: List<String>): MultiUeMessage.CallConfig? {
+        val duration = parts.getOrNull(1)?.toIntOrNull() ?: return null
+        val delay = parts.getOrNull(2)?.toIntOrNull() ?: return null
+        if (duration !in CallTestSettings.MIN_SECONDS..CallTestSettings.MAX_SECONDS) return null
+        if (delay !in CallTestSettings.MIN_SECONDS..CallTestSettings.MAX_SECONDS) return null
+        val number = parts.drop(3).joinToString(" ")
+        if (number.length > CallTestSettings.MAX_NUMBER_CHARS) return null
+        return MultiUeMessage.CallConfig(
+            phoneNumber = number,
+            callDurationSec = duration,
+            delayBetweenCallsSec = delay
+        )
     }
 
     private fun parsePanels(body: String): Map<String, Boolean>? {

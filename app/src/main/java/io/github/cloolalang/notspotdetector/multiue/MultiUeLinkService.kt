@@ -21,6 +21,7 @@ import io.github.cloolalang.notspotdetector.data.AppSettingsSnapshotCodec
 import io.github.cloolalang.notspotdetector.data.MultiUeRoleRepository
 import io.github.cloolalang.notspotdetector.data.RadioDebugSettingsRepository
 import io.github.cloolalang.notspotdetector.model.AppSettingsSnapshot
+import io.github.cloolalang.notspotdetector.model.CallTestSettings
 import io.github.cloolalang.notspotdetector.model.MultiUeLinkPhase
 import io.github.cloolalang.notspotdetector.model.RadioDebugSettings
 import io.github.cloolalang.notspotdetector.model.MultiUePeer
@@ -69,6 +70,8 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
     private var zoneWatch: Job? = null
     private var zoneNameWatch: Job? = null
     private var zoneHistogramWatch: Job? = null
+    private var callConfigWatch: Job? = null
+    private var callRunWatch: Job? = null
     private var planWatch: Job? = null
     private var pinWatch: Job? = null
     private var settingsWatch: Job? = null
@@ -186,6 +189,8 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
         zoneWatch?.cancel()
         zoneNameWatch?.cancel()
         zoneHistogramWatch?.cancel()
+        callConfigWatch?.cancel()
+        callRunWatch?.cancel()
         planWatch?.cancel()
         pinWatch?.cancel()
         settingsWatch?.cancel()
@@ -385,6 +390,22 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
         MultiUeZoneSync.setSaveHistogram(on)
     }
 
+    override fun onCallConfig(phoneNumber: String, callDurationSec: Int, delayBetweenCallsSec: Int) {
+        if (destroyed || repository.loadRole() != MultiUeRole.SLAVE) return
+        MultiUeCallSync.setConfig(
+            CallTestSettings(
+                phoneNumber = phoneNumber,
+                callDurationSec = callDurationSec,
+                delayBetweenCallsSec = delayBetweenCallsSec
+            )
+        )
+    }
+
+    override fun onCallRun(running: Boolean) {
+        if (destroyed || repository.loadRole() != MultiUeRole.SLAVE) return
+        MultiUeCallSync.setRunning(running)
+    }
+
     override fun onProfile(apply: Boolean, payload: String) {
         if (destroyed || repository.loadRole() != MultiUeRole.SLAVE) return
         MultiUeProfileSync.offer(apply, payload)
@@ -421,6 +442,20 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
     override fun zoneHistogramLine(): String? {
         val on = MultiUeZoneSync.saveHistogram.value ?: return null
         return MultiUeProtocol.zoneHistogram(on)
+    }
+
+    override fun callConfigLine(): String? {
+        val config = MultiUeCallSync.config.value ?: return null
+        return MultiUeProtocol.callConfig(
+            config.phoneNumber,
+            config.callDurationSec,
+            config.delayBetweenCallsSec
+        )
+    }
+
+    override fun callRunLine(): String? {
+        val running = MultiUeCallSync.running.value ?: return null
+        return MultiUeProtocol.callRun(running)
     }
 
     override fun planLine(): String? {
@@ -489,6 +524,7 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
                 watchZone()
                 watchZoneName()
                 watchZoneHistogram()
+                watchCallTest()
                 watchPlan()
                 watchPins()
                 watchSettings()
@@ -530,6 +566,10 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
         zoneNameWatch = null
         zoneHistogramWatch?.cancel()
         zoneHistogramWatch = null
+        callConfigWatch?.cancel()
+        callConfigWatch = null
+        callRunWatch?.cancel()
+        callRunWatch = null
         planWatch?.cancel()
         planWatch = null
         pinWatch?.cancel()
@@ -633,6 +673,37 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
                 .collect { on ->
                     if (repository.loadRole() == MultiUeRole.MASTER) {
                         session.broadcast(MultiUeProtocol.zoneHistogram(on))
+                    }
+                }
+        }
+    }
+
+    private fun watchCallTest() {
+        callConfigWatch?.cancel()
+        callConfigWatch = scope.launch {
+            MultiUeCallSync.config
+                .filterNotNull()
+                .distinctUntilChanged()
+                .collect { config ->
+                    if (repository.loadRole() == MultiUeRole.MASTER) {
+                        session.broadcast(
+                            MultiUeProtocol.callConfig(
+                                config.phoneNumber,
+                                config.callDurationSec,
+                                config.delayBetweenCallsSec
+                            )
+                        )
+                    }
+                }
+        }
+        callRunWatch?.cancel()
+        callRunWatch = scope.launch {
+            MultiUeCallSync.running
+                .filterNotNull()
+                .distinctUntilChanged()
+                .collect { running ->
+                    if (repository.loadRole() == MultiUeRole.MASTER) {
+                        session.broadcast(MultiUeProtocol.callRun(running))
                     }
                 }
         }
