@@ -5,6 +5,13 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.179.0] - 2026-11-13
+
+### Changed
+
+- **Clear graph, Clear history, and Clear** — These buttons clear after four presses within two seconds, the same way Clear all charts does. Each press shows the count, such as Clear graph (2/4). The count resets if the fourth press is late. A clear sent by the master still happens at once on the other phones.
+- **Zone test** — Start zone test and Stop zone test sit on the main screen under the call-test button. Start is one tap. Stop takes four presses within two seconds and shows the count, such as Stop zone test (2/4). The label is white.
+
 ## [2.178.0] - 2026-11-13
 
 ### Changed

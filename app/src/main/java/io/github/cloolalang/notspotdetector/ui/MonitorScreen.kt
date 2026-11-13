@@ -14,6 +14,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -126,6 +127,7 @@ import io.github.cloolalang.notspotdetector.ui.theme.OnStopRose
 import io.github.cloolalang.notspotdetector.ui.theme.ScarpaFlow
 import io.github.cloolalang.notspotdetector.ui.theme.StopRose
 import io.github.cloolalang.notspotdetector.ui.theme.Sushi
+import io.github.cloolalang.notspotdetector.ui.theme.SushiContainerDark
 
 @Composable
 fun MonitorScreen(
@@ -862,6 +864,10 @@ private fun MonitoringControlButtons(
         onStart = onStartCallTest,
         onStop = onStopCallTest
     )
+    ZoneTestControlButton(
+        startEnabled = isRunning && enabled,
+        stopEnabled = enabled
+    )
     if (!isRunning) {
         ClearAllChartsButton(enabled = enabled, onClear = onClearAllCharts)
     }
@@ -871,6 +877,8 @@ private const val CLEAR_ALL_CHARTS_PRESSES = 4
 private const val CLEAR_ALL_CHARTS_WINDOW_MS = 2_000L
 private const val START_CALL_TEST_PRESSES = 4
 private const val START_CALL_TEST_WINDOW_MS = 2_000L
+private const val STOP_ZONE_TEST_PRESSES = 4
+private const val STOP_ZONE_TEST_WINDOW_MS = 2_000L
 
 @Composable
 private fun ClearAllChartsButton(
@@ -981,6 +989,69 @@ private fun CallTestControlButton(
                 running -> stringResource(R.string.stop_call_test)
                 presses == 0 -> stringResource(R.string.start_call_test)
                 else -> stringResource(R.string.start_call_test_count, presses)
+            }
+        )
+    }
+}
+
+@Composable
+private fun ZoneTestControlButton(
+    startEnabled: Boolean,
+    stopEnabled: Boolean
+) {
+    val zoneTest = viewModel<ZoneTestViewModel>()
+    val running by zoneTest.running
+    var presses by remember { mutableIntStateOf(0) }
+    var windowStartMs by remember { mutableLongStateOf(0L) }
+
+    LaunchedEffect(windowStartMs) {
+        if (windowStartMs == 0L) return@LaunchedEffect
+        delay(STOP_ZONE_TEST_WINDOW_MS)
+        presses = 0
+        windowStartMs = 0L
+    }
+
+    LaunchedEffect(running) {
+        if (!running) {
+            presses = 0
+            windowStartMs = 0L
+        }
+    }
+
+    Button(
+        onClick = {
+            if (!running) {
+                zoneTest.onStart?.invoke()
+                return@Button
+            }
+            val now = android.os.SystemClock.elapsedRealtime()
+            val inWindow = presses > 0 && now - windowStartMs <= STOP_ZONE_TEST_WINDOW_MS
+            if (inWindow) {
+                presses += 1
+            } else {
+                windowStartMs = now
+                presses = 1
+            }
+            if (presses >= STOP_ZONE_TEST_PRESSES) {
+                presses = 0
+                windowStartMs = 0L
+                zoneTest.onStop?.invoke()
+            }
+        },
+        enabled = if (running) stopEnabled else startEnabled,
+        modifier = Modifier.fillMaxWidth(),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (running) SushiContainerDark else Sushi,
+            contentColor = Color.White,
+            disabledContainerColor = Sushi.copy(alpha = 0.38f),
+            disabledContentColor = Color.White.copy(alpha = 0.7f)
+        )
+    ) {
+        Text(
+            text = when {
+                !running -> stringResource(R.string.zone_test_start)
+                presses == 0 -> stringResource(R.string.zone_test_stop)
+                else -> stringResource(R.string.zone_test_stop_count, presses)
             }
         )
     }

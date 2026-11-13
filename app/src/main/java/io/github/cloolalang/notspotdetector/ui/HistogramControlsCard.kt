@@ -31,8 +31,10 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -408,8 +410,11 @@ fun HistogramControlsCard(
                 )
                 }
 
-                OutlinedButton(
-                    onClick = onClearHistogram,
+                FourPressOutlinedButton(
+                    text = stringResource(R.string.rsrp_histogram_clear),
+                    countingText = { presses ->
+                        stringResource(R.string.rsrp_histogram_clear_count, presses)
+                    },
                     enabled = samples.isNotEmpty() ||
                         carrierTape.entries.size > 1 ||
                         technologyTape.entries.size > 1 ||
@@ -420,10 +425,8 @@ fun HistogramControlsCard(
                         activeTestTape.entries.size > 1 ||
                         callResultTape.entries.size > 1 ||
                         aggregatedBandwidthTape.entries.size > 1,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(text = stringResource(R.string.rsrp_histogram_clear))
-                }
+                    onConfirm = onClearHistogram
+                )
 
                 HistogramSettingsPanel(
                     windowMs = sampleWindowMs,
@@ -773,8 +776,11 @@ private fun KpiHistoryPanel(
                     nowMs = nowMs,
                     windowStartMs = tapeWindowStartMs
                 )
-                OutlinedButton(
-                    onClick = onClearHistory,
+                FourPressOutlinedButton(
+                    text = stringResource(R.string.kpi_history_clear),
+                    countingText = { presses ->
+                        stringResource(R.string.kpi_history_clear_count, presses)
+                    },
                     enabled = carrierEntries.isNotEmpty() ||
                         technologyEntries.isNotEmpty() ||
                         rsrpBinEntries.isNotEmpty() ||
@@ -784,10 +790,8 @@ private fun KpiHistoryPanel(
                         activeTestEntries.isNotEmpty() ||
                         callResultEntries.isNotEmpty() ||
                         aggregatedBandwidthEntries.isNotEmpty(),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(text = stringResource(R.string.kpi_history_clear))
-                }
+                    onConfirm = onClearHistory
+                )
             }
         }
     }
@@ -968,6 +972,10 @@ private fun ZoneTestPanel(
         running = false
         endMs = tapeNowMs
     })
+    SideEffect {
+        zoneTest.onStart = { startZoneNow.value.invoke() }
+        zoneTest.onStop = { stopZoneNow.value.invoke() }
+    }
     val clearZoneCharts = rememberUpdatedState<() -> Unit>({
         running = false
         startMs = null
@@ -1327,23 +1335,6 @@ private fun ZoneTestPanel(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            if (running) {
-                Button(
-                    onClick = { stopZoneNow.value.invoke() },
-                    enabled = !followsMaster,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(text = stringResource(R.string.zone_test_stop))
-                }
-            } else {
-                Button(
-                    onClick = { startZoneNow.value.invoke() },
-                    enabled = isMonitoring && !followsMaster,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(text = stringResource(R.string.zone_test_start))
-                }
-            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -1440,26 +1431,29 @@ private fun ZoneTestPanel(
                         )
                     )
                 }
-                OutlinedButton(
-                    onClick = {
+                val clearingWalk = walkRouteEnabled && pins.isNotEmpty()
+                FourPressOutlinedButton(
+                    text = stringResource(
+                        if (clearingWalk) R.string.zone_test_clear_walk else R.string.zone_test_clear
+                    ),
+                    countingText = { presses ->
+                        stringResource(
+                            if (clearingWalk) {
+                                R.string.zone_test_clear_walk_count
+                            } else {
+                                R.string.zone_test_clear_count
+                            },
+                            presses
+                        )
+                    },
+                    enabled = !followsMaster,
+                    onConfirm = {
                         clearZoneCharts.value.invoke()
                         if (link.role == MultiUeRole.MASTER) {
                             MultiUeLinkService.broadcastZoneClear(context)
                         }
-                    },
-                    enabled = !followsMaster,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = stringResource(
-                            if (walkRouteEnabled && pins.isNotEmpty()) {
-                                R.string.zone_test_clear_walk
-                            } else {
-                                R.string.zone_test_clear
-                            }
-                        )
-                    )
-                }
+                    }
+                )
             }
             if (zoneStart != null) {
                 Column(
@@ -3267,6 +3261,50 @@ private fun DurationFigureControl(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+    }
+}
+
+private const val FOUR_PRESS_COUNT = 4
+private const val FOUR_PRESS_WINDOW_MS = 2_000L
+
+@Composable
+private fun FourPressOutlinedButton(
+    text: String,
+    countingText: @Composable (Int) -> String,
+    enabled: Boolean,
+    onConfirm: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var presses by remember { mutableIntStateOf(0) }
+    var windowStartMs by remember { mutableLongStateOf(0L) }
+
+    LaunchedEffect(windowStartMs) {
+        if (windowStartMs == 0L) return@LaunchedEffect
+        delay(FOUR_PRESS_WINDOW_MS)
+        presses = 0
+        windowStartMs = 0L
+    }
+
+    OutlinedButton(
+        onClick = {
+            val now = android.os.SystemClock.elapsedRealtime()
+            val inWindow = presses > 0 && now - windowStartMs <= FOUR_PRESS_WINDOW_MS
+            if (inWindow) {
+                presses += 1
+            } else {
+                windowStartMs = now
+                presses = 1
+            }
+            if (presses >= FOUR_PRESS_COUNT) {
+                presses = 0
+                windowStartMs = 0L
+                onConfirm()
+            }
+        },
+        enabled = enabled,
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Text(text = if (presses == 0) text else countingText(presses))
     }
 }
 

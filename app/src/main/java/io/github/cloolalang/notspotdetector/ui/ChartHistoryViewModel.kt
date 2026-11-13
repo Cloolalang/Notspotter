@@ -61,6 +61,10 @@ class ZoneTestViewModel : ViewModel() {
     val floorPlan = mutableStateOf<Bitmap?>(null)
     val pins = mutableStateOf<List<WalkPin>>(emptyList())
 
+    /** Set by the zone-test panel. The main-screen button calls these. */
+    var onStart: (() -> Unit)? = null
+    var onStop: (() -> Unit)? = null
+
     override fun onCleared() {
         MonitorState.setZoneTestSampleRetainFrom(null)
     }

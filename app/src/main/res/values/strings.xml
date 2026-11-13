@@ -496,6 +496,7 @@
     <string name="histogram_controls_title">Level histogram</string>
     <string name="kpi_history_title">KPI history</string>
     <string name="kpi_history_clear">Clear history</string>
+    <string name="kpi_history_clear_count">Clear history (%1$d/4)</string>
     <string name="zone_test_title">Zone test</string>
     <string name="zone_test_hint">Starts a KPI history that keeps every change from the moment you start until you stop. The bars squeeze the whole run onto one scale. Stop to name and save a JPEG in Downloads, or clear it.</string>
     <string name="zone_test_hint_walk">Starts a KPI history that keeps every change from the moment you start until you stop. The bars squeeze the whole run onto one scale. Choose a floor plan from Downloads and tap it to mark the walk. Stop to name the run and save the JPEGs, or clear the walk marks and the KPI record.</string>
@@ -507,6 +508,7 @@
     <string name="zone_test_open_sample_window_hint">On, the level histogram and the RSRP and RSRQ tapes count every sample from the start of this zone test. Off, they use the histogram sample window.</string>
     <string name="zone_test_sample_window_rule">95% of zone test</string>
     <string name="zone_test_stop">Stop zone test</string>
+    <string name="zone_test_stop_count">Stop zone test (%1$d/4)</string>
     <string name="zone_test_need_monitoring">Start monitoring or active mode testing first.</string>
     <string name="zone_test_running">Recording since the start. The time scale compresses as the run gets longer.</string>
     <string name="zone_test_name_label">Zone name</string>
@@ -517,7 +519,9 @@
     <string name="zone_test_save">Save JPEG to Downloads</string>
     <string name="zone_test_save_with_route">Save named JPEGs to Downloads</string>
     <string name="zone_test_clear">Clear</string>
+    <string name="zone_test_clear_count">Clear (%1$d/4)</string>
     <string name="zone_test_clear_walk">Clear walk and KPIs</string>
+    <string name="zone_test_clear_walk_count">Clear walk and KPIs (%1$d/4)</string>
     <string name="zone_test_saved">Saved %1$s</string>
     <string name="zone_test_saved_with_route">Saved %1$s and %2$s</string>
     <string name="zone_test_route_failed">Saved %1$s. The marked floor plan could not be saved.</string>
@@ -552,6 +556,7 @@
     <string name="rsrp_histogram_threshold_bin_label">&gt; %1$d dBm</string>
     <string name="rsrp_histogram_empty">Waiting for RSRP samples…</string>
     <string name="rsrp_histogram_clear">Clear graph</string>
+    <string name="rsrp_histogram_clear_count">Clear graph (%1$d/4)</string>
     <string name="tape_window_label">Tape time scale</string>
     <string name="tape_window_hint">The same clock on every tape, and only while monitoring is running. The right edge is the latest monitoring time, and older time rolls off the left.</string>
     <string name="tape_window_hours_minutes">%1$d h %2$d min</string>
