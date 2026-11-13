@@ -44,6 +44,9 @@ object CallTestLine {
     fun track(call: Call) {
         val callback = object : Call.Callback() {
             override fun onStateChanged(call: Call, state: Int) {
+                if (state != Call.STATE_DISCONNECTED) {
+                    CallTestAudio.reapply()
+                }
                 if (state == Call.STATE_DISCONNECTED) {
                     untrack(call)
                 } else {

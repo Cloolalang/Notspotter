@@ -2,6 +2,7 @@ package io.github.cloolalang.notspotdetector.service
 
 import android.content.Intent
 import android.telecom.Call
+import android.telecom.CallAudioState
 import android.telecom.InCallService
 import io.github.cloolalang.notspotdetector.network.CallTestAudio
 import io.github.cloolalang.notspotdetector.network.CallTestInCallMute
@@ -27,7 +28,7 @@ class CallTestInCallService : InCallService() {
     override fun onCallAdded(call: Call) {
         super.onCallAdded(call)
         CallTestLine.track(call)
-        CallTestAudio.onCallAdded(this)
+        CallTestAudio.reapply()
         if (CallTestLine.isTestActive()) return
         val open = Intent(this, CallTestInCallActivity::class.java).addFlags(
             Intent.FLAG_ACTIVITY_NEW_TASK or
@@ -35,6 +36,12 @@ class CallTestInCallService : InCallService() {
                 Intent.FLAG_ACTIVITY_CLEAR_TOP
         )
         startActivity(open)
+    }
+
+    @Suppress("DEPRECATION")
+    override fun onCallAudioStateChanged(audioState: CallAudioState) {
+        super.onCallAudioStateChanged(audioState)
+        CallTestAudio.reapply()
     }
 
     override fun onCallRemoved(call: Call) {

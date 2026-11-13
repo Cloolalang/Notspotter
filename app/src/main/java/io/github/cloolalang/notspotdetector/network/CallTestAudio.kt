@@ -2,31 +2,55 @@ package io.github.cloolalang.notspotdetector.network
 
 import android.content.Context
 import android.media.AudioManager
+import android.os.Handler
+import android.os.Looper
 import android.telecom.InCallService
 
 /**
- * Silences a running call test. The voice-call stream is muted so the phone does not play
- * the call, and the microphone is muted. Both are put back when the test stops.
+ * Silences a running call test.
  *
- * The held state is stored so a test that dies mid-call still restores the previous audio
- * the next time the app starts.
+ * Android does not apply [AudioManager.ADJUST_MUTE] to [AudioManager.STREAM_VOICE_CALL],
+ * so the voice-call volume is set to zero instead. The phone often puts that volume
+ * back when a call connects, so it is set again until the test stops. The microphone
+ * is muted as well. Both are restored when the test stops.
+ *
+ * The held state is stored so a test that dies mid-call still restores the previous
+ * volume the next time the app starts.
  */
 object CallTestAudio {
+    private val handler = Handler(Looper.getMainLooper())
+    private val reapplyLoop = Runnable { reapplyScheduled() }
+
     @Volatile
     private var requested = false
+
+    private var appContext: Context? = null
+
+    /** Volume the platform refused to lower past, so a retry does not keep writing it. */
+    private var refusedVolume = -1
 
     fun isRequested(): Boolean = requested
 
     fun setRequested(context: Context, mute: Boolean) {
+        val application = context.applicationContext
+        appContext = application
         requested = mute
-        if (mute) hold(context.applicationContext) else release(context.applicationContext)
+        if (mute) {
+            hold(application)
+            handler.removeCallbacks(reapplyLoop)
+            handler.postDelayed(reapplyLoop, REAPPLY_MS)
+        } else {
+            handler.removeCallbacks(reapplyLoop)
+            release(application)
+        }
     }
 
-    /** A new call can clear the mute. Put it back while a muted test is running. */
-    fun onCallAdded(service: InCallService) {
+    /** A new call, or a change in its audio path, can restore the call volume. */
+    fun reapply() {
         if (!requested) return
-        runCatching { service.setMuted(true) }
-        hold(service.applicationContext)
+        val context = appContext ?: return
+        silenceVoice(audioManager(context))
+        muteMicrophone(audioManager(context))
     }
 
     /** Restores audio when a previous test muted it and this process is no longer in that test. */
@@ -35,37 +59,59 @@ object CallTestAudio {
         release(context.applicationContext)
     }
 
+    private fun reapplyScheduled() {
+        if (!requested) return
+        reapply()
+        handler.postDelayed(reapplyLoop, REAPPLY_MS)
+    }
+
     private fun hold(context: Context) {
         val prefs = prefs(context)
         val audio = audioManager(context)
         if (!prefs.getBoolean(KEY_HELD, false)) {
             prefs.edit()
                 .putBoolean(KEY_HELD, true)
-                .putBoolean(KEY_STREAM_WAS_MUTED, audio.isStreamMute(AudioManager.STREAM_VOICE_CALL))
+                .putInt(KEY_VOICE_VOLUME, audio.getStreamVolume(AudioManager.STREAM_VOICE_CALL))
                 .putBoolean(KEY_MIC_WAS_MUTED, audio.isMicrophoneMute)
-                .apply()
+                .commit()
         }
-        if (!audio.isStreamMute(AudioManager.STREAM_VOICE_CALL)) {
-            audio.adjustStreamVolume(AudioManager.STREAM_VOICE_CALL, AudioManager.ADJUST_MUTE, 0)
-        }
-        if (!audio.isMicrophoneMute) {
-            audio.setMicrophoneMute(true)
-        }
-        CallTestInCallMute.muteMicrophone(true)
+        refusedVolume = -1
+        silenceVoice(audio)
+        muteMicrophone(audio)
     }
 
     private fun release(context: Context) {
         val prefs = prefs(context)
         if (!prefs.getBoolean(KEY_HELD, false)) return
         val audio = audioManager(context)
-        val streamWasMuted = prefs.getBoolean(KEY_STREAM_WAS_MUTED, false)
-        val micWasMuted = prefs.getBoolean(KEY_MIC_WAS_MUTED, false)
-        if (!streamWasMuted && audio.isStreamMute(AudioManager.STREAM_VOICE_CALL)) {
-            audio.adjustStreamVolume(AudioManager.STREAM_VOICE_CALL, AudioManager.ADJUST_UNMUTE, 0)
+        val savedVolume = prefs.getInt(KEY_VOICE_VOLUME, -1)
+        if (savedVolume >= 0) {
+            runCatching {
+                audio.setStreamVolume(AudioManager.STREAM_VOICE_CALL, savedVolume, 0)
+            }
         }
-        audio.setMicrophoneMute(micWasMuted)
+        val micWasMuted = prefs.getBoolean(KEY_MIC_WAS_MUTED, false)
+        runCatching { audio.setMicrophoneMute(micWasMuted) }
         CallTestInCallMute.muteMicrophone(micWasMuted)
+        refusedVolume = -1
         prefs.edit().clear().apply()
+    }
+
+    private fun silenceVoice(audio: AudioManager) {
+        val current = audio.getStreamVolume(AudioManager.STREAM_VOICE_CALL)
+        if (current <= 0 || current == refusedVolume) return
+        runCatching { audio.setStreamVolume(AudioManager.STREAM_VOICE_CALL, 0, 0) }
+        val after = audio.getStreamVolume(AudioManager.STREAM_VOICE_CALL)
+        if (after >= current) {
+            refusedVolume = after
+        }
+    }
+
+    private fun muteMicrophone(audio: AudioManager) {
+        if (!audio.isMicrophoneMute) {
+            runCatching { audio.setMicrophoneMute(true) }
+        }
+        CallTestInCallMute.muteMicrophone(true)
     }
 
     private fun audioManager(context: Context): AudioManager {
@@ -77,8 +123,9 @@ object CallTestAudio {
 
     private const val PREFS_NAME = "notspot_call_test_audio"
     private const val KEY_HELD = "held"
-    private const val KEY_STREAM_WAS_MUTED = "stream_was_muted"
+    private const val KEY_VOICE_VOLUME = "voice_volume"
     private const val KEY_MIC_WAS_MUTED = "mic_was_muted"
+    private const val REAPPLY_MS = 400L
 }
 
 /** The live in-call service, so a muted test can mute the microphone of the current call. */

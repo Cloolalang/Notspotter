@@ -138,7 +138,7 @@
     <string name="call_test_master_timeout_hint_on">Stops call testing after %1$d minutes if it is still running, and hangs up the call that is up. This catches a test left running.</string>
     <string name="call_test_master_timeout_hint_off">Call testing keeps running until you tap Stop call test.</string>
     <string name="call_test_mute_audio_label">Mute call audio</string>
-    <string name="call_test_mute_audio_hint_on">While a call test is running, this phone does not play the call and the microphone stays muted. Sound returns when the test stops.</string>
+    <string name="call_test_mute_audio_hint_on">While a call test is running, this phone turns the call volume off and the microphone stays muted. The volume comes back when the test stops.</string>
     <string name="call_test_mute_audio_hint_off">The call plays, and the microphone stays open.</string>
     <string name="call_test_follows_master">The number, duration, delay, master timeout, mute call audio, and start/stop follow the master. This phone still places and hangs up its own calls.</string>
     <string name="call_test_needs_dialer">Allow NotSpotter as the phone app when Android asks. That is what lets the test hang up. You can switch the phone app back later in system settings.</string>
