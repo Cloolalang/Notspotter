@@ -70,6 +70,7 @@ import io.github.cloolalang.notspotdetector.multiue.MultiUePermissions
 import io.github.cloolalang.notspotdetector.multiue.MultiUeRadios
 import io.github.cloolalang.notspotdetector.multiue.MultiUeSettingsSync
 import io.github.cloolalang.notspotdetector.multiue.MultiUeState
+import io.github.cloolalang.notspotdetector.multiue.MultiUeZoneSync
 import io.github.cloolalang.notspotdetector.service.ConnectivityMonitorService
 import io.github.cloolalang.notspotdetector.util.BackgroundHelper
 import kotlinx.coroutines.Dispatchers
@@ -445,6 +446,25 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
 
     fun updateAppBrand(brand: io.github.cloolalang.notspotdetector.model.AppBrand) {
         updateMonitoringSettings(monitoringSettings.value.copy(appBrand = brand))
+    }
+
+    fun updateCustomAppTitle(title: String) {
+        updateMonitoringSettings(
+            monitoringSettings.value.copy(
+                appBrand = io.github.cloolalang.notspotdetector.model.AppBrand.CELLNEX,
+                customAppTitle = title.take(
+                    io.github.cloolalang.notspotdetector.model.MonitoringSettings.MAX_CUSTOM_APP_TITLE
+                )
+            )
+        )
+    }
+
+    fun clearAllCharts() {
+        clearGraphs()
+        MultiUeZoneSync.clear()
+        if (multiUeRoleRepository.loadRole() == MultiUeRole.MASTER) {
+            MultiUeLinkService.broadcastZoneClear(getApplication())
+        }
     }
 
     fun updateWalkRouteEnabled(enabled: Boolean) {

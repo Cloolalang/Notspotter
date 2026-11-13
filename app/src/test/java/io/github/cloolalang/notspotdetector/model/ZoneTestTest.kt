@@ -22,6 +22,14 @@ class ZoneTestTest {
     }
 
     @Test
+    fun jpegFileName_insertsHistogramMarker() {
+        assertEquals(
+            "Zone test - High street - histogram - Vodafone.jpg",
+            ZoneTest.jpegFileName("High street", "Vodafone", ZoneTest.HISTOGRAM_MARKER)
+        )
+    }
+
+    @Test
     fun jpegFileName_blankNameUsesZone() {
         assertEquals("Zone test - zone.jpg", ZoneTest.jpegFileName("  ", null))
     }

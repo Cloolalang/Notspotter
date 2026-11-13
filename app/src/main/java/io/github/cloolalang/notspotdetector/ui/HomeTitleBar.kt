@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import io.github.cloolalang.notspotdetector.R
 import io.github.cloolalang.notspotdetector.model.AppBrand
 import io.github.cloolalang.notspotdetector.model.MultiUeRole
@@ -40,6 +41,7 @@ fun HomeTitleBar(
     stats: ConnectivityStats,
     passiveSignalSettings: PassiveSignalSettings,
     appBrand: AppBrand = AppBrand.CELLNEX,
+    customAppTitle: String = "",
     showManualSelectOperator: Boolean = false,
     onChooseOperator: () -> Unit = {},
     versionLabel: String? = null,
@@ -65,12 +67,12 @@ fun HomeTitleBar(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = stringResource(
-                    if (appBrand == AppBrand.CELLNEX) R.string.home_title_cellnex else R.string.home_title
-                ),
+                text = homeTitle(appBrand, customAppTitle),
                 style = titleStyle,
                 color = Sushi,
                 fontWeight = titleWeight,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
             )
             Column(horizontalAlignment = Alignment.End) {
@@ -151,6 +153,13 @@ fun HomeTitleBar(
             }
         }
     }
+}
+
+@Composable
+private fun homeTitle(appBrand: AppBrand, customAppTitle: String): String {
+    if (appBrand != AppBrand.CELLNEX) return stringResource(R.string.home_title)
+    val typed = customAppTitle.trim()
+    return typed.ifEmpty { stringResource(R.string.home_title_cellnex) }
 }
 
 @Composable

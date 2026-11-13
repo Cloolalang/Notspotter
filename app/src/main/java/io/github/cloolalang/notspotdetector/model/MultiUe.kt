@@ -64,7 +64,7 @@ sealed interface MultiUeMessage {
     data object PinUndo : MultiUeMessage
     data object PinClear : MultiUeMessage
     data object ZoneClear : MultiUeMessage
-    data object ZoneSave : MultiUeMessage
+    data class ZoneSave(val includeHistogram: Boolean) : MultiUeMessage
     data object Full : MultiUeMessage
     data class Sync(val on: Boolean) : MultiUeMessage
     data class Settings(val payload: String) : MultiUeMessage
@@ -118,7 +118,8 @@ object MultiUeProtocol {
 
     fun zoneClear(): String = "ZONECLEAR"
 
-    fun zoneSave(): String = "ZONESAVE"
+    fun zoneSave(includeHistogram: Boolean = false): String =
+        if (includeHistogram) "ZONESAVE 1" else "ZONESAVE"
 
     fun fraction(value: Float): String {
         return String.format(Locale.US, "%.5f", value.coerceIn(0f, 1f))
@@ -196,7 +197,12 @@ object MultiUeProtocol {
             }
             "FULL" -> MultiUeMessage.Full
             "ZONECLEAR" -> MultiUeMessage.ZoneClear
-            "ZONESAVE" -> MultiUeMessage.ZoneSave
+            "ZONESAVE" -> when {
+                parts.size == 1 -> MultiUeMessage.ZoneSave(includeHistogram = false)
+                parts.size == 2 && parts[1] == "1" -> MultiUeMessage.ZoneSave(includeHistogram = true)
+                parts.size == 2 && parts[1] == "0" -> MultiUeMessage.ZoneSave(includeHistogram = false)
+                else -> null
+            }
             "PIN" -> when (parts.getOrNull(1)) {
                 "-" -> if (parts.size == 2) MultiUeMessage.PinUndo else null
                 "*" -> if (parts.size == 2) MultiUeMessage.PinClear else null

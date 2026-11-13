@@ -19,9 +19,10 @@ object ZoneTestImageSaver {
         context: Context,
         bitmap: Bitmap,
         name: String,
-        operator: String?
+        operator: String?,
+        marker: String? = null
     ): String? {
-        return saveJpeg(context, bitmap, ZoneTest.jpegFileName(name, operator))
+        return saveJpeg(context, bitmap, ZoneTest.jpegFileName(name, operator, marker))
     }
 
     fun saveJpeg(

@@ -19,8 +19,10 @@ data class MonitoringSettings(
     val inhibit2g: Boolean = DEFAULT_INHIBIT_2G,
     /** Keep the display awake while monitoring is running (car cradle / field test). */
     val keepScreenOnWhileMonitoring: Boolean = DEFAULT_KEEP_SCREEN_ON_WHILE_MONITORING,
-    /** Name drawn in the top title bar. */
+    /** Name drawn in the top title bar. [AppBrand.CELLNEX] uses [customAppTitle]. */
     val appBrand: AppBrand = AppBrand.CELLNEX,
+    /** Typed top name, used when [appBrand] is [AppBrand.CELLNEX]. */
+    val customAppTitle: String = DEFAULT_CUSTOM_APP_TITLE,
     /** Floor-plan walk during a zone test. Off until switched on in Development area. */
     val walkRouteEnabled: Boolean = DEFAULT_WALK_ROUTE_ENABLED
 ) {
@@ -32,7 +34,8 @@ data class MonitoringSettings(
             tapeWindowMs = tapeWindowMs.coerceToTapeWindowStep(),
             rsrpHistogramThreshold1Dbm = rsrpHistogramThreshold1Dbm.coerceToHistogramThresholdDbm(),
             rsrpHistogramThreshold2Dbm = rsrpHistogramThreshold2Dbm.coerceToHistogramThresholdDbm(),
-            rsrpHistogramThreshold3Dbm = rsrpHistogramThreshold3Dbm.coerceToHistogramThresholdDbm()
+            rsrpHistogramThreshold3Dbm = rsrpHistogramThreshold3Dbm.coerceToHistogramThresholdDbm(),
+            customAppTitle = customAppTitle.take(MAX_CUSTOM_APP_TITLE)
         )
     }
 
@@ -64,6 +67,8 @@ data class MonitoringSettings(
         const val DEFAULT_INHIBIT_2G = false
         const val DEFAULT_KEEP_SCREEN_ON_WHILE_MONITORING = true
         const val DEFAULT_WALK_ROUTE_ENABLED = false
+        const val DEFAULT_CUSTOM_APP_TITLE = "Cellnex"
+        const val MAX_CUSTOM_APP_TITLE = 40
     }
 }
 

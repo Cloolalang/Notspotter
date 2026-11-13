@@ -148,7 +148,8 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
             ACTION_ZONE_SAVE -> {
                 ensureSession()
                 if (repository.loadRole() == MultiUeRole.MASTER) {
-                    session.broadcast(MultiUeProtocol.zoneSave())
+                    val includeHistogram = intent.getBooleanExtra(EXTRA_ZONE_SAVE_HISTOGRAM, false)
+                    session.broadcast(MultiUeProtocol.zoneSave(includeHistogram))
                 }
             }
             else -> applyRole(force = intent?.action == ACTION_APPLY_ROLE && sessionReady &&
@@ -358,9 +359,9 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
         MultiUeZoneSync.clear()
     }
 
-    override fun onZoneSave() {
+    override fun onZoneSave(includeHistogram: Boolean) {
         if (destroyed || repository.loadRole() != MultiUeRole.SLAVE) return
-        MultiUeZoneSync.save()
+        MultiUeZoneSync.save(includeHistogram)
     }
 
     override fun onPanels(open: Map<String, Boolean>) {
@@ -973,6 +974,8 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
             "io.github.cloolalang.notspotdetector.action.MULTI_UE_ZONE_CLEAR"
         private const val ACTION_ZONE_SAVE =
             "io.github.cloolalang.notspotdetector.action.MULTI_UE_ZONE_SAVE"
+        private const val EXTRA_ZONE_SAVE_HISTOGRAM =
+            "io.github.cloolalang.notspotdetector.extra.MULTI_UE_ZONE_SAVE_HISTOGRAM"
         private const val EXTRA_ADDRESS =
             "io.github.cloolalang.notspotdetector.extra.MULTI_UE_ADDRESS"
         private const val EXTRA_SYNC =
@@ -1004,7 +1007,12 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
 
         fun broadcastZoneClear(context: Context) = launch(context, ACTION_ZONE_CLEAR)
 
-        fun broadcastZoneSave(context: Context) = launch(context, ACTION_ZONE_SAVE)
+        fun broadcastZoneSave(context: Context, includeHistogram: Boolean = false) {
+            val intent = Intent(context, MultiUeLinkService::class.java)
+                .setAction(ACTION_ZONE_SAVE)
+                .putExtra(EXTRA_ZONE_SAVE_HISTOGRAM, includeHistogram)
+            ContextCompat.startForegroundService(context, intent)
+        }
 
         fun notifySlaveSync(context: Context, enabled: Boolean) {
             val intent = Intent(context, MultiUeLinkService::class.java)

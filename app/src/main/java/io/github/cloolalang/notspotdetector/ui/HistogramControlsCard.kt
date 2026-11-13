@@ -51,6 +51,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -178,6 +179,7 @@ fun HistogramControlsCard(
     modifier: Modifier = Modifier
 ) {
     var histogramExpanded by panelFold("histogram", defaultExpanded = false)
+    val histogramLayer = rememberGraphicsLayer()
     var kpiHistoryExpanded by panelFold("kpi-history", defaultExpanded = false)
     var nowMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
     val kpiHistory = viewModel<KpiHistoryViewModel>()
@@ -343,6 +345,16 @@ fun HistogramControlsCard(
             }
 
             if (histogramExpanded) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .drawWithContent {
+                            histogramLayer.record {
+                                this@drawWithContent.drawContent()
+                            }
+                            drawLayer(histogramLayer)
+                        }
+                ) {
                 RsrpHistogramDisplay(
                     samples = samples,
                     windowMs = sampleWindowMs,
@@ -352,6 +364,7 @@ fun HistogramControlsCard(
                     elapsedMs = elapsedMs,
                     cellInfoAgeMs = stats.cellInfoAgeMs
                 )
+                }
 
                 OutlinedButton(
                     onClick = onClearHistogram,
@@ -396,7 +409,9 @@ fun HistogramControlsCard(
         nowMs = nowMs,
         tapeNowMs = tapeNowMs,
         sampleWindowMs = sampleWindowMs,
-        walkRouteEnabled = walkRouteEnabled
+        walkRouteEnabled = walkRouteEnabled,
+        histogramLayer = histogramLayer,
+        onExpandHistogram = { histogramExpanded = true }
     )
     KpiHistoryPanel(
         expanded = kpiHistoryExpanded,
@@ -731,6 +746,16 @@ private fun KpiHistoryPanel(
     }
 }
 
+private suspend fun recordedBitmap(layer: GraphicsLayer): Bitmap? {
+    val raw = runCatching { layer.toImageBitmap().asAndroidBitmap() }.getOrNull() ?: return null
+    if (raw.width <= 0 || raw.height <= 0) return null
+    return if (raw.config == Bitmap.Config.HARDWARE) {
+        raw.copy(Bitmap.Config.ARGB_8888, false)
+    } else {
+        raw
+    }
+}
+
 private fun slavePinTime(now: Long, pins: List<WalkPin>): Long {
     val last = pins.lastOrNull()?.placedAtMs ?: return now
     return if (now > last) now else last + 1L
@@ -745,7 +770,9 @@ private fun ZoneTestPanel(
     nowMs: Long,
     tapeNowMs: Long,
     sampleWindowMs: Long,
-    walkRouteEnabled: Boolean
+    walkRouteEnabled: Boolean,
+    histogramLayer: GraphicsLayer,
+    onExpandHistogram: () -> Unit
 ) {
     var expanded by panelFold("zone-test", defaultExpanded = false)
     val zoneTest = viewModel<ZoneTestViewModel>()
@@ -753,6 +780,7 @@ private fun ZoneTestPanel(
     var startMs by zoneTest.startMs
     var endMs by zoneTest.endMs
     var openSampleWindow by rememberSaveable { mutableStateOf(false) }
+    var saveHistogram by rememberSaveable { mutableStateOf(false) }
     var sampleWindowStartMs by zoneTest.sampleWindowStartMs
     var zoneName by zoneTest.zoneName
     var operatorLabel by zoneTest.operatorLabel
@@ -799,6 +827,8 @@ private fun ZoneTestPanel(
     val savedWithRouteTemplate = stringResource(R.string.zone_test_saved_with_route)
     val routeFailedTemplate = stringResource(R.string.zone_test_route_failed)
     val failedText = stringResource(R.string.zone_test_save_failed)
+    val histogramSavedTemplate = stringResource(R.string.zone_test_histogram_saved)
+    val histogramFailedText = stringResource(R.string.zone_test_histogram_save_failed)
     val floorPlanFailed = rememberUpdatedState(stringResource(R.string.zone_test_floor_plan_failed))
     val routeLegend = listOf(
         WalkLegendSwatch(WalkRoute.rsrpRouteColor(RsrpBin.ABOVE_95), stringResource(R.string.rsrp_bin_above_95)),
@@ -902,7 +932,7 @@ private fun ZoneTestPanel(
         activeTestTape = ActiveTestTape()
         aggregatedBandwidthTape = AggregatedBandwidthTape()
     })
-    val saveZoneJpeg = rememberUpdatedState<() -> Unit>({
+    val saveZoneJpeg = rememberUpdatedState<(Boolean) -> Unit>({ includeHistogram ->
         val started = startMs
         if (started == null) {
             statusMessage = failedText
@@ -910,15 +940,12 @@ private fun ZoneTestPanel(
         }
         val markedEnd = if (running) tapeNowMs else endMs ?: tapeNowMs
         scope.launch {
-            val bitmap = runCatching {
-                val image = graphicsLayer.toImageBitmap()
-                val raw = image.asAndroidBitmap()
-                if (raw.config == Bitmap.Config.HARDWARE) {
-                    raw.copy(Bitmap.Config.ARGB_8888, false)
-                } else {
-                    raw
-                }
-            }.getOrNull()
+            if (includeHistogram) {
+                onExpandHistogram()
+                withFrameNanos { }
+                withFrameNanos { }
+            }
+            val bitmap = recordedBitmap(graphicsLayer)
             if (bitmap == null) {
                 statusMessage = failedText
                 return@launch
@@ -929,6 +956,22 @@ private fun ZoneTestPanel(
                 name = zoneName,
                 operator = operatorLabel
             )
+            val histogramPath = if (includeHistogram) {
+                val histogramBitmap = recordedBitmap(histogramLayer)
+                if (histogramBitmap == null) {
+                    null
+                } else {
+                    ZoneTestImageSaver.save(
+                        context = context,
+                        bitmap = histogramBitmap,
+                        name = zoneName,
+                        operator = operatorLabel,
+                        marker = ZoneTest.HISTOGRAM_MARKER
+                    )
+                }
+            } else {
+                null
+            }
             val plan = floorPlan
             val markedPins = pins.toList()
             var walkPath: String? = null
@@ -956,7 +999,7 @@ private fun ZoneTestPanel(
                     routeBitmap.recycle()
                 }
             }
-            statusMessage = when {
+            val chartMessage = when {
                 zonePath != null && walkPath != null ->
                     savedWithRouteTemplate.format(zonePath, walkPath)
                 zonePath != null && walkRouteEnabled && markedPins.isNotEmpty() ->
@@ -965,8 +1008,19 @@ private fun ZoneTestPanel(
                 walkPath != null -> savedTemplate.format(walkPath)
                 else -> failedText
             }
+            val histogramNote = when {
+                histogramPath != null -> histogramSavedTemplate.format(histogramPath)
+                includeHistogram -> histogramFailedText
+                else -> null
+            }
+            statusMessage = listOfNotNull(chartMessage, histogramNote).joinToString(" ")
         }
     })
+    LaunchedEffect(Unit) {
+        MultiUeZoneSync.clears.collect {
+            clearZoneCharts.value.invoke()
+        }
+    }
     val remoteZoneName by MultiUeZoneSync.nameSuffix.collectAsStateWithLifecycle()
     if (link.role == MultiUeRole.MASTER) {
         LaunchedEffect(Unit) {
@@ -1064,16 +1118,11 @@ private fun ZoneTestPanel(
             }
         }
         LaunchedEffect(Unit) {
-            MultiUeZoneSync.clears.collect {
-                clearZoneCharts.value.invoke()
-            }
-        }
-        LaunchedEffect(Unit) {
-            MultiUeZoneSync.saves.collect {
+            MultiUeZoneSync.saves.collect { includeHistogram ->
                 if (!expanded) expanded = true
                 withFrameNanos { }
                 withFrameNanos { }
-                saveZoneJpeg.value.invoke()
+                saveZoneJpeg.value.invoke(includeHistogram)
             }
         }
     }
@@ -1273,11 +1322,33 @@ private fun ZoneTestPanel(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.zone_test_save_histogram),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = stringResource(R.string.zone_test_save_histogram_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = saveHistogram,
+                        onCheckedChange = { saveHistogram = it }
+                    )
+                }
                 Button(
                     onClick = {
-                        saveZoneJpeg.value.invoke()
+                        saveZoneJpeg.value.invoke(saveHistogram)
                         if (link.role == MultiUeRole.MASTER) {
-                            MultiUeLinkService.broadcastZoneSave(context)
+                            MultiUeLinkService.broadcastZoneSave(context, saveHistogram)
                         }
                     },
                     modifier = Modifier.fillMaxWidth()

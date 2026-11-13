@@ -54,7 +54,19 @@ class MultiUeProtocolTest {
         assertEquals(MultiUeMessage.PinUndo, MultiUeProtocol.parse(MultiUeProtocol.pinUndo()))
         assertEquals(MultiUeMessage.PinClear, MultiUeProtocol.parse(MultiUeProtocol.pinClear()))
         assertEquals(MultiUeMessage.ZoneClear, MultiUeProtocol.parse(MultiUeProtocol.zoneClear()))
-        assertEquals(MultiUeMessage.ZoneSave, MultiUeProtocol.parse(MultiUeProtocol.zoneSave()))
+        assertEquals(
+            MultiUeMessage.ZoneSave(includeHistogram = false),
+            MultiUeProtocol.parse(MultiUeProtocol.zoneSave())
+        )
+        assertEquals(
+            MultiUeMessage.ZoneSave(includeHistogram = true),
+            MultiUeProtocol.parse(MultiUeProtocol.zoneSave(includeHistogram = true))
+        )
+        assertEquals(
+            MultiUeMessage.ZoneSave(includeHistogram = false),
+            MultiUeProtocol.parse("ZONESAVE")
+        )
+        assertNull(MultiUeProtocol.parse("ZONESAVE 2"))
         assertEquals(
             listOf("PIN 0.25000 0.50000"),
             multiUePinLines(emptyList(), listOf(0.25f to 0.5f))

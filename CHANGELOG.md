@@ -5,6 +5,18 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.173.0] - 2026-11-13
+
+### Added
+
+- **Custom top name** — The Cellnex choice in App title is now a text field. Type the name you want at the top of the screen. NotSpotter stays as the other choice. A blank custom name still shows Cellnex.
+- **Clear all charts** — A button under Start active mode testing clears the level histogram, KPI history, ping chart, and zone test. On a master it does the same on each connected slave.
+- **Zone-test histogram JPEG** — Save JPEG has an off-by-default switch, Also save level histogram. The extra file uses the same name with histogram added, such as Zone test - lobby - histogram - Vodafone.jpg. A master save with the switch on also saves that histogram on each slave.
+
+### Changed
+
+- **Multi-UE** — The Multi-UE panel now lives in General app settings.
+
 ## [2.172.0] - 2026-11-10
 
 ### Added

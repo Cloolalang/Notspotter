@@ -76,6 +76,10 @@ class MonitoringSettingsRepository(context: Context) {
             appBrand = io.github.cloolalang.notspotdetector.model.AppBrand.fromStoredName(
                 prefs.getString(KEY_APP_BRAND, null)
             ),
+            customAppTitle = prefs.getString(
+                KEY_CUSTOM_APP_TITLE,
+                MonitoringSettings.DEFAULT_CUSTOM_APP_TITLE
+            ) ?: MonitoringSettings.DEFAULT_CUSTOM_APP_TITLE,
             walkRouteEnabled = prefs.getBoolean(
                 KEY_WALK_ROUTE_ENABLED,
                 MonitoringSettings.DEFAULT_WALK_ROUTE_ENABLED
@@ -101,6 +105,7 @@ class MonitoringSettingsRepository(context: Context) {
             .putBoolean(KEY_INHIBIT_2G, normalized.inhibit2g)
             .putBoolean(KEY_KEEP_SCREEN_ON_WHILE_MONITORING, normalized.keepScreenOnWhileMonitoring)
             .putString(KEY_APP_BRAND, normalized.appBrand.name)
+            .putString(KEY_CUSTOM_APP_TITLE, normalized.customAppTitle)
             .putBoolean(KEY_WALK_ROUTE_ENABLED, normalized.walkRouteEnabled)
             .apply()
     }
@@ -123,6 +128,7 @@ class MonitoringSettingsRepository(context: Context) {
         private const val KEY_INHIBIT_2G = "inhibit_2g"
         private const val KEY_KEEP_SCREEN_ON_WHILE_MONITORING = "keep_screen_on_while_monitoring"
         private const val KEY_APP_BRAND = "app_brand"
+        private const val KEY_CUSTOM_APP_TITLE = "custom_app_title"
         private const val KEY_WALK_ROUTE_ENABLED = "walk_route_enabled"
     }
 }

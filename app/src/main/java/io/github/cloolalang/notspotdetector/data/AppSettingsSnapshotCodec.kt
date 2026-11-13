@@ -211,6 +211,7 @@ object AppSettingsSnapshotCodec {
             .put("inhibit2g", settings.inhibit2g)
             .put("keepScreenOnWhileMonitoring", settings.keepScreenOnWhileMonitoring)
             .put("appBrand", settings.appBrand.name)
+            .put("customAppTitle", settings.customAppTitle)
             .put("walkRouteEnabled", settings.walkRouteEnabled)
     }
 
@@ -273,6 +274,10 @@ object AppSettingsSnapshotCodec {
                 MonitoringSettings.DEFAULT_KEEP_SCREEN_ON_WHILE_MONITORING
             ),
             appBrand = AppBrand.fromStoredName(json.optString("appBrand", AppBrand.NOTSPOTTER.name)),
+            customAppTitle = json.optString(
+                "customAppTitle",
+                MonitoringSettings.DEFAULT_CUSTOM_APP_TITLE
+            ),
             walkRouteEnabled = json.optBoolean(
                 "walkRouteEnabled",
                 MonitoringSettings.DEFAULT_WALK_ROUTE_ENABLED

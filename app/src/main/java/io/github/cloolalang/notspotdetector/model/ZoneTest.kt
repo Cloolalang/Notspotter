@@ -8,8 +8,10 @@ object ZoneTest {
     /** Upper bound so a very long run cannot grow the tape lists without limit. */
     const val RETAIN_MS = 8L * 60L * 60L * 1000L
 
-    fun jpegFileName(name: String, operator: String?): String =
-        fileName(prefix = "Zone test", name = name, operator = operator)
+    const val HISTOGRAM_MARKER = "histogram"
+
+    fun jpegFileName(name: String, operator: String?, marker: String? = null): String =
+        fileName(prefix = "Zone test", name = name, operator = operator, marker = marker)
 
     /** KPI drawn on the saved walk trail. */
     const val WALK_KPI = "RSRP"
@@ -76,14 +78,22 @@ object ZoneTest {
         return (nowMs - wallStartMs).coerceAtLeast(0L)
     }
 
-    private fun fileName(prefix: String, name: String, operator: String?): String {
+    private fun fileName(
+        prefix: String,
+        name: String,
+        operator: String?,
+        marker: String? = null
+    ): String {
         val safeName = safePart(name).ifBlank { "zone" }
         val operatorPart = operator?.let(::safePart)?.takeIf { it.isNotEmpty() }
-        return if (operatorPart == null) {
-            "$prefix - $safeName.jpg"
-        } else {
-            "$prefix - $safeName - $operatorPart.jpg"
+        val markerPart = marker?.let(::safePart)?.takeIf { it.isNotEmpty() }
+        val parts = buildList {
+            add(prefix)
+            add(safeName)
+            if (markerPart != null) add(markerPart)
+            if (operatorPart != null) add(operatorPart)
         }
+        return parts.joinToString(" - ") + ".jpg"
     }
 
     private fun safePart(value: String): String {

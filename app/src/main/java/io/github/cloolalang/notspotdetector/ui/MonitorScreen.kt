@@ -20,6 +20,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -182,6 +183,8 @@ fun MonitorScreen(
     settingsUnlocked: Boolean = false,
     onSettingsUnlockedChange: (Boolean) -> Unit = {},
     onAppBrandChange: (AppBrand) -> Unit = {},
+    onCustomAppTitleChange: (String) -> Unit = {},
+    onClearAllCharts: () -> Unit = {},
     onWalkRouteEnabledChange: (Boolean) -> Unit = {},
     onCellChangeBellVolumeChange: (Float) -> Unit,
     onCellChangeVoiceEnabledChange: (Boolean) -> Unit,
@@ -281,6 +284,7 @@ fun MonitorScreen(
             stats = stats,
             passiveSignalSettings = passiveSignalSettings,
             appBrand = monitoringSettings.appBrand,
+            customAppTitle = monitoringSettings.customAppTitle,
             showManualSelectOperator = monitoringSettings.showManualSelectOperatorButton,
             onChooseOperator = onOpenNetworkOperatorPicker,
             versionLabel = stringResource(R.string.app_version, appVersion),
@@ -294,12 +298,8 @@ fun MonitorScreen(
             enabled = !multiUe.followsMaster,
             onStart = onStart,
             onStartActiveMode = onStartActiveMode,
-            onStop = onStop
-        )
-
-        MultiUeCard(
-            snapshot = multiUe,
-            actions = multiUeActions
+            onStop = onStop,
+            onClearAllCharts = onClearAllCharts
         )
 
         HistogramControlsCard(
@@ -550,7 +550,14 @@ fun MonitorScreen(
 
             AppTitleSetting(
                 appBrand = monitoringSettings.appBrand,
-                onAppBrandChange = onAppBrandChange
+                customAppTitle = monitoringSettings.customAppTitle,
+                onAppBrandChange = onAppBrandChange,
+                onCustomAppTitleChange = onCustomAppTitleChange
+            )
+
+            MultiUeCard(
+                snapshot = multiUe,
+                actions = multiUeActions
             )
 
             SettingsProfilesCard(
@@ -651,7 +658,9 @@ private fun WalkRouteDevelopmentSwitch(
 @Composable
 private fun AppTitleSetting(
     appBrand: AppBrand,
-    onAppBrandChange: (AppBrand) -> Unit
+    customAppTitle: String,
+    onAppBrandChange: (AppBrand) -> Unit,
+    onCustomAppTitleChange: (String) -> Unit
 ) {
     val controlsEnabled = settingsControlsEnabled()
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -670,29 +679,39 @@ private fun AppTitleSetting(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            AppBrand.entries.forEach { brand ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(enabled = controlsEnabled) { onAppBrandChange(brand) },
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    RadioButton(
-                        selected = appBrand == brand,
-                        onClick = { onAppBrandChange(brand) },
-                        enabled = controlsEnabled
-                    )
-                    Text(
-                        text = stringResource(
-                            if (brand == AppBrand.CELLNEX) {
-                                R.string.home_title_cellnex
-                            } else {
-                                R.string.home_title
-                            }
-                        ),
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(enabled = controlsEnabled) { onAppBrandChange(AppBrand.NOTSPOTTER) },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                RadioButton(
+                    selected = appBrand == AppBrand.NOTSPOTTER,
+                    onClick = { onAppBrandChange(AppBrand.NOTSPOTTER) },
+                    enabled = controlsEnabled
+                )
+                Text(
+                    text = stringResource(R.string.home_title),
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                RadioButton(
+                    selected = appBrand == AppBrand.CELLNEX,
+                    onClick = { onAppBrandChange(AppBrand.CELLNEX) },
+                    enabled = controlsEnabled
+                )
+                OutlinedTextField(
+                    value = customAppTitle,
+                    onValueChange = onCustomAppTitleChange,
+                    enabled = controlsEnabled,
+                    singleLine = true,
+                    label = { Text(stringResource(R.string.app_title_custom)) },
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
     }
@@ -741,7 +760,8 @@ private fun MonitoringControlButtons(
     enabled: Boolean,
     onStart: () -> Unit,
     onStartActiveMode: () -> Unit,
-    onStop: () -> Unit
+    onStop: () -> Unit,
+    onClearAllCharts: () -> Unit
 ) {
     if (isRunning) {
         Button(
@@ -774,6 +794,13 @@ private fun MonitoringControlButtons(
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(text = stringResource(R.string.start_active_mode_testing))
+        }
+        OutlinedButton(
+            onClick = onClearAllCharts,
+            enabled = enabled,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(text = stringResource(R.string.clear_all_charts))
         }
     }
 }

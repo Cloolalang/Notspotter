@@ -227,6 +227,7 @@ class AppSettingsSnapshotCodecCompletenessTest {
                 inhibit2g = true,
                 keepScreenOnWhileMonitoring = false,
                 appBrand = io.github.cloolalang.notspotdetector.model.AppBrand.NOTSPOTTER,
+                customAppTitle = "Field kit",
                 walkRouteEnabled = true
             ),
             passiveSignalSettings = PassiveSignalSettings(
@@ -429,6 +430,7 @@ class AppSettingsSnapshotCodecCompletenessTest {
             "inhibit2g",
             "keepScreenOnWhileMonitoring",
             "appBrand",
+            "customAppTitle",
             "walkRouteEnabled"
         )
 

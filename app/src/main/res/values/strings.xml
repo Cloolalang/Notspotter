@@ -3,7 +3,9 @@
     <string name="home_title">NotSpotter</string>
     <string name="home_title_cellnex">Cellnex</string>
     <string name="app_title_setting">App title</string>
-    <string name="app_title_setting_hint">The name shown at the top of the screen. Unlock settings to change it.</string>
+    <string name="app_title_setting_hint">The name shown at the top of the screen. NotSpotter is fixed. The other name is whatever you type. Unlock settings to change it.</string>
+    <string name="app_title_custom">Custom name</string>
+    <string name="clear_all_charts">Clear all charts</string>
     <string name="app_version">v%1$s</string>
     <string name="app_update_check">Check GitHub</string>
     <string name="app_update_checking">Checking GitHub…</string>
@@ -458,6 +460,10 @@
     <string name="zone_test_need_monitoring">Start monitoring or active mode testing first.</string>
     <string name="zone_test_running">Recording since the start. The time scale compresses as the run gets longer.</string>
     <string name="zone_test_name_label">Zone name</string>
+    <string name="zone_test_save_histogram">Also save level histogram</string>
+    <string name="zone_test_save_histogram_hint">Off until you turn it on. Uses the same file name with histogram added.</string>
+    <string name="zone_test_histogram_saved">Level histogram saved as %1$s.</string>
+    <string name="zone_test_histogram_save_failed">The level histogram JPEG was not saved.</string>
     <string name="zone_test_save">Save JPEG to Downloads</string>
     <string name="zone_test_save_with_route">Save named JPEGs to Downloads</string>
     <string name="zone_test_clear">Clear</string>

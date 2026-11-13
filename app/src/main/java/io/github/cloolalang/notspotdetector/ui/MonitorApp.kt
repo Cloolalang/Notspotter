@@ -222,6 +222,8 @@ fun MonitorApp(
             settingsUnlocked = settingsUnlocked,
             onSettingsUnlockedChange = { settingsUnlocked = it },
             onAppBrandChange = viewModel::updateAppBrand,
+            onCustomAppTitleChange = viewModel::updateCustomAppTitle,
+            onClearAllCharts = viewModel::clearAllCharts,
             onWalkRouteEnabledChange = viewModel::updateWalkRouteEnabled,
             onCellChangeBellVolumeChange = viewModel::updateCellChangeBellVolume,
             onCellChangeVoiceEnabledChange = viewModel::updateCellChangeVoiceEnabled,

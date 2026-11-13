@@ -42,10 +42,10 @@ object MultiUeZoneSync {
         _clears.tryEmit(Unit)
     }
 
-    private val _saves = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
-    val saves: SharedFlow<Unit> = _saves.asSharedFlow()
+    private val _saves = MutableSharedFlow<Boolean>(extraBufferCapacity = 1)
+    val saves: SharedFlow<Boolean> = _saves.asSharedFlow()
 
-    fun save() {
-        _saves.tryEmit(Unit)
+    fun save(includeHistogram: Boolean) {
+        _saves.tryEmit(includeHistogram)
     }
 }
