@@ -1,10 +1,20 @@
 package io.github.cloolalang.notspotdetector.model
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class CallTestTest {
+
+    @Test
+    fun masterTimeout_defaultsOnForThirtyMinutes() {
+        assertTrue(CallTestSettings().masterTimeoutEnabled)
+        assertFalse(CallTestSettings().muteCallAudio)
+        assertEquals(30, CallTestSettings.MASTER_TIMEOUT_MINUTES)
+        assertEquals(30L * 60L * 1000L, CallTestSettings.MASTER_TIMEOUT_MS)
+    }
 
     @Test
     fun ratePercent_isZeroUntilThereIsAnAttempt() {

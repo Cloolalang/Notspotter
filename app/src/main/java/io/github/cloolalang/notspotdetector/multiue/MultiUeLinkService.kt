@@ -21,7 +21,6 @@ import io.github.cloolalang.notspotdetector.data.AppSettingsSnapshotCodec
 import io.github.cloolalang.notspotdetector.data.MultiUeRoleRepository
 import io.github.cloolalang.notspotdetector.data.RadioDebugSettingsRepository
 import io.github.cloolalang.notspotdetector.model.AppSettingsSnapshot
-import io.github.cloolalang.notspotdetector.model.CallTestSettings
 import io.github.cloolalang.notspotdetector.model.MultiUeLinkPhase
 import io.github.cloolalang.notspotdetector.model.RadioDebugSettings
 import io.github.cloolalang.notspotdetector.model.MultiUePeer
@@ -392,13 +391,17 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
 
     override fun onCallConfig(phoneNumber: String, callDurationSec: Int, delayBetweenCallsSec: Int) {
         if (destroyed || repository.loadRole() != MultiUeRole.SLAVE) return
-        MultiUeCallSync.setConfig(
-            CallTestSettings(
-                phoneNumber = phoneNumber,
-                callDurationSec = callDurationSec,
-                delayBetweenCallsSec = delayBetweenCallsSec
-            )
-        )
+        MultiUeCallSync.setSlaveConfig(phoneNumber, callDurationSec, delayBetweenCallsSec)
+    }
+
+    override fun onCallLimit(on: Boolean) {
+        if (destroyed || repository.loadRole() != MultiUeRole.SLAVE) return
+        MultiUeCallSync.setMasterTimeout(on)
+    }
+
+    override fun onCallMute(on: Boolean) {
+        if (destroyed || repository.loadRole() != MultiUeRole.SLAVE) return
+        MultiUeCallSync.setMuteCallAudio(on)
     }
 
     override fun onCallRun(running: Boolean) {
@@ -451,6 +454,16 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
             config.callDurationSec,
             config.delayBetweenCallsSec
         )
+    }
+
+    override fun callLimitLine(): String? {
+        val config = MultiUeCallSync.config.value ?: return null
+        return MultiUeProtocol.callLimit(config.masterTimeoutEnabled)
+    }
+
+    override fun callMuteLine(): String? {
+        val config = MultiUeCallSync.config.value ?: return null
+        return MultiUeProtocol.callMute(config.muteCallAudio)
     }
 
     override fun callRunLine(): String? {
@@ -686,6 +699,8 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
                 .distinctUntilChanged()
                 .collect { config ->
                     if (repository.loadRole() == MultiUeRole.MASTER) {
+                        session.broadcast(MultiUeProtocol.callLimit(config.masterTimeoutEnabled))
+                        session.broadcast(MultiUeProtocol.callMute(config.muteCallAudio))
                         session.broadcast(
                             MultiUeProtocol.callConfig(
                                 config.phoneNumber,

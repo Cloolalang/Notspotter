@@ -5,6 +5,13 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.177.0] - 2026-11-13
+
+### Added
+
+- **Call test master timeout** — Call testing has a Master timeout switch, on by default and set to 30 minutes. When it is on, a test that is still running stops after 30 minutes and the current call is hung up. In multi-UE mode the switch follows the master, and that stop ends the test on each connected slave.
+- **Mute call audio** — Call testing has a Mute call audio switch. While a test is running, that phone does not play the call and its microphone stays muted. Sound returns when the test stops. In multi-UE mode the switch follows the master, and each phone mutes its own call.
+
 ## [2.176.0] - 2026-11-13
 
 ### Changed

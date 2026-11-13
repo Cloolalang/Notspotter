@@ -205,6 +205,8 @@ fun MonitorScreen(
     onCallNumberChange: (String) -> Unit = {},
     onCallDurationChange: (Int) -> Unit = {},
     onCallDelayChange: (Int) -> Unit = {},
+    onCallMasterTimeoutChange: (Boolean) -> Unit = {},
+    onCallMuteAudioChange: (Boolean) -> Unit = {},
     onStartCallTest: () -> Unit = {},
     onStopCallTest: () -> Unit = {},
     onWalkRouteEnabledChange: (Boolean) -> Unit = {},
@@ -567,7 +569,9 @@ fun MonitorScreen(
                 controlsEnabled = !multiUe.followsMaster,
                 onNumberChange = onCallNumberChange,
                 onDurationChange = onCallDurationChange,
-                onDelayChange = onCallDelayChange
+                onDelayChange = onCallDelayChange,
+                onMasterTimeoutChange = onCallMasterTimeoutChange,
+                onMuteCallAudioChange = onCallMuteAudioChange
             )
 
             AudioVolumeSettingsCard(

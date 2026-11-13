@@ -91,6 +91,12 @@ class MultiUeProtocolTest {
         assertEquals(MultiUeMessage.CallRun(running = true), MultiUeProtocol.parse(MultiUeProtocol.callRun(true)))
         assertEquals(MultiUeMessage.CallRun(running = false), MultiUeProtocol.parse("CALL 0"))
         assertNull(MultiUeProtocol.parse("CALL 2"))
+        assertEquals(MultiUeMessage.CallLimit(on = true), MultiUeProtocol.parse(MultiUeProtocol.callLimit(true)))
+        assertEquals(MultiUeMessage.CallLimit(on = false), MultiUeProtocol.parse("CALLLIMIT 0"))
+        assertNull(MultiUeProtocol.parse("CALLLIMIT 2"))
+        assertEquals(MultiUeMessage.CallMute(on = true), MultiUeProtocol.parse(MultiUeProtocol.callMute(true)))
+        assertEquals(MultiUeMessage.CallMute(on = false), MultiUeProtocol.parse("CALLMUTE 0"))
+        assertNull(MultiUeProtocol.parse("CALLMUTE 2"))
         assertEquals(
             MultiUeMessage.Profile(apply = false, payload = "YQ=="),
             MultiUeProtocol.parse(MultiUeProtocol.profilePut("YQ=="))

@@ -3,7 +3,11 @@ package io.github.cloolalang.notspotdetector.model
 data class CallTestSettings(
     val phoneNumber: String = "",
     val callDurationSec: Int = DEFAULT_DURATION_SEC,
-    val delayBetweenCallsSec: Int = DEFAULT_DELAY_SEC
+    val delayBetweenCallsSec: Int = DEFAULT_DELAY_SEC,
+    /** When true, a call test that is still running stops after [MASTER_TIMEOUT_MS]. */
+    val masterTimeoutEnabled: Boolean = DEFAULT_MASTER_TIMEOUT_ENABLED,
+    /** When true, a running call test silences the call and mutes the microphone. */
+    val muteCallAudio: Boolean = DEFAULT_MUTE_CALL_AUDIO
 ) {
     fun normalized(): CallTestSettings {
         return copy(
@@ -18,6 +22,10 @@ data class CallTestSettings(
         const val MAX_SECONDS = 120
         const val DEFAULT_DURATION_SEC = 15
         const val DEFAULT_DELAY_SEC = 10
+        const val DEFAULT_MASTER_TIMEOUT_ENABLED = true
+        const val DEFAULT_MUTE_CALL_AUDIO = false
+        const val MASTER_TIMEOUT_MINUTES = 30
+        const val MASTER_TIMEOUT_MS = MASTER_TIMEOUT_MINUTES * 60 * 1000L
         const val MAX_NUMBER_CHARS = 40
         const val SETUP_TIMEOUT_MS = 45_000L
         const val HANGUP_WAIT_MS = 20_000L

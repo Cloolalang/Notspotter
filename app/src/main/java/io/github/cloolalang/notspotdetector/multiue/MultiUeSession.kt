@@ -53,6 +53,8 @@ class MultiUeSession(
         fun onZoneSave(includeHistogram: Boolean)
         fun onZoneHistogram(on: Boolean)
         fun onCallConfig(phoneNumber: String, callDurationSec: Int, delayBetweenCallsSec: Int)
+        fun onCallLimit(on: Boolean)
+        fun onCallMute(on: Boolean)
         fun onCallRun(running: Boolean)
         fun onProfile(apply: Boolean, payload: String)
         fun onPanels(open: Map<String, Boolean>)
@@ -66,6 +68,8 @@ class MultiUeSession(
         fun zoneNameLine(): String?
         fun zoneHistogramLine(): String?
         fun callConfigLine(): String?
+        fun callLimitLine(): String?
+        fun callMuteLine(): String?
         fun callRunLine(): String?
         fun planLine(): String?
         fun pinLines(): List<String>
@@ -287,6 +291,8 @@ class MultiUeSession(
             listener.zoneLine()?.let { writeLine(socket, it) }
             listener.zoneNameLine()?.let { writeLine(socket, it) }
             listener.zoneHistogramLine()?.let { writeLine(socket, it) }
+            listener.callLimitLine()?.let { writeLine(socket, it) }
+            listener.callMuteLine()?.let { writeLine(socket, it) }
             listener.callConfigLine()?.let { writeLine(socket, it) }
             listener.callRunLine()?.let { writeLine(socket, it) }
             listener.planLine()?.let { plan ->
@@ -340,6 +346,8 @@ class MultiUeSession(
                         message.callDurationSec,
                         message.delayBetweenCallsSec
                     )
+                    is MultiUeMessage.CallLimit -> listener.onCallLimit(message.on)
+                    is MultiUeMessage.CallMute -> listener.onCallMute(message.on)
                     is MultiUeMessage.CallRun -> listener.onCallRun(message.running)
                     is MultiUeMessage.Profile -> listener.onProfile(message.apply, message.payload)
                     is MultiUeMessage.Panels -> listener.onPanels(message.open)
