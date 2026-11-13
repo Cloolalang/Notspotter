@@ -328,6 +328,11 @@ fun HistogramControlsCard(
         nowMs = nowMs,
         windowMs = sampleWindowMs
     )
+    val currentOperator = OperatorTitleStyle.resolveLabel(stats)
+    var tapeOperator by kpiHistory.tapeOperator
+    if (currentOperator != null && currentOperator != tapeOperator) {
+        tapeOperator = currentOperator
+    }
 
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -345,12 +350,22 @@ fun HistogramControlsCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = stringResource(R.string.histogram_controls_title),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = Sushi,
-                    fontWeight = FontWeight.Bold
-                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.histogram_controls_title),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = Sushi,
+                        fontWeight = FontWeight.Bold
+                    )
+                    val operatorLabel = tapeOperator
+                    if (operatorLabel != null) {
+                        Text(
+                            text = operatorLabel,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
                 Text(
                     text = if (histogramExpanded) "▲" else "▼",
                     style = MaterialTheme.typography.bodyMedium,
@@ -410,11 +425,6 @@ fun HistogramControlsCard(
                 )
             }
         }
-    }
-    val currentOperator = OperatorTitleStyle.resolveLabel(stats)
-    var tapeOperator by kpiHistory.tapeOperator
-    if (currentOperator != null && currentOperator != tapeOperator) {
-        tapeOperator = currentOperator
     }
     ZoneTestPanel(
         isMonitoring = isActive,

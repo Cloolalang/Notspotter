@@ -27,7 +27,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -857,19 +861,60 @@ private fun MonitoringControlButtons(
         onStop = onStopCallTest
     )
     if (!isRunning) {
-        Button(
-            onClick = onClearAllCharts,
-            enabled = enabled,
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = ScarpaFlow,
-                contentColor = OnScarpaFlow,
-                disabledContainerColor = ScarpaFlow.copy(alpha = 0.38f),
-                disabledContentColor = OnScarpaFlow.copy(alpha = 0.7f)
-            )
-        ) {
-            Text(text = stringResource(R.string.clear_all_charts))
-        }
+        ClearAllChartsButton(enabled = enabled, onClear = onClearAllCharts)
+    }
+}
+
+private const val CLEAR_ALL_CHARTS_PRESSES = 4
+private const val CLEAR_ALL_CHARTS_WINDOW_MS = 2_000L
+
+@Composable
+private fun ClearAllChartsButton(
+    enabled: Boolean,
+    onClear: () -> Unit
+) {
+    var presses by remember { mutableIntStateOf(0) }
+    var windowStartMs by remember { mutableLongStateOf(0L) }
+
+    LaunchedEffect(windowStartMs) {
+        if (windowStartMs == 0L) return@LaunchedEffect
+        delay(CLEAR_ALL_CHARTS_WINDOW_MS)
+        presses = 0
+        windowStartMs = 0L
+    }
+
+    Button(
+        onClick = {
+            val now = android.os.SystemClock.elapsedRealtime()
+            val inWindow = presses > 0 && now - windowStartMs <= CLEAR_ALL_CHARTS_WINDOW_MS
+            if (inWindow) {
+                presses += 1
+            } else {
+                windowStartMs = now
+                presses = 1
+            }
+            if (presses >= CLEAR_ALL_CHARTS_PRESSES) {
+                presses = 0
+                windowStartMs = 0L
+                onClear()
+            }
+        },
+        enabled = enabled,
+        modifier = Modifier.fillMaxWidth(),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = ScarpaFlow,
+            contentColor = OnScarpaFlow,
+            disabledContainerColor = ScarpaFlow.copy(alpha = 0.38f),
+            disabledContentColor = OnScarpaFlow.copy(alpha = 0.7f)
+        )
+    ) {
+        Text(
+            text = if (presses == 0) {
+                stringResource(R.string.clear_all_charts)
+            } else {
+                stringResource(R.string.clear_all_charts_count, presses)
+            }
+        )
     }
 }
 

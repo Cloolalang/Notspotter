@@ -5,6 +5,13 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.176.0] - 2026-11-13
+
+### Changed
+
+- **Level histogram** — The panel title shows the operator under Level histogram, the same way KPI history does.
+- **Clear all charts** — The button clears after four presses within two seconds. Each press shows the count, such as Clear all charts (2/4). The count resets if the fourth press is late.
+
 ## [2.175.0] - 2026-11-13
 
 ### Added

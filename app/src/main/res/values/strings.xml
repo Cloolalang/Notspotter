@@ -6,6 +6,7 @@
     <string name="app_title_setting_hint">The name shown at the top of the screen. NotSpotter is fixed. The other name is whatever you type. Unlock settings to change it.</string>
     <string name="app_title_custom">Custom name</string>
     <string name="clear_all_charts">Clear all charts</string>
+    <string name="clear_all_charts_count">Clear all charts (%1$d/4)</string>
     <string name="app_version">v%1$s</string>
     <string name="app_update_check">Check GitHub</string>
     <string name="app_update_checking">Checking GitHub…</string>
