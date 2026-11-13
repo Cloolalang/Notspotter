@@ -5,6 +5,12 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.180.0] - 2026-11-13
+
+### Changed
+
+- **Control buttons** — While monitoring, active mode testing, a call test, or a zone test is running, that button stays on the main screen with diagonal stripes and a flashing white border. Monitoring and active mode testing both stay visible, so the one that is running is the one marked.
+
 ## [2.179.0] - 2026-11-13
 
 ### Changed

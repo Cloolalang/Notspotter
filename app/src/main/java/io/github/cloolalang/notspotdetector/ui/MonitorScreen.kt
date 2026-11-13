@@ -1,5 +1,12 @@
 package io.github.cloolalang.notspotdetector.ui
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -35,6 +42,9 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
@@ -320,6 +330,7 @@ fun MonitorScreen(
 
         MonitoringControlButtons(
             isRunning = isRunning,
+            passiveOnly = stats.isPassiveOnlySession,
             enabled = !multiUe.followsMaster,
             onStart = onStart,
             onStartActiveMode = onStartActiveMode,
@@ -803,6 +814,7 @@ private fun MasterAudioToggle(
 @Composable
 private fun MonitoringControlButtons(
     isRunning: Boolean,
+    passiveOnly: Boolean,
     enabled: Boolean,
     onStart: () -> Unit,
     onStartActiveMode: () -> Unit,
@@ -814,49 +826,29 @@ private fun MonitoringControlButtons(
     onStartCallTest: () -> Unit,
     onStopCallTest: () -> Unit
 ) {
-    if (isRunning) {
-        Button(
-            onClick = onStop,
-            enabled = enabled,
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = StopRose,
-                contentColor = OnStopRose,
-                disabledContainerColor = StopRose.copy(alpha = 0.38f),
-                disabledContentColor = OnStopRose.copy(alpha = 0.7f)
-            )
-        ) {
-            Text(text = stringResource(R.string.stop_monitoring))
-        }
-    } else {
-        // "Start monitoring" is passive (signal only). "Start active mode testing" runs pings.
-        Button(
-            onClick = onStart,
-            enabled = enabled,
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = BondiBlue,
-                contentColor = OnBondiBlue,
-                disabledContainerColor = BondiBlue.copy(alpha = 0.38f),
-                disabledContentColor = OnBondiBlue.copy(alpha = 0.7f)
-            )
-        ) {
-            Text(text = stringResource(R.string.start_monitoring))
-        }
-        Button(
-            onClick = onStartActiveMode,
-            enabled = enabled,
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = ActiveModeGreen,
-                contentColor = OnActiveModeGreen,
-                disabledContainerColor = ActiveModeGreen.copy(alpha = 0.38f),
-                disabledContentColor = OnActiveModeGreen.copy(alpha = 0.7f)
-            )
-        ) {
-            Text(text = stringResource(R.string.start_active_mode_testing))
-        }
-    }
+    val monitoringActive = isRunning && passiveOnly
+    val activeModeActive = isRunning && !passiveOnly
+    // Both stay on screen. The one that is running is striped, with a flashing border.
+    StateControlButton(
+        text = stringResource(
+            if (monitoringActive) R.string.stop_monitoring else R.string.start_monitoring
+        ),
+        active = monitoringActive,
+        enabled = if (isRunning) enabled && monitoringActive else enabled,
+        containerColor = if (monitoringActive) StopRose else BondiBlue,
+        contentColor = if (monitoringActive) OnStopRose else OnBondiBlue,
+        onClick = if (monitoringActive) onStop else onStart
+    )
+    StateControlButton(
+        text = stringResource(
+            if (activeModeActive) R.string.stop_monitoring else R.string.start_active_mode_testing
+        ),
+        active = activeModeActive,
+        enabled = if (isRunning) enabled && activeModeActive else enabled,
+        containerColor = if (activeModeActive) StopRose else ActiveModeGreen,
+        contentColor = if (activeModeActive) OnStopRose else OnActiveModeGreen,
+        onClick = if (activeModeActive) onStop else onStartActiveMode
+    )
     CallTestControlButton(
         running = callTestRunning,
         startEnabled = callTestStartEnabled,
@@ -955,43 +947,36 @@ private fun CallTestControlButton(
         }
     }
 
-    Button(
+    StateControlButton(
+        text = when {
+            running -> stringResource(R.string.stop_call_test)
+            presses == 0 -> stringResource(R.string.start_call_test)
+            else -> stringResource(R.string.start_call_test_count, presses)
+        },
+        active = running,
+        enabled = !locked && (running || startEnabled),
+        containerColor = if (running) CallTestStop else CallTestIndigo,
+        contentColor = if (running) OnCallTestStop else OnCallTestIndigo,
         onClick = {
             if (running) {
                 onStop()
-                return@Button
-            }
-            val now = android.os.SystemClock.elapsedRealtime()
-            val inWindow = presses > 0 && now - windowStartMs <= START_CALL_TEST_WINDOW_MS
-            if (inWindow) {
-                presses += 1
             } else {
-                windowStartMs = now
-                presses = 1
+                val now = android.os.SystemClock.elapsedRealtime()
+                val inWindow = presses > 0 && now - windowStartMs <= START_CALL_TEST_WINDOW_MS
+                if (inWindow) {
+                    presses += 1
+                } else {
+                    windowStartMs = now
+                    presses = 1
+                }
+                if (presses >= START_CALL_TEST_PRESSES) {
+                    presses = 0
+                    windowStartMs = 0L
+                    onStart()
+                }
             }
-            if (presses >= START_CALL_TEST_PRESSES) {
-                presses = 0
-                windowStartMs = 0L
-                onStart()
-            }
-        },
-        enabled = !locked && (running || startEnabled),
-        modifier = Modifier.fillMaxWidth(),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (running) CallTestStop else CallTestIndigo,
-            contentColor = if (running) OnCallTestStop else OnCallTestIndigo,
-            disabledContainerColor = CallTestIndigo.copy(alpha = 0.38f),
-            disabledContentColor = OnCallTestIndigo.copy(alpha = 0.7f)
-        )
-    ) {
-        Text(
-            text = when {
-                running -> stringResource(R.string.stop_call_test)
-                presses == 0 -> stringResource(R.string.start_call_test)
-                else -> stringResource(R.string.start_call_test_count, presses)
-            }
-        )
-    }
+        }
+    )
 }
 
 @Composable
@@ -1018,43 +1003,97 @@ private fun ZoneTestControlButton(
         }
     }
 
-    Button(
+    StateControlButton(
+        text = when {
+            !running -> stringResource(R.string.zone_test_start)
+            presses == 0 -> stringResource(R.string.zone_test_stop)
+            else -> stringResource(R.string.zone_test_stop_count, presses)
+        },
+        active = running,
+        enabled = if (running) stopEnabled else startEnabled,
+        containerColor = if (running) SushiContainerDark else Sushi,
+        contentColor = Color.White,
         onClick = {
             if (!running) {
                 zoneTest.onStart?.invoke()
-                return@Button
-            }
-            val now = android.os.SystemClock.elapsedRealtime()
-            val inWindow = presses > 0 && now - windowStartMs <= STOP_ZONE_TEST_WINDOW_MS
-            if (inWindow) {
-                presses += 1
             } else {
-                windowStartMs = now
-                presses = 1
+                val now = android.os.SystemClock.elapsedRealtime()
+                val inWindow = presses > 0 && now - windowStartMs <= STOP_ZONE_TEST_WINDOW_MS
+                if (inWindow) {
+                    presses += 1
+                } else {
+                    windowStartMs = now
+                    presses = 1
+                }
+                if (presses >= STOP_ZONE_TEST_PRESSES) {
+                    presses = 0
+                    windowStartMs = 0L
+                    zoneTest.onStop?.invoke()
+                }
             }
-            if (presses >= STOP_ZONE_TEST_PRESSES) {
-                presses = 0
-                windowStartMs = 0L
-                zoneTest.onStop?.invoke()
-            }
-        },
-        enabled = if (running) stopEnabled else startEnabled,
-        modifier = Modifier.fillMaxWidth(),
+        }
+    )
+}
+
+@Composable
+private fun StateControlButton(
+    text: String,
+    active: Boolean,
+    enabled: Boolean,
+    containerColor: Color,
+    contentColor: Color,
+    onClick: () -> Unit
+) {
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier
+            .fillMaxWidth()
+            .runningState(active),
         colors = ButtonDefaults.buttonColors(
-            containerColor = if (running) SushiContainerDark else Sushi,
-            contentColor = Color.White,
-            disabledContainerColor = Sushi.copy(alpha = 0.38f),
-            disabledContentColor = Color.White.copy(alpha = 0.7f)
+            containerColor = containerColor,
+            contentColor = contentColor,
+            disabledContainerColor = if (active) containerColor else containerColor.copy(alpha = 0.38f),
+            disabledContentColor = if (active) contentColor else contentColor.copy(alpha = 0.7f)
         )
     ) {
-        Text(
-            text = when {
-                !running -> stringResource(R.string.zone_test_start)
-                presses == 0 -> stringResource(R.string.zone_test_stop)
-                else -> stringResource(R.string.zone_test_stop_count, presses)
-            }
-        )
+        Text(text = text)
     }
+}
+
+@Composable
+private fun Modifier.runningState(active: Boolean): Modifier {
+    if (!active) return this
+    val shape = ButtonDefaults.shape
+    val pulse = rememberInfiniteTransition(label = "running-control")
+    val borderAlpha by pulse.animateFloat(
+        initialValue = 0.2f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 700),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "running-border"
+    )
+    return this
+        .border(BorderStroke(3.dp, Color.White.copy(alpha = borderAlpha)), shape)
+        .clip(shape)
+        .drawWithContent {
+            drawContent()
+            val stripe = 8.dp.toPx()
+            val step = stripe + 12.dp.toPx()
+            var x = -size.height
+            val limit = size.width + size.height
+            while (x < limit) {
+                drawLine(
+                    color = Color.White.copy(alpha = 0.22f),
+                    start = Offset(x, size.height),
+                    end = Offset(x + size.height, 0f),
+                    strokeWidth = stripe
+                )
+                x += step
+            }
+        }
 }
 
 @Composable
