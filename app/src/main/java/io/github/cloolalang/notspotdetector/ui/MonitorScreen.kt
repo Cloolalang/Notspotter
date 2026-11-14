@@ -221,6 +221,10 @@ fun MonitorScreen(
     onStartCallTest: () -> Unit = {},
     onStopCallTest: () -> Unit = {},
     onWalkRouteEnabledChange: (Boolean) -> Unit = {},
+    onWalkSnapModeChange: (io.github.cloolalang.notspotdetector.model.WalkSnapMode) -> Unit = {},
+    onAdjustableTrailMarkerChange: (Boolean) -> Unit = {},
+    onWalkPlotRsrqChange: (Boolean) -> Unit = {},
+    onWalkPlotEarfcnPciChange: (Boolean) -> Unit = {},
     onCellChangeBellVolumeChange: (Float) -> Unit,
     onCellChangeVoiceEnabledChange: (Boolean) -> Unit,
     onCellChangeVoiceVolumeChange: (Float) -> Unit,
@@ -364,7 +368,15 @@ fun MonitorScreen(
             onClearHistogram = onClearRsrpHistogram,
             onClearKpiHistory = onClearKpiHistory,
             callTestStatus = callTestStatus,
-            walkRouteEnabled = monitoringSettings.walkRouteEnabled
+            walkRouteEnabled = monitoringSettings.walkRouteEnabled,
+            walkSnapMode = monitoringSettings.walkSnapMode,
+            adjustableTrailMarker = monitoringSettings.adjustableTrailMarker,
+            walkPlotRsrq = monitoringSettings.walkPlotRsrq,
+            walkPlotEarfcnPci = monitoringSettings.walkPlotEarfcnPci,
+            onWalkSnapModeChange = onWalkSnapModeChange,
+            onAdjustableTrailMarkerChange = onAdjustableTrailMarkerChange,
+            onWalkPlotRsrqChange = onWalkPlotRsrqChange,
+            onWalkPlotEarfcnPciChange = onWalkPlotEarfcnPciChange
         )
 
         if (isRunning) {

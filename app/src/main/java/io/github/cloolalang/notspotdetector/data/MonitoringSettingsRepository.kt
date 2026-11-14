@@ -4,6 +4,7 @@ import android.content.Context
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.RsrpHistogram
 import io.github.cloolalang.notspotdetector.model.RsrpHistogramBinningMode
+import io.github.cloolalang.notspotdetector.model.WalkSnapMode
 
 class MonitoringSettingsRepository(context: Context) {
 
@@ -83,6 +84,19 @@ class MonitoringSettingsRepository(context: Context) {
             walkRouteEnabled = prefs.getBoolean(
                 KEY_WALK_ROUTE_ENABLED,
                 MonitoringSettings.DEFAULT_WALK_ROUTE_ENABLED
+            ),
+            walkSnapMode = WalkSnapMode.fromStoredName(prefs.getString(KEY_WALK_SNAP_MODE, null)),
+            adjustableTrailMarker = prefs.getBoolean(
+                KEY_ADJUSTABLE_TRAIL_MARKER,
+                MonitoringSettings.DEFAULT_ADJUSTABLE_TRAIL_MARKER
+            ),
+            walkPlotRsrq = prefs.getBoolean(
+                KEY_WALK_PLOT_RSRQ,
+                MonitoringSettings.DEFAULT_WALK_PLOT_RSRQ
+            ),
+            walkPlotEarfcnPci = prefs.getBoolean(
+                KEY_WALK_PLOT_EARFCN_PCI,
+                MonitoringSettings.DEFAULT_WALK_PLOT_EARFCN_PCI
             )
         ).normalized()
     }
@@ -107,6 +121,10 @@ class MonitoringSettingsRepository(context: Context) {
             .putString(KEY_APP_BRAND, normalized.appBrand.name)
             .putString(KEY_CUSTOM_APP_TITLE, normalized.customAppTitle)
             .putBoolean(KEY_WALK_ROUTE_ENABLED, normalized.walkRouteEnabled)
+            .putString(KEY_WALK_SNAP_MODE, normalized.walkSnapMode.name)
+            .putBoolean(KEY_ADJUSTABLE_TRAIL_MARKER, normalized.adjustableTrailMarker)
+            .putBoolean(KEY_WALK_PLOT_RSRQ, normalized.walkPlotRsrq)
+            .putBoolean(KEY_WALK_PLOT_EARFCN_PCI, normalized.walkPlotEarfcnPci)
             .apply()
     }
 
@@ -130,5 +148,9 @@ class MonitoringSettingsRepository(context: Context) {
         private const val KEY_APP_BRAND = "app_brand"
         private const val KEY_CUSTOM_APP_TITLE = "custom_app_title"
         private const val KEY_WALK_ROUTE_ENABLED = "walk_route_enabled"
+        private const val KEY_WALK_SNAP_MODE = "walk_snap_mode"
+        private const val KEY_ADJUSTABLE_TRAIL_MARKER = "adjustable_trail_marker"
+        private const val KEY_WALK_PLOT_RSRQ = "walk_plot_rsrq"
+        private const val KEY_WALK_PLOT_EARFCN_PCI = "walk_plot_earfcn_pci"
     }
 }

@@ -536,6 +536,22 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         updateMonitoringSettings(monitoringSettings.value.copy(walkRouteEnabled = enabled))
     }
 
+    fun updateWalkSnapMode(mode: io.github.cloolalang.notspotdetector.model.WalkSnapMode) {
+        updateMonitoringSettings(monitoringSettings.value.copy(walkSnapMode = mode))
+    }
+
+    fun updateAdjustableTrailMarker(enabled: Boolean) {
+        updateMonitoringSettings(monitoringSettings.value.copy(adjustableTrailMarker = enabled))
+    }
+
+    fun updateWalkPlotRsrq(enabled: Boolean) {
+        updateMonitoringSettings(monitoringSettings.value.copy(walkPlotRsrq = enabled))
+    }
+
+    fun updateWalkPlotEarfcnPci(enabled: Boolean) {
+        updateMonitoringSettings(monitoringSettings.value.copy(walkPlotEarfcnPci = enabled))
+    }
+
     fun setInhibit2g(enabled: Boolean) {
         applyInhibit2gToPhone(enabled, persistOnSuccess = true)
     }

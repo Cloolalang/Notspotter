@@ -5,6 +5,44 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.183.0] - 2026-11-14
+
+### Added
+
+- **Parallel RSRQ trail** — Optional second line beside the floor-plan walk, coloured like the RSRQ tape.
+- **Parallel EARFCN / PCI trail** — Optional third line beside the walk, coloured like the KPI history carrier tape (band + PCI together). Both overlays are saved on the walk JPEG when enabled.
+
+## [2.182.1] - 2026-11-14
+
+### Changed
+
+- **Move marker** — The control is a small button under Remove last mark on the floor plan, the same size as that button.
+
+## [2.182.0] - 2026-11-14
+
+### Added
+
+- **Move marker** — Press Move marker on the floor plan, then drag a placed mark to a new spot. It turns off when you lift, or after 10 seconds if you do nothing. Press it again for another move.
+
+## [2.181.2] - 2026-11-14
+
+### Changed
+
+- **Adjustable trail marker** — The switch hint now reads TURN OFF TO DRAG & ZOOM MAP.
+
+## [2.181.1] - 2026-11-14
+
+### Fixed
+
+- **Adjustable trail marker** — While you press and slide to aim a mark, the page and floor plan no longer scroll or pan under your finger. Two-finger zoom and pan still work.
+
+## [2.181.0] - 2026-11-14
+
+### Added
+
+- **Floor plan snap** — Choose Off, 90° & 45°, or 90°, 45° & 22.5° for walk legs on the zone-test floor plan. The previous always-on 90°/45° snap is the middle option.
+- **Adjustable trail marker** — Press on the plan, slide the dashed trail from the last mark until it looks right, then lift to place the next mark. With this on, use two fingers to move a zoomed plan.
+
 ## [2.180.0] - 2026-11-13
 
 ### Changed

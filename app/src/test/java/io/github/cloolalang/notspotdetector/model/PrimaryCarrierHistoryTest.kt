@@ -112,6 +112,21 @@ class PrimaryCarrierHistoryTest {
     }
 
     @Test
+    fun colorArgb_sameBandDifferentPciGetsDifferentShades() {
+        val first = PrimaryCarrierTapeEntry(
+            pair = PrimaryCarrierPair(223, 10, 2100),
+            shade = 0,
+            startedAtMs = 0L
+        )
+        val second = first.copy(pair = first.pair!!.copy(pci = 20), shade = 1)
+        assertNotEquals(
+            PrimaryCarrierHistory.colorArgb(first),
+            PrimaryCarrierHistory.colorArgb(second)
+        )
+        assertEquals(0xFF90A4AE, PrimaryCarrierHistory.colorArgb(first.copy(noSignal = true, pair = null)))
+    }
+
+    @Test
     fun record_noSignalIsAGreyGapAndTheSameCellAfterwardsIsANewVisit() {
         val cell = PrimaryCarrierPair(channel = 3_000, pci = 10, nominalMhz = 2600)
         var tape = PrimaryCarrierHistory.record(PrimaryCarrierTape(), cell, nowMs = 1_000L)

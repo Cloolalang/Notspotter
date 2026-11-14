@@ -179,15 +179,18 @@ object WalkRoute {
     private fun panLimit(view: Float, content: Float): Float = abs(content - view) / 2f
 
     /**
-     * Moves [tap] so the leg from [from] lies on the nearest horizontal, vertical, or 45-degree line.
+     * Moves [tap] so the leg from [from] lies on the nearest snap angle from [mode].
      * The angle is measured in image pixels, which matches the line on screen.
+     * [WalkSnapMode.Off] returns [tap] unchanged.
      */
     fun snapLeg(
         from: WalkPin,
         tap: ImagePoint,
         imageWidth: Float,
-        imageHeight: Float
+        imageHeight: Float,
+        mode: WalkSnapMode = WalkSnapMode.DEFAULT
     ): ImagePoint {
+        val step = mode.stepRadians ?: return tap
         if (imageWidth <= 0f || imageHeight <= 0f) return tap
         val x0 = from.xFraction * imageWidth
         val y0 = from.yFraction * imageHeight
@@ -195,7 +198,6 @@ object WalkRoute {
         val dy = tap.y * imageHeight - y0
         val distance = hypot(dx, dy)
         if (distance < 1f) return tap
-        val step = PI / 4.0
         val snapped = round(atan2(dy.toDouble(), dx.toDouble()) / step) * step
         val x = (x0 + cos(snapped) * distance) / imageWidth
         val y = (y0 + sin(snapped) * distance) / imageHeight
@@ -217,23 +219,41 @@ object WalkRoute {
      * A band that started before the leg still colours the start of that leg.
      */
     fun spans(pins: List<WalkPin>, segments: List<RsrpBinSegment>): List<RouteSpan> {
+        return timedSpans(pins, segments.map { it.startedAtMs }) { atMs ->
+            binAt(segments, atMs)
+        }.map { (start, end, bin) -> RouteSpan(start, end, bin) }
+    }
+
+    /** Parallel overlay: same geometry as [spans], coloured by [colorAt] at each cut. */
+    fun coloredSpans(
+        pins: List<WalkPin>,
+        changeStartsMs: List<Long>,
+        colorAt: (Long) -> Long
+    ): List<ColoredRouteSpan> {
+        return timedSpans(pins, changeStartsMs) { atMs -> colorAt(atMs) }
+            .map { (start, end, color) -> ColoredRouteSpan(start, end, color) }
+    }
+
+    private fun <T> timedSpans(
+        pins: List<WalkPin>,
+        changeStartsMs: List<Long>,
+        sampleAt: (Long) -> T
+    ): List<Triple<ImagePoint, ImagePoint, T>> {
         if (pins.size < 2) return emptyList()
         val orderedPins = pins.sortedBy { it.placedAtMs }
-        val orderedSegments = segments.sortedBy { it.startedAtMs }
-        val result = ArrayList<RouteSpan>()
+        val changes = changeStartsMs.sorted()
+        val result = ArrayList<Triple<ImagePoint, ImagePoint, T>>()
         for (index in 0 until orderedPins.lastIndex) {
             val from = orderedPins[index]
             val to = orderedPins[index + 1]
             val startMs = from.placedAtMs
             val endMs = to.placedAtMs
             if (endMs <= startMs) continue
-            val cuts = ArrayList<Long>(orderedSegments.size + 2)
+            val cuts = ArrayList<Long>(changes.size + 2)
             cuts.add(startMs)
             cuts.add(endMs)
-            for (segment in orderedSegments) {
-                if (segment.startedAtMs > startMs && segment.startedAtMs < endMs) {
-                    cuts.add(segment.startedAtMs)
-                }
+            for (changeMs in changes) {
+                if (changeMs > startMs && changeMs < endMs) cuts.add(changeMs)
             }
             val unique = cuts.distinct().sorted()
             val spanMs = (endMs - startMs).toFloat()
@@ -241,10 +261,10 @@ object WalkRoute {
                 val left = unique[cut]
                 val right = unique[cut + 1]
                 result.add(
-                    RouteSpan(
-                        start = lerp(from, to, (left - startMs).toFloat() / spanMs),
-                        end = lerp(from, to, (right - startMs).toFloat() / spanMs),
-                        bin = binAt(orderedSegments, left)
+                    Triple(
+                        lerp(from, to, (left - startMs).toFloat() / spanMs),
+                        lerp(from, to, (right - startMs).toFloat() / spanMs),
+                        sampleAt(left)
                     )
                 )
             }
@@ -292,6 +312,48 @@ object WalkRoute {
         }
     }
 
+    /** Same colours as the RSRQ tape, packed as ARGB. */
+    fun rsrqRouteColor(bin: RsrqBin?): Long {
+        return when (bin) {
+            RsrqBin.ABOVE_15 -> 0xFF66BB6A
+            RsrqBin.FROM_17_TO_15 -> 0xFFFFEB3B
+            RsrqBin.BELOW_17 -> 0xFFFF1744
+            RsrqBin.NO_SIGNAL, RsrqBin.NO_RSRQ, null -> 0xFF90A4AE
+        }
+    }
+
+    fun rsrqBinAt(segments: List<RsrqBinSegment>, timeMs: Long): RsrqBin? {
+        val ordered = segments.sortedBy { it.startedAtMs }
+        val index = ordered.indexOfLast { it.startedAtMs <= timeMs }
+        if (index < 0) return null
+        return ordered[index].bin
+    }
+
+    fun carrierEntryAt(entries: List<PrimaryCarrierTapeEntry>, timeMs: Long): PrimaryCarrierTapeEntry? {
+        val ordered = entries.sortedBy { it.startedAtMs }
+        val index = ordered.indexOfLast { it.startedAtMs <= timeMs }
+        if (index < 0) return null
+        return ordered[index]
+    }
+
+    /**
+     * Shift a drawn segment sideways by [offsetPx] (positive = left of the travel direction).
+     * Used so RSRQ and EARFCN/PCI trails sit parallel to the RSRP walk.
+     */
+    fun offsetSpan(
+        start: ImagePoint,
+        end: ImagePoint,
+        offsetPx: Float
+    ): Pair<ImagePoint, ImagePoint> {
+        val dx = end.x - start.x
+        val dy = end.y - start.y
+        val len = hypot(dx, dy)
+        if (len < 0.001f || offsetPx == 0f) return start to end
+        val nx = -dy / len * offsetPx
+        val ny = dx / len * offsetPx
+        return ImagePoint(start.x + nx, start.y + ny) to ImagePoint(end.x + nx, end.y + ny)
+    }
+
     private fun lerp(from: WalkPin, to: WalkPin, fraction: Float): ImagePoint {
         return ImagePoint(
             x = from.xFraction + (to.xFraction - from.xFraction) * fraction,
@@ -333,6 +395,12 @@ data class RouteSpan(
     val bin: RsrpBin?
 )
 
+data class ColoredRouteSpan(
+    val start: ImagePoint,
+    val end: ImagePoint,
+    val colorArgb: Long
+)
+
 data class RouteTick(
     val atMs: Long,
     val point: ImagePoint
@@ -342,3 +410,30 @@ data class WalkLegendSwatch(
     val color: Long,
     val label: String
 )
+
+/**
+ * Angle steps for floor-plan walk legs. Off leaves the tap where it is.
+ * Degrees45 is horizontal, vertical, and 45°. Degrees22_5 also allows 22.5°.
+ */
+enum class WalkSnapMode {
+    Off,
+    Degrees45,
+    Degrees22_5;
+
+    /** Radians between allowed angles, or null when snapping is off. */
+    val stepRadians: Double?
+        get() = when (this) {
+            Off -> null
+            Degrees45 -> PI / 4.0
+            Degrees22_5 -> PI / 8.0
+        }
+
+    companion object {
+        val DEFAULT = Degrees45
+
+        fun fromStoredName(name: String?): WalkSnapMode {
+            if (name.isNullOrBlank()) return DEFAULT
+            return entries.find { it.name == name } ?: DEFAULT
+        }
+    }
+}

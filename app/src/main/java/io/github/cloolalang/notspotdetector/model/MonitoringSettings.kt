@@ -24,7 +24,18 @@ data class MonitoringSettings(
     /** Typed top name, used when [appBrand] is [AppBrand.CELLNEX]. */
     val customAppTitle: String = DEFAULT_CUSTOM_APP_TITLE,
     /** Floor-plan walk during a zone test. Off until switched on in Development area. */
-    val walkRouteEnabled: Boolean = DEFAULT_WALK_ROUTE_ENABLED
+    val walkRouteEnabled: Boolean = DEFAULT_WALK_ROUTE_ENABLED,
+    /** Angle snap for walk legs on the floor plan. */
+    val walkSnapMode: WalkSnapMode = WalkSnapMode.DEFAULT,
+    /**
+     * Drag from the last mark with a live trail preview; the mark lands when the finger lifts.
+     * Off, a quick tap places the mark.
+     */
+    val adjustableTrailMarker: Boolean = DEFAULT_ADJUSTABLE_TRAIL_MARKER,
+    /** Parallel RSRQ-coloured trail beside the RSRP walk on the floor plan. */
+    val walkPlotRsrq: Boolean = DEFAULT_WALK_PLOT_RSRQ,
+    /** Parallel EARFCN/PCI trail beside the RSRP walk, coloured like the carrier tape. */
+    val walkPlotEarfcnPci: Boolean = DEFAULT_WALK_PLOT_EARFCN_PCI
 ) {
     fun normalized(): MonitoringSettings {
         return copy(
@@ -67,6 +78,9 @@ data class MonitoringSettings(
         const val DEFAULT_INHIBIT_2G = false
         const val DEFAULT_KEEP_SCREEN_ON_WHILE_MONITORING = true
         const val DEFAULT_WALK_ROUTE_ENABLED = false
+        const val DEFAULT_ADJUSTABLE_TRAIL_MARKER = false
+        const val DEFAULT_WALK_PLOT_RSRQ = false
+        const val DEFAULT_WALK_PLOT_EARFCN_PCI = false
         const val DEFAULT_CUSTOM_APP_TITLE = "Cellnex"
         const val MAX_CUSTOM_APP_TITLE = 40
     }

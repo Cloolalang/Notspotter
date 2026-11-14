@@ -16,6 +16,7 @@ import io.github.cloolalang.notspotdetector.model.SettingsProfile
 import io.github.cloolalang.notspotdetector.model.ThresholdSettings
 import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerChoice
 import io.github.cloolalang.notspotdetector.model.VoicePhraseOptions
+import io.github.cloolalang.notspotdetector.model.WalkSnapMode
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -228,7 +229,11 @@ class AppSettingsSnapshotCodecCompletenessTest {
                 keepScreenOnWhileMonitoring = false,
                 appBrand = io.github.cloolalang.notspotdetector.model.AppBrand.NOTSPOTTER,
                 customAppTitle = "Field kit",
-                walkRouteEnabled = true
+                walkRouteEnabled = true,
+                walkSnapMode = WalkSnapMode.Degrees22_5,
+                adjustableTrailMarker = true,
+                walkPlotRsrq = true,
+                walkPlotEarfcnPci = true
             ),
             passiveSignalSettings = PassiveSignalSettings(
                 noSignalRsrpDbm = -132,
@@ -431,7 +436,11 @@ class AppSettingsSnapshotCodecCompletenessTest {
             "keepScreenOnWhileMonitoring",
             "appBrand",
             "customAppTitle",
-            "walkRouteEnabled"
+            "walkRouteEnabled",
+            "walkSnapMode",
+            "adjustableTrailMarker",
+            "walkPlotRsrq",
+            "walkPlotEarfcnPci"
         )
 
         private val PASSIVE_MOCK_KEYS = setOf(

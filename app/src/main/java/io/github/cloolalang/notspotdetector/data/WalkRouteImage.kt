@@ -7,7 +7,10 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
 import io.github.cloolalang.notspotdetector.model.ImagePoint
+import io.github.cloolalang.notspotdetector.model.PrimaryCarrierHistory
+import io.github.cloolalang.notspotdetector.model.PrimaryCarrierTapeEntry
 import io.github.cloolalang.notspotdetector.model.RsrpBinSegment
+import io.github.cloolalang.notspotdetector.model.RsrqBinSegment
 import io.github.cloolalang.notspotdetector.model.WalkLegendSwatch
 import io.github.cloolalang.notspotdetector.model.WalkPin
 import io.github.cloolalang.notspotdetector.model.WalkRoute
@@ -24,7 +27,11 @@ object WalkRouteImage {
         zoneEndMs: Long,
         caption: String,
         legendTitle: String,
-        legend: List<WalkLegendSwatch>
+        legend: List<WalkLegendSwatch>,
+        rsrqSegments: List<RsrqBinSegment> = emptyList(),
+        carrierEntries: List<PrimaryCarrierTapeEntry> = emptyList(),
+        plotRsrq: Boolean = false,
+        plotEarfcnPci: Boolean = false
     ): Bitmap? {
         val width = floorPlan.width
         val height = floorPlan.height
@@ -35,7 +42,21 @@ object WalkRouteImage {
         val output = Bitmap.createBitmap(width, height + strip.height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(output)
         canvas.drawBitmap(floorPlan, 0f, 0f, null)
-        drawRoute(canvas, width, height, pins, segments, zoneStartMs, zoneEndMs, stroke, textSize)
+        drawRoute(
+            canvas = canvas,
+            width = width,
+            height = height,
+            pins = pins,
+            segments = segments,
+            rsrqSegments = rsrqSegments,
+            carrierEntries = carrierEntries,
+            plotRsrq = plotRsrq,
+            plotEarfcnPci = plotEarfcnPci,
+            zoneStartMs = zoneStartMs,
+            zoneEndMs = zoneEndMs,
+            stroke = stroke,
+            textSize = textSize
+        )
         drawLegend(canvas, width, height, strip, caption, legendTitle, legend)
         return output
     }
@@ -46,6 +67,10 @@ object WalkRouteImage {
         height: Int,
         pins: List<WalkPin>,
         segments: List<RsrpBinSegment>,
+        rsrqSegments: List<RsrqBinSegment>,
+        carrierEntries: List<PrimaryCarrierTapeEntry>,
+        plotRsrq: Boolean,
+        plotEarfcnPci: Boolean,
         zoneStartMs: Long,
         zoneEndMs: Long,
         stroke: Float,
@@ -62,6 +87,50 @@ object WalkRouteImage {
             style = Paint.Style.STROKE
             strokeCap = Paint.Cap.ROUND
             strokeJoin = Paint.Join.ROUND
+        }
+        val parallelStroke = stroke * 0.7f
+        val parallelGap = stroke * 1.6f
+        val rsrqOffset = if (plotRsrq) parallelGap else 0f
+        val carrierOffset = when {
+            plotEarfcnPci && plotRsrq -> -parallelGap
+            plotEarfcnPci -> parallelGap
+            else -> 0f
+        }
+        if (plotRsrq) {
+            val rsrqSpans = WalkRoute.coloredSpans(
+                pins = pins,
+                changeStartsMs = rsrqSegments.map { it.startedAtMs }
+            ) { atMs ->
+                WalkRoute.rsrqRouteColor(WalkRoute.rsrqBinAt(rsrqSegments, atMs))
+            }
+            for (span in rsrqSpans) {
+                val (from, to) = WalkRoute.offsetSpan(point(span.start), point(span.end), rsrqOffset)
+                line.color = Color.WHITE
+                line.strokeWidth = parallelStroke + 4f
+                canvas.drawLine(from.x, from.y, to.x, to.y, line)
+                line.color = span.colorArgb.toInt()
+                line.strokeWidth = parallelStroke
+                canvas.drawLine(from.x, from.y, to.x, to.y, line)
+            }
+        }
+        if (plotEarfcnPci) {
+            val carrierSpans = WalkRoute.coloredSpans(
+                pins = pins,
+                changeStartsMs = carrierEntries.map { it.startedAtMs }
+            ) { atMs ->
+                val entry = WalkRoute.carrierEntryAt(carrierEntries, atMs)
+                if (entry == null) WalkRoute.rsrpRouteColor(null)
+                else PrimaryCarrierHistory.colorArgb(entry)
+            }
+            for (span in carrierSpans) {
+                val (from, to) = WalkRoute.offsetSpan(point(span.start), point(span.end), carrierOffset)
+                line.color = Color.WHITE
+                line.strokeWidth = parallelStroke + 4f
+                canvas.drawLine(from.x, from.y, to.x, to.y, line)
+                line.color = span.colorArgb.toInt()
+                line.strokeWidth = parallelStroke
+                canvas.drawLine(from.x, from.y, to.x, to.y, line)
+            }
         }
         for (span in WalkRoute.spans(pins, segments)) {
             val start = point(span.start)

@@ -1,6 +1,7 @@
 package io.github.cloolalang.notspotdetector.model
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
@@ -71,6 +72,48 @@ class WalkRouteTest {
             emptyList<RouteSpan>(),
             WalkRoute.spans(listOf(pin, pin.copy(xFraction = 0.8f)), emptyList())
         )
+    }
+
+    @Test
+    fun coloredSpans_followCarrierTapeCuts() {
+        val pins = listOf(
+            WalkPin(placedAtMs = 0L, xFraction = 0f, yFraction = 0f),
+            WalkPin(placedAtMs = 1_000L, xFraction = 1f, yFraction = 0f)
+        )
+        val entries = listOf(
+            PrimaryCarrierTapeEntry(
+                pair = PrimaryCarrierPair(channel = 223, pci = 10, nominalMhz = 2100),
+                shade = 0,
+                startedAtMs = 0L
+            ),
+            PrimaryCarrierTapeEntry(
+                pair = PrimaryCarrierPair(channel = 223, pci = 20, nominalMhz = 2100),
+                shade = 1,
+                startedAtMs = 400L
+            )
+        )
+
+        val spans = WalkRoute.coloredSpans(pins, entries.map { it.startedAtMs }) { atMs ->
+            PrimaryCarrierHistory.colorArgb(WalkRoute.carrierEntryAt(entries, atMs)!!)
+        }
+
+        assertEquals(2, spans.size)
+        assertEquals(0.4f, spans[0].end.x, 0.001f)
+        assertEquals(0.4f, spans[1].start.x, 0.001f)
+        assertNotEquals(spans[0].colorArgb, spans[1].colorArgb)
+    }
+
+    @Test
+    fun offsetSpan_movesPerpendicularToTravel() {
+        val (from, to) = WalkRoute.offsetSpan(
+            start = ImagePoint(0f, 0f),
+            end = ImagePoint(10f, 0f),
+            offsetPx = 5f
+        )
+        assertEquals(0f, from.x, 0.001f)
+        assertEquals(5f, from.y, 0.001f)
+        assertEquals(10f, to.x, 0.001f)
+        assertEquals(5f, to.y, 0.001f)
     }
 
     @Test
@@ -170,7 +213,8 @@ class WalkRouteTest {
             from = from,
             tap = ImagePoint(1f, 0.1f),
             imageWidth = 100f,
-            imageHeight = 100f
+            imageHeight = 100f,
+            mode = WalkSnapMode.Degrees45
         )
         assertEquals(1f, horizontal.x, 0.02f)
         assertEquals(0f, horizontal.y, 0.02f)
@@ -179,7 +223,8 @@ class WalkRouteTest {
             from = from,
             tap = ImagePoint(1f, 0.8f),
             imageWidth = 100f,
-            imageHeight = 100f
+            imageHeight = 100f,
+            mode = WalkSnapMode.Degrees45
         )
         assertEquals(diagonal.x, diagonal.y, 0.02f)
 
@@ -187,7 +232,8 @@ class WalkRouteTest {
             from = from,
             tap = ImagePoint(0.15f, 1f),
             imageWidth = 100f,
-            imageHeight = 100f
+            imageHeight = 100f,
+            mode = WalkSnapMode.Degrees45
         )
         assertEquals(0f, vertical.x, 0.02f)
         assertEquals(1f, vertical.y, 0.02f)
@@ -199,11 +245,38 @@ class WalkRouteTest {
             from = WalkPin(placedAtMs = 0L, xFraction = 0f, yFraction = 0f),
             tap = ImagePoint(0.5f, 0.8f),
             imageWidth = 200f,
-            imageHeight = 100f
+            imageHeight = 100f,
+            mode = WalkSnapMode.Degrees45
         )
         val pixelX = snapped.x * 200f
         val pixelY = snapped.y * 100f
         assertEquals(pixelX, pixelY, 1f)
+    }
+
+    @Test
+    fun snapLeg_offLeavesTheTapWhereItIs() {
+        val tap = ImagePoint(0.37f, 0.61f)
+        val snapped = WalkRoute.snapLeg(
+            from = WalkPin(placedAtMs = 0L, xFraction = 0f, yFraction = 0f),
+            tap = tap,
+            imageWidth = 100f,
+            imageHeight = 100f,
+            mode = WalkSnapMode.Off
+        )
+        assertEquals(tap.x, snapped.x, 0.0001f)
+        assertEquals(tap.y, snapped.y, 0.0001f)
+    }
+
+    @Test
+    fun snapLeg_twentyTwoPointFiveAllowsAShallowerDiagonal() {
+        val from = WalkPin(placedAtMs = 0L, xFraction = 0f, yFraction = 0f)
+        // About 22° in image pixels: 45° mode snaps flat; 22.5° mode keeps the shallow diagonal.
+        val tap = ImagePoint(1f, 0.4f)
+        val coarse = WalkRoute.snapLeg(from, tap, 100f, 100f, WalkSnapMode.Degrees45)
+        val fine = WalkRoute.snapLeg(from, tap, 100f, 100f, WalkSnapMode.Degrees22_5)
+        assertEquals(0f, coarse.y, 0.02f)
+        val fineAngle = kotlin.math.atan2(fine.y.toDouble(), fine.x.toDouble())
+        assertEquals(Math.PI / 8.0, fineAngle, 0.05)
     }
 
     @Test

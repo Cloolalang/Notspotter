@@ -151,6 +151,62 @@ object PrimaryCarrierHistory {
         val shade = usedOnBand % SHADES_PER_BAND
         return (shades + (key to shade)) to shade
     }
+
+    /**
+     * Same band/PCI colouring as the KPI history carrier tape, as packed ARGB.
+     * Used for the floor-plan EARFCN/PCI parallel plot.
+     */
+    fun colorArgb(entry: PrimaryCarrierTapeEntry): Long {
+        if (entry.noSignal) return NO_SIGNAL_ARGB
+        val mhz = entry.pair?.nominalMhz
+        val baseHue = hueForMhz(mhz)
+        if (baseHue == null) {
+            return NEUTRAL_SHADES[entry.shade.mod(NEUTRAL_SHADES.size)]
+        }
+        val step = SHADE_STEPS[entry.shade.mod(SHADE_STEPS.size)]
+        val hueSpread = if (mhz != null && mhz < LOW_BAND_BELOW_MHZ) 0.6f else 1f
+        val hue = (baseHue + step.hueOffset * hueSpread + 360f) % 360f
+        return hsvToArgb(hue, step.saturation, step.value)
+    }
+
+    private data class ShadeStep(val hueOffset: Float, val saturation: Float, val value: Float)
+
+    private val SHADE_STEPS = listOf(
+        ShadeStep(0f, 0.90f, 0.48f),
+        ShadeStep(14f, 0.40f, 0.95f),
+        ShadeStep(-14f, 0.95f, 0.72f),
+        ShadeStep(8f, 0.65f, 0.34f),
+        ShadeStep(-8f, 0.70f, 0.88f),
+        ShadeStep(20f, 0.55f, 0.58f),
+        ShadeStep(-20f, 0.25f, 0.98f),
+        ShadeStep(4f, 0.95f, 0.40f)
+    )
+
+    private val NEUTRAL_SHADES = longArrayOf(
+        0xFF37474F, 0xFFB0BEC5, 0xFF607D8B, 0xFF263238,
+        0xFF90A4AE, 0xFF455A64, 0xFFCFD8DC, 0xFF546E7A
+    )
+
+    private const val NO_SIGNAL_ARGB = 0xFF90A4AE
+
+    private fun hsvToArgb(hue: Float, saturation: Float, value: Float): Long {
+        val h = ((hue % 360f) + 360f) % 360f
+        val c = value * saturation
+        val x = c * (1f - kotlin.math.abs((h / 60f) % 2f - 1f))
+        val m = value - c
+        val (r1, g1, b1) = when {
+            h < 60f -> Triple(c, x, 0f)
+            h < 120f -> Triple(x, c, 0f)
+            h < 180f -> Triple(0f, c, x)
+            h < 240f -> Triple(0f, x, c)
+            h < 300f -> Triple(x, 0f, c)
+            else -> Triple(c, 0f, x)
+        }
+        val r = ((r1 + m) * 255f).toInt().coerceIn(0, 255)
+        val g = ((g1 + m) * 255f).toInt().coerceIn(0, 255)
+        val b = ((b1 + m) * 255f).toInt().coerceIn(0, 255)
+        return 0xFF000000L or (r.toLong() shl 16) or (g.toLong() shl 8) or b.toLong()
+    }
 }
 
 data class PrimaryCarrierPair(

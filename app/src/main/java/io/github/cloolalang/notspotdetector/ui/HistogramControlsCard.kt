@@ -141,6 +141,7 @@ import io.github.cloolalang.notspotdetector.model.TimingAdvance
 import io.github.cloolalang.notspotdetector.model.WalkLegendSwatch
 import io.github.cloolalang.notspotdetector.model.WalkPin
 import io.github.cloolalang.notspotdetector.model.WalkRoute
+import io.github.cloolalang.notspotdetector.model.WalkSnapMode
 import io.github.cloolalang.notspotdetector.model.ZoneTest
 import io.github.cloolalang.notspotdetector.network.CellularSignalReader
 import io.github.cloolalang.notspotdetector.model.coerceToHistogramWindowStep
@@ -184,6 +185,14 @@ fun HistogramControlsCard(
     onClearKpiHistory: () -> Unit = {},
     callTestStatus: CallTestStatus = CallTestStatus(),
     walkRouteEnabled: Boolean = false,
+    walkSnapMode: WalkSnapMode = WalkSnapMode.DEFAULT,
+    adjustableTrailMarker: Boolean = false,
+    walkPlotRsrq: Boolean = false,
+    walkPlotEarfcnPci: Boolean = false,
+    onWalkSnapModeChange: (WalkSnapMode) -> Unit = {},
+    onAdjustableTrailMarkerChange: (Boolean) -> Unit = {},
+    onWalkPlotRsrqChange: (Boolean) -> Unit = {},
+    onWalkPlotEarfcnPciChange: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var histogramExpanded by panelFold("histogram", defaultExpanded = false)
@@ -451,6 +460,14 @@ fun HistogramControlsCard(
         tapeNowMs = tapeNowMs,
         sampleWindowMs = sampleWindowMs,
         walkRouteEnabled = walkRouteEnabled,
+        walkSnapMode = walkSnapMode,
+        adjustableTrailMarker = adjustableTrailMarker,
+        walkPlotRsrq = walkPlotRsrq,
+        walkPlotEarfcnPci = walkPlotEarfcnPci,
+        onWalkSnapModeChange = onWalkSnapModeChange,
+        onAdjustableTrailMarkerChange = onAdjustableTrailMarkerChange,
+        onWalkPlotRsrqChange = onWalkPlotRsrqChange,
+        onWalkPlotEarfcnPciChange = onWalkPlotEarfcnPciChange,
         histogramLayer = histogramLayer,
         onExpandHistogram = { histogramExpanded = true },
         callTestStatus = callTestStatus
@@ -822,6 +839,14 @@ private fun ZoneTestPanel(
     tapeNowMs: Long,
     sampleWindowMs: Long,
     walkRouteEnabled: Boolean,
+    walkSnapMode: WalkSnapMode,
+    adjustableTrailMarker: Boolean,
+    walkPlotRsrq: Boolean,
+    walkPlotEarfcnPci: Boolean,
+    onWalkSnapModeChange: (WalkSnapMode) -> Unit,
+    onAdjustableTrailMarkerChange: (Boolean) -> Unit,
+    onWalkPlotRsrqChange: (Boolean) -> Unit,
+    onWalkPlotEarfcnPciChange: (Boolean) -> Unit,
     histogramLayer: GraphicsLayer,
     onExpandHistogram: () -> Unit,
     callTestStatus: CallTestStatus
@@ -1049,6 +1074,10 @@ private fun ZoneTestPanel(
                     floorPlan = plan,
                     pins = markedPins,
                     segments = rsrpBinTape.entries,
+                    rsrqSegments = if (walkPlotRsrq) rsrqBinTape.entries else emptyList(),
+                    carrierEntries = if (walkPlotEarfcnPci) carrierTape.entries else emptyList(),
+                    plotRsrq = walkPlotRsrq,
+                    plotEarfcnPci = walkPlotEarfcnPci,
                     zoneStartMs = started,
                     zoneEndMs = markedEnd,
                     caption = caption,
@@ -1364,12 +1393,27 @@ private fun ZoneTestPanel(
                 floorPlan = floorPlan,
                 pins = pins,
                 rsrpSegments = rsrpBinTape.entries,
+                rsrqSegments = rsrqBinTape.entries,
+                carrierEntries = carrierTape.entries,
                 zoneStartMs = zoneStart,
                 markTimeMs = markTimeMs,
                 liveBin = if (running) rsrpBinTape.entries.lastOrNull()?.bin else null,
                 marksFromMaster = followsMaster,
+                snapMode = walkSnapMode,
+                adjustableTrailMarker = adjustableTrailMarker,
+                plotRsrq = walkPlotRsrq,
+                plotEarfcnPci = walkPlotEarfcnPci,
+                onSnapModeChange = onWalkSnapModeChange,
+                onAdjustableTrailMarkerChange = onAdjustableTrailMarkerChange,
+                onPlotRsrqChange = onWalkPlotRsrqChange,
+                onPlotEarfcnPciChange = onWalkPlotEarfcnPciChange,
                 onChooseFloorPlan = { pickFloorPlan.launch(arrayOf("image/*")) },
                 onMark = { pins = pins + it },
+                onMovePin = { index, pin ->
+                    if (index in pins.indices) {
+                        pins = pins.toMutableList().also { it[index] = pin }
+                    }
+                },
                 onUndo = { if (pins.isNotEmpty()) pins = pins.dropLast(1) }
             )
             }
@@ -2009,43 +2053,8 @@ private fun PrimaryCarrierHistoryBar(
     }
 }
 
-private val CarrierNeutralShades = listOf(
-    Color(0xFF37474F),
-    Color(0xFFB0BEC5),
-    Color(0xFF607D8B),
-    Color(0xFF263238),
-    Color(0xFF90A4AE),
-    Color(0xFF455A64),
-    Color(0xFFCFD8DC),
-    Color(0xFF546E7A)
-)
-
-private data class CarrierShadeStep(val hueOffset: Float, val saturation: Float, val value: Float)
-
-/**
- * Cells on one band take these in order. Each step flips between dark and light
- * so a reselect between the first two or three cells reads as a clear change.
- */
-private val CarrierShadeSteps = listOf(
-    CarrierShadeStep(hueOffset = 0f, saturation = 0.90f, value = 0.48f),
-    CarrierShadeStep(hueOffset = 14f, saturation = 0.40f, value = 0.95f),
-    CarrierShadeStep(hueOffset = -14f, saturation = 0.95f, value = 0.72f),
-    CarrierShadeStep(hueOffset = 8f, saturation = 0.65f, value = 0.34f),
-    CarrierShadeStep(hueOffset = -8f, saturation = 0.70f, value = 0.88f),
-    CarrierShadeStep(hueOffset = 20f, saturation = 0.55f, value = 0.58f),
-    CarrierShadeStep(hueOffset = -20f, saturation = 0.25f, value = 0.98f),
-    CarrierShadeStep(hueOffset = 4f, saturation = 0.95f, value = 0.40f)
-)
-
 private fun carrierTapeColor(entry: PrimaryCarrierTapeEntry): Color {
-    if (entry.noSignal) return Color(0xFF90A4AE)
-    val mhz = entry.pair?.nominalMhz
-    val hue = PrimaryCarrierHistory.hueForMhz(mhz)
-        ?: return CarrierNeutralShades[entry.shade.mod(CarrierNeutralShades.size)]
-    val step = CarrierShadeSteps[entry.shade.mod(CarrierShadeSteps.size)]
-    val hueSpread = if (mhz != null && mhz < 1_000) 0.6f else 1f
-    val hue360 = (hue + step.hueOffset * hueSpread + 360f) % 360f
-    return Color.hsv(hue360, step.saturation, step.value)
+    return Color(PrimaryCarrierHistory.colorArgb(entry))
 }
 
 private fun carrierTapeLabelColor(background: Color): Color {

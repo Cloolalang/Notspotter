@@ -18,6 +18,7 @@ import io.github.cloolalang.notspotdetector.model.SettingsProfile
 import io.github.cloolalang.notspotdetector.model.ThresholdSettings
 import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerChoice
 import io.github.cloolalang.notspotdetector.model.VoicePhraseOptions
+import io.github.cloolalang.notspotdetector.model.WalkSnapMode
 import kotlin.math.roundToInt
 import org.json.JSONArray
 import org.json.JSONObject
@@ -213,6 +214,10 @@ object AppSettingsSnapshotCodec {
             .put("appBrand", settings.appBrand.name)
             .put("customAppTitle", settings.customAppTitle)
             .put("walkRouteEnabled", settings.walkRouteEnabled)
+            .put("walkSnapMode", settings.walkSnapMode.name)
+            .put("adjustableTrailMarker", settings.adjustableTrailMarker)
+            .put("walkPlotRsrq", settings.walkPlotRsrq)
+            .put("walkPlotEarfcnPci", settings.walkPlotEarfcnPci)
     }
 
     private fun decodeMonitoring(json: JSONObject?): MonitoringSettings {
@@ -281,6 +286,19 @@ object AppSettingsSnapshotCodec {
             walkRouteEnabled = json.optBoolean(
                 "walkRouteEnabled",
                 MonitoringSettings.DEFAULT_WALK_ROUTE_ENABLED
+            ),
+            walkSnapMode = WalkSnapMode.fromStoredName(json.optString("walkSnapMode", null)),
+            adjustableTrailMarker = json.optBoolean(
+                "adjustableTrailMarker",
+                MonitoringSettings.DEFAULT_ADJUSTABLE_TRAIL_MARKER
+            ),
+            walkPlotRsrq = json.optBoolean(
+                "walkPlotRsrq",
+                MonitoringSettings.DEFAULT_WALK_PLOT_RSRQ
+            ),
+            walkPlotEarfcnPci = json.optBoolean(
+                "walkPlotEarfcnPci",
+                MonitoringSettings.DEFAULT_WALK_PLOT_EARFCN_PCI
             )
         )
     }
