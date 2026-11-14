@@ -151,12 +151,106 @@ class WalkRouteTest {
             viewHeight = 100f,
             imageWidth = 100f,
             imageHeight = 100f,
-            zoom = camera.zoom,
-            panX = camera.panX,
-            panY = camera.panY
+            camera = camera
         )
         assertEquals(0f, stillThere!!.x, 0.001f)
         assertEquals(0f, stillThere.y, 0.001f)
+    }
+
+    @Test
+    fun clampPan_afterNinetyDegreeRotateAllowsTheLongEdgesIntoView() {
+        // Landscape plan in a square view: after 90°, former left/right need vertical pan.
+        val zoomed = WalkRoute.zoomAbout(
+            viewWidth = 100f,
+            viewHeight = 100f,
+            imageWidth = 200f,
+            imageHeight = 100f,
+            camera = PlanCamera(),
+            centroidX = 50f,
+            centroidY = 50f,
+            zoomFactor = 2f
+        )
+        val rotated = WalkRoute.rotateAbout(
+            viewWidth = 100f,
+            viewHeight = 100f,
+            imageWidth = 200f,
+            imageHeight = 100f,
+            camera = zoomed,
+            centroidX = 50f,
+            centroidY = 50f,
+            deltaDegrees = 90f
+        )
+        val panned = WalkRoute.moveCentre(
+            viewWidth = 100f,
+            viewHeight = 100f,
+            imageWidth = 200f,
+            imageHeight = 100f,
+            camera = rotated,
+            deltaX = 0f,
+            deltaY = 1_000f
+        )
+        assertEquals(90f, panned.rotationDegrees, 0.001f)
+        // Unrotated clamp would keep panY at 0; AABB clamp must allow vertical travel.
+        assert(panned.panY > 1f) { "expected vertical pan after 90° rotate, got ${panned.panY}" }
+    }
+
+    @Test
+    fun insertOnNearestLeg_placesAMarkBetweenTwoPins() {
+        val pins = listOf(
+            WalkPin(placedAtMs = 0L, xFraction = 0f, yFraction = 0.5f),
+            WalkPin(placedAtMs = 1_000L, xFraction = 1f, yFraction = 0.5f)
+        )
+        val insert = WalkRoute.insertOnNearestLeg(
+            pins = pins,
+            tapX = 50f,
+            tapY = 50f,
+            viewWidth = 100f,
+            viewHeight = 100f,
+            imageWidth = 100f,
+            imageHeight = 100f,
+            camera = PlanCamera(),
+            maxDistancePx = 20f
+        )
+        assertEquals(1, insert!!.insertBeforeIndex)
+        assertEquals(0.5f, insert.pin.xFraction, 0.02f)
+        assertEquals(0.5f, insert.pin.yFraction, 0.02f)
+        assertEquals(500L, insert.pin.placedAtMs)
+    }
+
+    @Test
+    fun rotateAbout_keepsThePointUnderTheFingers() {
+        val start = PlanCamera(zoom = 2f)
+        val under = WalkRoute.fractionInView(
+            tapX = 25f,
+            tapY = 50f,
+            viewWidth = 100f,
+            viewHeight = 100f,
+            imageWidth = 100f,
+            imageHeight = 100f,
+            camera = start
+        )!!
+        val camera = WalkRoute.rotateAbout(
+            viewWidth = 100f,
+            viewHeight = 100f,
+            imageWidth = 100f,
+            imageHeight = 100f,
+            camera = start,
+            centroidX = 25f,
+            centroidY = 50f,
+            deltaDegrees = 90f
+        )
+        assertEquals(90f, camera.rotationDegrees, 0.001f)
+        val stillThere = WalkRoute.fractionInView(
+            tapX = 25f,
+            tapY = 50f,
+            viewWidth = 100f,
+            viewHeight = 100f,
+            imageWidth = 100f,
+            imageHeight = 100f,
+            camera = camera
+        )
+        assertEquals(under.x, stillThere!!.x, 0.02f)
+        assertEquals(under.y, stillThere.y, 0.02f)
     }
 
     @Test

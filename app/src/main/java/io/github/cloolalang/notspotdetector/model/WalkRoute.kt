@@ -71,8 +71,9 @@ object WalkRoute {
     }
 
     /**
-     * Where the floor plan is drawn after zoom and pan. Zoom 1 and no pan is the fitted picture.
-     * [panX] and [panY] move the centre of the picture, in view pixels.
+     * Where the floor plan is drawn after zoom and pan when rotation is zero.
+     * Zoom 1 and no pan is the fitted picture. [panX] and [panY] move the centre,
+     * in view pixels. With rotation, use [planSize] plus [imageToView] / [fractionInView].
      */
     fun visibleRect(
         viewWidth: Float,
@@ -83,17 +84,28 @@ object WalkRoute {
         panX: Float = 0f,
         panY: Float = 0f
     ): ContentRect {
+        val size = planSize(viewWidth, viewHeight, imageWidth, imageHeight, zoom)
+        if (size.width <= 0f || size.height <= 0f) return size
+        return ContentRect(
+            left = viewWidth / 2f + panX - size.width / 2f,
+            top = viewHeight / 2f + panY - size.height / 2f,
+            width = size.width,
+            height = size.height
+        )
+    }
+
+    /** Drawn size of the plan at [zoom], before pan and rotation. */
+    fun planSize(
+        viewWidth: Float,
+        viewHeight: Float,
+        imageWidth: Float,
+        imageHeight: Float,
+        zoom: Float = 1f
+    ): ContentRect {
         val fitted = contentRect(viewWidth, viewHeight, imageWidth, imageHeight)
         if (fitted.width <= 0f || fitted.height <= 0f) return fitted
         val scale = zoom.coerceIn(MIN_ZOOM, MAX_ZOOM)
-        val width = fitted.width * scale
-        val height = fitted.height * scale
-        return ContentRect(
-            left = viewWidth / 2f + panX - width / 2f,
-            top = viewHeight / 2f + panY - height / 2f,
-            width = width,
-            height = height
-        )
+        return ContentRect(0f, 0f, fitted.width * scale, fitted.height * scale)
     }
 
     /** Keeps the picture from sliding off the view. A zoomed plan still covers the view. */
@@ -106,13 +118,12 @@ object WalkRoute {
         deltaX: Float,
         deltaY: Float
     ): PlanCamera {
-        val fitted = contentRect(viewWidth, viewHeight, imageWidth, imageHeight)
-        if (fitted.width <= 0f || fitted.height <= 0f) return camera
-        val width = fitted.width * camera.zoom
-        val height = fitted.height * camera.zoom
-        return camera.copy(
-            panX = (camera.panX + deltaX).coerceIn(-panLimit(viewWidth, width), panLimit(viewWidth, width)),
-            panY = (camera.panY + deltaY).coerceIn(-panLimit(viewHeight, height), panLimit(viewHeight, height))
+        return clampPan(
+            viewWidth,
+            viewHeight,
+            imageWidth,
+            imageHeight,
+            camera.copy(panX = camera.panX + deltaX, panY = camera.panY + deltaY)
         )
     }
 
@@ -131,24 +142,74 @@ object WalkRoute {
         zoomFactor: Float
     ): PlanCamera {
         if (!zoomFactor.isFinite() || zoomFactor <= 0f) return camera
-        val current = visibleRect(
-            viewWidth, viewHeight, imageWidth, imageHeight, camera.zoom, camera.panX, camera.panY
+        val under = fractionInView(
+            tapX = centroidX,
+            tapY = centroidY,
+            viewWidth = viewWidth,
+            viewHeight = viewHeight,
+            imageWidth = imageWidth,
+            imageHeight = imageHeight,
+            camera = camera
         )
-        if (current.width <= 0f || current.height <= 0f) return camera
-        val fractionX = ((centroidX - current.left) / current.width).coerceIn(0f, 1f)
-        val fractionY = ((centroidY - current.top) / current.height).coerceIn(0f, 1f)
         val newZoom = (camera.zoom * zoomFactor).coerceIn(MIN_ZOOM, MAX_ZOOM)
-        val fitted = contentRect(viewWidth, viewHeight, imageWidth, imageHeight)
-        val newWidth = fitted.width * newZoom
-        val newHeight = fitted.height * newZoom
-        val left = centroidX - fractionX * newWidth
-        val top = centroidY - fractionY * newHeight
-        val panX = left + newWidth / 2f - viewWidth / 2f
-        val panY = top + newHeight / 2f - viewHeight / 2f
-        return PlanCamera(
-            zoom = newZoom,
-            panX = panX.coerceIn(-panLimit(viewWidth, newWidth), panLimit(viewWidth, newWidth)),
-            panY = panY.coerceIn(-panLimit(viewHeight, newHeight), panLimit(viewHeight, newHeight))
+        val zoomed = camera.copy(zoom = newZoom)
+        if (under == null) return clampPan(viewWidth, viewHeight, imageWidth, imageHeight, zoomed)
+        return keepPointUnder(
+            viewWidth, viewHeight, imageWidth, imageHeight, zoomed, under, centroidX, centroidY
+        )
+    }
+
+    /**
+     * Rotates about the point under [centroidX], [centroidY], so that spot stays under the fingers.
+     * [deltaDegrees] is the change from the gesture (Compose [calculateRotation]).
+     */
+    fun rotateAbout(
+        viewWidth: Float,
+        viewHeight: Float,
+        imageWidth: Float,
+        imageHeight: Float,
+        camera: PlanCamera,
+        centroidX: Float,
+        centroidY: Float,
+        deltaDegrees: Float
+    ): PlanCamera {
+        if (!deltaDegrees.isFinite() || abs(deltaDegrees) < 0.001f) return camera
+        val under = fractionInView(
+            tapX = centroidX,
+            tapY = centroidY,
+            viewWidth = viewWidth,
+            viewHeight = viewHeight,
+            imageWidth = imageWidth,
+            imageHeight = imageHeight,
+            camera = camera
+        )
+        val rotated = camera.copy(
+            rotationDegrees = normalizeDegrees(camera.rotationDegrees + deltaDegrees)
+        )
+        if (under == null) return clampPan(viewWidth, viewHeight, imageWidth, imageHeight, rotated)
+        return keepPointUnder(
+            viewWidth, viewHeight, imageWidth, imageHeight, rotated, under, centroidX, centroidY
+        )
+    }
+
+    /** View-pixel position of an image fraction after zoom, pan, and rotation. */
+    fun imageToView(
+        point: ImagePoint,
+        viewWidth: Float,
+        viewHeight: Float,
+        imageWidth: Float,
+        imageHeight: Float,
+        camera: PlanCamera
+    ): ImagePoint {
+        val size = planSize(viewWidth, viewHeight, imageWidth, imageHeight, camera.zoom)
+        val localX = point.x * size.width - size.width / 2f
+        val localY = point.y * size.height - size.height / 2f
+        val rad = camera.rotationDegrees * PI.toFloat() / 180f
+        val cos = cos(rad)
+        val sin = sin(rad)
+        return ImagePoint(
+            x = viewWidth / 2f + camera.panX + localX * cos - localY * sin,
+            y = viewHeight / 2f + camera.panY + localX * sin + localY * cos
         )
     }
 
@@ -162,21 +223,102 @@ object WalkRoute {
         imageHeight: Float,
         zoom: Float = 1f,
         panX: Float = 0f,
-        panY: Float = 0f
+        panY: Float = 0f,
+        rotationDegrees: Float = 0f
     ): ImagePoint? {
-        val rect = visibleRect(
-            viewWidth, viewHeight, imageWidth, imageHeight, zoom, panX, panY
-        )
-        if (rect.width <= 0f || rect.height <= 0f) return null
-        if (tapX < rect.left || tapY < rect.top) return null
-        if (tapX > rect.left + rect.width || tapY > rect.top + rect.height) return null
-        return ImagePoint(
-            x = (tapX - rect.left) / rect.width,
-            y = (tapY - rect.top) / rect.height
+        return fractionInView(
+            tapX = tapX,
+            tapY = tapY,
+            viewWidth = viewWidth,
+            viewHeight = viewHeight,
+            imageWidth = imageWidth,
+            imageHeight = imageHeight,
+            camera = PlanCamera(zoom = zoom, panX = panX, panY = panY, rotationDegrees = rotationDegrees)
         )
     }
 
+    fun fractionInView(
+        tapX: Float,
+        tapY: Float,
+        viewWidth: Float,
+        viewHeight: Float,
+        imageWidth: Float,
+        imageHeight: Float,
+        camera: PlanCamera
+    ): ImagePoint? {
+        val size = planSize(viewWidth, viewHeight, imageWidth, imageHeight, camera.zoom)
+        if (size.width <= 0f || size.height <= 0f) return null
+        val dx = tapX - (viewWidth / 2f + camera.panX)
+        val dy = tapY - (viewHeight / 2f + camera.panY)
+        val rad = -camera.rotationDegrees * PI.toFloat() / 180f
+        val cos = cos(rad)
+        val sin = sin(rad)
+        val localX = dx * cos - dy * sin
+        val localY = dx * sin + dy * cos
+        val x = (localX + size.width / 2f) / size.width
+        val y = (localY + size.height / 2f) / size.height
+        if (x < 0f || y < 0f || x > 1f || y > 1f) return null
+        return ImagePoint(x = x, y = y)
+    }
+
+    private fun keepPointUnder(
+        viewWidth: Float,
+        viewHeight: Float,
+        imageWidth: Float,
+        imageHeight: Float,
+        camera: PlanCamera,
+        under: ImagePoint,
+        centroidX: Float,
+        centroidY: Float
+    ): PlanCamera {
+        val at = imageToView(under, viewWidth, viewHeight, imageWidth, imageHeight, camera)
+        return clampPan(
+            viewWidth,
+            viewHeight,
+            imageWidth,
+            imageHeight,
+            camera.copy(
+                panX = camera.panX + (centroidX - at.x),
+                panY = camera.panY + (centroidY - at.y)
+            )
+        )
+    }
+
+    private fun clampPan(
+        viewWidth: Float,
+        viewHeight: Float,
+        imageWidth: Float,
+        imageHeight: Float,
+        camera: PlanCamera
+    ): PlanCamera {
+        val size = planSize(viewWidth, viewHeight, imageWidth, imageHeight, camera.zoom)
+        if (size.width <= 0f || size.height <= 0f) return camera
+        val (aabbWidth, aabbHeight) = rotatedAabb(size.width, size.height, camera.rotationDegrees)
+        return camera.copy(
+            panX = camera.panX.coerceIn(-panLimit(viewWidth, aabbWidth), panLimit(viewWidth, aabbWidth)),
+            panY = camera.panY.coerceIn(-panLimit(viewHeight, aabbHeight), panLimit(viewHeight, aabbHeight))
+        )
+    }
+
+    /**
+     * Axis-aligned bounds of a [width]×[height] plan after [rotationDegrees].
+     * Used so pan limits still reach the edges when the plan is rotated (e.g. 90°).
+     */
+    fun rotatedAabb(width: Float, height: Float, rotationDegrees: Float): Pair<Float, Float> {
+        val rad = rotationDegrees * PI.toFloat() / 180f
+        val cosAbs = abs(cos(rad))
+        val sinAbs = abs(sin(rad))
+        return (width * cosAbs + height * sinAbs) to (width * sinAbs + height * cosAbs)
+    }
+
     private fun panLimit(view: Float, content: Float): Float = abs(content - view) / 2f
+
+    fun normalizeDegrees(degrees: Float): Float {
+        var value = degrees % 360f
+        if (value > 180f) value -= 360f
+        if (value <= -180f) value += 360f
+        return value
+    }
 
     /**
      * Moves [tap] so the leg from [from] lies on the nearest snap angle from [mode].
@@ -354,6 +496,66 @@ object WalkRoute {
         return ImagePoint(start.x + nx, start.y + ny) to ImagePoint(end.x + nx, end.y + ny)
     }
 
+    /**
+     * Nearest walk leg under the tap, for Add marker. Returns a pin on that leg and the
+     * list index of the later endpoint so the new mark can be inserted before it.
+     */
+    fun insertOnNearestLeg(
+        pins: List<WalkPin>,
+        tapX: Float,
+        tapY: Float,
+        viewWidth: Float,
+        viewHeight: Float,
+        imageWidth: Float,
+        imageHeight: Float,
+        camera: PlanCamera,
+        maxDistancePx: Float
+    ): LegInsert? {
+        if (pins.size < 2 || maxDistancePx <= 0f) return null
+        val ordered = pins.withIndex().sortedBy { it.value.placedAtMs }
+        var bestDistance = maxDistancePx
+        var best: LegInsert? = null
+        for (index in 0 until ordered.lastIndex) {
+            val from = ordered[index]
+            val to = ordered[index + 1]
+            if (to.value.placedAtMs <= from.value.placedAtMs) continue
+            val start = imageToView(
+                ImagePoint(from.value.xFraction, from.value.yFraction),
+                viewWidth, viewHeight, imageWidth, imageHeight, camera
+            )
+            val end = imageToView(
+                ImagePoint(to.value.xFraction, to.value.yFraction),
+                viewWidth, viewHeight, imageWidth, imageHeight, camera
+            )
+            val dx = end.x - start.x
+            val dy = end.y - start.y
+            val len2 = dx * dx + dy * dy
+            if (len2 < 1f) continue
+            val t = (((tapX - start.x) * dx + (tapY - start.y) * dy) / len2).coerceIn(0.02f, 0.98f)
+            val px = start.x + dx * t
+            val py = start.y + dy * t
+            val distance = hypot(tapX - px, tapY - py)
+            if (distance > bestDistance) continue
+            val spanMs = to.value.placedAtMs - from.value.placedAtMs
+            val atMs = if (spanMs <= 1L) {
+                from.value.placedAtMs
+            } else {
+                from.value.placedAtMs + (spanMs * t).toLong().coerceIn(1L, spanMs - 1L)
+            }
+            val point = lerp(from.value, to.value, t)
+            bestDistance = distance
+            best = LegInsert(
+                pin = WalkPin(
+                    placedAtMs = atMs,
+                    xFraction = point.x.coerceIn(0f, 1f),
+                    yFraction = point.y.coerceIn(0f, 1f)
+                ),
+                insertBeforeIndex = to.index
+            )
+        }
+        return best
+    }
+
     private fun lerp(from: WalkPin, to: WalkPin, fraction: Float): ImagePoint {
         return ImagePoint(
             x = from.xFraction + (to.xFraction - from.xFraction) * fraction,
@@ -364,11 +566,19 @@ object WalkRoute {
     private const val MAX_TICKS = 2_000
 }
 
-/** Zoom and pan of the floor plan on screen. Zoom 1 fits the picture in the view. */
+/** Result of [WalkRoute.insertOnNearestLeg]: insert [pin] before [insertBeforeIndex]. */
+data class LegInsert(
+    val pin: WalkPin,
+    val insertBeforeIndex: Int
+)
+
+/** Zoom, pan, and rotation of the floor plan on screen. Zoom 1 fits the picture in the view. */
 data class PlanCamera(
     val zoom: Float = WalkRoute.MIN_ZOOM,
     val panX: Float = 0f,
-    val panY: Float = 0f
+    val panY: Float = 0f,
+    /** Clockwise degrees in the view (Compose canvas rotate). */
+    val rotationDegrees: Float = 0f
 )
 
 data class WalkPin(

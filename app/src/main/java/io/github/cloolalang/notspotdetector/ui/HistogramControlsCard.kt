@@ -1414,6 +1414,16 @@ private fun ZoneTestPanel(
                         pins = pins.toMutableList().also { it[index] = pin }
                     }
                 },
+                onRemovePin = { index ->
+                    if (index in pins.indices) {
+                        pins = pins.toMutableList().also { it.removeAt(index) }
+                    }
+                },
+                onInsertPin = { index, pin ->
+                    if (index in 0..pins.size) {
+                        pins = pins.toMutableList().also { it.add(index, pin) }
+                    }
+                },
                 onUndo = { if (pins.isNotEmpty()) pins = pins.dropLast(1) }
             )
             }

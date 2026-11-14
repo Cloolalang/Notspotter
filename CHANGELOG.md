@@ -5,6 +5,61 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.186.1] - 2026-11-14
+
+### Fixed
+
+- **Parallel trail switches** — RSRQ and EARFCN/PCI toggles sit under the floor plan, so they are not covered by the KPI history panel.
+- **Rotated floor plan** — After rotating (for example 90°), pan and zoom limits use the rotated bounds so the former left/right edges can still be brought into view.
+
+## [2.186.0] - 2026-11-14
+
+### Added
+
+- **Add marker** — Press Add marker (turns orange), tap a walk leg between two marks to insert one on that line, then it turns off. Same once-per-press behaviour as Move / Remove marker.
+
+## [2.185.0] - 2026-11-14
+
+### Added
+
+- **Remove marker** — Press Remove marker (turns orange), tap one mark to delete it, then it turns off. Same once-per-press behaviour as Move marker, with a 10-second idle timeout.
+
+## [2.184.0] - 2026-11-14
+
+### Added
+
+- **Floor-plan rotate** — Twist with two fingers to rotate the plan in the frame, together with pinch-zoom and drag.
+
+## [2.183.5] - 2026-11-14
+
+### Changed
+
+- **Floor-plan plot controls** — Snap and parallel RSRQ / EARFCN-PCI toggles sit in the side panel below Move marker.
+
+## [2.183.4] - 2026-11-14
+
+### Changed
+
+- **Adjustable trail marker** — The hint now reads “use 2 fingers to drag and zoom map”.
+
+## [2.183.3] - 2026-11-14
+
+### Changed
+
+- **Move marker** — The button turns orange while move mode is active.
+
+## [2.183.2] - 2026-11-14
+
+### Changed
+
+- **Floor-plan plot controls** — The panel sits beside the map (not over it). Use Move to right / Move to left to switch sides while you pan and zoom the plan.
+
+## [2.183.1] - 2026-11-14
+
+### Changed
+
+- **Floor-plan plot controls** — Adjustable trail marker, Remove last mark, and Move marker stay fixed in the top-left of the map view while you pan and zoom.
+
 ## [2.183.0] - 2026-11-14
 
 ### Added
