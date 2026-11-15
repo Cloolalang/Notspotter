@@ -542,6 +542,8 @@
     <string name="zone_test_adjustable_trail_hint">use 2 fingers to drag, zoom and rotate map</string>
     <string name="zone_test_plot_controls_to_right">Move to right ›</string>
     <string name="zone_test_plot_controls_to_left">‹ Move to left</string>
+    <string name="zone_test_plot_controls_above">Move above ↑</string>
+    <string name="zone_test_plot_controls_beside">Move beside map</string>
     <string name="zone_test_plot_rsrq">Parallel RSRQ trail</string>
     <string name="zone_test_plot_earfcn_pci">Parallel EARFCN / PCI trail</string>
     <string name="zone_test_move_marker">Move marker</string>

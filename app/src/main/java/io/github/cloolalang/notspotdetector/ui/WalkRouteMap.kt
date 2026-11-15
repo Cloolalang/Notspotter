@@ -12,6 +12,7 @@ import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,6 +24,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -190,51 +192,77 @@ fun WalkRouteMap(
                 }
             }
         }
-        var controlsOnLeft by remember { mutableStateOf(true) }
+        var controlDock by remember { mutableStateOf(PlotControlDock.Left) }
+        var sideDock by remember { mutableStateOf(PlotControlDock.Left) }
         val mapHeight = screenHeight.coerceAtLeast(160.dp)
+
+        @Composable
+        fun PlotControls(modifier: Modifier) {
+            MapPlotControls(
+                modifier = modifier,
+                adjustableTrailMarker = adjustableTrailMarker,
+                onAdjustableTrailMarkerChange = onAdjustableTrailMarkerChange,
+                showMarkActions = pins.isNotEmpty(),
+                canAddOnLeg = pins.size >= 2,
+                moveArmed = moveArmed,
+                removeArmed = removeArmed,
+                addArmed = addArmed,
+                snapMode = snapMode,
+                onSnapModeChange = onSnapModeChange,
+                dock = controlDock,
+                onMoveToOtherSide = {
+                    val next = if (controlDock == PlotControlDock.Left) {
+                        PlotControlDock.Right
+                    } else {
+                        PlotControlDock.Left
+                    }
+                    sideDock = next
+                    controlDock = next
+                },
+                onMoveAbove = {
+                    if (controlDock == PlotControlDock.Above) {
+                        controlDock = sideDock
+                    } else {
+                        sideDock = controlDock
+                        controlDock = PlotControlDock.Above
+                    }
+                },
+                onUndo = onUndo,
+                onToggleMove = {
+                    moveArmed = !moveArmed
+                    if (moveArmed) {
+                        removeArmed = false
+                        addArmed = false
+                    }
+                },
+                onToggleRemove = {
+                    removeArmed = !removeArmed
+                    if (removeArmed) {
+                        moveArmed = false
+                        addArmed = false
+                    }
+                },
+                onToggleAdd = {
+                    addArmed = !addArmed
+                    if (addArmed) {
+                        moveArmed = false
+                        removeArmed = false
+                    }
+                }
+            )
+        }
+
+        if (!marksFromMaster && controlDock == PlotControlDock.Above) {
+            PlotControls(Modifier.fillMaxWidth())
+        }
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(mapHeight),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            if (!marksFromMaster && controlsOnLeft) {
-                MapPlotControls(
-                    modifier = Modifier.fillMaxHeight(),
-                    adjustableTrailMarker = adjustableTrailMarker,
-                    onAdjustableTrailMarkerChange = onAdjustableTrailMarkerChange,
-                    showMarkActions = pins.isNotEmpty(),
-                    canAddOnLeg = pins.size >= 2,
-                    moveArmed = moveArmed,
-                    removeArmed = removeArmed,
-                    addArmed = addArmed,
-                    snapMode = snapMode,
-                    onSnapModeChange = onSnapModeChange,
-                    dockOnLeft = true,
-                    onMoveToOtherSide = { controlsOnLeft = false },
-                    onUndo = onUndo,
-                    onToggleMove = {
-                        moveArmed = !moveArmed
-                        if (moveArmed) {
-                            removeArmed = false
-                            addArmed = false
-                        }
-                    },
-                    onToggleRemove = {
-                        removeArmed = !removeArmed
-                        if (removeArmed) {
-                            moveArmed = false
-                            addArmed = false
-                        }
-                    },
-                    onToggleAdd = {
-                        addArmed = !addArmed
-                        if (addArmed) {
-                            moveArmed = false
-                            removeArmed = false
-                        }
-                    }
-                )
+            if (!marksFromMaster && controlDock == PlotControlDock.Left) {
+                PlotControls(Modifier.fillMaxHeight())
             }
             Box(
                 modifier = Modifier
@@ -690,43 +718,8 @@ fun WalkRouteMap(
                 }
             }
             }
-            if (!marksFromMaster && !controlsOnLeft) {
-                MapPlotControls(
-                    modifier = Modifier.fillMaxHeight(),
-                    adjustableTrailMarker = adjustableTrailMarker,
-                    onAdjustableTrailMarkerChange = onAdjustableTrailMarkerChange,
-                    showMarkActions = pins.isNotEmpty(),
-                    canAddOnLeg = pins.size >= 2,
-                    moveArmed = moveArmed,
-                    removeArmed = removeArmed,
-                    addArmed = addArmed,
-                    snapMode = snapMode,
-                    onSnapModeChange = onSnapModeChange,
-                    dockOnLeft = false,
-                    onMoveToOtherSide = { controlsOnLeft = true },
-                    onUndo = onUndo,
-                    onToggleMove = {
-                        moveArmed = !moveArmed
-                        if (moveArmed) {
-                            removeArmed = false
-                            addArmed = false
-                        }
-                    },
-                    onToggleRemove = {
-                        removeArmed = !removeArmed
-                        if (removeArmed) {
-                            moveArmed = false
-                            addArmed = false
-                        }
-                    },
-                    onToggleAdd = {
-                        addArmed = !addArmed
-                        if (addArmed) {
-                            moveArmed = false
-                            removeArmed = false
-                        }
-                    }
-                )
+            if (!marksFromMaster && controlDock == PlotControlDock.Right) {
+                PlotControls(Modifier.fillMaxHeight())
             }
         }
         if (!marksFromMaster) {
@@ -776,8 +769,8 @@ fun WalkRouteMap(
 }
 
 /**
- * Sits beside the floor plan (left or right) so it never covers the map.
- * Pan and zoom only affect the plan next to these controls.
+ * Plot controls for the floor plan. They sit beside the plan (left or right) or
+ * above it, and never cover the map. Pan and zoom only affect the plan.
  */
 @Composable
 private fun MapPlotControls(
@@ -790,20 +783,23 @@ private fun MapPlotControls(
     addArmed: Boolean,
     snapMode: WalkSnapMode,
     onSnapModeChange: (WalkSnapMode) -> Unit,
-    dockOnLeft: Boolean,
+    dock: PlotControlDock,
     onMoveToOtherSide: () -> Unit,
+    onMoveAbove: () -> Unit,
     onUndo: () -> Unit,
     onToggleMove: () -> Unit,
     onToggleRemove: () -> Unit,
     onToggleAdd: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val above = dock == PlotControlDock.Above
+    val sideScroll = rememberScrollState()
     val armedColors = ButtonDefaults.buttonColors(
         containerColor = Color(0xFFEF6C00),
         contentColor = Color.White
     )
     Surface(
-        modifier = modifier.width(168.dp),
+        modifier = if (above) modifier.fillMaxWidth() else modifier.width(168.dp),
         shape = RoundedCornerShape(8.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
         tonalElevation = 1.dp
@@ -811,97 +807,210 @@ private fun MapPlotControls(
         Column(
             modifier = Modifier
                 .padding(8.dp)
-                .verticalScroll(rememberScrollState()),
+                .then(if (above) Modifier else Modifier.verticalScroll(sideScroll)),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            TextButton(
-                onClick = onMoveToOtherSide,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = stringResource(
-                        if (dockOnLeft) {
-                            R.string.zone_test_plot_controls_to_right
-                        } else {
-                            R.string.zone_test_plot_controls_to_left
-                        }
+            if (above) {
+                TextButton(
+                    onClick = onMoveAbove,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(text = stringResource(R.string.zone_test_plot_controls_beside))
+                }
+            } else {
+                TextButton(
+                    onClick = onMoveToOtherSide,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = stringResource(
+                            if (dock == PlotControlDock.Left) {
+                                R.string.zone_test_plot_controls_to_right
+                            } else {
+                                R.string.zone_test_plot_controls_to_left
+                            }
+                        )
                     )
+                }
+                TextButton(
+                    onClick = onMoveAbove,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(text = stringResource(R.string.zone_test_plot_controls_above))
+                }
+            }
+            if (above) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = stringResource(R.string.zone_test_adjustable_trail),
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.weight(1f).padding(end = 8.dp)
+                    )
+                    Switch(
+                        checked = adjustableTrailMarker,
+                        onCheckedChange = onAdjustableTrailMarkerChange
+                    )
+                }
+            } else {
+                Text(
+                    text = stringResource(R.string.zone_test_adjustable_trail),
+                    style = MaterialTheme.typography.labelLarge
+                )
+                Switch(
+                    checked = adjustableTrailMarker,
+                    onCheckedChange = onAdjustableTrailMarkerChange
                 )
             }
-            Text(
-                text = stringResource(R.string.zone_test_adjustable_trail),
-                style = MaterialTheme.typography.labelLarge
-            )
-            Switch(
-                checked = adjustableTrailMarker,
-                onCheckedChange = onAdjustableTrailMarkerChange
-            )
             Text(
                 text = stringResource(R.string.zone_test_adjustable_trail_hint),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             if (showMarkActions) {
-                Button(
-                    onClick = onUndo,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(text = stringResource(R.string.zone_test_undo_mark))
-                }
-                Button(
-                    onClick = onToggleMove,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = if (moveArmed) armedColors else ButtonDefaults.buttonColors()
-                ) {
-                    Text(text = stringResource(R.string.zone_test_move_marker))
-                }
-                Button(
-                    onClick = onToggleRemove,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = if (removeArmed) armedColors else ButtonDefaults.buttonColors()
-                ) {
-                    Text(text = stringResource(R.string.zone_test_remove_marker))
-                }
-                if (canAddOnLeg) {
-                    Button(
-                        onClick = onToggleAdd,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = if (addArmed) armedColors else ButtonDefaults.buttonColors()
-                    ) {
-                        Text(text = stringResource(R.string.zone_test_add_marker))
-                    }
-                }
+                MarkActionButtons(
+                    fillWidth = !above,
+                    canAddOnLeg = canAddOnLeg,
+                    moveArmed = moveArmed,
+                    removeArmed = removeArmed,
+                    addArmed = addArmed,
+                    armedColors = armedColors,
+                    onUndo = onUndo,
+                    onToggleMove = onToggleMove,
+                    onToggleRemove = onToggleRemove,
+                    onToggleAdd = onToggleAdd
+                )
             }
             Text(
                 text = stringResource(R.string.zone_test_snap_label),
                 style = MaterialTheme.typography.labelLarge
             )
-            SnapChip(
-                selected = snapMode == WalkSnapMode.Off,
-                label = stringResource(R.string.zone_test_snap_off),
-                onClick = { onSnapModeChange(WalkSnapMode.Off) }
-            )
-            SnapChip(
-                selected = snapMode == WalkSnapMode.Degrees45,
-                label = stringResource(R.string.zone_test_snap_45),
-                onClick = { onSnapModeChange(WalkSnapMode.Degrees45) }
-            )
-            SnapChip(
-                selected = snapMode == WalkSnapMode.Degrees22_5,
-                label = stringResource(R.string.zone_test_snap_22_5),
-                onClick = { onSnapModeChange(WalkSnapMode.Degrees22_5) }
+            SnapModeChips(
+                fillWidth = !above,
+                snapMode = snapMode,
+                onSnapModeChange = onSnapModeChange
             )
         }
     }
 }
 
 @Composable
-private fun SnapChip(selected: Boolean, label: String, onClick: () -> Unit) {
+private fun MarkActionButtons(
+    fillWidth: Boolean,
+    canAddOnLeg: Boolean,
+    moveArmed: Boolean,
+    removeArmed: Boolean,
+    addArmed: Boolean,
+    armedColors: ButtonColors,
+    onUndo: () -> Unit,
+    onToggleMove: () -> Unit,
+    onToggleRemove: () -> Unit,
+    onToggleAdd: () -> Unit
+) {
+    val buttonModifier = if (fillWidth) Modifier.fillMaxWidth() else Modifier
+    val undo = @Composable {
+        Button(onClick = onUndo, modifier = buttonModifier) {
+            Text(text = stringResource(R.string.zone_test_undo_mark))
+        }
+    }
+    val move = @Composable {
+        Button(
+            onClick = onToggleMove,
+            modifier = buttonModifier,
+            colors = if (moveArmed) armedColors else ButtonDefaults.buttonColors()
+        ) {
+            Text(text = stringResource(R.string.zone_test_move_marker))
+        }
+    }
+    val remove = @Composable {
+        Button(
+            onClick = onToggleRemove,
+            modifier = buttonModifier,
+            colors = if (removeArmed) armedColors else ButtonDefaults.buttonColors()
+        ) {
+            Text(text = stringResource(R.string.zone_test_remove_marker))
+        }
+    }
+    val add = @Composable {
+        Button(
+            onClick = onToggleAdd,
+            modifier = buttonModifier,
+            colors = if (addArmed) armedColors else ButtonDefaults.buttonColors()
+        ) {
+            Text(text = stringResource(R.string.zone_test_add_marker))
+        }
+    }
+    if (fillWidth) {
+        undo()
+        move()
+        remove()
+        if (canAddOnLeg) add()
+    } else {
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            undo()
+            move()
+            remove()
+            if (canAddOnLeg) add()
+        }
+    }
+}
+
+@Composable
+private fun SnapModeChips(
+    fillWidth: Boolean,
+    snapMode: WalkSnapMode,
+    onSnapModeChange: (WalkSnapMode) -> Unit
+) {
+    val chips = @Composable {
+        SnapChip(
+            selected = snapMode == WalkSnapMode.Off,
+            label = stringResource(R.string.zone_test_snap_off),
+            expand = fillWidth,
+            onClick = { onSnapModeChange(WalkSnapMode.Off) }
+        )
+        SnapChip(
+            selected = snapMode == WalkSnapMode.Degrees45,
+            label = stringResource(R.string.zone_test_snap_45),
+            expand = fillWidth,
+            onClick = { onSnapModeChange(WalkSnapMode.Degrees45) }
+        )
+        SnapChip(
+            selected = snapMode == WalkSnapMode.Degrees22_5,
+            label = stringResource(R.string.zone_test_snap_22_5),
+            expand = fillWidth,
+            onClick = { onSnapModeChange(WalkSnapMode.Degrees22_5) }
+        )
+    }
+    if (fillWidth) {
+        chips()
+    } else {
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            chips()
+        }
+    }
+}
+
+@Composable
+private fun SnapChip(
+    selected: Boolean,
+    label: String,
+    onClick: () -> Unit,
+    expand: Boolean = true
+) {
     FilterChip(
         selected = selected,
         onClick = onClick,
         label = { Text(label) },
-        modifier = Modifier.fillMaxWidth()
+        modifier = if (expand) Modifier.fillMaxWidth() else Modifier
     )
 }
 
@@ -944,3 +1053,9 @@ private fun distance(a: ImagePoint, b: ImagePoint): Float {
 }
 
 private const val MOVE_MARKER_IDLE_MS = 10_000L
+
+private enum class PlotControlDock {
+    Left,
+    Right,
+    Above
+}
