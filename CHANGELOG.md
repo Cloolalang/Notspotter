@@ -5,6 +5,25 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.189.0] - 2026-11-16
+
+### Changed
+
+- **Cross hairs reach** — The plan can slide until any place, including the edges, sits on the blue cross hairs.
+- **Tap the cross hairs** — A tap on the cross hairs drops a mark, as well as the Mark button.
+
+## [2.188.1] - 2026-11-16
+
+### Changed
+
+- **Cross hairs snap** — Off, 45°, and 22.5° trail snap stay available in cross hairs mode. Mark and the preview leg follow the selected snap.
+
+## [2.188.0] - 2026-11-16
+
+### Added
+
+- **Cross hairs mode** — A blue cross hairs stays in the middle of the zone-test floor plan. Drag, pinch, and twist until the place sits on it, then press Mark. Undo last mark and the RSRQ and EARFCN/PCI trail switches stay with that mode.
+
 ## [2.187.0] - 2026-11-15
 
 ### Added

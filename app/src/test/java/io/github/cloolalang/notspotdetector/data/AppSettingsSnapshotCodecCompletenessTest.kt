@@ -232,6 +232,7 @@ class AppSettingsSnapshotCodecCompletenessTest {
                 walkRouteEnabled = true,
                 walkSnapMode = WalkSnapMode.Degrees22_5,
                 adjustableTrailMarker = true,
+                crossHairsMode = true,
                 walkPlotRsrq = true,
                 walkPlotEarfcnPci = true
             ),
@@ -439,6 +440,7 @@ class AppSettingsSnapshotCodecCompletenessTest {
             "walkRouteEnabled",
             "walkSnapMode",
             "adjustableTrailMarker",
+            "crossHairsMode",
             "walkPlotRsrq",
             "walkPlotEarfcnPci"
         )

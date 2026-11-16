@@ -5,6 +5,7 @@ import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.hypot
+import kotlin.math.max
 import kotlin.math.round
 import kotlin.math.sin
 
@@ -108,7 +109,11 @@ object WalkRoute {
         return ContentRect(0f, 0f, fitted.width * scale, fitted.height * scale)
     }
 
-    /** Keeps the picture from sliding off the view. A zoomed plan still covers the view. */
+    /**
+     * Keeps the picture from sliding off the view. A zoomed plan still covers the view.
+     * [reachCentre] lets any point on the plan, including the edges, sit in the middle
+     * of the view. Used by cross hairs mode.
+     */
     fun moveCentre(
         viewWidth: Float,
         viewHeight: Float,
@@ -116,14 +121,16 @@ object WalkRoute {
         imageHeight: Float,
         camera: PlanCamera,
         deltaX: Float,
-        deltaY: Float
+        deltaY: Float,
+        reachCentre: Boolean = false
     ): PlanCamera {
         return clampPan(
             viewWidth,
             viewHeight,
             imageWidth,
             imageHeight,
-            camera.copy(panX = camera.panX + deltaX, panY = camera.panY + deltaY)
+            camera.copy(panX = camera.panX + deltaX, panY = camera.panY + deltaY),
+            reachCentre
         )
     }
 
@@ -139,7 +146,8 @@ object WalkRoute {
         camera: PlanCamera,
         centroidX: Float,
         centroidY: Float,
-        zoomFactor: Float
+        zoomFactor: Float,
+        reachCentre: Boolean = false
     ): PlanCamera {
         if (!zoomFactor.isFinite() || zoomFactor <= 0f) return camera
         val under = fractionInView(
@@ -153,9 +161,12 @@ object WalkRoute {
         )
         val newZoom = (camera.zoom * zoomFactor).coerceIn(MIN_ZOOM, MAX_ZOOM)
         val zoomed = camera.copy(zoom = newZoom)
-        if (under == null) return clampPan(viewWidth, viewHeight, imageWidth, imageHeight, zoomed)
+        if (under == null) {
+            return clampPan(viewWidth, viewHeight, imageWidth, imageHeight, zoomed, reachCentre)
+        }
         return keepPointUnder(
-            viewWidth, viewHeight, imageWidth, imageHeight, zoomed, under, centroidX, centroidY
+            viewWidth, viewHeight, imageWidth, imageHeight, zoomed, under, centroidX, centroidY,
+            reachCentre
         )
     }
 
@@ -171,7 +182,8 @@ object WalkRoute {
         camera: PlanCamera,
         centroidX: Float,
         centroidY: Float,
-        deltaDegrees: Float
+        deltaDegrees: Float,
+        reachCentre: Boolean = false
     ): PlanCamera {
         if (!deltaDegrees.isFinite() || abs(deltaDegrees) < 0.001f) return camera
         val under = fractionInView(
@@ -186,9 +198,12 @@ object WalkRoute {
         val rotated = camera.copy(
             rotationDegrees = normalizeDegrees(camera.rotationDegrees + deltaDegrees)
         )
-        if (under == null) return clampPan(viewWidth, viewHeight, imageWidth, imageHeight, rotated)
+        if (under == null) {
+            return clampPan(viewWidth, viewHeight, imageWidth, imageHeight, rotated, reachCentre)
+        }
         return keepPointUnder(
-            viewWidth, viewHeight, imageWidth, imageHeight, rotated, under, centroidX, centroidY
+            viewWidth, viewHeight, imageWidth, imageHeight, rotated, under, centroidX, centroidY,
+            reachCentre
         )
     }
 
@@ -269,7 +284,8 @@ object WalkRoute {
         camera: PlanCamera,
         under: ImagePoint,
         centroidX: Float,
-        centroidY: Float
+        centroidY: Float,
+        reachCentre: Boolean = false
     ): PlanCamera {
         val at = imageToView(under, viewWidth, viewHeight, imageWidth, imageHeight, camera)
         return clampPan(
@@ -280,7 +296,8 @@ object WalkRoute {
             camera.copy(
                 panX = camera.panX + (centroidX - at.x),
                 panY = camera.panY + (centroidY - at.y)
-            )
+            ),
+            reachCentre
         )
     }
 
@@ -289,14 +306,21 @@ object WalkRoute {
         viewHeight: Float,
         imageWidth: Float,
         imageHeight: Float,
-        camera: PlanCamera
+        camera: PlanCamera,
+        reachCentre: Boolean = false
     ): PlanCamera {
         val size = planSize(viewWidth, viewHeight, imageWidth, imageHeight, camera.zoom)
         if (size.width <= 0f || size.height <= 0f) return camera
         val (aabbWidth, aabbHeight) = rotatedAabb(size.width, size.height, camera.rotationDegrees)
         return camera.copy(
-            panX = camera.panX.coerceIn(-panLimit(viewWidth, aabbWidth), panLimit(viewWidth, aabbWidth)),
-            panY = camera.panY.coerceIn(-panLimit(viewHeight, aabbHeight), panLimit(viewHeight, aabbHeight))
+            panX = camera.panX.coerceIn(
+                -panLimit(viewWidth, aabbWidth, reachCentre),
+                panLimit(viewWidth, aabbWidth, reachCentre)
+            ),
+            panY = camera.panY.coerceIn(
+                -panLimit(viewHeight, aabbHeight, reachCentre),
+                panLimit(viewHeight, aabbHeight, reachCentre)
+            )
         )
     }
 
@@ -311,7 +335,15 @@ object WalkRoute {
         return (width * cosAbs + height * sinAbs) to (width * sinAbs + height * cosAbs)
     }
 
-    private fun panLimit(view: Float, content: Float): Float = abs(content - view) / 2f
+    /**
+     * How far the plan may slide. Normally an edge can meet the edge of the view.
+     * [reachCentre] also lets that edge sit in the middle, so cross hairs can mark it.
+     */
+    private fun panLimit(view: Float, content: Float, reachCentre: Boolean): Float {
+        val toEdge = abs(content - view) / 2f
+        if (!reachCentre) return toEdge
+        return max(toEdge, content / 2f)
+    }
 
     fun normalizeDegrees(degrees: Float): Float {
         var value = degrees % 360f

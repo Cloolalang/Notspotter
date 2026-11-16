@@ -538,6 +538,11 @@
     <string name="zone_test_snap_off">Off</string>
     <string name="zone_test_snap_45">90° &amp; 45°</string>
     <string name="zone_test_snap_22_5">90°, 45° &amp; 22.5°</string>
+    <string name="zone_test_cross_hairs">Cross hairs mode</string>
+    <string name="zone_test_cross_hairs_hint">Drag, pinch, and twist the plan until the place sits on the blue cross hairs, then press Mark or tap the cross hairs. Legs follow the snap setting.</string>
+    <string name="zone_test_cross_hairs_mark">Mark</string>
+    <string name="zone_test_cross_hairs_undo">Undo last mark</string>
+    <string name="zone_test_floor_plan_cross_hairs">Cross hairs mode. Drag with one finger to move the plan, pinch to zoom, and twist to rotate. Any place on the plan can sit on the blue cross hairs. Press Mark, or tap the cross hairs, to drop the mark. Legs follow the snap setting. The line uses the RSRP colours, with a mark every 30 seconds.</string>
     <string name="zone_test_adjustable_trail">Adjustable trail marker</string>
     <string name="zone_test_adjustable_trail_hint">use 2 fingers to drag, zoom and rotate map</string>
     <string name="zone_test_plot_controls_to_right">Move to right ›</string>

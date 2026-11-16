@@ -216,6 +216,7 @@ object AppSettingsSnapshotCodec {
             .put("walkRouteEnabled", settings.walkRouteEnabled)
             .put("walkSnapMode", settings.walkSnapMode.name)
             .put("adjustableTrailMarker", settings.adjustableTrailMarker)
+            .put("crossHairsMode", settings.crossHairsMode)
             .put("walkPlotRsrq", settings.walkPlotRsrq)
             .put("walkPlotEarfcnPci", settings.walkPlotEarfcnPci)
     }
@@ -291,6 +292,10 @@ object AppSettingsSnapshotCodec {
             adjustableTrailMarker = json.optBoolean(
                 "adjustableTrailMarker",
                 MonitoringSettings.DEFAULT_ADJUSTABLE_TRAIL_MARKER
+            ),
+            crossHairsMode = json.optBoolean(
+                "crossHairsMode",
+                MonitoringSettings.DEFAULT_CROSS_HAIRS_MODE
             ),
             walkPlotRsrq = json.optBoolean(
                 "walkPlotRsrq",

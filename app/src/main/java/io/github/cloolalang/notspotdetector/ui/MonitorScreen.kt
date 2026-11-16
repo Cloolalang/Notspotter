@@ -223,6 +223,7 @@ fun MonitorScreen(
     onWalkRouteEnabledChange: (Boolean) -> Unit = {},
     onWalkSnapModeChange: (io.github.cloolalang.notspotdetector.model.WalkSnapMode) -> Unit = {},
     onAdjustableTrailMarkerChange: (Boolean) -> Unit = {},
+    onCrossHairsModeChange: (Boolean) -> Unit = {},
     onWalkPlotRsrqChange: (Boolean) -> Unit = {},
     onWalkPlotEarfcnPciChange: (Boolean) -> Unit = {},
     onCellChangeBellVolumeChange: (Float) -> Unit,
@@ -371,10 +372,12 @@ fun MonitorScreen(
             walkRouteEnabled = monitoringSettings.walkRouteEnabled,
             walkSnapMode = monitoringSettings.walkSnapMode,
             adjustableTrailMarker = monitoringSettings.adjustableTrailMarker,
+            crossHairsMode = monitoringSettings.crossHairsMode,
             walkPlotRsrq = monitoringSettings.walkPlotRsrq,
             walkPlotEarfcnPci = monitoringSettings.walkPlotEarfcnPci,
             onWalkSnapModeChange = onWalkSnapModeChange,
             onAdjustableTrailMarkerChange = onAdjustableTrailMarkerChange,
+            onCrossHairsModeChange = onCrossHairsModeChange,
             onWalkPlotRsrqChange = onWalkPlotRsrqChange,
             onWalkPlotEarfcnPciChange = onWalkPlotEarfcnPciChange
         )

@@ -286,6 +286,44 @@ class WalkRouteTest {
     }
 
     @Test
+    fun moveCentre_reachCentreLetsAFittedEdgeSitInTheMiddle() {
+        val camera = WalkRoute.moveCentre(
+            viewWidth = 100f,
+            viewHeight = 100f,
+            imageWidth = 200f,
+            imageHeight = 100f,
+            camera = PlanCamera(),
+            deltaX = 1_000f,
+            deltaY = 0f,
+            reachCentre = true
+        )
+        val atCentre = WalkRoute.fractionInView(
+            tapX = 50f,
+            tapY = 50f,
+            viewWidth = 100f,
+            viewHeight = 100f,
+            imageWidth = 200f,
+            imageHeight = 100f,
+            camera = camera
+        )
+        assertEquals(0f, atCentre!!.x, 0.02f)
+    }
+
+    @Test
+    fun moveCentre_withoutReachCentreCannotSlideAFittedEdge() {
+        val camera = WalkRoute.moveCentre(
+            viewWidth = 100f,
+            viewHeight = 100f,
+            imageWidth = 200f,
+            imageHeight = 100f,
+            camera = PlanCamera(),
+            deltaX = 1_000f,
+            deltaY = 0f
+        )
+        assertEquals(0f, camera.panX, 0.001f)
+    }
+
+    @Test
     fun moveCentre_keepsAZoomedPlanCoveringTheView() {
         val camera = WalkRoute.moveCentre(
             viewWidth = 100f,

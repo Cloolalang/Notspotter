@@ -544,6 +544,10 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         updateMonitoringSettings(monitoringSettings.value.copy(adjustableTrailMarker = enabled))
     }
 
+    fun updateCrossHairsMode(enabled: Boolean) {
+        updateMonitoringSettings(monitoringSettings.value.copy(crossHairsMode = enabled))
+    }
+
     fun updateWalkPlotRsrq(enabled: Boolean) {
         updateMonitoringSettings(monitoringSettings.value.copy(walkPlotRsrq = enabled))
     }

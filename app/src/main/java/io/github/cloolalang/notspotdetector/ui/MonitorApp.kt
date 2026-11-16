@@ -258,6 +258,7 @@ fun MonitorApp(
             onWalkRouteEnabledChange = viewModel::updateWalkRouteEnabled,
             onWalkSnapModeChange = viewModel::updateWalkSnapMode,
             onAdjustableTrailMarkerChange = viewModel::updateAdjustableTrailMarker,
+            onCrossHairsModeChange = viewModel::updateCrossHairsMode,
             onWalkPlotRsrqChange = viewModel::updateWalkPlotRsrq,
             onWalkPlotEarfcnPciChange = viewModel::updateWalkPlotEarfcnPci,
             onCellChangeBellVolumeChange = viewModel::updateCellChangeBellVolume,

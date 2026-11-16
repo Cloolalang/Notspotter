@@ -90,6 +90,10 @@ class MonitoringSettingsRepository(context: Context) {
                 KEY_ADJUSTABLE_TRAIL_MARKER,
                 MonitoringSettings.DEFAULT_ADJUSTABLE_TRAIL_MARKER
             ),
+            crossHairsMode = prefs.getBoolean(
+                KEY_CROSS_HAIRS_MODE,
+                MonitoringSettings.DEFAULT_CROSS_HAIRS_MODE
+            ),
             walkPlotRsrq = prefs.getBoolean(
                 KEY_WALK_PLOT_RSRQ,
                 MonitoringSettings.DEFAULT_WALK_PLOT_RSRQ
@@ -123,6 +127,7 @@ class MonitoringSettingsRepository(context: Context) {
             .putBoolean(KEY_WALK_ROUTE_ENABLED, normalized.walkRouteEnabled)
             .putString(KEY_WALK_SNAP_MODE, normalized.walkSnapMode.name)
             .putBoolean(KEY_ADJUSTABLE_TRAIL_MARKER, normalized.adjustableTrailMarker)
+            .putBoolean(KEY_CROSS_HAIRS_MODE, normalized.crossHairsMode)
             .putBoolean(KEY_WALK_PLOT_RSRQ, normalized.walkPlotRsrq)
             .putBoolean(KEY_WALK_PLOT_EARFCN_PCI, normalized.walkPlotEarfcnPci)
             .apply()
@@ -150,6 +155,7 @@ class MonitoringSettingsRepository(context: Context) {
         private const val KEY_WALK_ROUTE_ENABLED = "walk_route_enabled"
         private const val KEY_WALK_SNAP_MODE = "walk_snap_mode"
         private const val KEY_ADJUSTABLE_TRAIL_MARKER = "adjustable_trail_marker"
+        private const val KEY_CROSS_HAIRS_MODE = "cross_hairs_mode"
         private const val KEY_WALK_PLOT_RSRQ = "walk_plot_rsrq"
         private const val KEY_WALK_PLOT_EARFCN_PCI = "walk_plot_earfcn_pci"
     }

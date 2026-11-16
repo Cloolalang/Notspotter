@@ -32,6 +32,11 @@ data class MonitoringSettings(
      * Off, a quick tap places the mark.
      */
     val adjustableTrailMarker: Boolean = DEFAULT_ADJUSTABLE_TRAIL_MARKER,
+    /**
+     * A blue cross hairs stays in the middle of the floor plan. The mark lands there
+     * when Mark is pressed, after the plan has been dragged, zoomed, and rotated.
+     */
+    val crossHairsMode: Boolean = DEFAULT_CROSS_HAIRS_MODE,
     /** Parallel RSRQ-coloured trail beside the RSRP walk on the floor plan. */
     val walkPlotRsrq: Boolean = DEFAULT_WALK_PLOT_RSRQ,
     /** Parallel EARFCN/PCI trail beside the RSRP walk, coloured like the carrier tape. */
@@ -79,6 +84,7 @@ data class MonitoringSettings(
         const val DEFAULT_KEEP_SCREEN_ON_WHILE_MONITORING = true
         const val DEFAULT_WALK_ROUTE_ENABLED = false
         const val DEFAULT_ADJUSTABLE_TRAIL_MARKER = false
+        const val DEFAULT_CROSS_HAIRS_MODE = false
         const val DEFAULT_WALK_PLOT_RSRQ = false
         const val DEFAULT_WALK_PLOT_EARFCN_PCI = false
         const val DEFAULT_CUSTOM_APP_TITLE = "Cellnex"

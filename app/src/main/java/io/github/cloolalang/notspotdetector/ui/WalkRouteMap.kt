@@ -54,6 +54,7 @@ import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -63,6 +64,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.cloolalang.notspotdetector.R
@@ -99,10 +101,12 @@ fun WalkRouteMap(
     marksFromMaster: Boolean = false,
     snapMode: WalkSnapMode = WalkSnapMode.DEFAULT,
     adjustableTrailMarker: Boolean = false,
+    crossHairsMode: Boolean = false,
     plotRsrq: Boolean = false,
     plotEarfcnPci: Boolean = false,
     onSnapModeChange: (WalkSnapMode) -> Unit = {},
     onAdjustableTrailMarkerChange: (Boolean) -> Unit = {},
+    onCrossHairsModeChange: (Boolean) -> Unit = {},
     onPlotRsrqChange: (Boolean) -> Unit = {},
     onPlotEarfcnPciChange: (Boolean) -> Unit = {},
     onChooseFloorPlan: () -> Unit,
@@ -157,10 +161,17 @@ fun WalkRouteMap(
             delay(MOVE_MARKER_IDLE_MS)
             addArmed = false
         }
+        LaunchedEffect(crossHairsMode) {
+            if (!crossHairsMode) return@LaunchedEffect
+            moveArmed = false
+            removeArmed = false
+            addArmed = false
+        }
         val bitmap = floorPlan
         val planDescription = stringResource(R.string.zone_test_floor_plan_image)
         val imageBitmap = remember(bitmap) { bitmap.asImageBitmap() }
         var camera by remember(bitmap) { mutableStateOf(PlanCamera()) }
+        var mapSize by remember(bitmap) { mutableStateOf(IntSize.Zero) }
         var draftTip by remember(bitmap) { mutableStateOf<ImagePoint?>(null) }
         var movingIndex by remember(bitmap) { mutableStateOf<Int?>(null) }
         var movingPoint by remember(bitmap) { mutableStateOf<ImagePoint?>(null) }
@@ -173,6 +184,7 @@ fun WalkRouteMap(
         val pinsNow = rememberUpdatedState(pins)
         val snapNow = rememberUpdatedState(snapMode)
         val trailNow = rememberUpdatedState(adjustableTrailMarker)
+        val crossHairsNow = rememberUpdatedState(crossHairsMode && !marksFromMaster)
         val moveArmedNow = rememberUpdatedState(moveArmed)
         val removeArmedNow = rememberUpdatedState(removeArmed)
         val addArmedNow = rememberUpdatedState(addArmed)
@@ -181,6 +193,7 @@ fun WalkRouteMap(
         val screenHeight = LocalConfiguration.current.screenHeightDp.dp
         val trailDash = remember { PathEffect.dashPathEffect(floatArrayOf(16f, 12f), 0f) }
         val hitSlopPx = with(LocalDensity.current) { 28.dp.toPx() }
+        val crossHairTapPx = with(LocalDensity.current) { 44.dp.toPx() }
         val displayPins = remember(pins, movingIndex, movingPoint) {
             val index = movingIndex
             val point = movingPoint
@@ -195,6 +208,54 @@ fun WalkRouteMap(
         var controlDock by remember { mutableStateOf(PlotControlDock.Left) }
         var sideDock by remember { mutableStateOf(PlotControlDock.Left) }
         val mapHeight = screenHeight.coerceAtLeast(160.dp)
+        val crossHairOn = crossHairsMode && !marksFromMaster
+        LaunchedEffect(crossHairOn, mapSize) {
+            if (crossHairOn || mapSize.width <= 0 || mapSize.height <= 0) return@LaunchedEffect
+            camera = WalkRoute.moveCentre(
+                viewWidth = mapSize.width.toFloat(),
+                viewHeight = mapSize.height.toFloat(),
+                imageWidth = bitmap.width.toFloat(),
+                imageHeight = bitmap.height.toFloat(),
+                camera = camera,
+                deltaX = 0f,
+                deltaY = 0f
+            )
+        }
+        val crossHairPoint = if (crossHairOn && mapSize.width > 0 && mapSize.height > 0) {
+            WalkRoute.fractionInView(
+                tapX = mapSize.width / 2f,
+                tapY = mapSize.height / 2f,
+                viewWidth = mapSize.width.toFloat(),
+                viewHeight = mapSize.height.toFloat(),
+                imageWidth = bitmap.width.toFloat(),
+                imageHeight = bitmap.height.toFloat(),
+                camera = camera
+            )
+        } else {
+            null
+        }
+        val snappedCrossHair = crossHairPoint?.let { raw ->
+            val previous = pins.lastOrNull()
+            if (previous == null) {
+                ImagePoint(raw.x.coerceIn(0f, 1f), raw.y.coerceIn(0f, 1f))
+            } else {
+                WalkRoute.snapLeg(
+                    previous,
+                    raw,
+                    bitmap.width.toFloat(),
+                    bitmap.height.toFloat(),
+                    snapMode
+                )
+            }
+        }
+        val canPlaceCrossHair = zoneStartMs != null && markTimeMs != null && snappedCrossHair != null
+        val placeCrossHair = {
+            val point = snappedCrossHair
+            val atMs = markTimeMs
+            if (point != null && zoneStartMs != null && atMs != null) {
+                onMark(WalkPin(atMs, point.x, point.y))
+            }
+        }
 
         @Composable
         fun PlotControls(modifier: Modifier) {
@@ -202,6 +263,14 @@ fun WalkRouteMap(
                 modifier = modifier,
                 adjustableTrailMarker = adjustableTrailMarker,
                 onAdjustableTrailMarkerChange = onAdjustableTrailMarkerChange,
+                crossHairsMode = crossHairOn,
+                onCrossHairsModeChange = onCrossHairsModeChange,
+                canPlaceCrossHair = canPlaceCrossHair,
+                onPlaceCrossHair = placeCrossHair,
+                plotRsrq = plotRsrq,
+                plotEarfcnPci = plotEarfcnPci,
+                onPlotRsrqChange = onPlotRsrqChange,
+                onPlotEarfcnPciChange = onPlotEarfcnPciChange,
                 showMarkActions = pins.isNotEmpty(),
                 canAddOnLeg = pins.size >= 2,
                 moveArmed = moveArmed,
@@ -275,6 +344,7 @@ fun WalkRouteMap(
                 modifier = Modifier
                     .fillMaxSize()
                     .semantics { contentDescription = planDescription }
+                    .onSizeChanged { mapSize = it }
                     .pointerInput(
                         bitmap.width,
                         bitmap.height,
@@ -335,9 +405,10 @@ fun WalkRouteMap(
                             var dragged = false
                             var trailDrag = false
                             var fingersDown = true
-                            val moveMode = !marksFromMaster && moveArmedNow.value
-                            val removeMode = !marksFromMaster && removeArmedNow.value
-                            val addMode = !marksFromMaster && addArmedNow.value
+                            val crossHairs = crossHairsNow.value
+                            val moveMode = !marksFromMaster && !crossHairs && moveArmedNow.value
+                            val removeMode = !marksFromMaster && !crossHairs && removeArmedNow.value
+                            val addMode = !marksFromMaster && !crossHairs && addArmedNow.value
                             val toolArmed = moveMode || removeMode || addMode
                             val grabbedIndex = if (moveMode) hitPinIndex(start.x, start.y) else null
                             val removeIndex = if (removeMode) hitPinIndex(start.x, start.y) else null
@@ -357,7 +428,7 @@ fun WalkRouteMap(
                                 null
                             }
                             val trailActive =
-                                !marksFromMaster && !toolArmed && trailNow.value && canMark.value
+                                !marksFromMaster && !crossHairs && !toolArmed && trailNow.value && canMark.value
                             if (grabbedIndex != null) {
                                 down.consume()
                                 val pin = pinsNow.value[grabbedIndex]
@@ -380,7 +451,8 @@ fun WalkRouteMap(
                                 val holdingAdd = addInsert != null && !twoFinger
                                 val holdForTrail = trailActive && pressed.size == 1 && !twoFinger
                                 val panWithOneFinger =
-                                    zoomed && !holdingPin && !holdingRemove && !holdingAdd && !trailActive
+                                    (zoomed || crossHairs) &&
+                                        !holdingPin && !holdingRemove && !holdingAdd && !trailActive
                                 if (
                                     pressed.size >= 2 ||
                                     (pressed.size == 1 && panWithOneFinger && !twoFinger) ||
@@ -400,7 +472,8 @@ fun WalkRouteMap(
                                     val pan = event.calculatePan()
                                     if (pan != Offset.Zero) {
                                         camera = WalkRoute.moveCentre(
-                                            viewW(), viewH(), imageW, imageH, camera, pan.x, pan.y
+                                            viewW(), viewH(), imageW, imageH, camera, pan.x, pan.y,
+                                            reachCentre = crossHairs
                                         )
                                     }
                                     val zoom = event.calculateZoom()
@@ -410,13 +483,15 @@ fun WalkRouteMap(
                                         if (zoom.isFinite() && abs(zoom - 1f) > 0.001f) {
                                             camera = WalkRoute.zoomAbout(
                                                 viewW(), viewH(), imageW, imageH,
-                                                camera, centroid.x, centroid.y, zoom
+                                                camera, centroid.x, centroid.y, zoom,
+                                                reachCentre = crossHairs
                                             )
                                         }
                                         if (rotation.isFinite() && abs(rotation) > 0.01f) {
                                             camera = WalkRoute.rotateAbout(
                                                 viewW(), viewH(), imageW, imageH,
-                                                camera, centroid.x, centroid.y, rotation
+                                                camera, centroid.x, centroid.y, rotation,
+                                                reachCentre = crossHairs
                                             )
                                         }
                                     }
@@ -440,10 +515,11 @@ fun WalkRouteMap(
                                                 draftTip = placePoint(it, pinsNow.value.lastOrNull())
                                             }
                                         }
-                                        moved && zoomed -> {
+                                        moved && (zoomed || crossHairs) -> {
                                             val delta = change.position - change.previousPosition
                                             camera = WalkRoute.moveCentre(
-                                                viewW(), viewH(), imageW, imageH, camera, delta.x, delta.y
+                                                viewW(), viewH(), imageW, imageH, camera, delta.x, delta.y,
+                                                reachCentre = crossHairs
                                             )
                                         }
                                     }
@@ -474,6 +550,23 @@ fun WalkRouteMap(
                                     original.copy(xFraction = movedPoint.x, yFraction = movedPoint.y)
                                 )
                                 moveArmed = false
+                                return@awaitEachGesture
+                            }
+                            if (crossHairs) {
+                                if (!dragged && !twoFinger && canMark.value) {
+                                    val centreX = viewW() / 2f
+                                    val centreY = viewH() / 2f
+                                    val onCrossHairs = hypot(
+                                        start.x - centreX,
+                                        start.y - centreY
+                                    ) <= crossHairTapPx
+                                    val atMs = markTime.value
+                                    val raw = if (onCrossHairs) pointAt(centreX, centreY) else null
+                                    if (atMs != null && raw != null) {
+                                        val placed = placePoint(raw, pinsNow.value.lastOrNull())
+                                        mark.value(WalkPin(atMs, placed.x, placed.y))
+                                    }
+                                }
                                 return@awaitEachGesture
                             }
                             if (toolArmed) return@awaitEachGesture
@@ -605,7 +698,7 @@ fun WalkRouteMap(
                                         cap = StrokeCap.Round
                                     )
                                 }
-                                val tip = draftTip
+                                val tip = if (crossHairOn) snappedCrossHair else draftTip
                                 val previous = pins.lastOrNull()
                                 if (tip != null) {
                                     val to = WalkRoute.place(tip, rect)
@@ -715,6 +808,79 @@ fun WalkRouteMap(
                             }
                         }
                     }
+                    if (crossHairOn) {
+                        val cx = size.width / 2f
+                        val cy = size.height / 2f
+                        val blue = Color(0xFF1565C0)
+                        val hair = 2.5.dp.toPx()
+                        val gap = 12.dp.toPx()
+                        drawLine(
+                            color = blue,
+                            start = Offset(0f, cy),
+                            end = Offset((cx - gap).coerceAtLeast(0f), cy),
+                            strokeWidth = hair,
+                            cap = StrokeCap.Round
+                        )
+                        drawLine(
+                            color = blue,
+                            start = Offset((cx + gap).coerceAtMost(size.width), cy),
+                            end = Offset(size.width, cy),
+                            strokeWidth = hair,
+                            cap = StrokeCap.Round
+                        )
+                        drawLine(
+                            color = blue,
+                            start = Offset(cx, 0f),
+                            end = Offset(cx, (cy - gap).coerceAtLeast(0f)),
+                            strokeWidth = hair,
+                            cap = StrokeCap.Round
+                        )
+                        drawLine(
+                            color = blue,
+                            start = Offset(cx, (cy + gap).coerceAtMost(size.height)),
+                            end = Offset(cx, size.height),
+                            strokeWidth = hair,
+                            cap = StrokeCap.Round
+                        )
+                        drawCircle(
+                            color = Color.White,
+                            radius = 5.dp.toPx(),
+                            center = Offset(cx, cy)
+                        )
+                        drawCircle(
+                            color = blue,
+                            radius = 3.dp.toPx(),
+                            center = Offset(cx, cy)
+                        )
+                    }
+                }
+            }
+            if (crossHairOn) {
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(8.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f)
+                ) {
+                    FlowRow(
+                        modifier = Modifier.padding(6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = onUndo,
+                            enabled = pins.isNotEmpty()
+                        ) {
+                            Text(text = stringResource(R.string.zone_test_cross_hairs_undo))
+                        }
+                        Button(
+                            onClick = placeCrossHair,
+                            enabled = canPlaceCrossHair
+                        ) {
+                            Text(text = stringResource(R.string.zone_test_cross_hairs_mark))
+                        }
+                    }
                 }
             }
             }
@@ -722,7 +888,7 @@ fun WalkRouteMap(
                 PlotControls(Modifier.fillMaxHeight())
             }
         }
-        if (!marksFromMaster) {
+        if (!marksFromMaster && !crossHairOn) {
             PlotToggleRow(
                 label = stringResource(R.string.zone_test_plot_rsrq),
                 checked = plotRsrq,
@@ -755,6 +921,7 @@ fun WalkRouteMap(
                 when {
                     marksFromMaster -> R.string.zone_test_floor_plan_from_master
                     zoneStartMs == null -> R.string.zone_test_floor_plan_before_start
+                    crossHairOn -> R.string.zone_test_floor_plan_cross_hairs
                     addArmed -> R.string.zone_test_add_marker_armed
                     removeArmed -> R.string.zone_test_remove_marker_armed
                     moveArmed -> R.string.zone_test_move_marker_armed
@@ -776,6 +943,14 @@ fun WalkRouteMap(
 private fun MapPlotControls(
     adjustableTrailMarker: Boolean,
     onAdjustableTrailMarkerChange: (Boolean) -> Unit,
+    crossHairsMode: Boolean,
+    onCrossHairsModeChange: (Boolean) -> Unit,
+    canPlaceCrossHair: Boolean,
+    onPlaceCrossHair: () -> Unit,
+    plotRsrq: Boolean,
+    plotEarfcnPci: Boolean,
+    onPlotRsrqChange: (Boolean) -> Unit,
+    onPlotEarfcnPciChange: (Boolean) -> Unit,
     showMarkActions: Boolean,
     canAddOnLeg: Boolean,
     moveArmed: Boolean,
@@ -846,6 +1021,71 @@ private fun MapPlotControls(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
+                        text = stringResource(R.string.zone_test_cross_hairs),
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.weight(1f).padding(end = 8.dp)
+                    )
+                    Switch(
+                        checked = crossHairsMode,
+                        onCheckedChange = onCrossHairsModeChange
+                    )
+                }
+            } else {
+                Text(
+                    text = stringResource(R.string.zone_test_cross_hairs),
+                    style = MaterialTheme.typography.labelLarge
+                )
+                Switch(
+                    checked = crossHairsMode,
+                    onCheckedChange = onCrossHairsModeChange
+                )
+            }
+            if (crossHairsMode) {
+                Text(
+                    text = stringResource(R.string.zone_test_cross_hairs_hint),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = stringResource(R.string.zone_test_snap_label),
+                    style = MaterialTheme.typography.labelLarge
+                )
+                SnapModeChips(
+                    fillWidth = !above,
+                    snapMode = snapMode,
+                    onSnapModeChange = onSnapModeChange
+                )
+                Button(
+                    onClick = onPlaceCrossHair,
+                    enabled = canPlaceCrossHair,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(text = stringResource(R.string.zone_test_cross_hairs_mark))
+                }
+                OutlinedButton(
+                    onClick = onUndo,
+                    enabled = showMarkActions,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(text = stringResource(R.string.zone_test_cross_hairs_undo))
+                }
+                PlotToggleRow(
+                    label = stringResource(R.string.zone_test_plot_rsrq),
+                    checked = plotRsrq,
+                    onCheckedChange = onPlotRsrqChange
+                )
+                PlotToggleRow(
+                    label = stringResource(R.string.zone_test_plot_earfcn_pci),
+                    checked = plotEarfcnPci,
+                    onCheckedChange = onPlotEarfcnPciChange
+                )
+            } else if (above) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
                         text = stringResource(R.string.zone_test_adjustable_trail),
                         style = MaterialTheme.typography.labelLarge,
                         modifier = Modifier.weight(1f).padding(end = 8.dp)
@@ -855,6 +1095,34 @@ private fun MapPlotControls(
                         onCheckedChange = onAdjustableTrailMarkerChange
                     )
                 }
+                Text(
+                    text = stringResource(R.string.zone_test_adjustable_trail_hint),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (showMarkActions) {
+                    MarkActionButtons(
+                        fillWidth = false,
+                        canAddOnLeg = canAddOnLeg,
+                        moveArmed = moveArmed,
+                        removeArmed = removeArmed,
+                        addArmed = addArmed,
+                        armedColors = armedColors,
+                        onUndo = onUndo,
+                        onToggleMove = onToggleMove,
+                        onToggleRemove = onToggleRemove,
+                        onToggleAdd = onToggleAdd
+                    )
+                }
+                Text(
+                    text = stringResource(R.string.zone_test_snap_label),
+                    style = MaterialTheme.typography.labelLarge
+                )
+                SnapModeChips(
+                    fillWidth = false,
+                    snapMode = snapMode,
+                    onSnapModeChange = onSnapModeChange
+                )
             } else {
                 Text(
                     text = stringResource(R.string.zone_test_adjustable_trail),
@@ -864,35 +1132,35 @@ private fun MapPlotControls(
                     checked = adjustableTrailMarker,
                     onCheckedChange = onAdjustableTrailMarkerChange
                 )
-            }
-            Text(
-                text = stringResource(R.string.zone_test_adjustable_trail_hint),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            if (showMarkActions) {
-                MarkActionButtons(
-                    fillWidth = !above,
-                    canAddOnLeg = canAddOnLeg,
-                    moveArmed = moveArmed,
-                    removeArmed = removeArmed,
-                    addArmed = addArmed,
-                    armedColors = armedColors,
-                    onUndo = onUndo,
-                    onToggleMove = onToggleMove,
-                    onToggleRemove = onToggleRemove,
-                    onToggleAdd = onToggleAdd
+                Text(
+                    text = stringResource(R.string.zone_test_adjustable_trail_hint),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (showMarkActions) {
+                    MarkActionButtons(
+                        fillWidth = true,
+                        canAddOnLeg = canAddOnLeg,
+                        moveArmed = moveArmed,
+                        removeArmed = removeArmed,
+                        addArmed = addArmed,
+                        armedColors = armedColors,
+                        onUndo = onUndo,
+                        onToggleMove = onToggleMove,
+                        onToggleRemove = onToggleRemove,
+                        onToggleAdd = onToggleAdd
+                    )
+                }
+                Text(
+                    text = stringResource(R.string.zone_test_snap_label),
+                    style = MaterialTheme.typography.labelLarge
+                )
+                SnapModeChips(
+                    fillWidth = true,
+                    snapMode = snapMode,
+                    onSnapModeChange = onSnapModeChange
                 )
             }
-            Text(
-                text = stringResource(R.string.zone_test_snap_label),
-                style = MaterialTheme.typography.labelLarge
-            )
-            SnapModeChips(
-                fillWidth = !above,
-                snapMode = snapMode,
-                onSnapModeChange = onSnapModeChange
-            )
         }
     }
 }
