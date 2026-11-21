@@ -5,6 +5,14 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.202.0] - 2026-11-21
+
+### Changed
+
+- **5 m tags** — The pedestrian trail is marked every 5 metres instead of by time.
+- **Saved walk** — The saved picture keeps the coloured trail, the step marks, and the 5 m tags. The grid and the red arrow stay on the live page.
+- **Linked phones** — A slave follows the master’s walk and colours the same path with its own signal. The 5 m tags and the saved picture use that shared trail.
+
 ## [2.201.0] - 2026-11-21
 
 ### Changed

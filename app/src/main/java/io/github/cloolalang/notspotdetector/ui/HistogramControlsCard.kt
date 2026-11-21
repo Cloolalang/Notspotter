@@ -1177,9 +1177,7 @@ private fun ZoneTestPanel(
                 val pdrBitmap = PedestrianPageImage.render(
                     pins = pdrPins,
                     spans = PedestrianKpiColors.legs(pdrPins, pedestrianKpi, pedestrianTapes()),
-                    zoneStartMs = started,
-                    zoneEndMs = markedEnd,
-                    halfExtentMeters = PedestrianTrack.halfExtent(PedestrianTrack.aroundLatest(markedSamples)),
+                    distanceMarks = PedestrianTrack.distanceMarks(markedSamples),
                     caption = caption,
                     legendTitle = pdrLegendTitle,
                     legend = pdrLegend
@@ -1746,8 +1744,6 @@ private fun ZoneTestPanel(
                     pins = pdrPins,
                     samples = pedestrianSamples,
                     spans = PedestrianKpiColors.legs(pdrPins, pedestrianKpi, pedestrianTapes()),
-                    zoneStartMs = pdrZoneStart,
-                    zoneEndMs = if (running) tapeNowMs else endMs,
                     live = zoneTest.pedestrianLive,
                     trackRotation = running && !followsMaster,
                     onStepTap = if (running && !followsMaster && monitorSettings.pedestrianTapSteps) {

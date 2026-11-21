@@ -55,8 +55,6 @@ fun PedestrianPage(
     pins: List<WalkPin>,
     samples: List<PedestrianSample>,
     spans: List<ColoredRouteSpan>,
-    zoneStartMs: Long?,
-    zoneEndMs: Long?,
     live: State<PedestrianLive>,
     onStepTap: (() -> Unit)? = null,
     trackRotation: Boolean = false,
@@ -75,6 +73,9 @@ fun PedestrianPage(
         stringResource(R.string.pedestrian_live_distance, metres)
     } ?: unknown
     val gridText = stringResource(R.string.pedestrian_grid_size, grid.spacingMeters.roundToInt())
+    val markLabels = PedestrianTrack.distanceMarks(samples).map { mark ->
+        mark to stringResource(R.string.pedestrian_distance_mark, mark.meters)
+    }
     val textMeasurer = rememberTextMeasurer()
     val labelStyle = remember {
         TextStyle(color = Color.White, fontSize = 11.sp)
@@ -222,21 +223,16 @@ fun PedestrianPage(
         drawLine(red, tip, along(tip, arrowDegrees + 152.0, head), shaft, cap = StrokeCap.Round)
         drawLine(red, tip, along(tip, arrowDegrees + 208.0, head), shaft, cap = StrokeCap.Round)
         drawCircle(red, shaft * 1.4f, origin)
-        val start = zoneStartMs
-        val end = zoneEndMs
-        if (start != null && end != null) {
-            for (tick in WalkRoute.ticksOnRoute(pins, start, end)) {
-                val at = place(tick.point)
-                val text = WalkRoute.elapsedLabel(tick.atMs - start)
-                val layout = textMeasurer.measure(text, labelStyle)
-                drawText(
-                    layout,
-                    topLeft = Offset(
-                        at.x - layout.size.width / 2f,
-                        (at.y - radius - layout.size.height - 4f).coerceAtLeast(0f)
-                    )
+        for ((mark, text) in markLabels) {
+            val at = place(ImagePoint(mark.xFraction, mark.yFraction))
+            val layout = textMeasurer.measure(text, labelStyle)
+            drawText(
+                layout,
+                topLeft = Offset(
+                    at.x - layout.size.width / 2f,
+                    (at.y - radius - layout.size.height - 4f).coerceAtLeast(0f)
                 )
-            }
+            )
         }
         val forward = textMeasurer.measure(forwardText, labelStyle)
         val forwardAt = place(ImagePoint(0.5f, 0.04f))

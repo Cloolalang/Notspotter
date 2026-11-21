@@ -259,14 +259,7 @@ object PedestrianTrack {
             abs(sample.northMeters - position.northMeters) <= 0.02f
     }
 
-    /**
-     * Image fractions for [samples]. The start stays at the middle.
-     * The farthest point stays inside [PAGE_MARGIN]. North decreases Y.
-     */
-    /**
-     * Puts the latest position at the centre. Earlier positions are metres right and
-     * forward of where you are now, so a straight walk sits below the centre.
-     */
+    /** Latest position at the centre, so a straight walk sits below the centre. */
     fun aroundLatest(samples: List<PedestrianSample>): List<PedestrianSample> {
         val latest = samples.lastOrNull() ?: return samples
         return samples.map { sample ->
@@ -289,6 +282,44 @@ object PedestrianTrack {
             )
         }
     }
+
+    /**
+     * A mark every [everyMeters] along the walked path, in the same image fractions as [project].
+     */
+    fun distanceMarks(samples: List<PedestrianSample>, everyMeters: Float = 5f): List<PedestrianDistanceMark> {
+        if (samples.size < 2 || everyMeters <= 0f || !everyMeters.isFinite()) return emptyList()
+        val places = ArrayList<Pair<Int, PedestrianPosition>>()
+        var travelled = 0f
+        var next = everyMeters
+        for (index in 1 until samples.size) {
+            val from = samples[index - 1]
+            val to = samples[index]
+            val east = to.eastMeters - from.eastMeters
+            val north = to.northMeters - from.northMeters
+            val length = hypot(east, north)
+            if (!length.isFinite() || length <= 0f) continue
+            while (travelled + length + 0.0001f >= next) {
+                val fraction = ((next - travelled) / length).coerceIn(0f, 1f)
+                places += next.roundToInt() to PedestrianPosition(
+                    eastMeters = from.eastMeters + east * fraction,
+                    northMeters = from.northMeters + north * fraction
+                )
+                next += everyMeters
+                if (places.size > 10_000) break
+            }
+            travelled += length
+        }
+        if (places.isEmpty()) return emptyList()
+        val latest = samples.last()
+        val scale = (0.5f - PAGE_MARGIN) / halfExtent(aroundLatest(samples))
+        return places.map { (meters, position) ->
+            PedestrianDistanceMark(
+                meters = meters,
+                xFraction = (0.5f + (position.eastMeters - latest.eastMeters) * scale).coerceIn(0f, 1f),
+                yFraction = (0.5f - (position.northMeters - latest.northMeters) * scale).coerceIn(0f, 1f)
+            )
+        }
+    }
 }
 
 data class PedestrianPosition(
@@ -300,6 +331,13 @@ data class PedestrianSample(
     val elapsedMs: Long,
     val eastMeters: Float,
     val northMeters: Float
+)
+
+/** A distance label on the pedestrian page, in the same image fractions as the trail. */
+data class PedestrianDistanceMark(
+    val meters: Int,
+    val xFraction: Float,
+    val yFraction: Float
 )
 
 /** Live numbers drawn on the black page. Null fields are shown as unknown. */

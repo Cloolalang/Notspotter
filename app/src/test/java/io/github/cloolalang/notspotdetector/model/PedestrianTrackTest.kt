@@ -47,6 +47,22 @@ class PedestrianTrackTest {
     }
 
     @Test
+    fun distanceMarksSitOnTheRecenteredTrailEveryFiveMetres() {
+        val samples = listOf(
+            PedestrianSample(0L, 0f, 0f),
+            PedestrianSample(1_000L, 0f, 10f)
+        )
+        val marks = PedestrianTrack.distanceMarks(samples)
+        assertEquals(listOf(5, 10), marks.map { it.meters })
+        assertEquals(0.5f, marks.last().xFraction, 0.001f)
+        assertEquals(0.5f, marks.last().yFraction, 0.001f)
+        assertEquals(0.5f, marks.first().xFraction, 0.001f)
+        assertTrue(marks.first().yFraction > 0.5f)
+        assertTrue(PedestrianTrack.distanceMarks(samples.take(1)).isEmpty())
+        assertTrue(PedestrianTrack.distanceMarks(listOf(samples.first(), PedestrianSample(1_000L, 0f, 4f))).isEmpty())
+    }
+
+    @Test
     fun bearingWrapsToACompassDegree() {
         assertEquals(0, PedestrianTrack.bearingDegrees(0f))
         assertEquals(0, PedestrianTrack.bearingDegrees(359.6f))

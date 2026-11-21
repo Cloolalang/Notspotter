@@ -6,10 +6,10 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
 import io.github.cloolalang.notspotdetector.model.ColoredRouteSpan
+import io.github.cloolalang.notspotdetector.model.PedestrianDistanceMark
 import io.github.cloolalang.notspotdetector.model.PedestrianTrack
 import io.github.cloolalang.notspotdetector.model.WalkLegendSwatch
 import io.github.cloolalang.notspotdetector.model.WalkPin
-import io.github.cloolalang.notspotdetector.model.WalkRoute
 
 /** Draws the pedestrian trail on a black square so it can be saved as a JPEG. */
 object PedestrianPageImage {
@@ -17,9 +17,7 @@ object PedestrianPageImage {
     fun render(
         pins: List<WalkPin>,
         spans: List<ColoredRouteSpan>,
-        zoneStartMs: Long,
-        zoneEndMs: Long,
-        halfExtentMeters: Float,
+        distanceMarks: List<PedestrianDistanceMark>,
         caption: String,
         legendTitle: String,
         legend: List<WalkLegendSwatch>
@@ -32,41 +30,9 @@ object PedestrianPageImage {
         val output = Bitmap.createBitmap(size, size + strip.height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(output)
         canvas.drawColor(Color.BLACK)
-        drawGrid(canvas, size, halfExtentMeters, textSize)
-        drawTrail(canvas, size, pins, spans, zoneStartMs, zoneEndMs, stroke, textSize)
+        drawTrail(canvas, size, pins, spans, distanceMarks, stroke, textSize)
         drawLegend(canvas, size, size, strip, caption, legendTitle, legend)
         return output
-    }
-
-    private fun drawGrid(canvas: Canvas, size: Int, halfExtentMeters: Float, textSize: Float) {
-        val grid = PedestrianTrack.grid(halfExtentMeters)
-        val line = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            style = Paint.Style.STROKE
-        }
-        fun drawLine(startX: Float, startY: Float, endX: Float, endY: Float, axis: Boolean) {
-            line.color = if (axis) Color.argb(120, 255, 255, 255) else Color.argb(50, 255, 255, 255)
-            line.strokeWidth = if (axis) 3f else 1.5f
-            canvas.drawLine(startX, startY, endX, endY, line)
-        }
-        for (x in grid.vertical) {
-            val px = x * size
-            drawLine(px, 0f, px, size.toFloat(), axis = kotlin.math.abs(x - 0.5f) < 0.004f)
-        }
-        for (y in grid.horizontal) {
-            val py = y * size
-            drawLine(0f, py, size.toFloat(), py, axis = kotlin.math.abs(y - 0.5f) < 0.004f)
-        }
-        val label = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.WHITE
-            this.textSize = textSize * 0.8f
-            textAlign = Paint.Align.LEFT
-        }
-        canvas.drawText(
-            "${grid.spacingMeters.toInt()} m",
-            24f,
-            size - 24f,
-            label
-        )
     }
 
     private fun drawTrail(
@@ -74,8 +40,7 @@ object PedestrianPageImage {
         size: Int,
         pins: List<WalkPin>,
         spans: List<ColoredRouteSpan>,
-        zoneStartMs: Long,
-        zoneEndMs: Long,
+        distanceMarks: List<PedestrianDistanceMark>,
         stroke: Float,
         textSize: Float
     ) {
@@ -108,20 +73,14 @@ object PedestrianPageImage {
             this.textSize = textSize * 0.85f
             textAlign = Paint.Align.CENTER
         }
-        for (tick in WalkRoute.ticksOnRoute(ordered, zoneStartMs, zoneEndMs)) {
-            val at = tick.point
+        for (mark in distanceMarks) {
             canvas.drawText(
-                WalkRoute.elapsedLabel(tick.atMs - zoneStartMs),
-                x(at.x),
-                (y(at.y) - radius - 6f).coerceAtLeast(textSize),
+                "${mark.meters} m",
+                x(mark.xFraction),
+                (y(mark.yFraction) - radius - 6f).coerceAtLeast(textSize),
                 label
             )
         }
-        val north = Paint(label).apply {
-            this.textSize = textSize
-            typeface = Typeface.DEFAULT_BOLD
-        }
-        canvas.drawText("Forward", size / 2f, textSize * 1.4f, north)
     }
 
     private fun drawLegend(

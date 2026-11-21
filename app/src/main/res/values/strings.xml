@@ -521,6 +521,7 @@
     <string name="pedestrian_live_bearing">%1$03d°</string>
     <string name="pedestrian_live_unknown">—</string>
     <string name="pedestrian_live_distance">%1$.1f m</string>
+    <string name="pedestrian_distance_mark">%1$d m</string>
     <plurals name="pedestrian_live_steps">
         <item quantity="one">%d step</item>
         <item quantity="other">%d steps</item>
