@@ -1,10 +1,18 @@
 package io.github.cloolalang.notspotdetector.ui
 
+import android.content.Context
 import android.graphics.Bitmap
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import io.github.cloolalang.notspotdetector.MonitorState
+import io.github.cloolalang.notspotdetector.data.PedestrianDebugLogger
+import io.github.cloolalang.notspotdetector.model.PedestrianDebugSnapshot
+import io.github.cloolalang.notspotdetector.model.PedestrianLive
+import io.github.cloolalang.notspotdetector.model.PedestrianPosition
+import io.github.cloolalang.notspotdetector.model.PedestrianSample
+import io.github.cloolalang.notspotdetector.model.PedestrianTrack
+import io.github.cloolalang.notspotdetector.sensor.PedestrianTracker
 import io.github.cloolalang.notspotdetector.model.ActiveTestTape
 import io.github.cloolalang.notspotdetector.model.CallResultTape
 import io.github.cloolalang.notspotdetector.model.AggregatedBandwidthTape
@@ -60,12 +68,124 @@ class ZoneTestViewModel : ViewModel() {
     val aggregatedBandwidthTape = mutableStateOf(AggregatedBandwidthTape())
     val floorPlan = mutableStateOf<Bitmap?>(null)
     val pins = mutableStateOf<List<WalkPin>>(emptyList())
+    val pedestrianSamples = mutableStateOf<List<PedestrianSample>>(emptyList())
+    val pedestrianTracking = mutableStateOf(false)
+    val pedestrianLive = mutableStateOf(PedestrianLive())
+    val pedestrianCanUndo = mutableStateOf(false)
+
+    private var pedestrianTracker: PedestrianTracker? = null
 
     /** Set by the zone-test panel. The main-screen button calls these. */
     var onStart: (() -> Unit)? = null
     var onStop: (() -> Unit)? = null
 
+    fun startPedestrian(context: Context, strideMeters: Float, elapsedOffsetMs: Long = 0L) {
+        val tracker = tracker(context)
+        attachLive(tracker)
+        tracker.strideMeters = PedestrianTrack.coerceStride(strideMeters)
+        pedestrianSamples.value = emptyList()
+        pedestrianTracking.value = true
+        val offset = elapsedOffsetMs.coerceAtLeast(0L)
+        tracker.start { sample ->
+            storeSample(offset + sample.elapsedMs, PedestrianPosition(sample.eastMeters, sample.northMeters))
+        }
+    }
+
+    fun resumePedestrian(context: Context, strideMeters: Float, elapsedNowMs: Long) {
+        if (pedestrianSamples.value.isEmpty()) {
+            startPedestrian(context, strideMeters, elapsedNowMs)
+            return
+        }
+        val tracker = tracker(context)
+        attachLive(tracker)
+        tracker.strideMeters = PedestrianTrack.coerceStride(strideMeters)
+        val last = pedestrianSamples.value.last()
+        pedestrianTracking.value = true
+        val offset = elapsedNowMs.coerceAtLeast(0L)
+        tracker.resume(PedestrianPosition(last.eastMeters, last.northMeters)) { sample ->
+            storeSample(offset + sample.elapsedMs, PedestrianPosition(sample.eastMeters, sample.northMeters))
+        }
+    }
+
+    private fun storeSample(elapsedMs: Long, position: PedestrianPosition) {
+        val before = pedestrianSamples.value.size
+        val next = PedestrianTrack.appendSample(pedestrianSamples.value, elapsedMs, position)
+        if (next.size == before) {
+            PedestrianDebugLogger.record(
+                PedestrianDebugSnapshot(
+                    phase = "trail",
+                    detail = "kept the previous mark, elapsed=${elapsedMs}ms is under 1s after the last mark",
+                    suspect = false
+                )
+            )
+        }
+        pedestrianSamples.value = next
+    }
+
+    fun setPedestrianStride(strideMeters: Float) {
+        pedestrianTracker?.strideMeters = PedestrianTrack.coerceStride(strideMeters)
+    }
+
+    fun tapPedestrianStep() {
+        pedestrianTracker?.manualStep()
+    }
+
+    fun undoPedestrianStep() {
+        val retraction = pedestrianTracker?.undoLastStep() ?: return
+        pedestrianSamples.value = PedestrianTrack.retractLastPosition(
+            pedestrianSamples.value,
+            retraction.from,
+            retraction.to
+        )
+    }
+
+    /** Removes the plotted walk. Monitoring and the compass keep going. */
+    fun clearPedestrianPlot() {
+        pedestrianTracker?.clearPlot()
+        pedestrianSamples.value = emptyList()
+        if (pedestrianTracker == null) {
+            pedestrianLive.value = PedestrianLive()
+            pedestrianCanUndo.value = false
+        }
+    }
+
+    fun stopPedestrian() {
+        pedestrianTracker?.stop()
+        pedestrianTracking.value = false
+    }
+
+    fun clearPedestrianSamples() {
+        pedestrianSamples.value = emptyList()
+        pedestrianLive.value = PedestrianLive()
+        pedestrianCanUndo.value = false
+    }
+
+    /** A linked phone has the master's path and no local compass or step count. */
+    fun showRemoteWalk(samples: List<PedestrianSample>) {
+        pedestrianSamples.value = samples
+        pedestrianLive.value = if (samples.isEmpty()) {
+            PedestrianLive()
+        } else {
+            PedestrianLive(distanceMeters = PedestrianTrack.walkedMeters(samples))
+        }
+        pedestrianCanUndo.value = false
+    }
+
+    private fun attachLive(tracker: PedestrianTracker) {
+        tracker.onLive = { live ->
+            if (pedestrianLive.value != live) pedestrianLive.value = live
+            if (pedestrianCanUndo.value != live.canUndo) pedestrianCanUndo.value = live.canUndo
+        }
+    }
+
     override fun onCleared() {
+        pedestrianTracker?.stop()
         MonitorState.setZoneTestSampleRetainFrom(null)
+    }
+
+    private fun tracker(context: Context): PedestrianTracker {
+        return pedestrianTracker ?: PedestrianTracker(context.applicationContext).also {
+            pedestrianTracker = it
+        }
     }
 }

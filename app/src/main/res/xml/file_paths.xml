@@ -9,6 +9,9 @@
     <files-path
         name="radio_debug"
         path="radio-debug/" />
+    <files-path
+        name="pedestrian_debug"
+        path="pedestrian-debug/" />
     <cache-path
         name="app_updates"
         path="updates/" />

@@ -79,10 +79,12 @@ import io.github.cloolalang.notspotdetector.multiue.MultiUeGraphClear
 import io.github.cloolalang.notspotdetector.multiue.MultiUeState
 import io.github.cloolalang.notspotdetector.multiue.MultiUeFloorPlan
 import io.github.cloolalang.notspotdetector.multiue.MultiUeLinkService
+import io.github.cloolalang.notspotdetector.multiue.MultiUePedestrian
 import io.github.cloolalang.notspotdetector.multiue.MultiUeZoneSync
 import io.github.cloolalang.notspotdetector.R
 import io.github.cloolalang.notspotdetector.data.FloorPlanLoader
 import io.github.cloolalang.notspotdetector.data.FloorPlanTransfer
+import io.github.cloolalang.notspotdetector.data.PedestrianPageImage
 import io.github.cloolalang.notspotdetector.data.WalkRouteImage
 import io.github.cloolalang.notspotdetector.data.ZoneTestImageSaver
 import io.github.cloolalang.notspotdetector.model.CallResultBand
@@ -109,6 +111,12 @@ import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.PrimaryIntracellDominanceHistory
 import io.github.cloolalang.notspotdetector.model.OperatorTitleStyle
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
+import io.github.cloolalang.notspotdetector.model.PdrPointShare
+import io.github.cloolalang.notspotdetector.model.PedestrianKpi
+import io.github.cloolalang.notspotdetector.model.PedestrianKpiColors
+import io.github.cloolalang.notspotdetector.model.PedestrianSample
+import io.github.cloolalang.notspotdetector.model.PedestrianTapes
+import io.github.cloolalang.notspotdetector.model.PedestrianTrack
 import io.github.cloolalang.notspotdetector.model.PrimaryLayerDominance
 import io.github.cloolalang.notspotdetector.model.primaryLayerDominance
 import io.github.cloolalang.notspotdetector.model.coerceToTapeWindowStep
@@ -147,9 +155,14 @@ import io.github.cloolalang.notspotdetector.network.CellularSignalReader
 import io.github.cloolalang.notspotdetector.model.coerceToHistogramWindowStep
 import io.github.cloolalang.notspotdetector.ui.theme.BondiBlue
 import io.github.cloolalang.notspotdetector.ui.theme.Sushi
+import io.github.cloolalang.notspotdetector.viewmodel.MonitorViewModel
+import android.Manifest
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -907,6 +920,13 @@ private fun ZoneTestPanel(
     val scope = rememberCoroutineScope()
     var floorPlan by zoneTest.floorPlan
     var pins by zoneTest.pins
+    var pedestrianSamples by zoneTest.pedestrianSamples
+    val monitorSettings by MonitorState.monitoringSettings.collectAsStateWithLifecycle()
+    val monitor = viewModel<MonitorViewModel>()
+    val walkDebugEnabled by monitor.pedestrianDebugEnabled.collectAsStateWithLifecycle()
+    val walkDebug by monitor.pedestrianDebugSnapshot.collectAsStateWithLifecycle()
+    val remotePdr by MultiUePedestrian.enabled.collectAsStateWithLifecycle()
+    val remotePdrPoints by MultiUePedestrian.points.collectAsStateWithLifecycle()
     val graphicsLayer = rememberGraphicsLayer()
     val savedTemplate = stringResource(R.string.zone_test_saved)
     val savedWithRouteTemplate = stringResource(R.string.zone_test_saved_with_route)
@@ -985,8 +1005,22 @@ private fun ZoneTestPanel(
 
     val link by MultiUeState.snapshot.collectAsStateWithLifecycle()
     val followsMaster = link.followsMaster
+    val showPdr = if (followsMaster) remotePdr else monitorSettings.pedestrianDeadReckoning
+    val pedestrianKpi = monitorSettings.pedestrianKpi
     val remoteZone by MultiUeZoneSync.state.collectAsStateWithLifecycle()
-    fun walkKpi(): String? = if (walkRouteEnabled) ZoneTest.WALK_KPI else null
+    fun walkKpi(): String? = when {
+        showPdr -> pedestrianKpi.fileToken
+        walkRouteEnabled -> ZoneTest.WALK_KPI
+        else -> null
+    }
+    fun needsStepPermission(): Boolean {
+        if (!showPdr || followsMaster) return false
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return false
+        return ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACTIVITY_RECOGNITION
+        ) != PackageManager.PERMISSION_GRANTED
+    }
     val startZoneNow = rememberUpdatedState<() -> Unit>({
         val atMs = tapeNowMs
         startMs = atMs
@@ -997,14 +1031,37 @@ private fun ZoneTestPanel(
         operatorLabel = liveOperator
         pins = emptyList()
         freshTapes(atMs)
+        if (!followsMaster) {
+            zoneTest.clearPedestrianSamples()
+            if (monitorSettings.pedestrianDeadReckoning) {
+                zoneTest.startPedestrian(context, monitorSettings.pedestrianStrideMeters)
+            } else {
+                zoneTest.stopPedestrian()
+            }
+        } else {
+            zoneTest.stopPedestrian()
+        }
         running = true
     })
+    val recognitionPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) {
+        startZoneNow.value.invoke()
+    }
+    fun requestZoneStart() {
+        if (needsStepPermission()) {
+            recognitionPermission.launch(Manifest.permission.ACTIVITY_RECOGNITION)
+        } else {
+            startZoneNow.value.invoke()
+        }
+    }
     val stopZoneNow = rememberUpdatedState<() -> Unit>({
+        zoneTest.stopPedestrian()
         running = false
         endMs = tapeNowMs
     })
     SideEffect {
-        zoneTest.onStart = { startZoneNow.value.invoke() }
+        zoneTest.onStart = { requestZoneStart() }
         zoneTest.onStop = { stopZoneNow.value.invoke() }
     }
     val clearZoneCharts = rememberUpdatedState<() -> Unit>({
@@ -1014,6 +1071,8 @@ private fun ZoneTestPanel(
         endMs = null
         statusMessage = null
         pins = emptyList()
+        zoneTest.stopPedestrian()
+        zoneTest.clearPedestrianSamples()
         if (!followsMaster) {
             zoneName = ""
             operatorLabel = null
@@ -1028,6 +1087,19 @@ private fun ZoneTestPanel(
         callResultTape = CallResultTape()
         aggregatedBandwidthTape = AggregatedBandwidthTape()
     })
+    fun pedestrianTapes() = PedestrianTapes(
+        rsrp = rsrpBinTape,
+        rsrq = rsrqBinTape,
+        carrier = carrierTape,
+        technology = technologyTape,
+        distance = distanceTape,
+        intracell = intracellDominanceTape,
+        bandwidth = aggregatedBandwidthTape,
+        activeTest = activeTestTape,
+        call = callResultTape
+    )
+    val pdrLegend = pedestrianLegend(pedestrianKpi)
+    val pdrLegendTitle = pedestrianKpiLabel(pedestrianKpi)
     val saveZoneJpeg = rememberUpdatedState<(Boolean) -> Unit>({ includeHistogram ->
         val started = startMs
         if (started == null) {
@@ -1070,12 +1142,13 @@ private fun ZoneTestPanel(
             }
             val plan = floorPlan
             val markedPins = pins.toList()
+            val markedSamples = pedestrianSamples.toList()
             var walkPath: String? = null
-            if (walkRouteEnabled && plan != null && markedPins.isNotEmpty()) {
-                val caption = listOfNotNull(
-                    zoneName.trim().takeIf { it.isNotEmpty() },
-                    operatorLabel
-                ).joinToString(" · ").ifBlank { walkCaptionFallback }
+            val caption = listOfNotNull(
+                zoneName.trim().takeIf { it.isNotEmpty() },
+                operatorLabel
+            ).joinToString(" · ").ifBlank { walkCaptionFallback }
+            if (!showPdr && walkRouteEnabled && plan != null && markedPins.isNotEmpty()) {
                 val routeBitmap = WalkRouteImage.render(
                     floorPlan = plan,
                     pins = markedPins,
@@ -1099,10 +1172,37 @@ private fun ZoneTestPanel(
                     routeBitmap.recycle()
                 }
             }
+            if (showPdr && markedSamples.isNotEmpty()) {
+                val pdrPins = PedestrianTrack.project(markedSamples, started)
+                val pdrBitmap = PedestrianPageImage.render(
+                    pins = pdrPins,
+                    spans = PedestrianKpiColors.legs(pdrPins, pedestrianKpi, pedestrianTapes()),
+                    zoneStartMs = started,
+                    zoneEndMs = markedEnd,
+                    halfExtentMeters = PedestrianTrack.halfExtent(markedSamples),
+                    caption = caption,
+                    legendTitle = pdrLegendTitle,
+                    legend = pdrLegend
+                )
+                if (pdrBitmap != null) {
+                    walkPath = ZoneTestImageSaver.saveJpeg(
+                        context = context,
+                        bitmap = pdrBitmap,
+                        fileName = ZoneTest.pedestrianJpegFileName(
+                            zoneName,
+                            operatorLabel,
+                            pedestrianKpi.fileToken
+                        )
+                    )
+                    pdrBitmap.recycle()
+                }
+            }
+            val wantedTrail = showPdr && markedSamples.isNotEmpty() ||
+                (!showPdr && walkRouteEnabled && markedPins.isNotEmpty())
             val chartMessage = when {
                 zonePath != null && walkPath != null ->
                     savedWithRouteTemplate.format(zonePath, walkPath)
-                zonePath != null && walkRouteEnabled && markedPins.isNotEmpty() ->
+                zonePath != null && wantedTrail ->
                     routeFailedTemplate.format(zonePath)
                 zonePath != null -> savedTemplate.format(zonePath)
                 walkPath != null -> savedTemplate.format(walkPath)
@@ -1133,12 +1233,22 @@ private fun ZoneTestPanel(
                     MultiUeZoneSync.set(zoneRunning, wholeTest)
                 }
         }
-        LaunchedEffect(liveOperator, operatorLabel, walkRouteEnabled) {
+        LaunchedEffect(liveOperator, operatorLabel, walkRouteEnabled, showPdr, pedestrianKpi) {
             snapshotFlow { zoneName }
                 .collect { name ->
                     MultiUeZoneSync.setNameSuffix(
                         ZoneTest.sharedNameSuffix(name, operatorLabel ?: liveOperator, walkKpi())
                     )
+                }
+        }
+        LaunchedEffect(monitorSettings.pedestrianDeadReckoning) {
+            MultiUePedestrian.setEnabled(monitorSettings.pedestrianDeadReckoning)
+            if (!monitorSettings.pedestrianDeadReckoning) return@LaunchedEffect
+            var previous = emptyList<PdrPointShare>()
+            snapshotFlow { pedestrianSamples.map { it.toPdrPoint() } }
+                .collect { next ->
+                    MultiUePedestrian.publish(previous, next)
+                    previous = next
                 }
         }
         var planSent by remember { mutableStateOf(false) }
@@ -1164,6 +1274,21 @@ private fun ZoneTestPanel(
         }
     }
     if (followsMaster) {
+        LaunchedEffect(remotePdr) {
+            if (remotePdr && !expanded) expanded = true
+        }
+        LaunchedEffect(remotePdr, remotePdrPoints) {
+            zoneTest.stopPedestrian()
+            zoneTest.showRemoteWalk(
+                if (remotePdr) {
+                    remotePdrPoints.map { point ->
+                        PedestrianSample(point.elapsedMs, point.eastMeters, point.northMeters)
+                    }
+                } else {
+                    emptyList()
+                }
+            )
+        }
         val remoteHistogram by MultiUeZoneSync.saveHistogram.collectAsStateWithLifecycle()
         LaunchedEffect(remoteHistogram) {
             val on = remoteHistogram ?: return@LaunchedEffect
@@ -1237,8 +1362,24 @@ private fun ZoneTestPanel(
         }
     }
 
+    LaunchedEffect(monitorSettings.pedestrianStrideMeters) {
+        zoneTest.setPedestrianStride(monitorSettings.pedestrianStrideMeters)
+    }
+    LaunchedEffect(monitorSettings.pedestrianDeadReckoning, running) {
+        if (followsMaster) return@LaunchedEffect
+        if (!monitorSettings.pedestrianDeadReckoning) {
+            zoneTest.stopPedestrian()
+            return@LaunchedEffect
+        }
+        if (running && !zoneTest.pedestrianTracking.value) {
+            val began = startMs
+            val elapsedNow = if (began == null) 0L else (tapeNowMs - began).coerceAtLeast(0L)
+            zoneTest.resumePedestrian(context, monitorSettings.pedestrianStrideMeters, elapsedNow)
+        }
+    }
     LaunchedEffect(isMonitoring) {
         if (!isMonitoring && running) {
+            zoneTest.stopPedestrian()
             running = false
             endMs = tapeNowMs
         }
@@ -1363,6 +1504,7 @@ private fun ZoneTestPanel(
                     when {
                         running -> R.string.zone_test_running
                         !isMonitoring && startMs == null -> R.string.zone_test_need_monitoring
+                        showPdr -> R.string.zone_test_hint_pdr
                         walkRouteEnabled -> R.string.zone_test_hint_walk
                         else -> R.string.zone_test_hint
                     }
@@ -1393,7 +1535,159 @@ private fun ZoneTestPanel(
                     enabled = !followsMaster
                 )
             }
-            if (walkRouteEnabled || (followsMaster && floorPlan != null)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.zone_test_pdr),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = stringResource(
+                            if (followsMaster && showPdr) {
+                                R.string.zone_test_pdr_from_master
+                            } else {
+                                R.string.zone_test_pdr_hint
+                            }
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = showPdr,
+                    onCheckedChange = { monitor.updatePedestrianDeadReckoning(it) },
+                    enabled = !followsMaster
+                )
+            }
+            if (showPdr) {
+                val stride = monitorSettings.pedestrianStrideMeters
+                Text(
+                    text = stringResource(R.string.zone_test_pdr_kpi),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium
+                )
+                var kpiMenu by remember { mutableStateOf(false) }
+                Box {
+                    OutlinedButton(
+                        onClick = { kpiMenu = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(text = pedestrianKpiLabel(pedestrianKpi))
+                    }
+                    DropdownMenu(
+                        expanded = kpiMenu,
+                        onDismissRequest = { kpiMenu = false }
+                    ) {
+                        PedestrianKpi.entries.forEach { kpi ->
+                            DropdownMenuItem(
+                                text = { Text(text = pedestrianKpiLabel(kpi)) },
+                                onClick = {
+                                    kpiMenu = false
+                                    if (kpi != pedestrianKpi) monitor.updatePedestrianKpi(kpi)
+                                }
+                            )
+                        }
+                    }
+                }
+                if (!followsMaster) {
+                    Text(
+                        text = stringResource(
+                            R.string.zone_test_pdr_stride_value,
+                            stride
+                        ) + " · " + stringResource(R.string.zone_test_pdr_stride),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Slider(
+                        value = stride,
+                        onValueChange = { monitor.updatePedestrianStrideMeters(it) },
+                        valueRange = PedestrianTrack.MIN_STRIDE_METERS..PedestrianTrack.MAX_STRIDE_METERS,
+                        steps = ((PedestrianTrack.MAX_STRIDE_METERS - PedestrianTrack.MIN_STRIDE_METERS) / 0.05f).roundToInt() - 1
+                    )
+                }
+                if (!running) {
+                    Button(
+                        onClick = { requestZoneStart() },
+                        enabled = isMonitoring && !followsMaster,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(text = stringResource(R.string.zone_test_start))
+                    }
+                } else {
+                    FourPressOutlinedButton(
+                        text = stringResource(R.string.zone_test_stop),
+                        countingText = { presses ->
+                            stringResource(R.string.zone_test_stop_count, presses)
+                        },
+                        enabled = !followsMaster,
+                        onConfirm = { stopZoneNow.value.invoke() }
+                    )
+                    if (!followsMaster) {
+                        Button(
+                            onClick = { zoneTest.tapPedestrianStep() },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(text = stringResource(R.string.zone_test_pdr_tap_step))
+                        }
+                    }
+                }
+                if (!followsMaster) {
+                    val canUndo by zoneTest.pedestrianCanUndo
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { zoneTest.undoPedestrianStep() },
+                            enabled = canUndo,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(text = stringResource(R.string.zone_test_pdr_undo))
+                        }
+                        OutlinedButton(
+                            onClick = { zoneTest.clearPedestrianPlot() },
+                            enabled = pedestrianSamples.isNotEmpty(),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(text = stringResource(R.string.zone_test_pdr_clear_plot))
+                        }
+                    }
+                }
+                Text(
+                    text = stringResource(R.string.zone_test_pdr_hold),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                val pdrZoneStart = startMs
+                val pdrPins = PedestrianTrack.project(pedestrianSamples, pdrZoneStart ?: 0L)
+                PedestrianPage(
+                    pins = pdrPins,
+                    samples = pedestrianSamples,
+                    spans = PedestrianKpiColors.legs(pdrPins, pedestrianKpi, pedestrianTapes()),
+                    zoneStartMs = pdrZoneStart,
+                    zoneEndMs = if (running) tapeNowMs else endMs,
+                    live = zoneTest.pedestrianLive,
+                    modifier = Modifier.expandPastPadding(20.dp)
+                )
+                if (walkDebugEnabled) {
+                    walkDebug?.let { snapshot ->
+                        Text(
+                            text = snapshot.bannerLine(),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (snapshot.isSuspect) {
+                                MaterialTheme.colorScheme.error
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            }
+                        )
+                    }
+                }
+            }
+            if (!showPdr && (walkRouteEnabled || (followsMaster && floorPlan != null))) {
             WalkRouteMap(
                 modifier = Modifier.expandPastPadding(20.dp),
                 floorPlan = floorPlan,
@@ -1436,6 +1730,8 @@ private fun ZoneTestPanel(
             )
             }
             if (!running && startMs != null) {
+                val hasTrail = (showPdr && pedestrianSamples.isNotEmpty()) ||
+                    (!showPdr && walkRouteEnabled && pins.isNotEmpty())
                 OutlinedTextField(
                     value = zoneName,
                     onValueChange = { zoneName = it },
@@ -1444,9 +1740,11 @@ private fun ZoneTestPanel(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
-                if (walkRouteEnabled && pins.isNotEmpty()) {
+                if (hasTrail) {
                     Text(
-                        text = stringResource(R.string.zone_test_save_note),
+                        text = stringResource(
+                            if (showPdr) R.string.zone_test_pdr_save_note else R.string.zone_test_save_note
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -1485,7 +1783,7 @@ private fun ZoneTestPanel(
                 ) {
                     Text(
                         text = stringResource(
-                            if (walkRouteEnabled && pins.isNotEmpty()) {
+                            if (hasTrail) {
                                 R.string.zone_test_save_with_route
                             } else {
                                 R.string.zone_test_save
@@ -1493,7 +1791,7 @@ private fun ZoneTestPanel(
                         )
                     )
                 }
-                val clearingWalk = walkRouteEnabled && pins.isNotEmpty()
+                val clearingWalk = hasTrail
                 FourPressOutlinedButton(
                     text = stringResource(
                         if (clearingWalk) R.string.zone_test_clear_walk else R.string.zone_test_clear
@@ -3288,6 +3586,94 @@ private fun DurationFigureControl(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+    }
+}
+
+private fun PedestrianSample.toPdrPoint(): PdrPointShare {
+    return PdrPointShare(elapsedMs, eastMeters, northMeters)
+}
+
+@Composable
+private fun pedestrianKpiLabel(kpi: PedestrianKpi): String {
+    return stringResource(
+        when (kpi) {
+            PedestrianKpi.RSRP -> R.string.rsrp_bin_history_title
+            PedestrianKpi.RSRQ -> R.string.rsrq_bin_history_title
+            PedestrianKpi.EARFCN_PCI -> R.string.rsrp_histogram_carrier_history_title
+            PedestrianKpi.TECHNOLOGY -> R.string.rsrp_histogram_technology_history_title
+            PedestrianKpi.DISTANCE -> R.string.distance_history_title
+            PedestrianKpi.INTRACELL -> R.string.intracell_dominance_history_title
+            PedestrianKpi.BANDWIDTH -> R.string.aggregated_bandwidth_history_title
+            PedestrianKpi.ACTIVE_TEST -> R.string.active_test_history_title
+            PedestrianKpi.CALL -> R.string.call_result_history_title
+        }
+    )
+}
+
+@Composable
+private fun pedestrianLegend(kpi: PedestrianKpi): List<WalkLegendSwatch> {
+    val none = stringResource(R.string.zone_test_no_signal)
+    return when (kpi) {
+        PedestrianKpi.RSRP -> listOf(
+            WalkLegendSwatch(WalkRoute.rsrpRouteColor(RsrpBin.ABOVE_95), stringResource(R.string.rsrp_bin_above_95)),
+            WalkLegendSwatch(WalkRoute.rsrpRouteColor(RsrpBin.ABOVE_105), stringResource(R.string.rsrp_bin_above_105)),
+            WalkLegendSwatch(WalkRoute.rsrpRouteColor(RsrpBin.ABOVE_115), stringResource(R.string.rsrp_bin_above_115)),
+            WalkLegendSwatch(WalkRoute.rsrpRouteColor(RsrpBin.BELOW_115), stringResource(R.string.rsrp_bin_below_115)),
+            WalkLegendSwatch(WalkRoute.rsrpRouteColor(RsrpBin.NO_SIGNAL), none)
+        )
+        PedestrianKpi.RSRQ -> listOf(
+            WalkLegendSwatch(WalkRoute.rsrqRouteColor(RsrqBin.ABOVE_15), stringResource(R.string.rsrq_bin_above_15)),
+            WalkLegendSwatch(WalkRoute.rsrqRouteColor(RsrqBin.FROM_17_TO_15), stringResource(R.string.rsrq_bin_from_17_to_15)),
+            WalkLegendSwatch(WalkRoute.rsrqRouteColor(RsrqBin.BELOW_17), stringResource(R.string.rsrq_bin_below_17)),
+            WalkLegendSwatch(WalkRoute.rsrqRouteColor(RsrqBin.NO_SIGNAL), none)
+        )
+        PedestrianKpi.EARFCN_PCI -> listOf(
+            WalkLegendSwatch(PedestrianKpiColors.LIGHT_BLUE, stringResource(R.string.zone_test_pdr_legend_carrier)),
+            WalkLegendSwatch(PedestrianKpiColors.NO_SIGNAL, none)
+        )
+        PedestrianKpi.TECHNOLOGY -> listOf(
+            WalkLegendSwatch(PedestrianKpiColors.technologyColor(CellularSignalReader.RADIO_2G), CellularSignalReader.RADIO_2G),
+            WalkLegendSwatch(PedestrianKpiColors.technologyColor(CellularSignalReader.RADIO_4G), CellularSignalReader.RADIO_4G),
+            WalkLegendSwatch(PedestrianKpiColors.technologyColor(TechnologyHistory.LABEL_4G_PLUS), TechnologyHistory.LABEL_4G_PLUS),
+            WalkLegendSwatch(PedestrianKpiColors.technologyColor(CellularSignalReader.RADIO_5G), CellularSignalReader.RADIO_5G),
+            WalkLegendSwatch(PedestrianKpiColors.technologyColor(CellularSignalReader.RADIO_5G_ENDC), CellularSignalReader.RADIO_5G_ENDC),
+            WalkLegendSwatch(PedestrianKpiColors.NO_SIGNAL, none)
+        )
+        PedestrianKpi.DISTANCE -> listOf(
+            WalkLegendSwatch(PedestrianKpiColors.distanceColor(100), stringResource(R.string.zone_test_pdr_legend_distance_500)),
+            WalkLegendSwatch(PedestrianKpiColors.distanceColor(700), stringResource(R.string.zone_test_pdr_legend_distance_1000)),
+            WalkLegendSwatch(PedestrianKpiColors.distanceColor(2_000), stringResource(R.string.zone_test_pdr_legend_distance_3000)),
+            WalkLegendSwatch(PedestrianKpiColors.distanceColor(4_000), stringResource(R.string.zone_test_pdr_legend_distance_far)),
+            WalkLegendSwatch(PedestrianKpiColors.NO_SIGNAL, none)
+        )
+        PedestrianKpi.INTRACELL -> listOf(
+            WalkLegendSwatch(PedestrianKpiColors.intracellColor(2), stringResource(R.string.primary_layer_dominance_low)),
+            WalkLegendSwatch(PedestrianKpiColors.intracellColor(10), stringResource(R.string.primary_layer_dominance_high)),
+            WalkLegendSwatch(PedestrianKpiColors.NO_SIGNAL, none)
+        )
+        PedestrianKpi.BANDWIDTH -> listOf(
+            WalkLegendSwatch(PedestrianKpiColors.bandwidthColor(AggregatedBandwidthBand.MHZ_5), stringResource(R.string.zone_test_pdr_legend_mhz_5)),
+            WalkLegendSwatch(PedestrianKpiColors.bandwidthColor(AggregatedBandwidthBand.MHZ_10), stringResource(R.string.zone_test_pdr_legend_mhz_10)),
+            WalkLegendSwatch(PedestrianKpiColors.bandwidthColor(AggregatedBandwidthBand.MHZ_15), stringResource(R.string.zone_test_pdr_legend_mhz_15)),
+            WalkLegendSwatch(PedestrianKpiColors.bandwidthColor(AggregatedBandwidthBand.MHZ_20), stringResource(R.string.zone_test_pdr_legend_mhz_20)),
+            WalkLegendSwatch(PedestrianKpiColors.bandwidthColor(AggregatedBandwidthBand.BLUE_40), stringResource(R.string.zone_test_pdr_legend_mhz_wide)),
+            WalkLegendSwatch(PedestrianKpiColors.NO_SIGNAL, none)
+        )
+        PedestrianKpi.ACTIVE_TEST -> listOf(
+            WalkLegendSwatch(PedestrianKpiColors.activeColor(ActiveTestBand.FAST), stringResource(R.string.zone_test_pdr_legend_fast)),
+            WalkLegendSwatch(PedestrianKpiColors.activeColor(ActiveTestBand.OK), stringResource(R.string.zone_test_pdr_legend_ok)),
+            WalkLegendSwatch(PedestrianKpiColors.activeColor(ActiveTestBand.SLOW), stringResource(R.string.zone_test_pdr_legend_slow)),
+            WalkLegendSwatch(PedestrianKpiColors.activeColor(ActiveTestBand.VERY_SLOW), stringResource(R.string.zone_test_pdr_legend_very_slow)),
+            WalkLegendSwatch(PedestrianKpiColors.activeColor(ActiveTestBand.HIGH_LOSS), stringResource(R.string.zone_test_pdr_legend_loss)),
+            WalkLegendSwatch(PedestrianKpiColors.activeColor(ActiveTestBand.TOTAL_LOSS), stringResource(R.string.zone_test_pdr_legend_total_loss)),
+            WalkLegendSwatch(PedestrianKpiColors.NO_SIGNAL, none)
+        )
+        PedestrianKpi.CALL -> listOf(
+            WalkLegendSwatch(PedestrianKpiColors.callColor(CallResultBand.DIALING), stringResource(R.string.call_result_dialing)),
+            WalkLegendSwatch(PedestrianKpiColors.callColor(CallResultBand.UP), stringResource(R.string.call_result_up)),
+            WalkLegendSwatch(PedestrianKpiColors.callColor(CallResultBand.SUCCESS), stringResource(R.string.call_result_success)),
+            WalkLegendSwatch(PedestrianKpiColors.callColor(CallResultBand.FAIL), stringResource(R.string.call_result_fail))
+        )
     }
 }
 

@@ -19,9 +19,11 @@ import io.github.cloolalang.notspotdetector.MonitorState
 import io.github.cloolalang.notspotdetector.R
 import io.github.cloolalang.notspotdetector.data.AppSettingsSnapshotCodec
 import io.github.cloolalang.notspotdetector.data.MultiUeRoleRepository
+import io.github.cloolalang.notspotdetector.data.PedestrianDebugSettingsRepository
 import io.github.cloolalang.notspotdetector.data.RadioDebugSettingsRepository
 import io.github.cloolalang.notspotdetector.model.AppSettingsSnapshot
 import io.github.cloolalang.notspotdetector.model.MultiUeLinkPhase
+import io.github.cloolalang.notspotdetector.model.PedestrianDebugSettings
 import io.github.cloolalang.notspotdetector.model.RadioDebugSettings
 import io.github.cloolalang.notspotdetector.model.MultiUePeer
 import io.github.cloolalang.notspotdetector.model.MultiUeProtocol
@@ -73,6 +75,7 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
     private var callRunWatch: Job? = null
     private var planWatch: Job? = null
     private var pinWatch: Job? = null
+    private var pdrWatch: Job? = null
     private var settingsWatch: Job? = null
     private val syncingSlaves = mutableSetOf<String>()
     private var reconnectJob: Job? = null
@@ -192,6 +195,7 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
         callRunWatch?.cancel()
         planWatch?.cancel()
         pinWatch?.cancel()
+        pdrWatch?.cancel()
         settingsWatch?.cancel()
         pendingBondAddress = null
         runCatching { MultiUeRadios.adapter(this)?.cancelDiscovery() }
@@ -374,6 +378,21 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
         MultiUeFloorPlan.clearPins()
     }
 
+    override fun onPdrMode(on: Boolean) {
+        if (destroyed || repository.loadRole() != MultiUeRole.SLAVE) return
+        MultiUePedestrian.setEnabledFromMaster(on)
+    }
+
+    override fun onPdrPoint(elapsedMs: Long, eastMeters: Float, northMeters: Float) {
+        if (destroyed || repository.loadRole() != MultiUeRole.SLAVE) return
+        MultiUePedestrian.addPoint(elapsedMs, eastMeters, northMeters)
+    }
+
+    override fun onPdrClear() {
+        if (destroyed || repository.loadRole() != MultiUeRole.SLAVE) return
+        MultiUePedestrian.clearPoints()
+    }
+
     override fun onZoneClear() {
         if (destroyed || repository.loadRole() != MultiUeRole.SLAVE) return
         MultiUeZoneSync.clear()
@@ -472,6 +491,8 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
         return listOf(MultiUeProtocol.pinClear()) + pins.map { MultiUeProtocol.pin(it.x, it.y) }
     }
 
+    override fun pdrLines(): List<String> = MultiUePedestrian.linesForJoin()
+
     private fun ensureSession() {
         if (!sessionReady) applyRole(force = true)
     }
@@ -530,6 +551,7 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
                 watchCallTest()
                 watchPlan()
                 watchPins()
+                watchPdr()
                 watchSettings()
                 resumeRadio(info.enabled)
             }
@@ -577,6 +599,8 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
         planWatch = null
         pinWatch?.cancel()
         pinWatch = null
+        pdrWatch?.cancel()
+        pdrWatch = null
         settingsWatch?.cancel()
         settingsWatch = null
         synchronized(syncingSlaves) { syncingSlaves.clear() }
@@ -660,6 +684,17 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
         pinWatch?.cancel()
         pinWatch = scope.launch {
             MultiUeFloorPlan.pinLines.collect { line ->
+                if (repository.loadRole() == MultiUeRole.MASTER) {
+                    session.broadcast(line)
+                }
+            }
+        }
+    }
+
+    private fun watchPdr() {
+        pdrWatch?.cancel()
+        pdrWatch = scope.launch {
+            MultiUePedestrian.lines.collect { line ->
                 if (repository.loadRole() == MultiUeRole.MASTER) {
                     session.broadcast(line)
                 }
@@ -787,6 +822,9 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
             audioVolumes = MonitorState.audioVolumes.value,
             radioDebugSettings = RadioDebugSettings(
                 enabled = RadioDebugSettingsRepository(this).loadEnabled()
+            ),
+            pedestrianDebugSettings = PedestrianDebugSettings(
+                enabled = PedestrianDebugSettingsRepository(this).loadEnabled()
             )
         ).normalized()
         val json = AppSettingsSnapshotCodec.encodeSnapshot(snapshot)

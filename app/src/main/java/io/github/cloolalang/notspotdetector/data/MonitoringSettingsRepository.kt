@@ -2,6 +2,8 @@ package io.github.cloolalang.notspotdetector.data
 
 import android.content.Context
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
+import io.github.cloolalang.notspotdetector.model.PedestrianKpi
+import io.github.cloolalang.notspotdetector.model.PedestrianTrack
 import io.github.cloolalang.notspotdetector.model.RsrpHistogram
 import io.github.cloolalang.notspotdetector.model.RsrpHistogramBinningMode
 import io.github.cloolalang.notspotdetector.model.WalkSnapMode
@@ -101,6 +103,17 @@ class MonitoringSettingsRepository(context: Context) {
             walkPlotEarfcnPci = prefs.getBoolean(
                 KEY_WALK_PLOT_EARFCN_PCI,
                 MonitoringSettings.DEFAULT_WALK_PLOT_EARFCN_PCI
+            ),
+            pedestrianDeadReckoning = prefs.getBoolean(
+                KEY_PEDESTRIAN_DEAD_RECKONING,
+                MonitoringSettings.DEFAULT_PEDESTRIAN_DEAD_RECKONING
+            ),
+            pedestrianStrideMeters = prefs.getFloat(
+                KEY_PEDESTRIAN_STRIDE_METERS,
+                PedestrianTrack.DEFAULT_STRIDE_METERS
+            ),
+            pedestrianKpi = PedestrianKpi.fromStoredName(
+                prefs.getString(KEY_PEDESTRIAN_KPI, null)
             )
         ).normalized()
     }
@@ -130,6 +143,9 @@ class MonitoringSettingsRepository(context: Context) {
             .putBoolean(KEY_CROSS_HAIRS_MODE, normalized.crossHairsMode)
             .putBoolean(KEY_WALK_PLOT_RSRQ, normalized.walkPlotRsrq)
             .putBoolean(KEY_WALK_PLOT_EARFCN_PCI, normalized.walkPlotEarfcnPci)
+            .putBoolean(KEY_PEDESTRIAN_DEAD_RECKONING, normalized.pedestrianDeadReckoning)
+            .putFloat(KEY_PEDESTRIAN_STRIDE_METERS, normalized.pedestrianStrideMeters)
+            .putString(KEY_PEDESTRIAN_KPI, normalized.pedestrianKpi.name)
             .apply()
     }
 
@@ -158,5 +174,8 @@ class MonitoringSettingsRepository(context: Context) {
         private const val KEY_CROSS_HAIRS_MODE = "cross_hairs_mode"
         private const val KEY_WALK_PLOT_RSRQ = "walk_plot_rsrq"
         private const val KEY_WALK_PLOT_EARFCN_PCI = "walk_plot_earfcn_pci"
+        private const val KEY_PEDESTRIAN_DEAD_RECKONING = "pedestrian_dead_reckoning"
+        private const val KEY_PEDESTRIAN_STRIDE_METERS = "pedestrian_stride_meters"
+        private const val KEY_PEDESTRIAN_KPI = "pedestrian_kpi"
     }
 }

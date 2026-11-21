@@ -50,7 +50,16 @@ object ZoneTest {
 
     /** Saved walk trail, such as VodafoneRSRP_lobby.jpg. */
     fun walkJpegFileName(name: String, operator: String?): String {
-        val prefix = fileNamePrefix(operator, WALK_KPI)
+        return trailJpegFileName(name, operator, WALK_KPI)
+    }
+
+    /** Saved pedestrian page, named with the KPI that coloured the trail. */
+    fun pedestrianJpegFileName(name: String, operator: String?, kpi: String): String {
+        return trailJpegFileName(name, operator, kpi)
+    }
+
+    private fun trailJpegFileName(name: String, operator: String?, kpi: String): String {
+        val prefix = fileNamePrefix(operator, kpi)
         val trimmed = name.trim()
         val operatorOnly = fileNamePrefix(operator)
         val full = when {
@@ -60,7 +69,7 @@ object ZoneTest {
                 prefix + trimmed.removePrefix(operatorOnly)
             else -> prefix + trimmed
         }
-        return safePart(full).ifBlank { "RSRP_zone" } + ".jpg"
+        return safePart(full).ifBlank { "${kpi}_zone" } + ".jpg"
     }
 
     /**

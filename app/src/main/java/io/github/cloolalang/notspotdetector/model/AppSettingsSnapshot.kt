@@ -5,7 +5,7 @@ package io.github.cloolalang.notspotdetector.model
  *
  * Captured on save: [ThresholdSettings], [PingSettings], [MonitoringSettings],
  * [PassiveSignalSettings], [PassiveMockSettings], [AudioVolumeSettings],
- * and [RadioDebugSettings].
+ * [RadioDebugSettings], and [PedestrianDebugSettings].
  *
  * Not captured: monitoring session state, live [ConnectivityStats], permissions,
  * the Multi-UE role and master address, or the known-cells CSV
@@ -19,7 +19,8 @@ data class AppSettingsSnapshot(
     val passiveSignalSettings: PassiveSignalSettings = PassiveSignalSettings(),
     val passiveMockSettings: PassiveMockSettings = PassiveMockSettings(),
     val audioVolumes: AudioVolumeSettings = AudioVolumeSettings(),
-    val radioDebugSettings: RadioDebugSettings = RadioDebugSettings()
+    val radioDebugSettings: RadioDebugSettings = RadioDebugSettings(),
+    val pedestrianDebugSettings: PedestrianDebugSettings = PedestrianDebugSettings()
 ) {
     fun normalized(): AppSettingsSnapshot {
         val normalizedAudio = audioVolumes.normalized()
@@ -33,7 +34,8 @@ data class AppSettingsSnapshot(
             ),
             passiveMockSettings = passiveMockSettings.normalized(),
             audioVolumes = normalizedAudio,
-            radioDebugSettings = radioDebugSettings
+            radioDebugSettings = radioDebugSettings,
+            pedestrianDebugSettings = pedestrianDebugSettings
         )
     }
 
@@ -105,5 +107,10 @@ enum class ProfileImportResult {
 
 /** Radio debug log switch. The log file itself is not part of a profile. */
 data class RadioDebugSettings(
+    val enabled: Boolean = false
+)
+
+/** Walk debug log switch. The log file itself is not part of a profile. */
+data class PedestrianDebugSettings(
     val enabled: Boolean = false
 )

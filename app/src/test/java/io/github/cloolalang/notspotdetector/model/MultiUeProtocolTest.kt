@@ -116,6 +116,19 @@ class MultiUeProtocolTest {
             listOf("PIN -"),
             multiUePinLines(listOf(0.25f to 0.5f, 0.1f to 0.2f), listOf(0.25f to 0.5f))
         )
+        assertEquals(MultiUeMessage.PdrMode(on = true), MultiUeProtocol.parse(MultiUeProtocol.pdrMode(true)))
+        assertEquals(MultiUeMessage.PdrClear, MultiUeProtocol.parse(MultiUeProtocol.pdrClear()))
+        assertEquals(
+            MultiUeMessage.PdrPoint(1_000L, -1.25f, 0.5f),
+            MultiUeProtocol.parse(MultiUeProtocol.pdrPoint(1_000L, -1.25f, 0.5f))
+        )
+        assertEquals(
+            listOf("PDRPT 1000 0.000 0.750"),
+            multiUePdrLines(
+                emptyList(),
+                listOf(PdrPointShare(1_000L, 0f, 0.75f))
+            )
+        )
         assertEquals(MultiUeMessage.Scroll(2_500), MultiUeProtocol.parse(MultiUeProtocol.scroll(2_500)))
         assertEquals(MultiUeMessage.Scroll(0), MultiUeProtocol.parse(MultiUeProtocol.scroll(-1)))
         assertEquals(

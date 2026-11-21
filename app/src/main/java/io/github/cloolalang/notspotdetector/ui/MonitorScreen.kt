@@ -111,6 +111,7 @@ import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerChoice
 import io.github.cloolalang.notspotdetector.model.VoiceAnnouncerOption
 import io.github.cloolalang.notspotdetector.model.VoicePhraseFragment
 import io.github.cloolalang.notspotdetector.model.VoicePhraseGroup
+import io.github.cloolalang.notspotdetector.model.PedestrianDebugSnapshot
 import io.github.cloolalang.notspotdetector.model.RadioDebugSnapshot
 import io.github.cloolalang.notspotdetector.model.SpecialCellCatalog
 import io.github.cloolalang.notspotdetector.model.SpecialCellMatch
@@ -160,6 +161,12 @@ fun MonitorScreen(
     onRadioDebugEnabledChange: (Boolean) -> Unit = {},
     onShareRadioDebugLog: () -> Unit = {},
     onClearRadioDebugLog: () -> Unit = {},
+    pedestrianDebugEnabled: Boolean = false,
+    pedestrianDebugLineCount: Int = 0,
+    pedestrianDebugSnapshot: PedestrianDebugSnapshot? = null,
+    onPedestrianDebugEnabledChange: (Boolean) -> Unit = {},
+    onSharePedestrianDebugLog: () -> Unit = {},
+    onClearPedestrianDebugLog: () -> Unit = {},
     rttHistory: List<RttSample>,
     rsrpHistory: List<RsrpSample>,
     isRunning: Boolean,
@@ -426,6 +433,8 @@ fun MonitorScreen(
                 specialCellMatch = specialCellMatch.takeIf { audioVolumes.specialCellsDetectionEnabled },
                 radioDebugEnabled = radioDebugEnabled,
                 radioDebugSnapshot = radioDebugSnapshot,
+                pedestrianDebugEnabled = pedestrianDebugEnabled,
+                pedestrianDebugSnapshot = pedestrianDebugSnapshot,
                 onRequestCellIdentityPermission = onRequestCellIdentityPermission
             )
             ActiveModeMetricsCard(stats = stats)
@@ -683,6 +692,15 @@ fun MonitorScreen(
                 onEnabledChange = onRadioDebugEnabledChange,
                 onShare = onShareRadioDebugLog,
                 onClear = onClearRadioDebugLog
+            )
+
+            PedestrianDebugCard(
+                enabled = pedestrianDebugEnabled,
+                lineCount = pedestrianDebugLineCount,
+                lastSnapshot = pedestrianDebugSnapshot,
+                onEnabledChange = onPedestrianDebugEnabledChange,
+                onShare = onSharePedestrianDebugLog,
+                onClear = onClearPedestrianDebugLog
             )
         }
 
@@ -1120,6 +1138,8 @@ private fun MetricsCard(
     specialCellMatch: SpecialCellMatch?,
     radioDebugEnabled: Boolean,
     radioDebugSnapshot: RadioDebugSnapshot?,
+    pedestrianDebugEnabled: Boolean,
+    pedestrianDebugSnapshot: PedestrianDebugSnapshot?,
     onRequestCellIdentityPermission: () -> Unit
 ) {
     val mockActive = stats.isPassiveOnlySession && passiveMockSettings.enabled
@@ -1144,6 +1164,18 @@ private fun MetricsCard(
                     text = radioDebugSnapshot.bannerLine(),
                     style = MaterialTheme.typography.bodySmall,
                     color = if (radioDebugSnapshot.isSuspect) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                )
+            }
+
+            if (expanded && pedestrianDebugEnabled && pedestrianDebugSnapshot != null) {
+                Text(
+                    text = pedestrianDebugSnapshot.bannerLine(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (pedestrianDebugSnapshot.isSuspect) {
                         MaterialTheme.colorScheme.error
                     } else {
                         MaterialTheme.colorScheme.onSurfaceVariant

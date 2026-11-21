@@ -5,6 +5,47 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.194.0] - 2026-11-21
+
+### Added
+
+- **Undo step and clear plot** — During a pedestrian walk, Undo step removes the latest step and leaves the rest of the trail. Clear plot removes every mark and keeps the zone test running.
+- **Metre grid** — The black page shows a grid in metres. The square size is chosen so several squares fit on the page, starting at 2 m and stepping up to 5 m, 10 m, and further as the walk grows. The size is shown on the page.
+
+## [2.193.0] - 2026-11-21
+
+### Added
+
+- **Tap step** — During a pedestrian zone test, Tap step adds one step in the current compass direction. The black page can be checked while the phone is not counting steps on its own.
+
+### Fixed
+
+- **Walk readout** — Compass updates stay in the debug log and no longer replace the line under the page, so that line does not flash.
+
+## [2.192.0] - 2026-11-21
+
+### Added
+
+- **Walk readout** — The black page shows the live compass bearing, the number of steps since the start, and the estimated distance walked. The numbers stay in the corner while the page is zoomed or dragged.
+
+## [2.191.1] - 2026-11-21
+
+### Fixed
+
+- **Pedestrian steps while the phone is in the hand** — A walk now counts a step from the accelerometer when the phone's step detector stays quiet, so the black page can move on a hand-held walk. The walk log shows the acceleration peak each second.
+
+## [2.191.0] - 2026-11-21
+
+### Added
+
+- **Walk debug log** — A switch in the development area records why a pedestrian walk is or is not moving: the sensors that started, the compass heading, each step, and the position written every second. Share it the same way as the radio debug log. While it is on, the latest line is shown under the black page and turns red when no step or no heading is getting through.
+
+## [2.190.0] - 2026-11-20
+
+### Added
+
+- **Pedestrian dead reckoning** — A zone test can mark the walk without a floor plan. The phone uses its step detector and compass, puts a mark on a black page every second starting in the middle, and north stays up. Choose which KPI colours the line between marks. Stop and save writes that page to Downloads with the KPI chart. On a linked set, the master shares the path and each phone colours it with its own KPI.
+
 ## [2.189.0] - 2026-11-16
 
 ### Changed

@@ -9,8 +9,11 @@ import io.github.cloolalang.notspotdetector.model.MockNetworkScenario
 import io.github.cloolalang.notspotdetector.model.MonitoringSettings
 import io.github.cloolalang.notspotdetector.model.PassiveMockSettings
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
+import io.github.cloolalang.notspotdetector.model.PedestrianKpi
+import io.github.cloolalang.notspotdetector.model.PedestrianTrack
 import io.github.cloolalang.notspotdetector.model.PingSettings
 import io.github.cloolalang.notspotdetector.model.RxssStateFilterSettings
+import io.github.cloolalang.notspotdetector.model.PedestrianDebugSettings
 import io.github.cloolalang.notspotdetector.model.RadioDebugSettings
 import io.github.cloolalang.notspotdetector.model.RsrpHistogram
 import io.github.cloolalang.notspotdetector.model.RsrpHistogramBinningMode
@@ -26,7 +29,7 @@ import org.json.JSONObject
 /**
  * JSON codec for settings profiles (schema v1).
  *
- * `settings` sections: `thresholds`, `ping`, `monitoring`, `passiveSignal`, `passiveMock`, `audio`, `radioDebug`.
+ * `settings` sections: `thresholds`, `ping`, `monitoring`, `passiveSignal`, `passiveMock`, `audio`, `radioDebug`, `pedestrianDebug`.
  * Mock block keys: `enabled`, `scenario` ([MockNetworkScenario.name]), `rsrpDbm`, `rsrqDb`, `voiceOnlyNoData`.
  * Full field lists: [AppSettingsSnapshotCodecCompletenessTest].
  * Documentation: [SETTINGS_PROFILES.md].
@@ -119,6 +122,7 @@ object AppSettingsSnapshotCodec {
             .put("passiveMock", encodePassiveMock(settings.passiveMockSettings))
             .put("audio", encodeAudio(settings.audioVolumes))
             .put("radioDebug", encodeRadioDebug(settings.radioDebugSettings))
+            .put("pedestrianDebug", encodePedestrianDebug(settings.pedestrianDebugSettings))
     }
 
     private fun decodeSettings(json: JSONObject): AppSettingsSnapshot {
@@ -130,7 +134,8 @@ object AppSettingsSnapshotCodec {
             passiveSignalSettings = decodePassiveSignal(json.optJSONObject("passiveSignal"), audioVolumes),
             passiveMockSettings = decodePassiveMock(json.optJSONObject("passiveMock")),
             audioVolumes = audioVolumes,
-            radioDebugSettings = decodeRadioDebug(json.optJSONObject("radioDebug"))
+            radioDebugSettings = decodeRadioDebug(json.optJSONObject("radioDebug")),
+            pedestrianDebugSettings = decodePedestrianDebug(json.optJSONObject("pedestrianDebug"))
         ).normalized()
     }
 
@@ -142,6 +147,16 @@ object AppSettingsSnapshotCodec {
     private fun decodeRadioDebug(json: JSONObject?): RadioDebugSettings {
         if (json == null) return RadioDebugSettings()
         return RadioDebugSettings(enabled = json.optBoolean("enabled", false))
+    }
+
+    private fun encodePedestrianDebug(settings: PedestrianDebugSettings): JSONObject {
+        return JSONObject()
+            .put("enabled", settings.enabled)
+    }
+
+    private fun decodePedestrianDebug(json: JSONObject?): PedestrianDebugSettings {
+        if (json == null) return PedestrianDebugSettings()
+        return PedestrianDebugSettings(enabled = json.optBoolean("enabled", false))
     }
 
     private fun encodeThresholds(settings: ThresholdSettings): JSONObject {
@@ -219,6 +234,9 @@ object AppSettingsSnapshotCodec {
             .put("crossHairsMode", settings.crossHairsMode)
             .put("walkPlotRsrq", settings.walkPlotRsrq)
             .put("walkPlotEarfcnPci", settings.walkPlotEarfcnPci)
+            .put("pedestrianDeadReckoning", settings.pedestrianDeadReckoning)
+            .put("pedestrianStrideMeters", settings.pedestrianStrideMeters.toDouble())
+            .put("pedestrianKpi", settings.pedestrianKpi.name)
     }
 
     private fun decodeMonitoring(json: JSONObject?): MonitoringSettings {
@@ -304,7 +322,16 @@ object AppSettingsSnapshotCodec {
             walkPlotEarfcnPci = json.optBoolean(
                 "walkPlotEarfcnPci",
                 MonitoringSettings.DEFAULT_WALK_PLOT_EARFCN_PCI
-            )
+            ),
+            pedestrianDeadReckoning = json.optBoolean(
+                "pedestrianDeadReckoning",
+                MonitoringSettings.DEFAULT_PEDESTRIAN_DEAD_RECKONING
+            ),
+            pedestrianStrideMeters = json.optDouble(
+                "pedestrianStrideMeters",
+                PedestrianTrack.DEFAULT_STRIDE_METERS.toDouble()
+            ).toFloat(),
+            pedestrianKpi = PedestrianKpi.fromStoredName(json.optString("pedestrianKpi", null))
         )
     }
 

@@ -63,6 +63,9 @@ sealed interface MultiUeMessage {
     data class PinAdd(val x: Float, val y: Float) : MultiUeMessage
     data object PinUndo : MultiUeMessage
     data object PinClear : MultiUeMessage
+    data class PdrMode(val on: Boolean) : MultiUeMessage
+    data class PdrPoint(val elapsedMs: Long, val eastMeters: Float, val northMeters: Float) : MultiUeMessage
+    data object PdrClear : MultiUeMessage
     data object ZoneClear : MultiUeMessage
     data class ZoneSave(val includeHistogram: Boolean) : MultiUeMessage
     data class ZoneHistogram(val on: Boolean) : MultiUeMessage
@@ -125,6 +128,14 @@ object MultiUeProtocol {
     fun pinUndo(): String = "PIN -"
 
     fun pinClear(): String = "PIN *"
+
+    fun pdrMode(on: Boolean): String = if (on) "PDR 1" else "PDR 0"
+
+    fun pdrClear(): String = "PDR *"
+
+    fun pdrPoint(elapsedMs: Long, eastMeters: Float, northMeters: Float): String {
+        return String.format(Locale.US, "PDRPT %d %.3f %.3f", elapsedMs, eastMeters, northMeters)
+    }
 
     fun zoneClear(): String = "ZONECLEAR"
 
@@ -264,6 +275,30 @@ object MultiUeProtocol {
                     }
                 }
             }
+            "PDR" -> when (parts.getOrNull(1)) {
+                "1" -> if (parts.size == 2) MultiUeMessage.PdrMode(on = true) else null
+                "0" -> if (parts.size == 2) MultiUeMessage.PdrMode(on = false) else null
+                "*" -> if (parts.size == 2) MultiUeMessage.PdrClear else null
+                else -> null
+            }
+            "PDRPT" -> {
+                val elapsed = parts.getOrNull(1)?.toLongOrNull()
+                val east = parts.getOrNull(2)?.toFloatOrNull()
+                val north = parts.getOrNull(3)?.toFloatOrNull()
+                if (
+                    parts.size == 4 &&
+                    elapsed != null &&
+                    elapsed >= 0L &&
+                    east != null &&
+                    north != null &&
+                    east.isFinite() &&
+                    north.isFinite()
+                ) {
+                    MultiUeMessage.PdrPoint(elapsed, east, north)
+                } else {
+                    null
+                }
+            }
             else -> null
         }
     }
@@ -332,6 +367,31 @@ fun multiUePinLines(
 private fun samePins(left: List<Pair<Float, Float>>, right: List<Pair<Float, Float>>): Boolean {
     if (left.size != right.size) return false
     return left.zip(right).all { (a, b) -> a == b }
+}
+
+data class PdrPointShare(
+    val elapsedMs: Long,
+    val eastMeters: Float,
+    val northMeters: Float
+)
+
+/**
+ * Pedestrian marks shared as metres, not page fractions.
+ * Fractions move when the black page rescales, so a slave would recolour the wrong second.
+ */
+fun multiUePdrLines(
+    previous: List<PdrPointShare>,
+    next: List<PdrPointShare>
+): List<String> {
+    return when {
+        next.isEmpty() && previous.isEmpty() -> emptyList()
+        next.isEmpty() -> listOf(MultiUeProtocol.pdrClear())
+        previous.size + 1 == next.size && previous == next.dropLast(1) ->
+            listOf(MultiUeProtocol.pdrPoint(next.last().elapsedMs, next.last().eastMeters, next.last().northMeters))
+        else -> listOf(MultiUeProtocol.pdrClear()) + next.map {
+            MultiUeProtocol.pdrPoint(it.elapsedMs, it.eastMeters, it.northMeters)
+        }
+    }
 }
 
 /**

@@ -232,6 +232,9 @@
       },
       "radioDebug": {
         "enabled": false
+      },
+      "pedestrianDebug": {
+        "enabled": false
       }
     }
   }

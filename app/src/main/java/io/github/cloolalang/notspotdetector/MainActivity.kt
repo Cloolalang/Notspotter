@@ -15,6 +15,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import io.github.cloolalang.notspotdetector.data.PedestrianDebugLogger
 import io.github.cloolalang.notspotdetector.data.RadioDebugLogger
 import io.github.cloolalang.notspotdetector.data.SettingsProfilesRepository
 import io.github.cloolalang.notspotdetector.data.SpecialCellsRepository
@@ -115,6 +116,7 @@ class MainActivity : ComponentActivity() {
                     },
                     onShareSettingsProfile = ::shareSettingsProfile,
                     onShareRadioDebugLog = ::shareRadioDebugLog,
+                    onSharePedestrianDebugLog = ::sharePedestrianDebugLog,
                     onInstallAppUpdate = { file ->
                         AppUpdateInstaller.install(this@MainActivity, file)
                     },
@@ -181,6 +183,30 @@ class MainActivity : ComponentActivity() {
             Intent.createChooser(
                 shareIntent,
                 getString(R.string.radio_debug_share_chooser)
+            )
+        )
+    }
+
+    private fun sharePedestrianDebugLog() {
+        val file = viewModel.pedestrianDebugFileForShare() ?: return
+        val uri = FileProvider.getUriForFile(
+            this,
+            "${packageName}.fileprovider",
+            file
+        )
+        val label = getString(R.string.pedestrian_debug_share_subject)
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = PedestrianDebugLogger.SHARE_MIME_TYPE
+            putExtra(Intent.EXTRA_STREAM, uri)
+            putExtra(Intent.EXTRA_SUBJECT, label)
+            putExtra(Intent.EXTRA_TITLE, label)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            clipData = android.content.ClipData.newRawUri(label, uri)
+        }
+        startActivity(
+            Intent.createChooser(
+                shareIntent,
+                getString(R.string.pedestrian_debug_share_chooser)
             )
         )
     }

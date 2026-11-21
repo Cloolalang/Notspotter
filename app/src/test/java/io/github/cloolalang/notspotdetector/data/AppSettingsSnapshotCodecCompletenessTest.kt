@@ -10,6 +10,7 @@ import io.github.cloolalang.notspotdetector.model.PassiveMockSettings
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
 import io.github.cloolalang.notspotdetector.model.PingSettings
 import io.github.cloolalang.notspotdetector.model.RxssStateFilterSettings
+import io.github.cloolalang.notspotdetector.model.PedestrianDebugSettings
 import io.github.cloolalang.notspotdetector.model.RadioDebugSettings
 import io.github.cloolalang.notspotdetector.model.RsrpHistogramBinningMode
 import io.github.cloolalang.notspotdetector.model.SettingsProfile
@@ -35,6 +36,7 @@ class AppSettingsSnapshotCodecCompletenessTest {
         assertExactKeys(settingsJson.getJSONObject("passiveMock"), PASSIVE_MOCK_KEYS, "passiveMock")
         assertExactKeys(settingsJson.getJSONObject("audio"), AUDIO_KEYS, "audio")
         assertExactKeys(settingsJson.getJSONObject("radioDebug"), RADIO_DEBUG_KEYS, "radioDebug")
+        assertExactKeys(settingsJson.getJSONObject("pedestrianDebug"), PEDESTRIAN_DEBUG_KEYS, "pedestrianDebug")
 
         assertEquals(persistedPropertyNames(ThresholdSettings::class.java), THRESHOLD_KEYS)
         assertEquals(persistedPropertyNames(PingSettings::class.java), PING_KEYS)
@@ -43,6 +45,7 @@ class AppSettingsSnapshotCodecCompletenessTest {
         assertEquals(persistedPropertyNames(PassiveMockSettings::class.java), PASSIVE_MOCK_KEYS)
         assertEquals(audioJsonKeysFromModel(), AUDIO_KEYS)
         assertEquals(persistedPropertyNames(RadioDebugSettings::class.java), RADIO_DEBUG_KEYS)
+        assertEquals(persistedPropertyNames(PedestrianDebugSettings::class.java), PEDESTRIAN_DEBUG_KEYS)
     }
 
     @Test
@@ -97,7 +100,8 @@ class AppSettingsSnapshotCodecCompletenessTest {
             matchingDefaultFields(custom.passiveSignalSettings, defaults.passiveSignalSettings) +
             matchingDefaultFields(custom.passiveMockSettings, defaults.passiveMockSettings) +
             matchingDefaultFields(custom.audioVolumes, defaults.audioVolumes) +
-            matchingDefaultFields(custom.radioDebugSettings, defaults.radioDebugSettings)
+            matchingDefaultFields(custom.radioDebugSettings, defaults.radioDebugSettings) +
+            matchingDefaultFields(custom.pedestrianDebugSettings, defaults.pedestrianDebugSettings)
         val allowedSameAsDefault = setOf(
             "fairRsrpMinDbm",
             "goodRsrpMinDbm",
@@ -234,7 +238,10 @@ class AppSettingsSnapshotCodecCompletenessTest {
                 adjustableTrailMarker = true,
                 crossHairsMode = true,
                 walkPlotRsrq = true,
-                walkPlotEarfcnPci = true
+                walkPlotEarfcnPci = true,
+                pedestrianDeadReckoning = true,
+                pedestrianStrideMeters = 0.5f,
+                pedestrianKpi = io.github.cloolalang.notspotdetector.model.PedestrianKpi.DISTANCE
             ),
             passiveSignalSettings = PassiveSignalSettings(
                 noSignalRsrpDbm = -132,
@@ -398,7 +405,8 @@ class AppSettingsSnapshotCodecCompletenessTest {
                 specialCellsSpeakSite = false,
                 specialCellsSpeakSector = false
             ),
-            radioDebugSettings = RadioDebugSettings(enabled = true)
+            radioDebugSettings = RadioDebugSettings(enabled = true),
+            pedestrianDebugSettings = PedestrianDebugSettings(enabled = true)
         )
     }
 
@@ -442,7 +450,10 @@ class AppSettingsSnapshotCodecCompletenessTest {
             "adjustableTrailMarker",
             "crossHairsMode",
             "walkPlotRsrq",
-            "walkPlotEarfcnPci"
+            "walkPlotEarfcnPci",
+            "pedestrianDeadReckoning",
+            "pedestrianStrideMeters",
+            "pedestrianKpi"
         )
 
         private val PASSIVE_MOCK_KEYS = setOf(
@@ -619,5 +630,6 @@ class AppSettingsSnapshotCodecCompletenessTest {
         )
 
         private val RADIO_DEBUG_KEYS = setOf("enabled")
+        private val PEDESTRIAN_DEBUG_KEYS = setOf("enabled")
     }
 }

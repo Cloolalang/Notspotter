@@ -40,7 +40,13 @@ data class MonitoringSettings(
     /** Parallel RSRQ-coloured trail beside the RSRP walk on the floor plan. */
     val walkPlotRsrq: Boolean = DEFAULT_WALK_PLOT_RSRQ,
     /** Parallel EARFCN/PCI trail beside the RSRP walk, coloured like the carrier tape. */
-    val walkPlotEarfcnPci: Boolean = DEFAULT_WALK_PLOT_EARFCN_PCI
+    val walkPlotEarfcnPci: Boolean = DEFAULT_WALK_PLOT_EARFCN_PCI,
+    /** Zone test draws a north-up walk from the phone's steps instead of a floor plan. */
+    val pedestrianDeadReckoning: Boolean = DEFAULT_PEDESTRIAN_DEAD_RECKONING,
+    /** Metres added on each step while pedestrian dead reckoning is tracking. */
+    val pedestrianStrideMeters: Float = PedestrianTrack.DEFAULT_STRIDE_METERS,
+    /** Tape that colours the line between pedestrian marks. */
+    val pedestrianKpi: PedestrianKpi = PedestrianKpi.RSRP
 ) {
     fun normalized(): MonitoringSettings {
         return copy(
@@ -51,7 +57,8 @@ data class MonitoringSettings(
             rsrpHistogramThreshold1Dbm = rsrpHistogramThreshold1Dbm.coerceToHistogramThresholdDbm(),
             rsrpHistogramThreshold2Dbm = rsrpHistogramThreshold2Dbm.coerceToHistogramThresholdDbm(),
             rsrpHistogramThreshold3Dbm = rsrpHistogramThreshold3Dbm.coerceToHistogramThresholdDbm(),
-            customAppTitle = customAppTitle.take(MAX_CUSTOM_APP_TITLE)
+            customAppTitle = customAppTitle.take(MAX_CUSTOM_APP_TITLE),
+            pedestrianStrideMeters = PedestrianTrack.coerceStride(pedestrianStrideMeters)
         )
     }
 
@@ -87,6 +94,7 @@ data class MonitoringSettings(
         const val DEFAULT_CROSS_HAIRS_MODE = false
         const val DEFAULT_WALK_PLOT_RSRQ = false
         const val DEFAULT_WALK_PLOT_EARFCN_PCI = false
+        const val DEFAULT_PEDESTRIAN_DEAD_RECKONING = false
         const val DEFAULT_CUSTOM_APP_TITLE = "Cellnex"
         const val MAX_CUSTOM_APP_TITLE = 40
     }

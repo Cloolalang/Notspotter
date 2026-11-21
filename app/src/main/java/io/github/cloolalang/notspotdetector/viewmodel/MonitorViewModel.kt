@@ -17,6 +17,8 @@ import io.github.cloolalang.notspotdetector.data.MultiUeRoleRepository
 import io.github.cloolalang.notspotdetector.data.PassiveMockSettingsRepository
 import io.github.cloolalang.notspotdetector.data.PassiveSignalSettingsRepository
 import io.github.cloolalang.notspotdetector.data.PingSettingsRepository
+import io.github.cloolalang.notspotdetector.data.PedestrianDebugLogger
+import io.github.cloolalang.notspotdetector.data.PedestrianDebugSettingsRepository
 import io.github.cloolalang.notspotdetector.data.RadioDebugLogger
 import io.github.cloolalang.notspotdetector.data.RadioDebugSettingsRepository
 import io.github.cloolalang.notspotdetector.data.AppSettingsSnapshotCodec
@@ -34,6 +36,7 @@ import io.github.cloolalang.notspotdetector.model.MultiUeRole
 import io.github.cloolalang.notspotdetector.model.PassiveMockSettings
 import io.github.cloolalang.notspotdetector.model.PeriodicVoiceRepeat
 import io.github.cloolalang.notspotdetector.model.PassiveSignalSettings
+import io.github.cloolalang.notspotdetector.model.PedestrianDebugSettings
 import io.github.cloolalang.notspotdetector.model.RadioDebugSettings
 import io.github.cloolalang.notspotdetector.model.ProfileExportOutcome
 import io.github.cloolalang.notspotdetector.model.ProfileImportResult
@@ -113,6 +116,8 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
     private val specialCellsRepository = SpecialCellsRepository(application)
     private val radioDebugSettingsRepository = RadioDebugSettingsRepository(application)
     private val radioDebugLogger = RadioDebugLogger(application)
+    private val pedestrianDebugSettingsRepository = PedestrianDebugSettingsRepository(application)
+    private val pedestrianDebugLogger = PedestrianDebugLogger(application)
     private val multiUeRoleRepository = MultiUeRoleRepository(application)
     private val alertSoundPreview = GeigerCounterPlayer()
     private val cellVoiceAnnouncer = CellVoiceAnnouncer(application)
@@ -159,6 +164,7 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         MonitorState.setPassiveMockSettings(passiveMockSettingsRepository.load())
         MonitorState.setSpecialCellCatalog(specialCellsRepository.load())
         radioDebugLogger.setEnabled(radioDebugSettingsRepository.loadEnabled())
+        pedestrianDebugLogger.setEnabled(pedestrianDebugSettingsRepository.loadEnabled())
         reconcilePassiveTierClickIntervals(MonitorState.audioVolumes.value)
         cellVoiceAnnouncer.setVoiceSelectionProvider {
             VoiceAnnouncerSelection.fromSettings(MonitorState.audioVolumes.value)
@@ -290,6 +296,9 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
     val radioDebugEnabled = radioDebugLogger.enabled
     val radioDebugSnapshot = radioDebugLogger.lastSnapshot
     val radioDebugLineCount = radioDebugLogger.lineCount
+    val pedestrianDebugEnabled = pedestrianDebugLogger.enabled
+    val pedestrianDebugSnapshot = pedestrianDebugLogger.lastSnapshot
+    val pedestrianDebugLineCount = pedestrianDebugLogger.lineCount
 
     val rttHistory = MonitorState.rttHistory.stateIn(
         viewModelScope,
@@ -556,6 +565,18 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         updateMonitoringSettings(monitoringSettings.value.copy(walkPlotEarfcnPci = enabled))
     }
 
+    fun updatePedestrianDeadReckoning(enabled: Boolean) {
+        updateMonitoringSettings(monitoringSettings.value.copy(pedestrianDeadReckoning = enabled))
+    }
+
+    fun updatePedestrianStrideMeters(meters: Float) {
+        updateMonitoringSettings(monitoringSettings.value.copy(pedestrianStrideMeters = meters))
+    }
+
+    fun updatePedestrianKpi(kpi: io.github.cloolalang.notspotdetector.model.PedestrianKpi) {
+        updateMonitoringSettings(monitoringSettings.value.copy(pedestrianKpi = kpi))
+    }
+
     fun setInhibit2g(enabled: Boolean) {
         applyInhibit2gToPhone(enabled, persistOnSuccess = true)
     }
@@ -747,6 +768,18 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
 
     fun clearRadioDebugLog() {
         radioDebugLogger.clear()
+    }
+
+    fun updatePedestrianDebugEnabled(enabled: Boolean) {
+        pedestrianDebugSettingsRepository.saveEnabled(enabled)
+        pedestrianDebugLogger.setEnabled(enabled)
+        MultiUeSettingsSync.poke()
+    }
+
+    fun pedestrianDebugFileForShare(): File? = pedestrianDebugLogger.fileForShare()
+
+    fun clearPedestrianDebugLog() {
+        pedestrianDebugLogger.clear()
     }
 
     fun previewSpecialCellVoice() {
@@ -1407,7 +1440,8 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
             passiveSignalSettings = passiveSignalSettings.value,
             passiveMockSettings = passiveMockSettings.value,
             audioVolumes = audioVolumes.value,
-            radioDebugSettings = RadioDebugSettings(enabled = radioDebugEnabled.value)
+            radioDebugSettings = RadioDebugSettings(enabled = radioDebugEnabled.value),
+            pedestrianDebugSettings = PedestrianDebugSettings(enabled = pedestrianDebugEnabled.value)
         ).normalized()
     }
 
@@ -1421,6 +1455,7 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         updatePassiveMockSettings(normalized.passiveMockSettings)
         updateAudioVolumes(normalized.audioVolumes)
         updateRadioDebugEnabled(normalized.radioDebugSettings.enabled)
+        updatePedestrianDebugEnabled(normalized.pedestrianDebugSettings.enabled)
     }
 
     private fun refreshSettingsProfiles() {

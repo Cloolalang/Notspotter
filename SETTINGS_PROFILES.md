@@ -41,6 +41,7 @@ Multi-profile export uses a top-level `"profiles"` array with the same object sh
 | **Mock network** | `passiveMock` | `PassiveMockSettings` | Mock enable, scenario, RSRP, RSRQ, voice-only — see below |
 | Alert audio & voice | `audio` | `AudioVolumeSettings` | Volumes, voice toggles (including timing advance), TTS engine choice, tier-5 announcer, special-cell detection and voice |
 | Radio debug | `radioDebug` | `RadioDebugSettings` | Log switch only. The log file is not saved |
+| Walk debug | `pedestrianDebug` | `PedestrianDebugSettings` | Log switch only. The log file is not saved |
 
 ### `passiveMock` keys (full capture)
 
@@ -95,6 +96,12 @@ Full key list: `AUDIO_KEYS` in `AppSettingsSnapshotCodecCompletenessTest`.
 |-----|------|-------------|
 | `enabled` | boolean | Radio debug log on or off. Missing on older profiles, which load with the switch off. |
 
+### `pedestrianDebug` keys
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `enabled` | boolean | Walk debug log on or off. Missing on older profiles, which load with the switch off. |
+
 ---
 
 ## What is **not** saved
@@ -105,6 +112,7 @@ Full key list: `AUDIO_KEYS` in `AppSettingsSnapshotCodecCompletenessTest`.
 | Settings lock | Session-only unlock; not stored in profiles |
 | Known-cells CSV | Separate imported file; detection/voice toggles are in `audio` |
 | Radio debug log file | The on/off switch is in `radioDebug`; the log text is not |
+| Walk debug log file | The on/off switch is in `pedestrianDebug`; the log text is not |
 | Current `ConnectivityStats` / RXSS display | Recomputed after load |
 | Passive-only vs active ping session | User starts monitoring again after load |
 | Saved profile list metadata beyond each profile | Each file is self-contained |

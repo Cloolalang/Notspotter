@@ -49,6 +49,9 @@ class MultiUeSession(
         fun onPinAdd(x: Float, y: Float)
         fun onPinUndo()
         fun onPinClear()
+        fun onPdrMode(on: Boolean)
+        fun onPdrPoint(elapsedMs: Long, eastMeters: Float, northMeters: Float)
+        fun onPdrClear()
         fun onZoneClear()
         fun onZoneSave(includeHistogram: Boolean)
         fun onZoneHistogram(on: Boolean)
@@ -71,6 +74,7 @@ class MultiUeSession(
         fun callRunLine(): String?
         fun planLine(): String?
         fun pinLines(): List<String>
+        fun pdrLines(): List<String>
     }
 
     private val links = mutableListOf<SlaveLink>()
@@ -296,6 +300,7 @@ class MultiUeSession(
                 writeLine(socket, plan)
                 listener.pinLines().forEach { writeLine(socket, it) }
             }
+            listener.pdrLines().forEach { writeLine(socket, it) }
         } catch (_: IOException) {
             dropLink(socket)
             return
@@ -335,6 +340,13 @@ class MultiUeSession(
                     is MultiUeMessage.PinAdd -> listener.onPinAdd(message.x, message.y)
                     MultiUeMessage.PinUndo -> listener.onPinUndo()
                     MultiUeMessage.PinClear -> listener.onPinClear()
+                    is MultiUeMessage.PdrMode -> listener.onPdrMode(message.on)
+                    is MultiUeMessage.PdrPoint -> listener.onPdrPoint(
+                        message.elapsedMs,
+                        message.eastMeters,
+                        message.northMeters
+                    )
+                    MultiUeMessage.PdrClear -> listener.onPdrClear()
                     MultiUeMessage.ZoneClear -> listener.onZoneClear()
                     is MultiUeMessage.ZoneSave -> listener.onZoneSave(message.includeHistogram)
                     is MultiUeMessage.ZoneHistogram -> listener.onZoneHistogram(message.on)

@@ -17,6 +17,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.cloolalang.notspotdetector.BuildConfig
 import io.github.cloolalang.notspotdetector.data.GithubAppUpdate
 import io.github.cloolalang.notspotdetector.model.AppUpdateControls
@@ -39,6 +40,7 @@ fun MonitorApp(
     onImportSettingsProfile: (onResult: (ProfileImportResult) -> Unit) -> Unit,
     onShareSettingsProfile: (String) -> Unit,
     onShareRadioDebugLog: () -> Unit,
+    onSharePedestrianDebugLog: () -> Unit,
     onImportSpecialCells: (onResult: (SpecialCellsImportResult) -> Unit) -> Unit,
     onInstallAppUpdate: (File) -> AppUpdateInstallResult,
     onRequestCallPermission: () -> Unit,
@@ -61,6 +63,9 @@ fun MonitorApp(
     val radioDebugEnabled by viewModel.radioDebugEnabled.collectAsStateWithLifecycle()
     val radioDebugSnapshot by viewModel.radioDebugSnapshot.collectAsStateWithLifecycle()
     val radioDebugLineCount by viewModel.radioDebugLineCount.collectAsStateWithLifecycle()
+    val pedestrianDebugEnabled by viewModel.pedestrianDebugEnabled.collectAsStateWithLifecycle()
+    val pedestrianDebugSnapshot by viewModel.pedestrianDebugSnapshot.collectAsStateWithLifecycle()
+    val pedestrianDebugLineCount by viewModel.pedestrianDebugLineCount.collectAsStateWithLifecycle()
     val rttHistory by viewModel.rttHistory.collectAsStateWithLifecycle()
     val rsrpHistory by viewModel.rsrpHistory.collectAsStateWithLifecycle()
     val carrierConfigSnapshot by viewModel.carrierConfigSnapshot.collectAsStateWithLifecycle()
@@ -148,7 +153,11 @@ fun MonitorApp(
         checkForUpdate(fromUser = false)
     }
 
-    KeepScreenOn(enabled = isRunning && monitoringSettings.keepScreenOnWhileMonitoring)
+    val zoneTest = viewModel<ZoneTestViewModel>()
+    val pedestrianTracking by zoneTest.pedestrianTracking
+    KeepScreenOn(
+        enabled = (isRunning && monitoringSettings.keepScreenOnWhileMonitoring) || pedestrianTracking
+    )
 
     LaunchedEffect(
         callTestStatus.needsCallPermission,
@@ -318,6 +327,12 @@ fun MonitorApp(
             onRadioDebugEnabledChange = viewModel::updateRadioDebugEnabled,
             onShareRadioDebugLog = onShareRadioDebugLog,
             onClearRadioDebugLog = viewModel::clearRadioDebugLog,
+            pedestrianDebugEnabled = pedestrianDebugEnabled,
+            pedestrianDebugLineCount = pedestrianDebugLineCount,
+            pedestrianDebugSnapshot = pedestrianDebugSnapshot,
+            onPedestrianDebugEnabledChange = viewModel::updatePedestrianDebugEnabled,
+            onSharePedestrianDebugLog = onSharePedestrianDebugLog,
+            onClearPedestrianDebugLog = viewModel::clearPedestrianDebugLog,
             specialCellsActions = SpecialCellsActions(
                 onImport = onImportSpecialCells,
                 onRestoreExample = viewModel::restoreExampleSpecialCells,
