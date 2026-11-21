@@ -577,6 +577,18 @@ class MonitorViewModel(application: Application) : AndroidViewModel(application)
         updateMonitoringSettings(monitoringSettings.value.copy(pedestrianKpi = kpi))
     }
 
+    fun updatePedestrianTapSteps(enabled: Boolean) {
+        updateMonitoringSettings(monitoringSettings.value.copy(pedestrianTapSteps = enabled))
+    }
+
+    fun updatePedestrianHeadingSnap(enabled: Boolean) {
+        updateMonitoringSettings(monitoringSettings.value.copy(pedestrianHeadingSnap = enabled))
+    }
+
+    fun updatePedestrianHeadingSnapDegrees(degrees: Float) {
+        updateMonitoringSettings(monitoringSettings.value.copy(pedestrianHeadingSnapDegrees = degrees))
+    }
+
     fun setInhibit2g(enabled: Boolean) {
         applyInhibit2gToPhone(enabled, persistOnSuccess = true)
     }

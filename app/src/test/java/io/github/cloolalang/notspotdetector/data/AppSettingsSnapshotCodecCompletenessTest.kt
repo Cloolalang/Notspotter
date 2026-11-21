@@ -241,7 +241,10 @@ class AppSettingsSnapshotCodecCompletenessTest {
                 walkPlotEarfcnPci = true,
                 pedestrianDeadReckoning = true,
                 pedestrianStrideMeters = 0.5f,
-                pedestrianKpi = io.github.cloolalang.notspotdetector.model.PedestrianKpi.DISTANCE
+                pedestrianKpi = io.github.cloolalang.notspotdetector.model.PedestrianKpi.DISTANCE,
+                pedestrianTapSteps = true,
+                pedestrianHeadingSnap = true,
+                pedestrianHeadingSnapDegrees = 90f
             ),
             passiveSignalSettings = PassiveSignalSettings(
                 noSignalRsrpDbm = -132,
@@ -453,7 +456,10 @@ class AppSettingsSnapshotCodecCompletenessTest {
             "walkPlotEarfcnPci",
             "pedestrianDeadReckoning",
             "pedestrianStrideMeters",
-            "pedestrianKpi"
+            "pedestrianKpi",
+            "pedestrianTapSteps",
+            "pedestrianHeadingSnap",
+            "pedestrianHeadingSnapDegrees"
         )
 
         private val PASSIVE_MOCK_KEYS = setOf(

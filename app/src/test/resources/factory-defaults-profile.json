@@ -35,7 +35,8 @@
         "showManualSelectOperatorButton": false,
         "inhibit2g": false,
         "keepScreenOnWhileMonitoring": true,
-        "appBrand": "CELLNEX"
+        "appBrand": "CELLNEX",
+        "pedestrianTapSteps": false
       },
       "passiveSignal": {
         "noSignalRsrpDbm": -128,

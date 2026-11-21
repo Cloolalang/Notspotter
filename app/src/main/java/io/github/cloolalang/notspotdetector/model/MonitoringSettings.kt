@@ -46,7 +46,16 @@ data class MonitoringSettings(
     /** Metres added on each step while pedestrian dead reckoning is tracking. */
     val pedestrianStrideMeters: Float = PedestrianTrack.DEFAULT_STRIDE_METERS,
     /** Tape that colours the line between pedestrian marks. */
-    val pedestrianKpi: PedestrianKpi = PedestrianKpi.RSRP
+    val pedestrianKpi: PedestrianKpi = PedestrianKpi.RSRP,
+    /**
+     * On, a tap on the black page counts a step and the motion sensors do not.
+     * Off, steps come from the phone's motion.
+     */
+    val pedestrianTapSteps: Boolean = DEFAULT_PEDESTRIAN_TAP_STEPS,
+    /** On, the plotted line holds its direction until the compass turns past [pedestrianHeadingSnapDegrees]. */
+    val pedestrianHeadingSnap: Boolean = DEFAULT_PEDESTRIAN_HEADING_SNAP,
+    /** How far the compass may wobble, in degrees, before the plotted line takes a new direction. */
+    val pedestrianHeadingSnapDegrees: Float = PedestrianTrack.DEFAULT_HEADING_SNAP_DEGREES
 ) {
     fun normalized(): MonitoringSettings {
         return copy(
@@ -58,7 +67,10 @@ data class MonitoringSettings(
             rsrpHistogramThreshold2Dbm = rsrpHistogramThreshold2Dbm.coerceToHistogramThresholdDbm(),
             rsrpHistogramThreshold3Dbm = rsrpHistogramThreshold3Dbm.coerceToHistogramThresholdDbm(),
             customAppTitle = customAppTitle.take(MAX_CUSTOM_APP_TITLE),
-            pedestrianStrideMeters = PedestrianTrack.coerceStride(pedestrianStrideMeters)
+            pedestrianStrideMeters = PedestrianTrack.coerceStride(pedestrianStrideMeters),
+            pedestrianHeadingSnapDegrees = PedestrianTrack.coerceHeadingSnapDegrees(
+                pedestrianHeadingSnapDegrees
+            )
         )
     }
 
@@ -95,6 +107,8 @@ data class MonitoringSettings(
         const val DEFAULT_WALK_PLOT_RSRQ = false
         const val DEFAULT_WALK_PLOT_EARFCN_PCI = false
         const val DEFAULT_PEDESTRIAN_DEAD_RECKONING = false
+        const val DEFAULT_PEDESTRIAN_TAP_STEPS = false
+        const val DEFAULT_PEDESTRIAN_HEADING_SNAP = false
         const val DEFAULT_CUSTOM_APP_TITLE = "Cellnex"
         const val MAX_CUSTOM_APP_TITLE = 40
     }

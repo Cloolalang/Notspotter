@@ -5,6 +5,54 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.201.0] - 2026-11-21
+
+### Changed
+
+- **Forward, not north** — The pedestrian page uses the phone’s direction at the start of the zone test. The top of the page is Forward, and the red arrow points that way before the test. During the test the arrow steps by 22°, 45°, or 90° as you rotate. You stay at the centre, so the trail sits below it as you walk forward. The compass number is no longer shown.
+
+## [2.200.0] - 2026-11-21
+
+### Changed
+
+- **Straight-line guide** — Before a zone test, the red arrow follows the top of the phone. When the test starts it locks to that aim. At a turn it steps by 22°, 45°, or 90° as you rotate, and the path uses that direction.
+
+## [2.199.1] - 2026-11-21
+
+### Fixed
+
+- **Straight lines at the start** — When a zone test starts, the red arrow follows the phone’s compass. It holds that direction once the compass has settled.
+
+## [2.199.0] - 2026-11-21
+
+### Changed
+
+- **Straight lines** — The strength control is 22°, 45°, or 90°. While it is on, a red arrow from the centre of the grid shows the direction the path is holding.
+
+## [2.198.0] - 2026-11-21
+
+### Added
+
+- **Straight lines** — A switch on the pedestrian zone test holds the plotted direction through compass wobble. The angle control sets how far you turn before the path takes the new direction.
+
+## [2.197.0] - 2026-11-21
+
+### Changed
+
+- **Tap steps are their own mode** — A switch on the pedestrian zone test. On, a tap on the black page counts a step and the motion sensors stay quiet. Off, steps come from the phone's motion and a tap does not count.
+
+## [2.196.0] - 2026-11-21
+
+### Changed
+
+- **In-hand steps** — With the phone held flat, a step is the up-and-down bounce after gravity is removed. The hardware step detector still counts a step when it fires. The walk log shows the vertical peak each second.
+
+## [2.195.0] - 2026-11-21
+
+### Changed
+
+- **Tap the page to step** — During a pedestrian zone test, a tap anywhere on the black page counts one step. A drag or a pinch does not. The separate Tap step button is gone.
+
 ## [2.194.0] - 2026-11-21
 
 ### Added

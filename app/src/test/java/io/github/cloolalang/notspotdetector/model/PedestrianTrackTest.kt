@@ -32,18 +32,18 @@ class PedestrianTrackTest {
     }
 
     @Test
-    fun projectionKeepsTheStartInTheMiddle() {
+    fun projectionKeepsTheWalkerInTheMiddle() {
         val samples = listOf(
             PedestrianSample(0L, 0f, 0f),
             PedestrianSample(1_000L, 0f, 10f)
         )
         val pins = PedestrianTrack.project(samples, zoneStartMs = 5_000L)
+        assertEquals(0.5f, pins.last().xFraction, 0.001f)
+        assertEquals(0.5f, pins.last().yFraction, 0.001f)
         assertEquals(0.5f, pins.first().xFraction, 0.001f)
-        assertEquals(0.5f, pins.first().yFraction, 0.001f)
-        assertEquals(0.5f, pins[1].xFraction, 0.001f)
-        assertTrue(pins[1].yFraction < 0.5f)
-        assertEquals(6_000L, pins[1].placedAtMs)
-        assertTrue(pins[1].yFraction > PedestrianTrack.PAGE_MARGIN - 0.002f)
+        assertTrue(pins.first().yFraction > 0.5f)
+        assertEquals(6_000L, pins.last().placedAtMs)
+        assertTrue(pins.first().yFraction < 1f - PedestrianTrack.PAGE_MARGIN + 0.002f)
     }
 
     @Test
@@ -140,5 +140,101 @@ class PedestrianTrackTest {
         assertEquals(WalkRoute.rsrpRouteColor(RsrpBin.BELOW_115), rsrp.colorArgb)
         assertEquals(WalkRoute.rsrqRouteColor(RsrqBin.ABOVE_15), rsrq.colorArgb)
         assertNotEquals(rsrp.colorArgb, rsrq.colorArgb)
+    }
+
+    @Test
+    fun flatPhoneUsesTheScreenAxisAsUp() {
+        val vertical = PedestrianTrack.verticalAcceleration(0.1f, -0.2f, 1.6f, 0f, 0f, 1f)
+        assertEquals(1.6f, vertical, 0.001f)
+    }
+
+    @Test
+    fun gravityAtRestLeavesNoVerticalBounce() {
+        val upX = 0f
+        val upY = 0f
+        val upZ = 1f
+        val linear = PedestrianTrack.removeGravity(0f, 0f, PedestrianTrack.GRAVITY_MPS2, upX, upY, upZ)
+        val vertical = PedestrianTrack.verticalAcceleration(linear[0], linear[1], linear[2], upX, upY, upZ)
+        assertEquals(0f, vertical, 0.001f)
+    }
+
+    @Test
+    fun verticalBounceCountsOneStepPerFootfall() {
+        val detector = VerticalStepDetector()
+        assertFalse(detector.onVertical(0.2f, 0L))
+        assertTrue(detector.onVertical(1.5f, 100L))
+        assertFalse(detector.onVertical(-1.8f, 250L))
+        assertFalse(detector.onVertical(0.1f, 500L))
+        assertTrue(detector.onVertical(-1.4f, 900L))
+    }
+
+    @Test
+    fun arrowFollowsThePhoneBeforeTheTest() {
+        val snap = HeadingSnap()
+        assertEquals(10f, snap.followPhone(10f), 0.001f)
+        assertEquals(40f, snap.followPhone(40f), 0.001f)
+    }
+
+    @Test
+    fun zoneTestLocksThePhoneDirection() {
+        val snap = HeadingSnap()
+        assertEquals(5f, snap.capture(5f), 0.001f)
+        assertEquals(5f, snap.direction(20f, 22f), 0.001f)
+        assertEquals(5f, snap.direction(350f, 22f), 0.001f)
+    }
+
+    @Test
+    fun arrowStepsByTheSnapAngleAsThePhoneRotates() {
+        val snap = HeadingSnap()
+        snap.capture(0f)
+        assertEquals(0f, snap.direction(21f, 22f), 0.001f)
+        assertEquals(22f, snap.direction(22f, 22f), 0.001f)
+        assertEquals(22f, snap.direction(43f, 22f), 0.001f)
+        assertEquals(44f, snap.direction(50f, 22f), 0.001f)
+        val rightAngle = HeadingSnap()
+        rightAngle.capture(0f)
+        assertEquals(0f, rightAngle.direction(89f, 90f), 0.001f)
+        assertEquals(90f, rightAngle.direction(90f, 90f), 0.001f)
+    }
+
+    @Test
+    fun arrowStepsBackWhenThePhoneTurnsTheOtherWay() {
+        val snap = HeadingSnap()
+        snap.capture(0f)
+        assertEquals(338f, snap.direction(338f, 22f), 0.001f)
+        assertEquals(338f, snap.direction(350f, 22f), 0.001f)
+        assertEquals(0f, snap.direction(0f, 22f), 0.001f)
+    }
+
+    @Test
+    fun headingSnapCrossesNorthWithoutAFalseTurn() {
+        val snap = HeadingSnap()
+        snap.capture(350f)
+        assertEquals(350f, snap.direction(5f, 22f), 0.001f)
+        assertEquals(12f, snap.direction(12f, 22f), 0.001f)
+    }
+
+    @Test
+    fun headingSnapChoicesAre22Or45Or90() {
+        assertEquals(22f, PedestrianTrack.coerceHeadingSnapDegrees(10f), 0.001f)
+        assertEquals(22f, PedestrianTrack.coerceHeadingSnapDegrees(33f), 0.001f)
+        assertEquals(45f, PedestrianTrack.coerceHeadingSnapDegrees(40f), 0.001f)
+        assertEquals(45f, PedestrianTrack.coerceHeadingSnapDegrees(67f), 0.001f)
+        assertEquals(90f, PedestrianTrack.coerceHeadingSnapDegrees(80f), 0.001f)
+        assertEquals(2, PedestrianTrack.headingSnapChoiceIndex(90f))
+    }
+
+    @Test
+    fun walkingDirectionIsRelativeToTheStart() {
+        assertEquals(0f, PedestrianTrack.relativeHeading(10f, 10f), 0.001f)
+        assertEquals(22f, PedestrianTrack.relativeHeading(10f, 32f), 0.001f)
+        assertEquals(20f, PedestrianTrack.relativeHeading(350f, 10f), 0.001f)
+        val forward = PedestrianTrack.afterStep(
+            PedestrianPosition(),
+            PedestrianTrack.relativeHeading(80f, 80f),
+            0.75f
+        )
+        assertEquals(0f, forward.eastMeters, 0.001f)
+        assertEquals(0.75f, forward.northMeters, 0.001f)
     }
 }

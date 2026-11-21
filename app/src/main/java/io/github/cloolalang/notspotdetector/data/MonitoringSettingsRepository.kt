@@ -114,6 +114,18 @@ class MonitoringSettingsRepository(context: Context) {
             ),
             pedestrianKpi = PedestrianKpi.fromStoredName(
                 prefs.getString(KEY_PEDESTRIAN_KPI, null)
+            ),
+            pedestrianTapSteps = prefs.getBoolean(
+                KEY_PEDESTRIAN_TAP_STEPS,
+                MonitoringSettings.DEFAULT_PEDESTRIAN_TAP_STEPS
+            ),
+            pedestrianHeadingSnap = prefs.getBoolean(
+                KEY_PEDESTRIAN_HEADING_SNAP,
+                MonitoringSettings.DEFAULT_PEDESTRIAN_HEADING_SNAP
+            ),
+            pedestrianHeadingSnapDegrees = prefs.getFloat(
+                KEY_PEDESTRIAN_HEADING_SNAP_DEGREES,
+                PedestrianTrack.DEFAULT_HEADING_SNAP_DEGREES
             )
         ).normalized()
     }
@@ -146,6 +158,9 @@ class MonitoringSettingsRepository(context: Context) {
             .putBoolean(KEY_PEDESTRIAN_DEAD_RECKONING, normalized.pedestrianDeadReckoning)
             .putFloat(KEY_PEDESTRIAN_STRIDE_METERS, normalized.pedestrianStrideMeters)
             .putString(KEY_PEDESTRIAN_KPI, normalized.pedestrianKpi.name)
+            .putBoolean(KEY_PEDESTRIAN_TAP_STEPS, normalized.pedestrianTapSteps)
+            .putBoolean(KEY_PEDESTRIAN_HEADING_SNAP, normalized.pedestrianHeadingSnap)
+            .putFloat(KEY_PEDESTRIAN_HEADING_SNAP_DEGREES, normalized.pedestrianHeadingSnapDegrees)
             .apply()
     }
 
@@ -177,5 +192,8 @@ class MonitoringSettingsRepository(context: Context) {
         private const val KEY_PEDESTRIAN_DEAD_RECKONING = "pedestrian_dead_reckoning"
         private const val KEY_PEDESTRIAN_STRIDE_METERS = "pedestrian_stride_meters"
         private const val KEY_PEDESTRIAN_KPI = "pedestrian_kpi"
+        private const val KEY_PEDESTRIAN_TAP_STEPS = "pedestrian_tap_steps"
+        private const val KEY_PEDESTRIAN_HEADING_SNAP = "pedestrian_heading_snap"
+        private const val KEY_PEDESTRIAN_HEADING_SNAP_DEGREES = "pedestrian_heading_snap_degrees"
     }
 }

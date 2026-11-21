@@ -74,14 +74,29 @@ class ZoneTestViewModel : ViewModel() {
     val pedestrianCanUndo = mutableStateOf(false)
 
     private var pedestrianTracker: PedestrianTracker? = null
+    private var pedestrianTapSteps = false
+    private var pedestrianHeadingSnap = false
+    private var pedestrianHeadingSnapDegrees = PedestrianTrack.DEFAULT_HEADING_SNAP_DEGREES
 
     /** Set by the zone-test panel. The main-screen button calls these. */
     var onStart: (() -> Unit)? = null
     var onStop: (() -> Unit)? = null
 
+    fun startPedestrianAiming(context: Context) {
+        if (pedestrianTracking.value) return
+        val tracker = tracker(context)
+        attachLive(tracker)
+        tracker.headingSnap = pedestrianHeadingSnap
+        tracker.headingSnapDegrees = pedestrianHeadingSnapDegrees
+        tracker.startAiming()
+    }
+
     fun startPedestrian(context: Context, strideMeters: Float, elapsedOffsetMs: Long = 0L) {
         val tracker = tracker(context)
         attachLive(tracker)
+        tracker.tapSteps = pedestrianTapSteps
+        tracker.headingSnap = pedestrianHeadingSnap
+        tracker.headingSnapDegrees = pedestrianHeadingSnapDegrees
         tracker.strideMeters = PedestrianTrack.coerceStride(strideMeters)
         pedestrianSamples.value = emptyList()
         pedestrianTracking.value = true
@@ -98,6 +113,9 @@ class ZoneTestViewModel : ViewModel() {
         }
         val tracker = tracker(context)
         attachLive(tracker)
+        tracker.tapSteps = pedestrianTapSteps
+        tracker.headingSnap = pedestrianHeadingSnap
+        tracker.headingSnapDegrees = pedestrianHeadingSnapDegrees
         tracker.strideMeters = PedestrianTrack.coerceStride(strideMeters)
         val last = pedestrianSamples.value.last()
         pedestrianTracking.value = true
@@ -124,6 +142,22 @@ class ZoneTestViewModel : ViewModel() {
 
     fun setPedestrianStride(strideMeters: Float) {
         pedestrianTracker?.strideMeters = PedestrianTrack.coerceStride(strideMeters)
+    }
+
+    fun setPedestrianTapSteps(enabled: Boolean) {
+        pedestrianTapSteps = enabled
+        pedestrianTracker?.tapSteps = enabled
+    }
+
+    fun setPedestrianHeadingSnap(enabled: Boolean, degrees: Float) {
+        val coerced = PedestrianTrack.coerceHeadingSnapDegrees(degrees)
+        val changedMode = pedestrianHeadingSnap != enabled
+        pedestrianHeadingSnap = enabled
+        pedestrianHeadingSnapDegrees = coerced
+        val tracker = pedestrianTracker ?: return
+        tracker.headingSnap = enabled
+        tracker.headingSnapDegrees = coerced
+        if (changedMode) tracker.realignHeadingSnap()
     }
 
     fun tapPedestrianStep() {

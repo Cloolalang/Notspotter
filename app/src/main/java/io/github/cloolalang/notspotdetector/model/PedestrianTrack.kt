@@ -10,14 +10,17 @@ import kotlin.math.roundToInt
 import kotlin.math.sin
 
 /**
- * A walk with no floor plan. Positions are metres east and north of the start.
- * North is up on the page. A step moves [stride] metres along the phone's heading.
- * Azimuth 0 means the top of the phone points north.
+ * A walk with no floor plan. Positions are metres right and forward of the start.
+ * Forward is the direction the top of the phone pointed when the zone test started.
+ * Up on the page is forward. A step moves [stride] metres along the phone's heading
+ * relative to that start.
  */
 object PedestrianTrack {
     const val SAMPLE_STEP_MS = 1_000L
     const val DEFAULT_STRIDE_METERS = 0.75f
     const val MIN_STRIDE_METERS = 0.40f
+    val HEADING_SNAP_CHOICES = floatArrayOf(22f, 45f, 90f)
+    const val DEFAULT_HEADING_SNAP_DEGREES = 22f
     const val MAX_STRIDE_METERS = 1.20f
     /** Keeps the first steps from filling the page. */
     const val MIN_HALF_EXTENT_METERS = 4f
@@ -58,9 +61,62 @@ object PedestrianTrack {
         return total
     }
 
+    const val GRAVITY_MPS2 = 9.80665f
+
+    /** Acceleration along world up. [upX], [upY], [upZ] is that direction in phone axes. */
+    fun verticalAcceleration(
+        x: Float,
+        y: Float,
+        z: Float,
+        upX: Float,
+        upY: Float,
+        upZ: Float
+    ): Float = x * upX + y * upY + z * upZ
+
+    /** Removes gravity from a raw accelerometer sample. The result is in phone axes. */
+    fun removeGravity(
+        x: Float,
+        y: Float,
+        z: Float,
+        upX: Float,
+        upY: Float,
+        upZ: Float
+    ): FloatArray {
+        return floatArrayOf(
+            x - GRAVITY_MPS2 * upX,
+            y - GRAVITY_MPS2 * upY,
+            z - GRAVITY_MPS2 * upZ
+        )
+    }
+
     fun coerceStride(meters: Float): Float {
         if (!meters.isFinite()) return DEFAULT_STRIDE_METERS
         return meters.coerceIn(MIN_STRIDE_METERS, MAX_STRIDE_METERS)
+    }
+
+    /** Snap strength in degrees. The choices are 22, 45, and 90. */
+    fun coerceHeadingSnapDegrees(degrees: Float): Float {
+        if (!degrees.isFinite()) return DEFAULT_HEADING_SNAP_DEGREES
+        return HEADING_SNAP_CHOICES.minBy { abs(it - degrees) }
+    }
+
+    fun headingSnapChoiceIndex(degrees: Float): Int {
+        val choice = coerceHeadingSnapDegrees(degrees)
+        val index = HEADING_SNAP_CHOICES.indexOfFirst { it == choice }
+        return if (index < 0) 0 else index
+    }
+
+    /** Signed turn from [from] to [to], in degrees, from -180 to 180. */
+    fun headingDelta(from: Float, to: Float): Float {
+        var delta = normalizeHeading(to) - normalizeHeading(from)
+        if (delta > 180f) delta -= 360f
+        if (delta < -180f) delta += 360f
+        return delta
+    }
+
+    /** Clockwise degrees from the starting aim [startDegrees] to [currentDegrees]. 0 is forward. */
+    fun relativeHeading(startDegrees: Float, currentDegrees: Float): Float {
+        return normalizeHeading(headingDelta(startDegrees, currentDegrees))
     }
 
     /** Heading in degrees, wrapped to 0 until 360. 0 is north. */
@@ -207,12 +263,27 @@ object PedestrianTrack {
      * Image fractions for [samples]. The start stays at the middle.
      * The farthest point stays inside [PAGE_MARGIN]. North decreases Y.
      */
+    /**
+     * Puts the latest position at the centre. Earlier positions are metres right and
+     * forward of where you are now, so a straight walk sits below the centre.
+     */
+    fun aroundLatest(samples: List<PedestrianSample>): List<PedestrianSample> {
+        val latest = samples.lastOrNull() ?: return samples
+        return samples.map { sample ->
+            sample.copy(
+                eastMeters = sample.eastMeters - latest.eastMeters,
+                northMeters = sample.northMeters - latest.northMeters
+            )
+        }
+    }
+
     fun project(samples: List<PedestrianSample>, zoneStartMs: Long): List<WalkPin> {
         if (samples.isEmpty()) return emptyList()
-        val scale = (0.5f - PAGE_MARGIN) / halfExtent(samples)
-        return samples.map { sample ->
+        val shifted = aroundLatest(samples)
+        val scale = (0.5f - PAGE_MARGIN) / halfExtent(shifted)
+        return shifted.mapIndexed { index, sample ->
             WalkPin(
-                placedAtMs = zoneStartMs + sample.elapsedMs,
+                placedAtMs = zoneStartMs + samples[index].elapsedMs,
                 xFraction = (0.5f + sample.eastMeters * scale).coerceIn(0f, 1f),
                 yFraction = (0.5f - sample.northMeters * scale).coerceIn(0f, 1f)
             )
@@ -236,7 +307,9 @@ data class PedestrianLive(
     val bearingDegrees: Int? = null,
     val steps: Int? = null,
     val distanceMeters: Float? = null,
-    val canUndo: Boolean = false
+    val canUndo: Boolean = false,
+    /** Direction the path is holding, when straight lines are on. */
+    val snappedBearingDegrees: Int? = null
 )
 
 /** The position a removed step left, and the position to draw instead. */
@@ -253,10 +326,10 @@ data class PedestrianGrid(
 )
 
 /**
- * A step from the accelerometer when the step detector is missing.
- * Resting magnitude is about 1 g. A step is a rise through [HIGH] after a fall through [LOW].
+ * One step from the up-and-down bounce of a phone held in the hand.
+ * Gravity is already removed. A step is a rise through [HIGH] after a fall through [LOW].
  */
-class StepPeakDetector {
+class VerticalStepDetector {
     private var armed = true
     private var lastStepMs = Long.MIN_VALUE
 
@@ -265,20 +338,75 @@ class StepPeakDetector {
         lastStepMs = Long.MIN_VALUE
     }
 
-    fun onMagnitude(magnitude: Float, nowMs: Long): Boolean {
-        if (!magnitude.isFinite()) return false
-        if (armed && magnitude >= HIGH && nowMs - lastStepMs >= MIN_GAP_MS) {
+    fun onVertical(vertical: Float, nowMs: Long): Boolean {
+        val strength = abs(vertical)
+        if (!strength.isFinite()) return false
+        val gapOpen = lastStepMs == Long.MIN_VALUE || nowMs - lastStepMs >= MIN_GAP_MS
+        if (armed && strength >= HIGH && gapOpen) {
             armed = false
             lastStepMs = nowMs
             return true
         }
-        if (magnitude <= LOW) armed = true
+        if (strength <= LOW) armed = true
         return false
     }
 
     companion object {
-        const val HIGH = 13f
-        const val LOW = 10.5f
-        const val MIN_GAP_MS = 300L
+        const val HIGH = 1.2f
+        const val LOW = 0.4f
+        const val MIN_GAP_MS = 400L
+    }
+}
+
+/**
+ * Guide arrow for straight walks.
+ * Before a zone test, the arrow follows the top of the phone.
+ * When the test starts, [capture] holds that direction. Later turns move the arrow
+ * in whole steps of 22°, 45°, or 90°.
+ */
+class HeadingSnap {
+    private var arrow: Float? = null
+    private var guiding = false
+
+    fun reset() {
+        arrow = null
+        guiding = false
+    }
+
+    /** Live direction of the top of the phone, before a line has been captured. */
+    fun followPhone(raw: Float): Float {
+        val sample = PedestrianTrack.normalizeHeading(raw)
+        if (!guiding) arrow = sample
+        return if (guiding) arrow ?: sample else sample
+    }
+
+    /** The zone test starts. The arrow holds [raw], the way the phone is pointing. */
+    fun capture(raw: Float): Float {
+        val sample = PedestrianTrack.normalizeHeading(raw)
+        arrow = sample
+        guiding = true
+        return sample
+    }
+
+    /**
+     * While a line is held, move the arrow by whole [snapDegrees] steps once the phone
+     * has turned that far from the arrow.
+     */
+    fun direction(raw: Float, snapDegrees: Float): Float {
+        val sample = PedestrianTrack.normalizeHeading(raw)
+        if (!guiding) return capture(sample)
+        val step = PedestrianTrack.coerceHeadingSnapDegrees(snapDegrees)
+        var held = arrow ?: sample
+        var delta = PedestrianTrack.headingDelta(held, sample)
+        while (delta >= step) {
+            held = PedestrianTrack.normalizeHeading(held + step)
+            delta -= step
+        }
+        while (delta <= -step) {
+            held = PedestrianTrack.normalizeHeading(held - step)
+            delta += step
+        }
+        arrow = held
+        return held
     }
 }

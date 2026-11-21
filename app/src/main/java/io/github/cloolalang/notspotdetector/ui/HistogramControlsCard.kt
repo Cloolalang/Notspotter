@@ -1179,7 +1179,7 @@ private fun ZoneTestPanel(
                     spans = PedestrianKpiColors.legs(pdrPins, pedestrianKpi, pedestrianTapes()),
                     zoneStartMs = started,
                     zoneEndMs = markedEnd,
-                    halfExtentMeters = PedestrianTrack.halfExtent(markedSamples),
+                    halfExtentMeters = PedestrianTrack.halfExtent(PedestrianTrack.aroundLatest(markedSamples)),
                     caption = caption,
                     legendTitle = pdrLegendTitle,
                     legend = pdrLegend
@@ -1365,16 +1365,33 @@ private fun ZoneTestPanel(
     LaunchedEffect(monitorSettings.pedestrianStrideMeters) {
         zoneTest.setPedestrianStride(monitorSettings.pedestrianStrideMeters)
     }
-    LaunchedEffect(monitorSettings.pedestrianDeadReckoning, running) {
+    LaunchedEffect(monitorSettings.pedestrianTapSteps) {
+        zoneTest.setPedestrianTapSteps(monitorSettings.pedestrianTapSteps)
+    }
+    LaunchedEffect(monitorSettings.pedestrianHeadingSnap, monitorSettings.pedestrianHeadingSnapDegrees) {
+        zoneTest.setPedestrianHeadingSnap(
+            monitorSettings.pedestrianHeadingSnap,
+            monitorSettings.pedestrianHeadingSnapDegrees
+        )
+    }
+    LaunchedEffect(monitorSettings.pedestrianDeadReckoning, running, monitorSettings.pedestrianHeadingSnap) {
         if (followsMaster) return@LaunchedEffect
         if (!monitorSettings.pedestrianDeadReckoning) {
             zoneTest.stopPedestrian()
             return@LaunchedEffect
         }
-        if (running && !zoneTest.pedestrianTracking.value) {
-            val began = startMs
-            val elapsedNow = if (began == null) 0L else (tapeNowMs - began).coerceAtLeast(0L)
-            zoneTest.resumePedestrian(context, monitorSettings.pedestrianStrideMeters, elapsedNow)
+        if (running) {
+            if (!zoneTest.pedestrianTracking.value) {
+                val began = startMs
+                val elapsedNow = if (began == null) 0L else (tapeNowMs - began).coerceAtLeast(0L)
+                zoneTest.resumePedestrian(context, monitorSettings.pedestrianStrideMeters, elapsedNow)
+            }
+            return@LaunchedEffect
+        }
+        if (monitorSettings.pedestrianHeadingSnap) {
+            zoneTest.startPedestrianAiming(context)
+        } else {
+            zoneTest.stopPedestrian()
         }
     }
     LaunchedEffect(isMonitoring) {
@@ -1608,6 +1625,69 @@ private fun ZoneTestPanel(
                         valueRange = PedestrianTrack.MIN_STRIDE_METERS..PedestrianTrack.MAX_STRIDE_METERS,
                         steps = ((PedestrianTrack.MAX_STRIDE_METERS - PedestrianTrack.MIN_STRIDE_METERS) / 0.05f).roundToInt() - 1
                     )
+                    val tapSteps = monitorSettings.pedestrianTapSteps
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.zone_test_pdr_tap_mode),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = stringResource(R.string.zone_test_pdr_tap_mode_hint),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = tapSteps,
+                            onCheckedChange = { monitor.updatePedestrianTapSteps(it) }
+                        )
+                    }
+                    val headingSnap = monitorSettings.pedestrianHeadingSnap
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.zone_test_pdr_heading_snap),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = stringResource(R.string.zone_test_pdr_heading_snap_hint),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = headingSnap,
+                            onCheckedChange = { monitor.updatePedestrianHeadingSnap(it) }
+                        )
+                    }
+                    if (headingSnap) {
+                        val snapDegrees = monitorSettings.pedestrianHeadingSnapDegrees
+                        val choices = PedestrianTrack.HEADING_SNAP_CHOICES
+                        Text(
+                            text = stringResource(R.string.zone_test_pdr_heading_snap_angle, snapDegrees),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Slider(
+                            value = PedestrianTrack.headingSnapChoiceIndex(snapDegrees).toFloat(),
+                            onValueChange = { raw ->
+                                val index = raw.roundToInt().coerceIn(0, choices.lastIndex)
+                                monitor.updatePedestrianHeadingSnapDegrees(choices[index])
+                            },
+                            valueRange = 0f..choices.lastIndex.toFloat(),
+                            steps = choices.size - 2
+                        )
+                    }
                 }
                 if (!running) {
                     Button(
@@ -1626,14 +1706,6 @@ private fun ZoneTestPanel(
                         enabled = !followsMaster,
                         onConfirm = { stopZoneNow.value.invoke() }
                     )
-                    if (!followsMaster) {
-                        Button(
-                            onClick = { zoneTest.tapPedestrianStep() },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(text = stringResource(R.string.zone_test_pdr_tap_step))
-                        }
-                    }
                 }
                 if (!followsMaster) {
                     val canUndo by zoneTest.pedestrianCanUndo
@@ -1658,7 +1730,13 @@ private fun ZoneTestPanel(
                     }
                 }
                 Text(
-                    text = stringResource(R.string.zone_test_pdr_hold),
+                    text = stringResource(
+                        if (!followsMaster && monitorSettings.pedestrianTapSteps) {
+                            R.string.zone_test_pdr_hold
+                        } else {
+                            R.string.zone_test_pdr_hold_motion
+                        }
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1671,6 +1749,12 @@ private fun ZoneTestPanel(
                     zoneStartMs = pdrZoneStart,
                     zoneEndMs = if (running) tapeNowMs else endMs,
                     live = zoneTest.pedestrianLive,
+                    trackRotation = running && !followsMaster,
+                    onStepTap = if (running && !followsMaster && monitorSettings.pedestrianTapSteps) {
+                        { zoneTest.tapPedestrianStep() }
+                    } else {
+                        null
+                    },
                     modifier = Modifier.expandPastPadding(20.dp)
                 )
                 if (walkDebugEnabled) {

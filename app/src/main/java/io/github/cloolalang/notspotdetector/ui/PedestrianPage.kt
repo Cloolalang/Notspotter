@@ -13,6 +13,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
@@ -40,11 +41,14 @@ import io.github.cloolalang.notspotdetector.model.PlanCamera
 import io.github.cloolalang.notspotdetector.model.WalkPin
 import io.github.cloolalang.notspotdetector.model.WalkRoute
 import kotlin.math.abs
+import kotlin.math.cos
 import kotlin.math.roundToInt
+import kotlin.math.sin
 
 /**
  * Black page for a pedestrian walk. The start is the middle. North is up.
- * Pinch to zoom and drag to look around. The saved JPEG fits the whole trail.
+ * A tap counts one step. Pinch to zoom and drag to look around when zoomed in.
+ * The saved JPEG fits the whole trail.
  */
 @Composable
 fun PedestrianPage(
@@ -54,15 +58,16 @@ fun PedestrianPage(
     zoneStartMs: Long?,
     zoneEndMs: Long?,
     live: State<PedestrianLive>,
+    onStepTap: (() -> Unit)? = null,
+    trackRotation: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     var camera by remember { mutableStateOf(PlanCamera()) }
     val status by live
-    val grid = PedestrianTrack.grid(PedestrianTrack.halfExtent(samples))
+    val shown = PedestrianTrack.aroundLatest(samples)
+    val grid = PedestrianTrack.grid(PedestrianTrack.halfExtent(shown))
     val unknown = stringResource(R.string.pedestrian_live_unknown)
-    val bearingText = status.bearingDegrees?.let { degrees ->
-        stringResource(R.string.pedestrian_live_bearing, degrees)
-    } ?: unknown
+    val forwardText = stringResource(R.string.pedestrian_forward)
     val stepsText = status.steps?.let { count ->
         pluralStringResource(R.plurals.pedestrian_live_steps, count, count)
     } ?: unknown
@@ -79,6 +84,7 @@ fun PedestrianPage(
     }
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
     val image = PedestrianTrack.PAGE_PIXELS.toFloat()
+    val stepTap = rememberUpdatedState(onStepTap)
     Canvas(
         modifier = modifier
             .fillMaxWidth()
@@ -91,6 +97,7 @@ fun PedestrianPage(
                     val down = awaitFirstDown(requireUnconsumed = false)
                     val start = down.position
                     var twoFinger = false
+                    var moved = false
                     var fingersDown = true
                     while (fingersDown) {
                         val event = awaitPointerEvent()
@@ -133,20 +140,26 @@ fun PedestrianPage(
                             val change = pressed.first()
                             val dx = change.position.x - start.x
                             val dy = change.position.y - start.y
-                            if (dx * dx + dy * dy > slop * slop && camera.zoom > WalkRoute.MIN_ZOOM + 0.01f) {
-                                val delta = change.position - change.previousPosition
-                                camera = WalkRoute.moveCentre(
-                                    viewWidth(),
-                                    viewHeight(),
-                                    image,
-                                    image,
-                                    camera,
-                                    delta.x,
-                                    delta.y
-                                )
+                            if (dx * dx + dy * dy > slop * slop) {
+                                moved = true
+                                if (camera.zoom > WalkRoute.MIN_ZOOM + 0.01f) {
+                                    val delta = change.position - change.previousPosition
+                                    camera = WalkRoute.moveCentre(
+                                        viewWidth(),
+                                        viewHeight(),
+                                        image,
+                                        image,
+                                        camera,
+                                        delta.x,
+                                        delta.y
+                                    )
+                                }
                             }
                         }
                         fingersDown = event.changes.any { it.pressed }
+                    }
+                    if (!twoFinger && !moved) {
+                        stepTap.value?.invoke()
                     }
                 }
             }
@@ -191,6 +204,24 @@ fun PedestrianPage(
             drawCircle(Color.White, radius + 1.5f, at)
             drawCircle(Color.Black, radius, at)
         }
+        val arrowDegrees = if (trackRotation) status.snappedBearingDegrees ?: 0 else 0
+        fun along(from: Offset, degrees: Double, distance: Float): Offset {
+            val rad = Math.toRadians(degrees)
+            return Offset(
+                from.x + (sin(rad) * distance).toFloat(),
+                from.y - (cos(rad) * distance).toFloat()
+            )
+        }
+        val origin = place(ImagePoint(0.5f, 0.5f))
+        val length = minOf(size.width, size.height) * 0.28f
+        val tip = along(origin, arrowDegrees.toDouble(), length)
+        val shaft = (minOf(size.width, size.height) * 0.008f).coerceIn(4f, 10f)
+        val red = Color(0xFFFF3B30)
+        drawLine(red, origin, tip, shaft, cap = StrokeCap.Round)
+        val head = length * 0.28f
+        drawLine(red, tip, along(tip, arrowDegrees + 152.0, head), shaft, cap = StrokeCap.Round)
+        drawLine(red, tip, along(tip, arrowDegrees + 208.0, head), shaft, cap = StrokeCap.Round)
+        drawCircle(red, shaft * 1.4f, origin)
         val start = zoneStartMs
         val end = zoneEndMs
         if (start != null && end != null) {
@@ -207,11 +238,11 @@ fun PedestrianPage(
                 )
             }
         }
-        val north = textMeasurer.measure("N", labelStyle)
-        val northAt = place(ImagePoint(0.5f, 0.04f))
-        drawText(north, topLeft = Offset(northAt.x - north.size.width / 2f, northAt.y))
+        val forward = textMeasurer.measure(forwardText, labelStyle)
+        val forwardAt = place(ImagePoint(0.5f, 0.04f))
+        drawText(forward, topLeft = Offset(forwardAt.x - forward.size.width / 2f, forwardAt.y))
 
-        val readout = listOf(bearingText, stepsText, distanceText, gridText).map { line ->
+        val readout = listOf(stepsText, distanceText, gridText).map { line ->
             textMeasurer.measure(line, readoutStyle)
         }
         val gap = 2f

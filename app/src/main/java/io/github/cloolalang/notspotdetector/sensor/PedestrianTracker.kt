@@ -11,23 +11,24 @@ import android.os.Looper
 import android.os.SystemClock
 import androidx.core.content.ContextCompat
 import io.github.cloolalang.notspotdetector.data.PedestrianDebugLogger
+import io.github.cloolalang.notspotdetector.model.HeadingSnap
 import io.github.cloolalang.notspotdetector.model.PedestrianDebugSnapshot
 import io.github.cloolalang.notspotdetector.model.PedestrianLive
 import io.github.cloolalang.notspotdetector.model.PedestrianPosition
 import io.github.cloolalang.notspotdetector.model.PedestrianRetraction
 import io.github.cloolalang.notspotdetector.model.PedestrianSample
 import io.github.cloolalang.notspotdetector.model.PedestrianTrack
-import io.github.cloolalang.notspotdetector.model.StepPeakDetector
+import io.github.cloolalang.notspotdetector.model.VerticalStepDetector
 import java.util.Locale
 import kotlin.math.abs
-import kotlin.math.hypot
 import kotlin.math.roundToInt
 
 /**
- * Step detector plus rotation vector. North is azimuth 0, and the top of the phone
- * is the walking direction, so the phone is held flat with the screen up.
- * The accelerometer is read as well. Its peaks count a step when the step detector
- * is missing, permission is denied, or the detector stays quiet. Acceleration is not integrated.
+ * Compass plus a step count for a phone held flat in the hand, screen up, top edge
+ * pointing the way you walk. North is azimuth 0.
+ * With [tapSteps] off, a step is the up-and-down bounce, with gravity removed, and the
+ * hardware step detector still counts a step when it fires. With [tapSteps] on, only a
+ * tap on the page counts. Acceleration is not integrated.
  */
 class PedestrianTracker(
     context: Context
@@ -37,29 +38,44 @@ class PedestrianTracker(
     private val handler = Handler(Looper.getMainLooper())
     private val rotation = FloatArray(9)
     private val orientation = FloatArray(3)
-    private val peaks = StepPeakDetector()
+    private val peaks = VerticalStepDetector()
+    private val headingSnapFilter = HeadingSnap()
 
     var strideMeters: Float = PedestrianTrack.DEFAULT_STRIDE_METERS
+    /** On, page taps count steps and the motion sensors do not. */
+    var tapSteps: Boolean = false
+    /** On, the plotted line holds its direction through small compass wobble. */
+    var headingSnap: Boolean = false
+    var headingSnapDegrees: Float = PedestrianTrack.DEFAULT_HEADING_SNAP_DEGREES
     var onLive: ((PedestrianLive) -> Unit)? = null
 
     private var onSample: ((PedestrianSample) -> Unit)? = null
     private var position = PedestrianPosition()
     private var heading: Float? = null
+    private var plotHeading: Float? = null
+    /** Phone compass at the start of the zone test. Page forward is this direction. */
+    private var startHeading: Float? = null
     private var originElapsed = 0L
-    private var usingAccelerometer = false
+    private var usingVertical = false
+    private var usingRawAccelerometer = false
+    private var hasUp = false
+    private var upX = 0f
+    private var upY = 0f
+    private var upZ = 1f
     private var stepDetectorPresent = false
     private var lastDetectorStepMs = Long.MIN_VALUE
     private var tracking = false
+    private var aiming = false
     private val stepStack = ArrayDeque<TakenStep>()
     private var stepsAccepted = 0
     private var stepsDropped = 0
     private var distanceMeters = 0f
     private var lastBearingDegrees: Int? = null
     private var lastPublished: PedestrianLive? = null
-    private var maxAccel = 0f
+    private var maxVertical = 0f
     private var rotationLabel = "missing"
     private var stepSource = "none"
-    private var accelLabel = "off"
+    private var verticalLabel = "off"
     private var lastLoggedHeading: Float? = null
     private var lastHeadingLogMs = 0L
 
@@ -96,17 +112,52 @@ class PedestrianTracker(
             )
         }
         tracking = false
+        aiming = false
         onSample = null
-        usingAccelerometer = false
+        usingVertical = false
+        usingRawAccelerometer = false
         stepDetectorPresent = false
     }
 
     fun position(): PedestrianPosition = position
 
-    /** One step along the current compass heading. Used by the on-screen tap button. */
+    /**
+     * Compass only, before a zone test. With straight lines on, the arrow follows
+     * the top of the phone so it can be aimed.
+     */
+    fun startAiming() {
+        if (tracking || aiming) return
+        handler.removeCallbacksAndMessages(null)
+        sensorManager.unregisterListener(this)
+        registerRotation()
+        headingSnapFilter.reset()
+        aiming = true
+        publishLive()
+    }
+
+    /** One step along the current compass heading. Used when tap mode is on. */
     fun manualStep() {
-        if (!tracking) return
+        if (!tracking || !tapSteps) return
         takeStep("manual")
+    }
+
+    /** Locks the guide to the phone's current direction, or lets it follow again. */
+    fun realignHeadingSnap() {
+        val current = heading
+        when {
+            current == null || !headingSnap -> {
+                headingSnapFilter.reset()
+                plotHeading = current
+            }
+            tracking -> {
+                plotHeading = headingSnapFilter.capture(current)
+            }
+            else -> {
+                headingSnapFilter.reset()
+                plotHeading = headingSnapFilter.followPhone(current)
+            }
+        }
+        publishLive()
     }
 
     /** Removes the newest step and returns the positions the plot should follow. */
@@ -135,41 +186,72 @@ class PedestrianTracker(
     }
 
     override fun onSensorChanged(event: SensorEvent) {
-        if (!tracking) return
+        if (!tracking && !aiming) return
         when (event.sensor.type) {
             Sensor.TYPE_ROTATION_VECTOR -> {
                 SensorManager.getRotationMatrixFromVector(rotation, event.values)
                 SensorManager.getOrientation(rotation, orientation)
+                upX = rotation[6]
+                upY = rotation[7]
+                upZ = rotation[8]
+                hasUp = true
                 val degrees = Math.toDegrees(orientation[0].toDouble()).toFloat()
                 val smoothed = PedestrianTrack.smoothHeading(heading, degrees)
                 heading = smoothed
+                if (tracking && startHeading == null) {
+                    startHeading = if (headingSnap) {
+                        headingSnapFilter.capture(smoothed)
+                    } else {
+                        smoothed
+                    }
+                    plotHeading = startHeading
+                } else {
+                    plotHeading = when {
+                        headingSnap && tracking -> headingSnapFilter.direction(smoothed, headingSnapDegrees)
+                        headingSnap -> headingSnapFilter.followPhone(smoothed)
+                        else -> smoothed
+                    }
+                }
                 noteHeading(smoothed)
                 publishLive()
             }
             Sensor.TYPE_STEP_DETECTOR -> {
+                if (!tracking || tapSteps) return
                 lastDetectorStepMs = SystemClock.elapsedRealtime()
                 takeStep("step-detector")
             }
-            Sensor.TYPE_ACCELEROMETER -> {
-                if (!usingAccelerometer || event.values.size < 3) return
-                val now = SystemClock.elapsedRealtime()
-                val magnitude = hypot(event.values[0], hypot(event.values[1], event.values[2]))
-                if (magnitude > maxAccel) maxAccel = magnitude
-                val peaked = peaks.onMagnitude(magnitude, now)
-                if (peaked && PedestrianTrack.accelerometerMayCountStep(
-                        stepDetectorPresent,
-                        lastDetectorStepMs,
-                        now
+            Sensor.TYPE_LINEAR_ACCELERATION -> {
+                if (!tracking || !usingVertical || usingRawAccelerometer || event.values.size < 3 || !hasUp) return
+                considerVertical(
+                    PedestrianTrack.verticalAcceleration(
+                        event.values[0],
+                        event.values[1],
+                        event.values[2],
+                        upX,
+                        upY,
+                        upZ
                     )
-                ) {
-                    takeStep("accelerometer")
-                }
+                )
+            }
+            Sensor.TYPE_ACCELEROMETER -> {
+                if (!tracking || !usingRawAccelerometer || event.values.size < 3 || !hasUp) return
+                val linear = PedestrianTrack.removeGravity(
+                    event.values[0],
+                    event.values[1],
+                    event.values[2],
+                    upX,
+                    upY,
+                    upZ
+                )
+                considerVertical(
+                    PedestrianTrack.verticalAcceleration(linear[0], linear[1], linear[2], upX, upY, upZ)
+                )
             }
         }
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
-        if (!tracking || sensor?.type != Sensor.TYPE_ROTATION_VECTOR) return
+        if ((!tracking && !aiming) || sensor?.type != Sensor.TYPE_ROTATION_VECTOR) return
         log(
             "compass",
             "accuracy=$accuracy",
@@ -183,9 +265,25 @@ class PedestrianTracker(
         position: PedestrianPosition,
         resuming: Boolean
     ) {
+        val aim = heading
         this.onSample = onSample
         this.position = position
-        heading = null
+        if (!resuming) {
+            headingSnapFilter.reset()
+            startHeading = null
+            if (aim != null) {
+                startHeading = if (headingSnap) {
+                    headingSnapFilter.capture(aim)
+                } else {
+                    PedestrianTrack.normalizeHeading(aim)
+                }
+                heading = startHeading
+                plotHeading = startHeading
+            } else {
+                heading = null
+                plotHeading = null
+            }
+        }
         peaks.reset()
         if (!resuming) {
             stepsAccepted = 0
@@ -195,19 +293,23 @@ class PedestrianTracker(
             lastPublished = null
         }
         stepsDropped = 0
-        maxAccel = 0f
+        maxVertical = 0f
+        hasUp = false
         lastDetectorStepMs = Long.MIN_VALUE
         lastLoggedHeading = null
         lastHeadingLogMs = 0L
         originElapsed = SystemClock.elapsedRealtime()
+        aiming = false
         tracking = true
         registerSensors()
         log(
             if (resuming) "resume" else "start",
-            "stride=${fmt(strideMeters)} permission=${permissionLabel()} rotation=$rotationLabel " +
-                "step=$stepSource accel=$accelLabel east=${fmt(position.eastMeters)} " +
-                "north=${fmt(position.northMeters)}",
-            suspect = rotationLabel == "missing" || stepSource == "none"
+            "stride=${fmt(strideMeters)} mode=${if (tapSteps) "tap" else "accelerometer"} " +
+                "snap=${if (headingSnap) fmt(headingSnapDegrees) + "°" else "off"} " +
+                "permission=${permissionLabel()} rotation=$rotationLabel " +
+                "step=$stepSource vertical=$verticalLabel threshold=${fmt(VerticalStepDetector.HIGH)} " +
+                "east=${fmt(position.eastMeters)} north=${fmt(position.northMeters)}",
+            suspect = rotationLabel == "missing" || (!tapSteps && stepSource == "none")
         )
         emit(0L)
         publishLive()
@@ -215,22 +317,25 @@ class PedestrianTracker(
     }
 
     private fun takeStep(source: String) {
-        val azimuth = heading
-        if (azimuth == null) {
+        val azimuth = if (headingSnap) plotHeading ?: heading else heading
+        val origin = startHeading
+        if (azimuth == null || origin == null) {
             stepsDropped++
             log("step", "ignored source=$source reason=no heading", suspect = true)
             return
         }
+        val relative = PedestrianTrack.relativeHeading(origin, azimuth)
         val stride = PedestrianTrack.coerceStride(strideMeters)
         val before = position
-        position = PedestrianTrack.afterStep(position, azimuth, stride)
+        position = PedestrianTrack.afterStep(position, relative, stride)
         stepStack.addLast(TakenStep(before, stride))
         stepsAccepted++
         distanceMeters += stride
         publishLive()
         log(
             "step",
-            "accepted source=$source heading=${azimuth.roundToInt()}° stride=${fmt(strideMeters)} " +
+            "accepted source=$source relative=${relative.roundToInt()}° " +
+                "stride=${fmt(strideMeters)} " +
                 "east=${fmt(position.eastMeters)} north=${fmt(position.northMeters)} steps=$stepsAccepted"
         )
     }
@@ -242,10 +347,10 @@ class PedestrianTracker(
                 "sample",
                 "t=${elapsedMs / 1000}s east=${fmt(position.eastMeters)} north=${fmt(position.northMeters)} " +
                     "heading=${headingText()} steps=$stepsAccepted dropped=$stepsDropped " +
-                    "source=$stepSource maxAccel=${fmt(maxAccel)} $note",
+                    "source=$stepSource maxVertical=${fmt(maxVertical)} $note",
                 suspect = suspect
             )
-            maxAccel = 0f
+            maxVertical = 0f
         }
         onSample?.invoke(
             PedestrianSample(
@@ -260,17 +365,20 @@ class PedestrianTracker(
         if (rotationLabel == "missing" || heading == null) {
             return "no compass heading, steps are dropped" to true
         }
+        if (tapSteps) {
+            return "tap mode" to false
+        }
         if (stepSource == "none") {
             return "no step sensor" to true
         }
         if (stepsAccepted == 0 && elapsedMs >= 3_000L) {
-            if (!usingAccelerometer) return "step detector has not fired" to true
-            val peak = fmt(maxAccel)
-            val high = fmt(StepPeakDetector.HIGH)
-            val why = if (maxAccel >= StepPeakDetector.HIGH) {
-                "no steps, peak $peak reached $high but the step was not armed"
+            if (!usingVertical) return "step detector has not fired" to true
+            val peak = fmt(maxVertical)
+            val high = fmt(VerticalStepDetector.HIGH)
+            val why = if (maxVertical >= VerticalStepDetector.HIGH) {
+                "no steps, vertical peak $peak reached $high but the step was not armed"
             } else {
-                "no steps, peak $peak below $high"
+                "no steps, vertical peak $peak below $high"
             }
             return why to true
         }
@@ -298,15 +406,23 @@ class PedestrianTracker(
 
     private fun publishLive() {
         val live = PedestrianLive(
-            bearingDegrees = PedestrianTrack.bearingDegrees(heading) ?: lastBearingDegrees,
             steps = stepsAccepted,
             distanceMeters = distanceMeters,
-            canUndo = stepStack.isNotEmpty()
+            canUndo = stepStack.isNotEmpty(),
+            snappedBearingDegrees = arrowDegrees()
         )
-        if (live.bearingDegrees != null) lastBearingDegrees = live.bearingDegrees
         if (live == lastPublished) return
         lastPublished = live
         onLive?.invoke(live)
+    }
+
+    /** Arrow angle on the page. 0 points forward, clockwise from the starting aim. */
+    private fun arrowDegrees(): Int? {
+        if (!tracking) return null
+        val origin = startHeading ?: return 0
+        val current = if (headingSnap) plotHeading ?: heading else heading
+        if (current == null) return 0
+        return PedestrianTrack.bearingDegrees(PedestrianTrack.relativeHeading(origin, current))
     }
 
     private fun headingText(): String {
@@ -314,12 +430,16 @@ class PedestrianTracker(
         return "${azimuth.roundToInt()}°"
     }
 
-    private fun registerSensors() {
+    private fun registerRotation() {
         val rotationSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
         rotationLabel = rotationSensor?.name ?: "missing"
         if (rotationSensor != null) {
             sensorManager.registerListener(this, rotationSensor, SensorManager.SENSOR_DELAY_GAME, handler)
         }
+    }
+
+    private fun registerSensors() {
+        registerRotation()
         val stepSensor = if (stepDetectorAllowed()) {
             sensorManager.getDefaultSensor(Sensor.TYPE_STEP_DETECTOR)
         } else {
@@ -329,19 +449,39 @@ class PedestrianTracker(
         if (stepSensor != null) {
             sensorManager.registerListener(this, stepSensor, SensorManager.SENSOR_DELAY_NORMAL, handler)
         }
+        val linear = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)
         val accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
-        if (accelerometer != null) {
-            usingAccelerometer = true
-            accelLabel = accelerometer.name ?: "accelerometer"
+        if (linear != null) {
+            usingVertical = true
+            usingRawAccelerometer = false
+            verticalLabel = linear.name ?: "linear"
+            sensorManager.registerListener(this, linear, SensorManager.SENSOR_DELAY_GAME, handler)
+        } else if (accelerometer != null) {
+            usingVertical = true
+            usingRawAccelerometer = true
+            verticalLabel = accelerometer.name ?: "accelerometer"
             sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_GAME, handler)
         } else {
-            accelLabel = "missing"
+            usingVertical = false
+            usingRawAccelerometer = false
+            verticalLabel = "missing"
         }
         stepSource = when {
-            stepDetectorPresent && usingAccelerometer -> "step-detector+accelerometer"
+            stepDetectorPresent && usingVertical -> "step-detector+vertical"
             stepDetectorPresent -> "step-detector"
-            usingAccelerometer -> "accelerometer"
+            usingVertical -> "vertical"
             else -> "none"
+        }
+    }
+
+    private fun considerVertical(vertical: Float) {
+        val strength = abs(vertical)
+        if (strength > maxVertical) maxVertical = strength
+        if (tapSteps) return
+        val now = SystemClock.elapsedRealtime()
+        val peaked = peaks.onVertical(vertical, now)
+        if (peaked && PedestrianTrack.accelerometerMayCountStep(stepDetectorPresent, lastDetectorStepMs, now)) {
+            takeStep("vertical")
         }
     }
 

@@ -121,7 +121,7 @@ object PedestrianPageImage {
             this.textSize = textSize
             typeface = Typeface.DEFAULT_BOLD
         }
-        canvas.drawText("N", size / 2f, textSize * 1.4f, north)
+        canvas.drawText("Forward", size / 2f, textSize * 1.4f, north)
     }
 
     private fun drawLegend(

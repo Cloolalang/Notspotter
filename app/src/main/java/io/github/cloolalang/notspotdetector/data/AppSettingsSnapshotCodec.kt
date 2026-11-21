@@ -237,6 +237,9 @@ object AppSettingsSnapshotCodec {
             .put("pedestrianDeadReckoning", settings.pedestrianDeadReckoning)
             .put("pedestrianStrideMeters", settings.pedestrianStrideMeters.toDouble())
             .put("pedestrianKpi", settings.pedestrianKpi.name)
+            .put("pedestrianTapSteps", settings.pedestrianTapSteps)
+            .put("pedestrianHeadingSnap", settings.pedestrianHeadingSnap)
+            .put("pedestrianHeadingSnapDegrees", settings.pedestrianHeadingSnapDegrees.toDouble())
     }
 
     private fun decodeMonitoring(json: JSONObject?): MonitoringSettings {
@@ -331,7 +334,19 @@ object AppSettingsSnapshotCodec {
                 "pedestrianStrideMeters",
                 PedestrianTrack.DEFAULT_STRIDE_METERS.toDouble()
             ).toFloat(),
-            pedestrianKpi = PedestrianKpi.fromStoredName(json.optString("pedestrianKpi", null))
+            pedestrianKpi = PedestrianKpi.fromStoredName(json.optString("pedestrianKpi", null)),
+            pedestrianTapSteps = json.optBoolean(
+                "pedestrianTapSteps",
+                MonitoringSettings.DEFAULT_PEDESTRIAN_TAP_STEPS
+            ),
+            pedestrianHeadingSnap = json.optBoolean(
+                "pedestrianHeadingSnap",
+                MonitoringSettings.DEFAULT_PEDESTRIAN_HEADING_SNAP
+            ),
+            pedestrianHeadingSnapDegrees = json.optDouble(
+                "pedestrianHeadingSnapDegrees",
+                PedestrianTrack.DEFAULT_HEADING_SNAP_DEGREES.toDouble()
+            ).toFloat()
         )
     }
 
