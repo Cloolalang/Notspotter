@@ -65,6 +65,7 @@ sealed interface MultiUeMessage {
     data object PinClear : MultiUeMessage
     data class PdrMode(val on: Boolean) : MultiUeMessage
     data class PdrPoint(val elapsedMs: Long, val eastMeters: Float, val northMeters: Float) : MultiUeMessage
+    data class PdrHeading(val degrees: Int?) : MultiUeMessage
     data object PdrClear : MultiUeMessage
     data object ZoneClear : MultiUeMessage
     data class ZoneSave(val includeHistogram: Boolean) : MultiUeMessage
@@ -135,6 +136,11 @@ object MultiUeProtocol {
 
     fun pdrPoint(elapsedMs: Long, eastMeters: Float, northMeters: Float): String {
         return String.format(Locale.US, "PDRPT %d %.3f %.3f", elapsedMs, eastMeters, northMeters)
+    }
+
+    /** Page arrow in degrees clockwise from forward. "-" means the arrow is fixed forward. */
+    fun pdrHeading(degrees: Int?): String {
+        return if (degrees == null) "PDRHD -" else "PDRHD ${degrees.mod(360)}"
     }
 
     fun zoneClear(): String = "ZONECLEAR"
@@ -280,6 +286,17 @@ object MultiUeProtocol {
                 "0" -> if (parts.size == 2) MultiUeMessage.PdrMode(on = false) else null
                 "*" -> if (parts.size == 2) MultiUeMessage.PdrClear else null
                 else -> null
+            }
+            "PDRHD" -> when (val raw = parts.getOrNull(1)) {
+                "-" -> if (parts.size == 2) MultiUeMessage.PdrHeading(degrees = null) else null
+                else -> {
+                    val degrees = raw?.toIntOrNull()
+                    if (parts.size == 2 && degrees != null && degrees in 0..359) {
+                        MultiUeMessage.PdrHeading(degrees)
+                    } else {
+                        null
+                    }
+                }
             }
             "PDRPT" -> {
                 val elapsed = parts.getOrNull(1)?.toLongOrNull()

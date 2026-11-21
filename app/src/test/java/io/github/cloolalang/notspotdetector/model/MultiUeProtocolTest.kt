@@ -122,6 +122,11 @@ class MultiUeProtocolTest {
             MultiUeMessage.PdrPoint(1_000L, -1.25f, 0.5f),
             MultiUeProtocol.parse(MultiUeProtocol.pdrPoint(1_000L, -1.25f, 0.5f))
         )
+        assertEquals(MultiUeMessage.PdrHeading(45), MultiUeProtocol.parse(MultiUeProtocol.pdrHeading(45)))
+        assertEquals(MultiUeMessage.PdrHeading(0), MultiUeProtocol.parse(MultiUeProtocol.pdrHeading(360)))
+        assertEquals(MultiUeMessage.PdrHeading(null), MultiUeProtocol.parse(MultiUeProtocol.pdrHeading(null)))
+        assertNull(MultiUeProtocol.parse("PDRHD"))
+        assertNull(MultiUeProtocol.parse("PDRHD 360"))
         assertEquals(
             listOf("PDRPT 1000 0.000 0.750"),
             multiUePdrLines(

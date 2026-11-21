@@ -68,6 +68,17 @@ object PedestrianPageImage {
             fill.color = Color.BLACK
             canvas.drawCircle(x(pin.xFraction), y(pin.yFraction), radius, fill)
         }
+        val endRadius = radius + 5f
+        ordered.firstOrNull()?.let { start ->
+            fill.color = Color.rgb(52, 199, 89)
+            canvas.drawCircle(x(start.xFraction), y(start.yFraction), endRadius, fill)
+        }
+        if (ordered.size > 1) {
+            ordered.last().let { finish ->
+                fill.color = Color.rgb(255, 59, 48)
+                canvas.drawCircle(x(finish.xFraction), y(finish.yFraction), endRadius, fill)
+            }
+        }
         val label = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.WHITE
             this.textSize = textSize * 0.85f

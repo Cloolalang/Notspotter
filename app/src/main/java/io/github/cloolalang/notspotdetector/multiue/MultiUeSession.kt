@@ -51,6 +51,7 @@ class MultiUeSession(
         fun onPinClear()
         fun onPdrMode(on: Boolean)
         fun onPdrPoint(elapsedMs: Long, eastMeters: Float, northMeters: Float)
+        fun onPdrHeading(degrees: Int?)
         fun onPdrClear()
         fun onZoneClear()
         fun onZoneSave(includeHistogram: Boolean)
@@ -346,6 +347,7 @@ class MultiUeSession(
                         message.eastMeters,
                         message.northMeters
                     )
+                    is MultiUeMessage.PdrHeading -> listener.onPdrHeading(message.degrees)
                     MultiUeMessage.PdrClear -> listener.onPdrClear()
                     MultiUeMessage.ZoneClear -> listener.onZoneClear()
                     is MultiUeMessage.ZoneSave -> listener.onZoneSave(message.includeHistogram)

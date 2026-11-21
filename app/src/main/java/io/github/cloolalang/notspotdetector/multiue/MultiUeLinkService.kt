@@ -388,6 +388,11 @@ class MultiUeLinkService : android.app.Service(), MultiUeSession.Listener {
         MultiUePedestrian.addPoint(elapsedMs, eastMeters, northMeters)
     }
 
+    override fun onPdrHeading(degrees: Int?) {
+        if (destroyed || repository.loadRole() != MultiUeRole.SLAVE) return
+        MultiUePedestrian.setArrowFromMaster(degrees)
+    }
+
     override fun onPdrClear() {
         if (destroyed || repository.loadRole() != MultiUeRole.SLAVE) return
         MultiUePedestrian.clearPoints()

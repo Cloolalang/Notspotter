@@ -5,6 +5,18 @@ All notable changes to Notspot detector are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.204.0] - 2026-11-21
+
+### Changed
+
+- **Walk ends** — On a pedestrian trail, the start is a green dot and the finish is a red dot, on the live page and in the saved picture.
+
+## [2.203.0] - 2026-11-21
+
+### Changed
+
+- **Slave arrow** — On a linked pedestrian walk, each slave’s red arrow follows the master’s arrow, including while the phone is only being turned.
+
 ## [2.202.0] - 2026-11-21
 
 ### Changed

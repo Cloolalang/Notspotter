@@ -58,6 +58,7 @@ fun PedestrianPage(
     live: State<PedestrianLive>,
     onStepTap: (() -> Unit)? = null,
     trackRotation: Boolean = false,
+    remoteArrowDegrees: Int? = null,
     modifier: Modifier = Modifier
 ) {
     var camera by remember { mutableStateOf(PlanCamera()) }
@@ -205,7 +206,17 @@ fun PedestrianPage(
             drawCircle(Color.White, radius + 1.5f, at)
             drawCircle(Color.Black, radius, at)
         }
-        val arrowDegrees = if (trackRotation) status.snappedBearingDegrees ?: 0 else 0
+        val startPin = pins.minByOrNull { it.placedAtMs }
+        val finishPin = pins.maxByOrNull { it.placedAtMs }
+        val endRadius = radius + 4f
+        if (startPin != null) {
+            drawCircle(Color(0xFF34C759), endRadius, place(ImagePoint(startPin.xFraction, startPin.yFraction)))
+        }
+        if (finishPin != null && pins.size > 1) {
+            drawCircle(Color(0xFFFF3B30), endRadius, place(ImagePoint(finishPin.xFraction, finishPin.yFraction)))
+        }
+        val arrowDegrees = remoteArrowDegrees
+            ?: if (trackRotation) status.snappedBearingDegrees ?: 0 else 0
         fun along(from: Offset, degrees: Double, distance: Float): Offset {
             val rad = Math.toRadians(degrees)
             return Offset(

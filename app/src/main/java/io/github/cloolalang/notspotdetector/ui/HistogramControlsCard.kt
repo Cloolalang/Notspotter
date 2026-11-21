@@ -927,6 +927,7 @@ private fun ZoneTestPanel(
     val walkDebug by monitor.pedestrianDebugSnapshot.collectAsStateWithLifecycle()
     val remotePdr by MultiUePedestrian.enabled.collectAsStateWithLifecycle()
     val remotePdrPoints by MultiUePedestrian.points.collectAsStateWithLifecycle()
+    val remotePdrArrow by MultiUePedestrian.arrowDegrees.collectAsStateWithLifecycle()
     val graphicsLayer = rememberGraphicsLayer()
     val savedTemplate = stringResource(R.string.zone_test_saved)
     val savedWithRouteTemplate = stringResource(R.string.zone_test_saved_with_route)
@@ -1241,13 +1242,21 @@ private fun ZoneTestPanel(
         }
         LaunchedEffect(monitorSettings.pedestrianDeadReckoning) {
             MultiUePedestrian.setEnabled(monitorSettings.pedestrianDeadReckoning)
-            if (!monitorSettings.pedestrianDeadReckoning) return@LaunchedEffect
+            if (!monitorSettings.pedestrianDeadReckoning) {
+                MultiUePedestrian.publishArrow(null)
+                return@LaunchedEffect
+            }
             var previous = emptyList<PdrPointShare>()
             snapshotFlow { pedestrianSamples.map { it.toPdrPoint() } }
                 .collect { next ->
                     MultiUePedestrian.publish(previous, next)
                     previous = next
                 }
+        }
+        LaunchedEffect(monitorSettings.pedestrianDeadReckoning) {
+            if (!monitorSettings.pedestrianDeadReckoning) return@LaunchedEffect
+            snapshotFlow { zoneTest.pedestrianLive.value.snappedBearingDegrees }
+                .collect { MultiUePedestrian.publishArrow(it) }
         }
         var planSent by remember { mutableStateOf(false) }
         LaunchedEffect(floorPlan) {
@@ -1746,6 +1755,7 @@ private fun ZoneTestPanel(
                     spans = PedestrianKpiColors.legs(pdrPins, pedestrianKpi, pedestrianTapes()),
                     live = zoneTest.pedestrianLive,
                     trackRotation = running && !followsMaster,
+                    remoteArrowDegrees = if (followsMaster && running) remotePdrArrow ?: 0 else null,
                     onStepTap = if (running && !followsMaster && monitorSettings.pedestrianTapSteps) {
                         { zoneTest.tapPedestrianStep() }
                     } else {
